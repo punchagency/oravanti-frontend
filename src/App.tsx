@@ -1,32 +1,32 @@
 import {
-  Navigate,
+  Route,
   RouterProvider,
   createBrowserRouter,
+  createRoutesFromElements,
 } from "react-router";
 import { AppShell } from "@/components/layout/app-shell";
-import { DashboardPage } from "@/pages/dashboard";
+import { DashboardPage as AdminDashboardPage } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
+import { SignUpPage } from "@/pages/sign-up";
+import { ContractorSignupPage } from "@/pages/sign-up/contractor";
 
-const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <AppShell />,
-    children: [
-      {
-        index: true,
-        element: <Navigate to="/dashboard" replace />,
-      },
-      {
-        path: "dashboard",
-        element: <DashboardPage />,
-      },
-      {
-        path: "*",
-        element: <NotFoundPage />,
-      },
-    ],
-  },
-]);
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <>
+      <Route path="/signup">
+        <Route index element={<SignUpPage />} />
+        <Route path="contractor" element={<ContractorSignupPage />} />
+      </Route>
+
+      <Route path="/admin" element={<AppShell />}>
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </>,
+  ),
+);
 
 export default function App() {
   return <RouterProvider router={router} />;

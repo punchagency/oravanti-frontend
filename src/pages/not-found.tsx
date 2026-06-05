@@ -16,7 +16,7 @@ export function NotFoundPage() {
         </Text>
       </Box>
       <Button asChild className="brand-button" size="sm" borderRadius="8px">
-        <Link to="/dashboard">Return to dashboard</Link>
+        <Link to="/admin">Return to dashboard</Link>
       </Button>
     </VStack>
   );
