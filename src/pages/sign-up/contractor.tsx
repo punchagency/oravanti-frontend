@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   Banknote,
-  Building2,
   ChevronDown,
   ChevronRight,
   CircleAlert,
@@ -10,20 +9,13 @@ import {
   Folder,
   Landmark,
   Moon,
-  User,
-  UserRoundPlus,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { demoContractorSignup } from "@/api/auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-type SignupRole = "firm" | "contractor" | "client";
 type PaymentMethod = "ach" | "paypal";
-
-type ContractorSignupPageProps = {
-  initialView?: "chooser" | "wizard";
-};
 
 const steps = [
   "Personal details",
@@ -112,86 +104,6 @@ function StepFooter({
         {buttonLabel}
       </button>
     </footer>
-  );
-}
-
-function RoleChooser({ onContinue }: { onContinue: () => void }) {
-  const [role, setRole] = useState<SignupRole | null>(null);
-
-  return (
-    <main className="signup-page">
-      <ThemeCircle />
-      <section className="signup-card signup-card--chooser">
-        <div className="signup-logo">Ov</div>
-        <h1 className="signup-welcome-title">Welcome to Oravanti</h1>
-        <p className="signup-welcome-copy">
-          The all-in-one platform for U.S. law firms, legal professionals, and their clients.
-          Choose how you'd like to get started.
-        </p>
-
-        <div className="signup-role-grid">
-          <RoleCard
-            icon={<Building2 size={20} />}
-            title="Sign up as a firm"
-            description="Law firms and legal practices"
-            selected={role === "firm"}
-            onClick={() => setRole("firm")}
-          />
-          <RoleCard
-            icon={<UserRoundPlus size={20} />}
-            title="Sign up as a contractor"
-            description="Paralegals, interpreters, experts"
-            selected={role === "contractor"}
-            onClick={() => setRole("contractor")}
-          />
-          <RoleCard
-            icon={<User size={20} />}
-            title="Sign up as a client"
-            description="Individuals seeking legal services"
-            selected={role === "client"}
-            onClick={() => setRole("client")}
-          />
-        </div>
-
-        <button
-          className="signup-primary-button signup-primary-button--wide"
-          type="button"
-          disabled={role !== "contractor"}
-          onClick={onContinue}
-        >
-          Continue
-        </button>
-        <a className="signup-login-link" href="/login">
-          Already have an account? Log in
-        </a>
-      </section>
-    </main>
-  );
-}
-
-function RoleCard({
-  icon,
-  title,
-  description,
-  selected,
-  onClick,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={selected ? "signup-role-card is-selected" : "signup-role-card"}
-      type="button"
-      onClick={onClick}
-    >
-      <span className="signup-role-icon">{icon}</span>
-      <strong>{title}</strong>
-      <span>{description}</span>
-    </button>
   );
 }
 
@@ -485,16 +397,15 @@ function CompleteView() {
   );
 }
 
-export function ContractorSignupPage({ initialView = "chooser" }: ContractorSignupPageProps) {
+export function ContractorSignupPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"chooser" | "wizard" | "complete">(initialView);
+  const [complete, setComplete] = useState(false);
   const [step, setStep] = useState(1);
 
   useDocumentTitle("Contractor signup - Oravanti");
 
   function goBack() {
     if (step === 1) {
-      setMode("chooser");
       navigate("/signup");
       return;
     }
@@ -502,19 +413,7 @@ export function ContractorSignupPage({ initialView = "chooser" }: ContractorSign
     setStep((current) => Math.max(1, current - 1));
   }
 
-  if (mode === "complete") return <CompleteView />;
-
-  if (mode === "chooser") {
-    return (
-      <RoleChooser
-        onContinue={() => {
-          setMode("wizard");
-          setStep(1);
-          navigate("/signup/contractor");
-        }}
-      />
-    );
-  }
+  if (complete) return <CompleteView />;
 
   return (
     <main className="signup-page">
@@ -525,7 +424,7 @@ export function ContractorSignupPage({ initialView = "chooser" }: ContractorSign
         {step === 3 ? <BackgroundCheck onBack={goBack} onNext={() => setStep(4)} /> : null}
         {step === 4 ? <ProfileSetup onBack={goBack} onNext={() => setStep(5)} /> : null}
         {step === 5 ? (
-          <PayoutSetup onBack={goBack} onComplete={() => setMode("complete")} />
+          <PayoutSetup onBack={goBack} onComplete={() => setComplete(true)} />
         ) : null}
       </section>
     </main>

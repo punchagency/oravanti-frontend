@@ -8,21 +8,16 @@ import {
 import { AppShell } from "@/components/layout/app-shell";
 import { DashboardPage } from "@/pages/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
+import { SignUpPage } from "@/pages/sign-up";
 import { ContractorSignupPage } from "@/pages/sign-up/contractor";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/signup" element={<ContractorSignupPage />} />
-      <Route
-        path="/signup/contractor"
-        element={<ContractorSignupPage initialView="wizard" />}
-      />
-      <Route path="/sign-up" element={<ContractorSignupPage />} />
-      <Route
-        path="/sign-up/contractor"
-        element={<ContractorSignupPage initialView="wizard" />}
-      />
+      <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/signup/contractor" element={<ContractorSignupPage />} />
+      <Route path="/sign-up" element={<SignUpPage />} />
+      <Route path="/sign-up/contractor" element={<ContractorSignupPage />} />
 
       <Route path="/" element={<AppShell />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
