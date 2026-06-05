@@ -32,3 +32,12 @@ export const verifyTOTP = async (data: { code: string }) => {
 export const getSession = async () => {
   return (await API.get("/auth/get-session")).data;
 };
+
+export const demoContractorSignup = async () => {
+  await new Promise((resolve) => window.setTimeout(resolve, 700));
+
+  return {
+    status: "submitted",
+    reviewWindow: "2-3 business days",
+  };
+};
