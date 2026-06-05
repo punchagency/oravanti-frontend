@@ -21,6 +21,7 @@ export type NavigationIcon =
   | "education"
   | "file"
   | "folder"
+  | "folder-open"
   | "signature"
   | "mail"
   | "message"
@@ -32,6 +33,9 @@ export type NavigationIcon =
   | "globe"
   | "landmark"
   | "book-open-check"
+  | "chart-pie"
+  | "chart-column-big"
+  | "rss"
   | "overview"
   | "users";
 
@@ -57,11 +61,11 @@ export type ContextNavigationGroup = {
 export const primaryNavigation: PrimaryNavigationItem[] = [
   { label: "Overview", section: "overview", path: "/dashboard", icon: "dashboard" },
   { label: "Intake", section: "intake", path: "/intake/pipeline/lead-inbox", icon: "intake" },
-  { label: "Cases", section: "cases", path: "/cases", icon: "folder" },
-  { label: "Staff", section: "staff", path: "/staff", icon: "users" },
-  { label: "Finance", section: "finance", path: "/finance", icon: "billing" },
-  { label: "Analytics", section: "analytics", path: "/analytics", icon: "analytics" },
-  { label: "Settings", section: "settings", path: "/settings", icon: "settings" },
+  { label: "Cases", section: "cases", path: "/cases/all-matters", icon: "folder" },
+  { label: "Staff", section: "staff", path: "/staff/accounts", icon: "users" },
+  { label: "Finance", section: "finance", path: "/finance/invoicing", icon: "billing" },
+  { label: "Analytics", section: "analytics", path: "/analytics/firm-overview", icon: "analytics" },
+  { label: "Settings", section: "settings", path: "/settings/add-on-activation", icon: "settings" },
 ];
 
 export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]> = {
@@ -78,7 +82,7 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
         {
           label: "Intake pipeline",
           path: "/intake/pipeline/lead-inbox",
-          icon: "search",
+          icon: "intake",
           children: [
             { label: "Lead inbox", path: "/intake/pipeline/lead-inbox", icon: "mail" },
             { label: "Conflict check", path: "/intake/pipeline/conflict-check", icon: "shield" },
@@ -88,21 +92,21 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
             { label: "Case opening", path: "/intake/pipeline/case-opening", icon: "folder" },
           ],
         },
-        { label: "CRM & leads", path: "/intake/crm-leads", icon: "chart" },
+        { label: "CRM & leads", path: "/intake/crm-leads", icon: "chart-pie" },
       ],
     },
   ],
   cases: [
     {
-      label: "Cases",
+      label: "Cases & operations",
       items: [
         {
           label: "Cases",
-          path: "/cases",
+          path: "/cases/all-matters",
           icon: "folder",
           children: [
-            { label: "All matters", path: "/cases/all-matters", icon: "briefcase" },
-            { label: "Policy alerts", path: "/cases/policy-alerts", icon: "shield" },
+            { label: "All matters", path: "/cases/all-matters", icon: "folder-open" },
+            { label: "Policy alerts", path: "/cases/policy-alerts", icon: "rss" },
           ],
         },
       ],
@@ -114,18 +118,18 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Staff & users",
-          path: "/staff",
+          path: "/staff/accounts",
           icon: "users",
           children: [
             { label: "Staff accounts", path: "/staff/accounts", icon: "users" },
             { label: "Certifications", path: "/staff/certifications", icon: "book-open-check" },
-            { label: "Performance", path: "/staff/performance", icon: "analytics" },
+            { label: "Performance", path: "/staff/performance", icon: "chart-column-big" },
             { label: "Leave management", path: "/staff/leave-management", icon: "calendar" },
           ],
         },
         {
           label: "Contractors",
-          path: "/staff/contractors",
+          path: "/staff/contractors/marketplace",
           icon: "briefcase",
           children: [
             { label: "Marketplace", path: "/staff/contractors/marketplace", icon: "search" },
@@ -141,7 +145,7 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Billing & finance",
-          path: "/finance",
+          path: "/finance/invoicing",
           icon: "billing",
           children: [
             { label: "Invoicing", path: "/finance/invoicing", icon: "file" },
@@ -158,7 +162,7 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Analytics",
-          path: "/analytics",
+          path: "/analytics/firm-overview",
           icon: "analytics",
           children: [
             { label: "Firm overview", path: "/analytics/firm-overview", icon: "overview" },
@@ -177,7 +181,7 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Settings",
-          path: "/settings",
+          path: "/settings/add-on-activation",
           icon: "settings",
           children: [
             { label: "Add-on activation", path: "/settings/add-on-activation", icon: "intake" },

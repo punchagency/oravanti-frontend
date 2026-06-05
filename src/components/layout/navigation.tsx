@@ -4,12 +4,15 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   ChartColumn,
+  ChartColumnBig,
   ChartNetwork,
+  ChartPie,
   ChevronDown,
   ClipboardList,
   Download,
   FileText,
   Folder,
+  FolderOpen,
   Globe,
   GraduationCap,
   Landmark,
@@ -18,6 +21,7 @@ import {
   Mail,
   MessageSquareText,
   Moon,
+  Rss,
   Search,
   Settings,
   Shield,
@@ -26,6 +30,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { ColorModeButton } from "@/components/ui/color-mode";
 import {
@@ -42,6 +47,7 @@ const iconMap: Record<NavigationIcon, LucideIcon> = {
   briefcase: BriefcaseBusiness,
   calendar: CalendarDays,
   chart: BarChart3,
+  'chart-column-big': ChartColumnBig,
   lock: Lock,
   chevron: ChevronDown,
   clipboard: ClipboardList,
@@ -50,19 +56,22 @@ const iconMap: Record<NavigationIcon, LucideIcon> = {
   education: GraduationCap,
   file: FileText,
   folder: Folder,
+  'folder-open': FolderOpen,
   globe: Globe,
   landmark: Landmark,
   mail: Mail,
   message: MessageSquareText,
   moon: Moon,
   intake: UserRoundPlus,
+  rss: Rss,
   search: Search,
   settings: Settings,
   shield: Shield,
   signature: Signature,
   users: Users,
   overview: ChartColumn,
-  'book-open-check': BookOpenCheck
+  'book-open-check': BookOpenCheck,
+  'chart-pie': ChartPie
 };
 
 function isPathActive(currentPath: string, item: ContextNavigationItem) {
@@ -73,14 +82,19 @@ function isPathActive(currentPath: string, item: ContextNavigationItem) {
 function ContextItem({
   item,
   nested = false,
+  collapsedItems,
+  onToggle,
 }: {
   item: ContextNavigationItem;
   nested?: boolean;
+  collapsedItems: Set<string>;
+  onToggle: (path: string) => void;
 }) {
   const location = useLocation();
   const Icon = iconMap[item.icon];
   const active = isPathActive(location.pathname, item);
-  const expanded = Boolean(item.children?.length && active);
+  const hasChildren = Boolean(item.children?.length);
+  const expanded = hasChildren && active && !collapsedItems.has(item.path);
   const className = [
     nested ? "context-nav__sub-item" : "context-nav__item",
     active ? "is-active" : "",
@@ -91,17 +105,34 @@ function ContextItem({
 
   return (
     <>
-      <NavLink to={item.path} className={className}>
+      <NavLink
+        to={item.path}
+        className={className}
+        onClick={(event) => {
+          if (!hasChildren) return;
+
+          if (active) {
+            event.preventDefault();
+            onToggle(item.path);
+          }
+        }}
+      >
         <Icon size={nested ? 13 : 15} strokeWidth={1.8} />
         <span>{item.label}</span>
-        {item.children ? (
+        {hasChildren ? (
           <ChevronDown className="context-nav__chevron" size={14} />
         ) : null}
       </NavLink>
       {expanded ? (
         <div className="context-nav__children">
           {item.children?.map((child) => (
-            <ContextItem key={child.path} item={child} nested />
+            <ContextItem
+              key={child.path}
+              item={child}
+              nested
+              collapsedItems={collapsedItems}
+              onToggle={onToggle}
+            />
           ))}
         </div>
       ) : null}
@@ -168,6 +199,31 @@ export function ContextNavigation() {
   const location = useLocation();
   const activeSection = getSectionForPath(location.pathname);
   const groups = contextNavigation[activeSection];
+  const [collapsedState, setCollapsedState] = useState<{
+    pathname: string;
+    items: Set<string>;
+  }>({ pathname: "", items: new Set() });
+  const collapsedItems =
+    collapsedState.pathname === location.pathname
+      ? collapsedState.items
+      : new Set<string>();
+
+  function toggleOpenItem(path: string) {
+    setCollapsedState((current) => {
+      const next =
+        current.pathname === location.pathname
+          ? new Set(current.items)
+          : new Set<string>();
+
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+
+      return { pathname: location.pathname, items: next };
+    });
+  }
 
   return (
     <aside className="context-nav" aria-label="Section navigation">
@@ -181,7 +237,12 @@ export function ContextNavigation() {
           <section key={group.label} className="context-nav__group">
             <div className="context-nav__group-label">{group.label}</div>
             {group.items.map((item) => (
-              <ContextItem key={item.path} item={item} />
+              <ContextItem
+                key={item.path}
+                item={item}
+                collapsedItems={collapsedItems}
+                onToggle={toggleOpenItem}
+              />
             ))}
           </section>
         ))}
