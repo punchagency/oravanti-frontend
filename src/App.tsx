@@ -1,12 +1,11 @@
 import {
-  Navigate,
   Route,
   RouterProvider,
   createBrowserRouter,
   createRoutesFromElements,
 } from "react-router";
 import { AppShell } from "@/components/layout/app-shell";
-import { DashboardPage } from "@/pages/dashboard";
+import { DashboardPage } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
 import { SignUpPage } from "@/pages/sign-up";
 import { ContractorSignupPage } from "@/pages/sign-up/contractor";
@@ -19,11 +18,12 @@ const router = createBrowserRouter(
       <Route path="/sign-up" element={<SignUpPage />} />
       <Route path="/sign-up/contractor" element={<ContractorSignupPage />} />
 
-      <Route path="/" element={<AppShell />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+      <Route path="/admin" element={<AppShell />}>
+        <Route index element={<DashboardPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
     </>,
   ),
 );

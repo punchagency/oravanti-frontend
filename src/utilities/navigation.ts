@@ -59,20 +59,20 @@ export type ContextNavigationGroup = {
 };
 
 export const primaryNavigation: PrimaryNavigationItem[] = [
-  { label: "Overview", section: "overview", path: "/dashboard", icon: "dashboard" },
-  { label: "Intake", section: "intake", path: "/intake/pipeline/lead-inbox", icon: "intake" },
-  { label: "Cases", section: "cases", path: "/cases/all-matters", icon: "folder" },
-  { label: "Staff", section: "staff", path: "/staff/accounts", icon: "users" },
-  { label: "Finance", section: "finance", path: "/finance/invoicing", icon: "billing" },
-  { label: "Analytics", section: "analytics", path: "/analytics/firm-overview", icon: "analytics" },
-  { label: "Settings", section: "settings", path: "/settings/add-on-activation", icon: "settings" },
+  { label: "Overview", section: "overview", path: "/admin", icon: "dashboard" },
+  { label: "Intake", section: "intake", path: "/admin/intake/pipeline/lead-inbox", icon: "intake" },
+  { label: "Cases", section: "cases", path: "/admin/cases/all-matters", icon: "folder" },
+  { label: "Staff", section: "staff", path: "/admin/staff/accounts", icon: "users" },
+  { label: "Finance", section: "finance", path: "/admin/finance/invoicing", icon: "billing" },
+  { label: "Analytics", section: "analytics", path: "/admin/analytics/firm-overview", icon: "analytics" },
+  { label: "Settings", section: "settings", path: "/admin/settings/add-on-activation", icon: "settings" },
 ];
 
 export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]> = {
   overview: [
     {
       label: "Overview",
-      items: [{ label: "Dashboard", path: "/dashboard", icon: "dashboard" }],
+      items: [{ label: "Dashboard", path: "/admin", icon: "dashboard" }],
     },
   ],
   intake: [
@@ -81,18 +81,18 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Intake pipeline",
-          path: "/intake/pipeline/lead-inbox",
+          path: "/admin/intake/pipeline/lead-inbox",
           icon: "intake",
           children: [
-            { label: "Lead inbox", path: "/intake/pipeline/lead-inbox", icon: "mail" },
-            { label: "Conflict check", path: "/intake/pipeline/conflict-check", icon: "shield" },
-            { label: "Questionnaire", path: "/intake/pipeline/questionnaire", icon: "clipboard" },
-            { label: "Consultation & notes", path: "/intake/pipeline/consultation", icon: "file" },
-            { label: "Fee agreement", path: "/intake/pipeline/fee-agreement", icon: "signature" },
-            { label: "Case opening", path: "/intake/pipeline/case-opening", icon: "folder" },
+            { label: "Lead inbox", path: "/admin/intake/pipeline/lead-inbox", icon: "mail" },
+            { label: "Conflict check", path: "/admin/intake/pipeline/conflict-check", icon: "shield" },
+            { label: "Questionnaire", path: "/admin/intake/pipeline/questionnaire", icon: "clipboard" },
+            { label: "Consultation & notes", path: "/admin/intake/pipeline/consultation", icon: "file" },
+            { label: "Fee agreement", path: "/admin/intake/pipeline/fee-agreement", icon: "signature" },
+            { label: "Case opening", path: "/admin/intake/pipeline/case-opening", icon: "folder" },
           ],
         },
-        { label: "CRM & leads", path: "/intake/crm-leads", icon: "chart-pie" },
+        { label: "CRM & leads", path: "/admin/intake/crm-leads", icon: "chart-pie" },
       ],
     },
   ],
@@ -102,11 +102,11 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Cases",
-          path: "/cases/all-matters",
+          path: "/admin/cases/all-matters",
           icon: "folder",
           children: [
-            { label: "All matters", path: "/cases/all-matters", icon: "folder-open" },
-            { label: "Policy alerts", path: "/cases/policy-alerts", icon: "rss" },
+            { label: "All matters", path: "/admin/cases/all-matters", icon: "folder-open" },
+            { label: "Policy alerts", path: "/admin/cases/policy-alerts", icon: "rss" },
           ],
         },
       ],
@@ -118,22 +118,22 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Staff & users",
-          path: "/staff/accounts",
+          path: "/admin/staff/accounts",
           icon: "users",
           children: [
-            { label: "Staff accounts", path: "/staff/accounts", icon: "users" },
-            { label: "Certifications", path: "/staff/certifications", icon: "book-open-check" },
-            { label: "Performance", path: "/staff/performance", icon: "chart-column-big" },
-            { label: "Leave management", path: "/staff/leave-management", icon: "calendar" },
+            { label: "Staff accounts", path: "/admin/staff/accounts", icon: "users" },
+            { label: "Certifications", path: "/admin/staff/certifications", icon: "book-open-check" },
+            { label: "Performance", path: "/admin/staff/performance", icon: "chart-column-big" },
+            { label: "Leave management", path: "/admin/staff/leave-management", icon: "calendar" },
           ],
         },
         {
           label: "Contractors",
-          path: "/staff/contractors/marketplace",
+          path: "/admin/staff/contractors/marketplace",
           icon: "briefcase",
           children: [
-            { label: "Marketplace", path: "/staff/contractors/marketplace", icon: "search" },
-            { label: "Active engagements", path: "/staff/contractors/active-engagements", icon: "lock" },
+            { label: "Marketplace", path: "/admin/staff/contractors/marketplace", icon: "search" },
+            { label: "Active engagements", path: "/admin/staff/contractors/active-engagements", icon: "lock" },
           ],
         },
       ],
@@ -145,12 +145,12 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Billing & finance",
-          path: "/finance/invoicing",
+          path: "/admin/finance/invoicing",
           icon: "billing",
           children: [
-            { label: "Invoicing", path: "/finance/invoicing", icon: "file" },
-            { label: "Trust accounts", path: "/finance/trust-accounts", icon: "landmark" },
-            { label: "International payments", path: "/finance/international-payments", icon: "globe" },
+            { label: "Invoicing", path: "/admin/finance/invoicing", icon: "file" },
+            { label: "Trust accounts", path: "/admin/finance/trust-accounts", icon: "landmark" },
+            { label: "International payments", path: "/admin/finance/international-payments", icon: "globe" },
           ],
         },
       ],
@@ -162,14 +162,14 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Analytics",
-          path: "/analytics/firm-overview",
+          path: "/admin/analytics/firm-overview",
           icon: "analytics",
           children: [
-            { label: "Firm overview", path: "/analytics/firm-overview", icon: "overview" },
-            { label: "Revenue & billing", path: "/analytics/revenue-billing", icon: "billing" },
-            { label: "Staff performance", path: "/analytics/staff-performance", icon: "users" },
-            { label: "Intake & CRM", path: "/analytics/intake-crm", icon: "intake" },
-            { label: "Compliance", path: "/analytics/compliance", icon: "shield" },
+            { label: "Firm overview", path: "/admin/analytics/firm-overview", icon: "overview" },
+            { label: "Revenue & billing", path: "/admin/analytics/revenue-billing", icon: "billing" },
+            { label: "Staff performance", path: "/admin/analytics/staff-performance", icon: "users" },
+            { label: "Intake & CRM", path: "/admin/analytics/intake-crm", icon: "intake" },
+            { label: "Compliance", path: "/admin/analytics/compliance", icon: "shield" },
           ],
         },
       ],
@@ -181,15 +181,15 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
       items: [
         {
           label: "Settings",
-          path: "/settings/add-on-activation",
+          path: "/admin/settings/add-on-activation",
           icon: "settings",
           children: [
-            { label: "Add-on activation", path: "/settings/add-on-activation", icon: "intake" },
-            { label: "RBAC", path: "/settings/rbac", icon: "shield" },
-            { label: "Integrations", path: "/settings/integrations", icon: "briefcase" },
-            { label: "Firm settings", path: "/settings/firm-settings", icon: "settings" },
-            { label: "Training platform", path: "/settings/training-platform", icon: "education" },
-            { label: "Education & leads", path: "/settings/education-leads", icon: "education" },
+            { label: "Add-on activation", path: "/admin/settings/add-on-activation", icon: "intake" },
+            { label: "RBAC", path: "/admin/settings/rbac", icon: "shield" },
+            { label: "Integrations", path: "/admin/settings/integrations", icon: "briefcase" },
+            { label: "Firm settings", path: "/admin/settings/firm-settings", icon: "settings" },
+            { label: "Training platform", path: "/admin/settings/training-platform", icon: "education" },
+            { label: "Education & leads", path: "/admin/settings/education-leads", icon: "education" },
           ],
         },
       ],
@@ -198,11 +198,15 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
 };
 
 export function getSectionForPath(pathname: string): PrimarySection {
-  if (pathname.startsWith("/intake")) return "intake";
-  if (pathname.startsWith("/cases")) return "cases";
-  if (pathname.startsWith("/staff")) return "staff";
-  if (pathname.startsWith("/finance")) return "finance";
-  if (pathname.startsWith("/analytics")) return "analytics";
-  if (pathname.startsWith("/settings")) return "settings";
+  const adminScopedPath = pathname.startsWith("/admin/")
+    ? pathname.slice("/admin".length)
+    : pathname;
+
+  if (adminScopedPath.startsWith("/intake")) return "intake";
+  if (adminScopedPath.startsWith("/cases")) return "cases";
+  if (adminScopedPath.startsWith("/staff")) return "staff";
+  if (adminScopedPath.startsWith("/finance")) return "finance";
+  if (adminScopedPath.startsWith("/analytics")) return "analytics";
+  if (adminScopedPath.startsWith("/settings")) return "settings";
   return "overview";
 }

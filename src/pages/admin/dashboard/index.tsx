@@ -86,7 +86,7 @@ export function DashboardPage() {
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">Chen & Associates LLP — firm overview</p>
         </div>
-        <Link className="brand-button" to="/intake/pipeline/lead-inbox">
+        <Link className="brand-button" to="/admin/intake/pipeline/lead-inbox">
           <Plus size={15} />
           Add new matter
         </Link>
@@ -143,7 +143,7 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
-          <Link className="row-meta" to="/intake/pipeline/conflict-check">
+          <Link className="row-meta" to="/admin/intake/pipeline/conflict-check">
             View all alerts →
           </Link>
         </article>
@@ -153,7 +153,7 @@ export function DashboardPage() {
           <p className="section-subtitle">Active leads by stage</p>
           <div className="pipeline-list">
             {pipeline.map(([title, meta, count]) => (
-              <NavLink key={title} className="pipeline-row" to="/intake/pipeline/lead-inbox">
+              <NavLink key={title} className="pipeline-row" to="/admin/intake/pipeline/lead-inbox">
                 <div>
                   <p className="row-title">{title}</p>
                   <p className="row-meta">{meta}</p>
@@ -162,7 +162,7 @@ export function DashboardPage() {
               </NavLink>
             ))}
           </div>
-          <Link className="row-meta" to="/intake/pipeline/lead-inbox">
+          <Link className="row-meta" to="/admin/intake/pipeline/lead-inbox">
             Go to intake pipeline →
           </Link>
         </article>

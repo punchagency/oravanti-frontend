@@ -389,7 +389,7 @@ function CompleteView() {
           Your payout method is saved. Once your background check clears (2-3 business days),
           your profile goes live on the marketplace and you can start receiving assignments.
         </p>
-        <a className="signup-primary-button signup-primary-button--dashboard" href="/dashboard">
+        <a className="signup-primary-button signup-primary-button--dashboard" href="/admin">
           Go to contractor dashboard
         </a>
       </section>
