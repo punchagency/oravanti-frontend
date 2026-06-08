@@ -13,7 +13,7 @@ import { LoginPage } from "./pages/login";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <>
+    <Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup">
         <Route index element={<SignUpPage />} />
@@ -26,7 +26,7 @@ const router = createBrowserRouter(
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
-    </>,
+    </Route>,
   ),
 );
 

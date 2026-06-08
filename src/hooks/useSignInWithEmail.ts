@@ -41,7 +41,7 @@ export const useSignInWithEmail = () => {
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
         });
-        navigate("/admin/settings", { replace: true });
+        navigate("/admin", { replace: true });
       }
     },
     onError: (error: APIError) => {
