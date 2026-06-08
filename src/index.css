@@ -1618,6 +1618,7 @@ a {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  padding-bottom: 16px;
 }
 
 .payment-option {
