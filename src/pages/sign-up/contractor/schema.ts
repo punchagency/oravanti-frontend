@@ -26,32 +26,41 @@ export const parseBooleanField = (value: unknown) => {
 };
 
 export const contractorSignupRequestSchema = z.object({
-  email: z.string().email("Must be a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  firstName: z.string().trim().min(1, "firstName is required"),
-  lastName: z.string().trim().min(1, "lastName is required"),
-  phoneNumber: z.string().trim().min(1, "phoneNumber is required"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Email must be a valid email address"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .min(8, "Password must be at least 8 characters"),
+  firstName: z.string().trim().min(1, "First Name is required"),
+  lastName: z.string().trim().min(1, "Last Name is required"),
+  phoneNumber: z.string().trim().min(1, "Phone Number is required"),
   desiredHourlyRate: z.union([z.string(), z.number()]).refine((value) => Number(value) > 0, {
-    message: "desiredHourlyRate must be greater than zero",
+    message: "Desired Hourly Rate must be greater than zero",
   }),
   consentedToBackgroundCheck: z.preprocess(
     parseBooleanField,
     z.literal(true, {
-      error: "Contractors must consent to a background check",
+      error: "You must consent to a background check",
     }),
   ),
   recognizedDirectoryListingVerificationAccepted: z.preprocess(
     parseBooleanField,
     z.literal(true, {
-      error: "Contractors must accept directory listing verification checks",
+      error: "You must accept directory listing verification checks",
     }),
   ),
-  bio: z.string().trim().min(1, "bio is required"),
-  availability: z.enum(["full-time", "part-time", "project-based"]),
+  bio: z.string().trim().min(1, "Professional Bio is required"),
+  availability: z.enum(["full-time", "part-time", "project-based"], {
+    error: "Availability is required",
+  }),
   specialtyIds: z.preprocess(
     parseJsonField,
     z
-      .array(z.string().uuid("specialtyIds must contain valid UUIDs"))
+      .array(z.string().uuid("Selected specialties must be valid"))
       .min(1, "At least one specialty is required"),
   ),
   paymentDetails: z.preprocess(
@@ -59,13 +68,17 @@ export const contractorSignupRequestSchema = z.object({
     z.discriminatedUnion("paymentMethod", [
       z.object({
         paymentMethod: z.literal("paypal"),
-        paypalEmail: z.string().email("Must be a valid PayPal email"),
+        paypalEmail: z
+          .string()
+          .trim()
+          .min(1, "PayPal Email is required")
+          .email("PayPal Email must be a valid email address"),
       }),
       z.object({
         paymentMethod: z.literal("bank_account"),
-        accountHolderName: z.string().trim().min(1, "accountHolderName is required"),
-        routingNumber: z.string().trim().min(1, "routingNumber is required"),
-        accountNumber: z.string().trim().min(1, "accountNumber is required"),
+        accountHolderName: z.string().trim().min(1, "Account Holder Name is required"),
+        routingNumber: z.string().trim().min(1, "Routing Number is required"),
+        accountNumber: z.string().trim().min(1, "Account Number is required"),
       }),
     ]),
   ),
@@ -74,7 +87,7 @@ export const contractorSignupRequestSchema = z.object({
     z
       .array(
         z.object({
-          certificationName: z.string().trim().min(1, "certificationName is required"),
+          certificationName: z.string().trim().min(1, "Certification Name is required"),
           issuingOrganization: z.string().trim().optional(),
           issuedAt: z.string().optional(),
           expiresAt: z.string().optional(),
