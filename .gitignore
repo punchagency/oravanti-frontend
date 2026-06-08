@@ -31,3 +31,7 @@ coverage/
 
 # Vite
 .vite/
+
+.agents/
+openc*
+skills-lock.json
