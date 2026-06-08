@@ -9,15 +9,19 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
 } from "react-router";
+import { FirmSignupFlow } from "./pages/firm-signup";
 import { LoginPage } from "./pages/login";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <>
+    <Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup">
         <Route index element={<SignUpPage />} />
         <Route path="contractor" element={<ContractorSignupPage />} />
+      </Route>
+      <Route path="/firm-signup">
+        <Route index element={<FirmSignupFlow />} />
       </Route>
 
       <Route path="/admin" element={<AppShell />}>
@@ -26,7 +30,7 @@ const router = createBrowserRouter(
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
-    </>,
+    </Route>,
   ),
 );
 
