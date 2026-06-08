@@ -14,6 +14,7 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
+import { Link as RouterLink } from "react-router";
 import * as z from "zod";
 
 const loginSchema = z.object({
@@ -172,16 +173,18 @@ export const LoginPage = () => {
             </VStack>
           </form>
 
-          <Box mt="6">
-            <Link
-              href="#"
-              textStyle="subheadline"
-              color="fg.muted"
-              _hover={{ textDecoration: "underline", color: "fg" }}
-            >
-              Back to landing
+          <Text
+            textStyle="body-sm"
+            fontWeight="500"
+            as="button"
+            cursor="pointer"
+            mt="4"
+          >
+            Don't have an account?{" "}
+            <Link textDecoration={"underline"} color="brand.500" asChild>
+              <RouterLink to="/signup">Sign up</RouterLink>
             </Link>
-          </Box>
+          </Text>
         </Box>
       </Center>
     </Box>
