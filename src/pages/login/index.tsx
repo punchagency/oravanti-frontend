@@ -1,4 +1,5 @@
 import { useColorMode } from "@/hooks/use-color-mode";
+import { useSignInWithEmail } from "@/hooks/useSignInWithEmail";
 import {
   Box,
   Button,
@@ -12,7 +13,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import * as z from "zod";
 
 const loginSchema = z.object({
@@ -29,11 +30,12 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginPage = () => {
+  const { mutate: login, isPending: isSubmitting } = useSignInWithEmail();
   const { colorMode, toggleColorMode } = useColorMode();
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -42,8 +44,8 @@ export const LoginPage = () => {
     },
   });
 
-  const onSubmit = (data: LoginFormData) => {
-    console.log("Form Submitted successfully:", data);
+  const onSubmit: SubmitHandler<LoginFormData> = (data) => {
+    login(data);
   };
 
   return (

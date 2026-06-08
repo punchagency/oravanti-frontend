@@ -1,3 +1,12 @@
+import { ColorModeButton } from "@/components/ui/color-mode";
+import {
+  contextNavigation,
+  getSectionForPath,
+  primaryNavigation,
+  type ContextNavigationItem,
+  type NavigationIcon,
+} from "@/utils/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   BookOpenCheck,
@@ -29,17 +38,8 @@ import {
   UserRoundPlus,
   Users,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router";
-import { ColorModeButton } from "@/components/ui/color-mode";
-import {
-  contextNavigation,
-  getSectionForPath,
-  primaryNavigation,
-  type ContextNavigationItem,
-  type NavigationIcon,
-} from "@/utilities/navigation";
 
 const iconMap: Record<NavigationIcon, LucideIcon> = {
   analytics: ChartNetwork,
@@ -47,7 +47,7 @@ const iconMap: Record<NavigationIcon, LucideIcon> = {
   briefcase: BriefcaseBusiness,
   calendar: CalendarDays,
   chart: BarChart3,
-  'chart-column-big': ChartColumnBig,
+  "chart-column-big": ChartColumnBig,
   lock: Lock,
   chevron: ChevronDown,
   clipboard: ClipboardList,
@@ -56,7 +56,7 @@ const iconMap: Record<NavigationIcon, LucideIcon> = {
   education: GraduationCap,
   file: FileText,
   folder: Folder,
-  'folder-open': FolderOpen,
+  "folder-open": FolderOpen,
   globe: Globe,
   landmark: Landmark,
   mail: Mail,
@@ -70,8 +70,8 @@ const iconMap: Record<NavigationIcon, LucideIcon> = {
   signature: Signature,
   users: Users,
   overview: ChartColumn,
-  'book-open-check': BookOpenCheck,
-  'chart-pie': ChartPie
+  "book-open-check": BookOpenCheck,
+  "chart-pie": ChartPie,
 };
 
 function isPathActive(currentPath: string, item: ContextNavigationItem) {
@@ -161,7 +161,9 @@ export function PrimaryNavigation() {
             <NavLink
               key={item.section}
               to={item.path}
-              className={active ? "primary-nav__item is-active" : "primary-nav__item"}
+              className={
+                active ? "primary-nav__item is-active" : "primary-nav__item"
+              }
             >
               <Icon size={18} strokeWidth={1.8} />
               <span>{item.label}</span>
@@ -179,7 +181,9 @@ export function PrimaryNavigation() {
             <NavLink
               key={item.section}
               to={item.path}
-              className={active ? "primary-nav__item is-active" : "primary-nav__item"}
+              className={
+                active ? "primary-nav__item is-active" : "primary-nav__item"
+              }
             >
               <Icon size={18} strokeWidth={1.8} />
               <span>{item.label}</span>
