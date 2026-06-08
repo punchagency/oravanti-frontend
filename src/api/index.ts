@@ -45,6 +45,7 @@ const shouldSkipRefresh = (url?: string) => {
     "/auth/refresh-session",
     "/auth/sign-in",
     "/auth/sign-up",
+    "/auth/contractors/sign-up",
     "/auth/sign-out",
     "/auth/send-verification-otp",
     "/auth/two-factor/verify-totp",

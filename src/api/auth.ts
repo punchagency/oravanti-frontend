@@ -1,4 +1,6 @@
 import { API } from ".";
+import type { ContractorSignupPayload } from "@/pages/sign-up/contractor/schema";
+import type { PublicPracticeArea } from "@/pages/sign-up/contractor/types";
 
 export const signUpWithEmail = async (data: {
   email: string;
@@ -33,11 +35,14 @@ export const getSession = async () => {
   return (await API.get("/auth/get-session")).data;
 };
 
-export const demoContractorSignup = async () => {
-  await new Promise((resolve) => window.setTimeout(resolve, 700));
+export const getPublicPracticeAreas = async (): Promise<PublicPracticeArea[]> => {
+  const response = await API.get("/practice-areas/public");
 
-  return {
-    status: "submitted",
-    reviewWindow: "2-3 business days",
-  };
+  return Array.isArray(response.data) ? response.data : response.data?.data ?? [];
+};
+
+export const contractorSignUpWithEmail = async (
+  data: ContractorSignupPayload,
+) => {
+  return (await API.post("/auth/contractors/sign-up/email", data)).data;
 };
