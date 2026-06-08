@@ -35,10 +35,14 @@ export const getSession = async () => {
   return (await API.get("/auth/get-session")).data;
 };
 
-export const getPublicPracticeAreas = async (): Promise<PublicPracticeArea[]> => {
+export const getPublicPracticeAreas = async (): Promise<
+  PublicPracticeArea[]
+> => {
   const response = await API.get("/practice-areas/public");
 
-  return Array.isArray(response.data) ? response.data : response.data?.data ?? [];
+  return Array.isArray(response.data)
+    ? response.data
+    : (response.data?.data ?? []);
 };
 
 const buildContractorSignupFormData = (data: ContractorSignupPayload) => {
@@ -83,3 +87,11 @@ export const contractorSignUpWithEmail = async (
     )
   ).data;
 };
+
+export async function resetPassword(data: {
+  email: string;
+  otp: string;
+  password: string;
+}) {
+  return (await API.post("/auth/reset-password", data)).data;
+}

@@ -11,6 +11,9 @@ import {
 } from "react-router";
 import { FirmSignupFlow } from "./pages/firm-signup";
 import { LoginPage } from "./pages/login";
+import ForgotPassword from "./pages/forgot-password";
+import VerifyOtp from "./pages/forgot-password/verify-otp";
+import ResetPassword from "./pages/reset-password";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -23,6 +26,11 @@ const router = createBrowserRouter(
       <Route path="/firm-signup">
         <Route index element={<FirmSignupFlow />} />
       </Route>
+      <Route path="/forgot-password">
+        <Route path="" element={<ForgotPassword />} />
+        <Route path="verify-otp" element={<VerifyOtp />} />
+      </Route>
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route path="/admin" element={<AppShell />}>
         <Route index element={<AdminDashboardPage />} />
