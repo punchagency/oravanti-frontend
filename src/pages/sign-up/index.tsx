@@ -15,6 +15,7 @@ import { Briefcase, Building2, UserRound } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router";
+import { ClientSignupFlow } from "../client-signup";
 import { FirmSignupFlow } from "../firm-signup";
 import { ContractorSignupPage } from "./contractor";
 
@@ -61,6 +62,10 @@ export const SignUpPage = () => {
 
   if (role === "contractor") {
     return <ContractorSignupPage />;
+  }
+
+  if (role === "client") {
+    return <ClientSignupFlow />;
   }
 
   return (
