@@ -1038,6 +1038,14 @@ a {
   background: #ffffff;
 }
 
+.signup-page > form {
+  width: min(638px, 100%);
+}
+
+.signup-page > form .signup-card {
+  width: 100%;
+}
+
 .signup-card--chooser {
   display: grid;
   justify-items: center;
