@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { FileUp, Plus, Trash2 } from "lucide-react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { SignupField } from "../components/signup-field";
 import { SpecialtyGroup } from "../components/specialty-group";
@@ -15,6 +15,12 @@ type SpecialtiesStepProps = {
   onNext: () => void;
 };
 
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function SpecialtiesStep({
   loading,
   practiceAreas,
@@ -30,6 +36,7 @@ export function SpecialtiesStep({
     formState: { errors },
   } = useFormContext<ContractorSignupFormValues>();
   const selectedSpecialtyIds = watch("specialtyIds");
+  const certificationFiles = watch("certificationFiles");
   const { fields, append, remove } = useFieldArray({
     control,
     name: "certificationDocuments",
@@ -45,6 +52,38 @@ export function SpecialtiesStep({
       shouldTouch: true,
       shouldValidate: true,
     });
+  }
+
+  function addCertificationFiles(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return;
+
+    setValue("certificationFiles", [...certificationFiles, ...files], {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+    files.forEach(() => {
+      append({
+        certificationName: "",
+        issuingOrganization: "",
+        issuedAt: "",
+        expiresAt: "",
+      });
+    });
+  }
+
+  function removeCertification(index: number) {
+    setValue(
+      "certificationFiles",
+      certificationFiles.filter((_, fileIndex) => fileIndex !== index),
+      {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      },
+    );
+    remove(index);
   }
 
   return (
@@ -74,37 +113,65 @@ export function SpecialtiesStep({
 
       <div className="signup-section-heading">
         <h2 className="signup-section-title">Certification documents</h2>
-        <button
-          className="signup-icon-text-button"
-          type="button"
-          onClick={() =>
-            append({
-              certificationName: "",
-              issuingOrganization: "",
-              issuedAt: "",
-              expiresAt: "",
-            })
-          }
-        >
-          <Plus size={14} />
-          Add
-        </button>
+        {certificationFiles.length > 0 ? (
+          <label
+            className="signup-icon-text-button"
+            htmlFor="certification-document-upload"
+          >
+            <Plus size={14} />
+            Add file
+          </label>
+        ) : null}
       </div>
+
+      <label
+        className={
+          certificationFiles.length > 0
+            ? "upload-area upload-area--compact"
+            : "upload-area"
+        }
+      >
+        <span>Credentials & bar cards</span>
+        <input
+          id="certification-document-upload"
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+          multiple
+          onChange={(event) => {
+            addCertificationFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
+        <div>
+          <FileUp size={18} />
+          <strong>Upload bar card or certificates</strong>
+          <small>Drag & drop or click to browse (PDF, PNG, JPG)</small>
+        </div>
+      </label>
+      {errors.certificationFiles?.message ? (
+        <p className="signup-error">{errors.certificationFiles.message}</p>
+      ) : null}
 
       {fields.map((field, index) => (
         <div className="certification-group" key={field.id}>
           <div className="certification-group__header">
-            <strong>Certification {index + 1}</strong>
-            {fields.length > 1 ? (
-              <button
-                className="signup-icon-button"
-                type="button"
-                onClick={() => remove(index)}
-                aria-label={`Remove certification ${index + 1}`}
-              >
-                <Trash2 size={14} />
-              </button>
-            ) : null}
+            <div>
+              <strong>Certification {index + 1}</strong>
+              {certificationFiles[index] ? (
+                <span>
+                  {certificationFiles[index].name} -{" "}
+                  {formatFileSize(certificationFiles[index].size)}
+                </span>
+              ) : null}
+            </div>
+            <button
+              className="signup-icon-button"
+              type="button"
+              onClick={() => removeCertification(index)}
+              aria-label={`Remove certification ${index + 1}`}
+            >
+              <Trash2 size={14} />
+            </button>
           </div>
           <SignupField
             label="Certification name"

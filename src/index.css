@@ -1397,6 +1397,7 @@ a {
   padding: 0 10px;
   font-size: 12px;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .signup-icon-button {
@@ -1504,6 +1505,10 @@ a {
   text-align: center;
 }
 
+.upload-area--compact div {
+  min-height: 78px;
+}
+
 .upload-area strong {
   margin-top: 8px;
   font-size: 14px;
@@ -1532,6 +1537,21 @@ a {
   margin-bottom: 10px;
   color: var(--text-primary);
   font-size: 13px;
+}
+
+.certification-group__header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.certification-group__header span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .signup-info-box {

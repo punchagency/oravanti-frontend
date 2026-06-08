@@ -41,8 +41,45 @@ export const getPublicPracticeAreas = async (): Promise<PublicPracticeArea[]> =>
   return Array.isArray(response.data) ? response.data : response.data?.data ?? [];
 };
 
+const buildContractorSignupFormData = (data: ContractorSignupPayload) => {
+  const formData = new FormData();
+
+  formData.append("email", data.email);
+  formData.append("password", data.password);
+  formData.append("firstName", data.firstName);
+  formData.append("lastName", data.lastName);
+  formData.append("phoneNumber", data.phoneNumber);
+  formData.append("desiredHourlyRate", String(data.desiredHourlyRate));
+  formData.append(
+    "consentedToBackgroundCheck",
+    String(data.consentedToBackgroundCheck),
+  );
+  formData.append(
+    "recognizedDirectoryListingVerificationAccepted",
+    String(data.recognizedDirectoryListingVerificationAccepted),
+  );
+  formData.append("bio", data.bio);
+  formData.append("availability", data.availability);
+  formData.append("specialtyIds", JSON.stringify(data.specialtyIds));
+  formData.append("paymentDetails", JSON.stringify(data.paymentDetails));
+  formData.append(
+    "certificationDocuments",
+    JSON.stringify(data.certificationDocuments),
+  );
+  data.certificationFiles.forEach((file) => {
+    formData.append("certificationFiles", file);
+  });
+
+  return formData;
+};
+
 export const contractorSignUpWithEmail = async (
   data: ContractorSignupPayload,
 ) => {
-  return (await API.post("/auth/contractors/sign-up/email", data)).data;
+  return (
+    await API.post(
+      "/auth/contractors/sign-up/email",
+      buildContractorSignupFormData(data),
+    )
+  ).data;
 };

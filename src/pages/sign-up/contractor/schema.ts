@@ -1,5 +1,11 @@
 import * as z from "zod";
 
+const acceptedCertificationFileTypes = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+];
+
 export const parseJsonField = (value: unknown) => {
   if (typeof value !== "string") return value;
 
@@ -19,7 +25,7 @@ export const parseBooleanField = (value: unknown) => {
   return value;
 };
 
-export const contractorSignupSchema = z.object({
+export const contractorSignupRequestSchema = z.object({
   email: z.string().email("Must be a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().trim().min(1, "firstName is required"),
@@ -78,6 +84,33 @@ export const contractorSignupSchema = z.object({
   ),
 });
 
+export const contractorSignupSchema = contractorSignupRequestSchema.extend({
+  certificationFiles: z
+    .array(
+      z
+        .custom<File>(
+          (value) => typeof File !== "undefined" && value instanceof File,
+          "A valid certification document file is required",
+        )
+        .refine((file) => file.size > 0, {
+          message: "Certification document file cannot be empty",
+        })
+        .refine(
+          (file) =>
+            acceptedCertificationFileTypes.includes(file.type) ||
+            /\.(pdf|png|jpe?g)$/i.test(file.name),
+          {
+            message: "Certification documents must be PDF, PNG, or JPG files",
+          },
+        ),
+    )
+    .min(1, "At least one certification document file is required"),
+});
+
+export type ContractorSignupRequestPayload = z.output<
+  typeof contractorSignupRequestSchema
+>;
+
 export type ContractorSignupPayload = z.output<typeof contractorSignupSchema>;
 
 export type ContractorSignupFormValues = {
@@ -105,6 +138,7 @@ export type ContractorSignupFormValues = {
     issuedAt?: string;
     expiresAt?: string;
   }>;
+  certificationFiles: File[];
 };
 
 export const defaultContractorSignupValues: ContractorSignupFormValues = {
@@ -126,12 +160,6 @@ export const defaultContractorSignupValues: ContractorSignupFormValues = {
     routingNumber: "",
     accountNumber: "",
   },
-  certificationDocuments: [
-    {
-      certificationName: "",
-      issuingOrganization: "",
-      issuedAt: "",
-      expiresAt: "",
-    },
-  ],
+  certificationDocuments: [],
+  certificationFiles: [],
 };
