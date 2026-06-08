@@ -1275,7 +1275,7 @@ a {
 
 .password-meter {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   margin-top: -4px;
 }
@@ -1284,6 +1284,26 @@ a {
   height: 3px;
   border-radius: 999px;
   background: #ececec;
+}
+
+.password-meter span.is-active {
+  background: var(--brand-cta);
+}
+
+.password-meter--level-1 span.is-active {
+  background: #c02f1d;
+}
+
+.password-meter--level-2 span.is-active {
+  background: #c47a1b;
+}
+
+.password-meter--level-3 span.is-active {
+  background: #2f8a5f;
+}
+
+.password-meter--level-4 span.is-active {
+  background: var(--accent-contractor);
 }
 
 .signup-helper {
@@ -1427,7 +1447,12 @@ a {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--accent-contractor);
+  text-align: left;
 }
 
 .specialty-tree__title strong {

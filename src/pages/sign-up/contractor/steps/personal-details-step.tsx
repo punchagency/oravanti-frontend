@@ -9,11 +9,24 @@ type PersonalDetailsStepProps = {
   onNext: () => void;
 };
 
+function getPasswordStrength(password: string) {
+  if (!password) return 0;
+
+  let score = password.length >= 8 ? 1 : 0;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1;
+  if (/\d/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+  return Math.min(score, 4);
+}
+
 export function PersonalDetailsStep({ onBack, onNext }: PersonalDetailsStepProps) {
   const {
     register,
+    watch,
     formState: { errors },
   } = useFormContext<ContractorSignupFormValues>();
+  const passwordStrength = getPasswordStrength(watch("password"));
 
   return (
     <>
@@ -60,10 +73,16 @@ export function PersonalDetailsStep({ onBack, onNext }: PersonalDetailsStepProps
           {...register("password")}
         />
       </SignupField>
-      <div className="password-meter">
-        <span />
-        <span />
-        <span />
+      <div
+        className={`password-meter password-meter--level-${passwordStrength}`}
+        aria-label={`Password strength ${passwordStrength} of 4`}
+      >
+        {[1, 2, 3, 4].map((level) => (
+          <span
+            key={level}
+            className={level <= passwordStrength ? "is-active" : undefined}
+          />
+        ))}
       </div>
       <p className="signup-helper">Must be at least 8 characters</p>
       <StepFooter contextLabel="Next: Specialties" onNext={onNext} />
