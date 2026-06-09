@@ -2,6 +2,7 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import {
   AdminDashboardOverview,
   AdminDashboardPlaceholder,
+  AdminDashboardPipeline,
 } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
 import { SignUpPage } from "@/pages/sign-up";
@@ -39,7 +40,7 @@ const router = createBrowserRouter(
         <Route index element={<AdminDashboardOverview />} />
         <Route
           path="dashboard/pipeline"
-          element={<AdminDashboardPlaceholder view="Pipeline" />}
+          element={<AdminDashboardPipeline />}
         />
         <Route
           path="dashboard/activity"
