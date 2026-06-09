@@ -1,9 +1,5 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
-import {
-  AdminDashboardActivity,
-  AdminDashboardOverview,
-  AdminDashboardPipeline,
-} from "@/pages/admin/dashboard";
+import { AdminDashboard } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
 import { SignUpPage } from "@/pages/sign-up";
 import { ContractorSignupPage } from "@/pages/sign-up/contractor";
@@ -37,15 +33,9 @@ const router = createBrowserRouter(
       <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboardOverview />} />
-        <Route
-          path="dashboard/pipeline"
-          element={<AdminDashboardPipeline />}
-        />
-        <Route
-          path="dashboard/activity"
-          element={<AdminDashboardActivity />}
-        />
+        <Route index element={<AdminDashboard />} />
+        <Route path="dashboard/pipeline" element={<AdminDashboard />} />
+        <Route path="dashboard/activity" element={<AdminDashboard />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
