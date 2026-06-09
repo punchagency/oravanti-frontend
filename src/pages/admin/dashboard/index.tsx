@@ -57,11 +57,11 @@ const alerts = [
 ];
 
 const pipeline = [
-  ["Lead inbox", "Awaiting review", "4"],
-  ["Conflict check", "Attorney review pending", "3"],
-  ["Questionnaire", "Sent, awaiting completion", "2"],
-  ["Fee agreement", "Sent for eSignature", "1"],
-  ["Case opening", "Ready to open", "2"],
+  ["Lead inbox", "Awaiting review", "4", "neutral"],
+  ["Conflict check", "Attorney review pending", "3", "warning"],
+  ["Questionnaire", "Sent, awaiting completion", "2", "info"],
+  ["Fee agreement", "Sent for eSignature", "1", "gold"],
+  ["Case opening", "Ready to open", "2", "success"],
 ];
 
 const matters = [
@@ -76,9 +76,13 @@ const staff = [
   ["Rachel Abubakar", "Managing partner", "RA"],
 ];
 
-export function AdminDashboardOverview() {
-  useDocumentTitle("Dashboard - Oravanti");
+const dashboardTabs = [
+  ["Overview", "/admin"],
+  ["Pipeline", "/admin/dashboard/pipeline"],
+  ["Activity", "/admin/dashboard/activity"],
+];
 
+function DashboardHeader() {
   return (
     <>
       <header className="page-header">
@@ -93,12 +97,29 @@ export function AdminDashboardOverview() {
       </header>
 
       <nav className="content-tabs" aria-label="Dashboard views">
-        {["Overview", "Pipeline", "Activity"].map((tab, index) => (
-          <span key={tab} className={index === 0 ? "tab-link is-active" : "tab-link"}>
-            {tab}
-          </span>
+        {dashboardTabs.map(([label, path]) => (
+          <NavLink
+            key={label}
+            className={({ isActive }) =>
+              isActive ? "tab-link is-active" : "tab-link"
+            }
+            end={path === "/admin"}
+            to={path}
+          >
+            {label}
+          </NavLink>
         ))}
       </nav>
+    </>
+  );
+}
+
+export function AdminDashboardOverview() {
+  useDocumentTitle("Dashboard - Oravanti");
+
+  return (
+    <>
+      <DashboardHeader />
 
       <section className="metric-grid" aria-label="Dashboard metrics">
         {metrics.map((metric) => {
@@ -127,10 +148,13 @@ export function AdminDashboardOverview() {
       </div>
 
       <section className="dashboard-grid">
-        <article className="surface-card section-card">
-          <h2 className="section-heading section-heading-icon">
-            <AlertTriangle size={16} color="var(--brand-cta)" /> Priority alerts
-          </h2>
+        <article className="surface-card section-card dashboard-panel">
+          <header className="section-card__header">
+            <h2 className="section-heading section-heading-icon">
+              <AlertTriangle size={16} color="var(--brand-cta)" /> Priority alerts
+            </h2>
+            <span className="alert-count">{alerts.length}</span>
+          </header>
           <div className="alert-list">
             {alerts.map(([color, title, meta, time]) => (
               <div key={title} className="alert-row">
@@ -143,26 +167,26 @@ export function AdminDashboardOverview() {
               </div>
             ))}
           </div>
-          <Link className="row-meta" to="/admin/intake/pipeline/conflict-check">
+          <Link className="section-card__footer-link" to="/admin/intake/pipeline/conflict-check">
             View all alerts →
           </Link>
         </article>
 
-        <article className="surface-card section-card">
+        <article className="surface-card section-card dashboard-panel">
           <h2 className="section-heading">Intake pipeline</h2>
           <p className="section-subtitle">Active leads by stage</p>
           <div className="pipeline-list">
-            {pipeline.map(([title, meta, count]) => (
+            {pipeline.map(([title, meta, count, tone]) => (
               <NavLink key={title} className="pipeline-row" to="/admin/intake/pipeline/lead-inbox">
                 <div>
                   <p className="row-title">{title}</p>
                   <p className="row-meta">{meta}</p>
                 </div>
-                <span className="count-pill">{count}</span>
+                <span className={`count-pill count-pill--${tone}`}>{count}</span>
               </NavLink>
             ))}
           </div>
-          <Link className="row-meta" to="/admin/intake/pipeline/lead-inbox">
+          <Link className="section-card__footer-link" to="/admin/intake/pipeline/lead-inbox">
             Go to intake pipeline →
           </Link>
         </article>
@@ -199,6 +223,21 @@ export function AdminDashboardOverview() {
             ))}
           </div>
         </article>
+      </section>
+    </>
+  );
+}
+
+export function AdminDashboardPlaceholder({ view }: { view: "Pipeline" | "Activity" }) {
+  useDocumentTitle(`${view} dashboard - Oravanti`);
+
+  return (
+    <>
+      <DashboardHeader />
+
+      <section className="surface-card section-card dashboard-placeholder">
+        <h2 className="section-heading">{view}</h2>
+        <p className="section-subtitle">{view} dashboard view placeholder.</p>
       </section>
     </>
   );

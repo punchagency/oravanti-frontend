@@ -617,11 +617,24 @@ a {
   padding: 20px;
 }
 
+.dashboard-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .section-heading {
   margin: 0;
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 500;
+  line-height: 1.05;
 }
 
 .section-heading.section-heading-icon {
@@ -634,6 +647,7 @@ a {
   margin: 0;
   color: var(--text-secondary);
   font-size: 13px;
+  line-height: 1.1;
 }
 
 .alert-list,
@@ -659,6 +673,16 @@ a {
   align-items: start;
 }
 
+.alert-row:last-child,
+.pipeline-row:last-child {
+  border-bottom: 0;
+}
+
+.alert-row > .chip-dot {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
 .pipeline-row,
 .matter-row,
 .staff-row {
@@ -673,15 +697,63 @@ a {
   font-weight: 500;
 }
 
+.alert-row .row-title,
+.pipeline-row .row-title {
+  line-height: 1.08;
+}
+
 .row-meta {
   margin: 2px 0 0;
   color: var(--text-muted);
   font-size: 12px;
 }
 
+.alert-row .row-meta,
+.pipeline-row .row-meta {
+  margin-top: 1px;
+  line-height: 1.05;
+}
+
+.alert-row .row-meta {
+  color: var(--text-secondary);
+}
+
+.pipeline-row .row-meta {
+  color: var(--text-muted);
+}
+
 .row-time {
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.alert-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #fbefd8;
+  color: #8a641d;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.section-card__footer-link {
+  align-self: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+  color: var(--brand-cta);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.section-card__footer-link:hover {
+  color: var(--brand-cta-hover);
 }
 
 .count-pill,
@@ -702,6 +774,35 @@ a {
   min-width: 20px;
   background: #eee9dc;
   color: var(--text-secondary);
+}
+
+.count-pill--neutral {
+  background: #f1eee6;
+  color: #6b6252;
+}
+
+.count-pill--warning,
+.count-pill--gold {
+  background: #fff1d7;
+  color: #9c650b;
+}
+
+.count-pill--info {
+  background: #e7f0ff;
+  color: #2f63c7;
+}
+
+.count-pill--success {
+  background: #d9f8ed;
+  color: #00785a;
+}
+
+.dashboard-placeholder {
+  display: grid;
+  gap: 4px;
+  margin-top: 24px;
+  min-height: 220px;
+  align-content: start;
 }
 
 .practice-pill {

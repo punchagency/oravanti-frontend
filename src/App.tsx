@@ -1,5 +1,8 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { AdminDashboardOverview } from "@/pages/admin/dashboard";
+import {
+  AdminDashboardOverview,
+  AdminDashboardPlaceholder,
+} from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
 import { SignUpPage } from "@/pages/sign-up";
 import { ContractorSignupPage } from "@/pages/sign-up/contractor";
@@ -34,6 +37,14 @@ const router = createBrowserRouter(
 
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboardOverview />} />
+        <Route
+          path="dashboard/pipeline"
+          element={<AdminDashboardPlaceholder view="Pipeline" />}
+        />
+        <Route
+          path="dashboard/activity"
+          element={<AdminDashboardPlaceholder view="Activity" />}
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
