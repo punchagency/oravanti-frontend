@@ -519,6 +519,7 @@ a {
   display: inline-flex;
   align-items: center;
   min-height: 42px;
+  padding-inline: 12px;
   border-bottom: 2px solid transparent;
   color: var(--text-secondary);
   font-size: 13px;
@@ -600,9 +601,10 @@ a {
 }
 
 .chip-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  margin: 8px 4px 8px 0px;
 }
 
 .dashboard-grid {
@@ -622,8 +624,14 @@ a {
   font-weight: 500;
 }
 
+.section-heading.section-heading-icon {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .section-subtitle {
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 13px;
 }

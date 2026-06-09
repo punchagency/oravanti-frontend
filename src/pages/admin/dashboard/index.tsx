@@ -76,7 +76,7 @@ const staff = [
   ["Rachel Abubakar", "Managing partner", "RA"],
 ];
 
-export function DashboardPage() {
+export function AdminDashboardOverview() {
   useDocumentTitle("Dashboard - Oravanti");
 
   return (
@@ -128,7 +128,7 @@ export function DashboardPage() {
 
       <section className="dashboard-grid">
         <article className="surface-card section-card">
-          <h2 className="section-heading">
+          <h2 className="section-heading section-heading-icon">
             <AlertTriangle size={16} color="var(--brand-cta)" /> Priority alerts
           </h2>
           <div className="alert-list">
