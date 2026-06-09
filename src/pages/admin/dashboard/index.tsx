@@ -6,6 +6,7 @@ import {
   Plus,
   UserRound,
 } from "lucide-react";
+import { useState } from "react";
 import { Link, NavLink } from "react-router";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -65,15 +66,19 @@ const pipeline = [
 ];
 
 const matters = [
-  ["Amara Chen", "I-485 AOS", "Active", "Yemi Okafor"],
-  ["James Okonkwo", "I-130", "RFE", "Sandra Adeyemi"],
-  ["Maria Santos", "N-400", "Active", "Yemi Okafor"],
+  ["Amara Chen", "I-485 AOS", "Active", "Yemi Okafor", "success"],
+  ["James Okonkwo", "I-130", "RFE", "Sandra Adeyemi", "red"],
+  ["Maria Santos", "N-400", "Active", "Yemi Okafor", "success"],
+  ["David Kim", "H-1B", "Pending", "Unassigned", "gold"],
+  ["Aisha Patel", "I-589 Asylum", "Active", "Sandra Adeyemi", "success"],
 ];
 
 const staff = [
-  ["Sandra Adeyemi", "Attorney", "SA"],
-  ["Yemi Okafor", "Paralegal", "YO"],
-  ["Rachel Abubakar", "Managing partner", "RA"],
+  ["Sandra Adeyemi", "Attorney", "SA", "Active", "success", "mint"],
+  ["Yemi Okafor", "Paralegal", "YO", "Active", "success", "gold"],
+  ["Ruth Babatunde", "Case manager", "RB", "On leave", "neutral", "gold"],
+  ["James Martinez", "Contractor", "JM", "Assigned", "purple", "rose"],
+  ["Ayo Osei", "Paralegal", "AO", "Recertify", "red", "gold"],
 ];
 
 const dashboardTabs = [
@@ -116,6 +121,7 @@ function DashboardHeader() {
 
 export function AdminDashboardOverview() {
   useDocumentTitle("Dashboard - Oravanti");
+  const [activeChip, setActiveChip] = useState(chips[0][0]);
 
   return (
     <>
@@ -139,11 +145,16 @@ export function AdminDashboardOverview() {
       </section>
 
       <div className="chip-row">
-        {chips.map(([label, color], index) => (
-          <span key={label} className={index === 0 ? "chip is-active" : "chip"}>
+        {chips.map(([label, color]) => (
+          <button
+            key={label}
+            className={activeChip === label ? "chip is-active" : "chip"}
+            type="button"
+            onClick={() => setActiveChip(label)}
+          >
             <span className="chip-dot" style={{ background: color }} />
             {label}
-          </span>
+          </button>
         ))}
       </div>
 
@@ -191,37 +202,46 @@ export function AdminDashboardOverview() {
           </Link>
         </article>
 
-        <article className="surface-card section-card">
+        <article className="surface-card section-card dashboard-panel">
           <h2 className="section-heading">Recent matters</h2>
           <p className="section-subtitle">Last 5 opened or updated</p>
           <div className="matter-list">
-            {matters.map(([name, matter, status, owner]) => (
+            {matters.map(([name, matter, status, owner, tone]) => (
               <div key={name} className="matter-row">
-                <div>
-                  <p className="row-title">{name}</p>
-                  <p className="row-meta">{matter}</p>
-                </div>
-                <span className="practice-pill">{status}</span>
+                <p className="row-title">{name}</p>
+                <span className="matter-type">{matter}</span>
+                <span className={`practice-pill practice-pill--${tone}`}>{status}</span>
                 <span className="row-meta">{owner}</span>
               </div>
             ))}
           </div>
+          <Link className="section-card__footer-link" to="/admin/cases/all-matters">
+            View all matters →
+          </Link>
         </article>
 
-        <article className="surface-card section-card">
+        <article className="surface-card section-card dashboard-panel">
           <h2 className="section-heading">Staff snapshot</h2>
           <p className="section-subtitle">Active staff and certification status</p>
           <div className="staff-list">
-            {staff.map(([name, role, initials]) => (
+            {staff.map(([name, role, initials, status, statusTone, avatarTone]) => (
               <div key={name} className="staff-row">
-                <div>
-                  <p className="row-title">{name}</p>
-                  <p className="row-meta">{role}</p>
+                <div className="staff-person">
+                  <span className={`staff-avatar staff-avatar--${avatarTone}`}>{initials}</span>
+                  <div>
+                    <p className="row-title">{name}</p>
+                    <p className="row-meta">{role}</p>
+                  </div>
                 </div>
-                <span className="practice-pill">{initials}</span>
+                <span className={`practice-pill practice-pill--${statusTone}`}>
+                  {status}
+                </span>
               </div>
             ))}
           </div>
+          <Link className="section-card__footer-link" to="/admin/staff/accounts">
+            Manage staff →
+          </Link>
         </article>
       </section>
     </>
