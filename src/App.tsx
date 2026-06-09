@@ -1,7 +1,7 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
 import {
+  AdminDashboardActivity,
   AdminDashboardOverview,
-  AdminDashboardPlaceholder,
   AdminDashboardPipeline,
 } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
@@ -44,7 +44,7 @@ const router = createBrowserRouter(
         />
         <Route
           path="dashboard/activity"
-          element={<AdminDashboardPlaceholder view="Activity" />}
+          element={<AdminDashboardActivity />}
         />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

@@ -1,9 +1,13 @@
 import {
   AlertTriangle,
+  Bot,
   BriefcaseBusiness,
+  CalendarDays,
   Clock,
+  Cloud,
   FileText,
   Plus,
+  Rss,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -115,6 +119,69 @@ const healthIndicators = [
   ["Firm RFE rate", "12%", "Target: below 10%", "warning", 56, AlertTriangle],
   ["Avg lead to case", "11d", "↓ 3 days from last month", "success", 54, Clock],
   ["Conflict check clearance", "94%", "6% declined / referred out", "success", 94, ShieldCheck],
+] as const;
+
+const activityStats = [
+  ["12 workflow steps completed", "#00a878"],
+  ["3 documents uploaded", "#377dff"],
+  ["2 deadlines approaching", "#d18400"],
+  ["1 new matter opened", "#6a00c7"],
+  ["4 client messages sent", "#8c8f87"],
+] as const;
+
+const morningActivity = [
+  ["9:02 AM", "#00a878", "Ruth Babatunde filed RFE response package with USCIS", "ORV-2026-0139 · James Okonkwo · I-130", ""],
+  ["9:14 AM", "#377dff", "Client completed questionnaire", "ORV-intake · Maria Santos · Family law", "View responses"],
+  ["9:31 AM", "#6a00c7", "Sandra Adeyemi opened new matter — I-485 Adjustment of Status", "ORV-2026-0143 · Emeka Eze · Immigration", ""],
+  ["9:45 AM", "#e82c45", "System deadline alert — EEOC response due today", "ORV-2026-0109 · Ahmed Hassan · Employment", "View"],
+  ["10:03 AM", "#377dff", "Yemi Okafor uploaded document — Medical examination (I-693)", "ORV-2026-0131 · Aisha Patel · Immigration", ""],
+  ["10:22 AM", "#00a878", "Yemi Okafor completed workflow step — Document collection", "ORV-2026-0142 · Amara Chen · I-485 AOS", ""],
+  ["10:45 AM", "#6a00c7", "Sandra Adeyemi cleared conflict check — questionnaire sent", "Intake · Kenji Tanaka · Immigration", ""],
+  ["11:08 AM", "#00a878", "Ayo Osei submitted court filing — TRO petition", "ORV-2026-0094 · Sofia Reyes · Family law", ""],
+  ["11:30 AM", "#d18400", "System alert — Yemi Okafor at 9/12 caseload (75%)", "Approaching individual caseload cap", "Review"],
+  ["11:52 AM", "#377dff", "Client viewed fee agreement — not yet signed", "Intake · Aisha Patel · Immigration", ""],
+] as const;
+
+const afternoonActivity = [
+  ["12:15 PM", "#e82c45", "USCIS bulletin policy alert — I-693 new edition required", "Immigration · 2 matters affected", "View alert"],
+  ["12:44 PM", "#00a878", "System retainer payment received — $3,500", "Intake · Aisha Patel · I-485 AOS", ""],
+  ["1:10 PM", "#00a878", "Yemi Okafor confirmed biometrics appointment", "ORV-2026-0142 · Amara Chen · I-485 AOS", ""],
+  ["1:33 PM", "#377dff", "Ruth Babatunde sent document request to external party", "ORV-2026-0139 · James Okonkwo · Cook County Hospital", ""],
+  ["2:05 PM", "#6a00c7", "System AI QC review completed — 0 hard errors, 2 soft flags", "ORV-2026-0143 · Emeka Eze · I-485 AOS", ""],
+  ["2:28 PM", "#00a878", "Sandra Adeyemi passed Attorney review on workflow step", "ORV-2026-0131 · Aisha Patel · I-485 AOS", ""],
+  ["2:51 PM", "#d18400", "System reminder sent — fee agreement not yet signed", "Intake · Carlos Rivera · Family law", ""],
+  ["3:14 PM", "#377dff", "Aisha Patel sent client portal message — question about interview", "ORV-2026-0131 · Aisha Patel", "Reply"],
+  ["3:30 PM", "#00a878", "Ruth Babatunde filed DACA renewal — receipt tracking activated", "ORV-2026-0076 · Ibrahim Al-Amin · DACA Renewal", ""],
+  ["3:55 PM", "#00a878", "Ayo Osei sent parenting plan draft for client review", "ORV-2026-0128 · Carlos Rivera · Child Custody", ""],
+  ["4:18 PM", "#6a00c7", "System new lead received via client portal", "Intake · Sophia Rodriguez · Family law", "Review"],
+  ["4:40 PM", "#d18400", "System certification expiry alert — Yemi Okafor I-130", "Expires Aug 2026 — recertification recommended", "Assign training"],
+  ["5:02 PM", "#00a878", "Sandra Adeyemi saved consultation notes — fee agreement approved", "Intake · Kenji Tanaka · Immigration", ""],
+  ["5:15 PM", "#377dff", "System daily USCIS processing time update received", "Immigration · 3 matters auto-updated", ""],
+] as const;
+
+const staffDuty = [
+  ["Sandra Adeyemi", "Attorney", "SA", "12/20", 60, "success", "mint"],
+  ["Yemi Okafor", "Paralegal", "YO", "9/12", 75, "warning", "gold"],
+  ["Ruth Babatunde", "Case manager", "RB", "7/10", 70, "warning", "gold"],
+  ["Ayo Osei", "Paralegal", "AO", "6/10", 60, "success", "gold"],
+  ["James Kolade", "Case manager", "JK", "0/10", 0, "neutral", "gold"],
+] as const;
+
+const teamCaseload = [
+  ["Immigration Team A", "28/40", 70, "warning"],
+  ["Family & Estate Team", "8/20", 40, "success"],
+] as const;
+
+const systemStatuses = [
+  ["AI QC engine", "Operational", "success", Bot],
+  ["Policy alert feed", "Live", "success", Rss],
+  ["Deadline engine", "Active", "success", CalendarDays],
+  ["USCIS processing sync", "Updated 6:00 AM", "gold", Cloud],
+] as const;
+
+const closedThisWeek = [
+  ["Fatima Diallo — Spousal Support", "ORV-2026-0121 · Closed Jun 5, 2026"],
+  ["Chioma Okafor — Child Custody", "ORV-2026-0054 · Closed Jun 3, 2026"],
 ] as const;
 
 const matters = [
@@ -465,6 +532,190 @@ export function AdminDashboardPipeline() {
               </span>
             </article>
           ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function ActivityRow({
+  time,
+  color,
+  title,
+  meta,
+  action,
+}: {
+  time: string;
+  color: string;
+  title: string;
+  meta: string;
+  action: string;
+}) {
+  return (
+    <div className="activity-row">
+      <time className="activity-time">{time}</time>
+      <span className="activity-marker" style={{ backgroundColor: color }} />
+      <div className="activity-copy">
+        <p className="row-title">{title}</p>
+        <p className="row-meta">{meta}</p>
+      </div>
+      {action ? (
+        <Link className="activity-action-button" to="/admin/cases/all-matters">
+          {action}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+export function AdminDashboardActivity() {
+  useDocumentTitle("Activity dashboard - Oravanti");
+
+  return (
+    <>
+      <DashboardHeader />
+
+      <section className="activity-page">
+        <header className="activity-heading-row">
+          <h2 className="section-heading">Firm activity feed</h2>
+          <div className="activity-filters">
+            <select className="pipeline-select" aria-label="Activity date range">
+              <option>Today</option>
+            </select>
+            <select className="pipeline-select" aria-label="Activity type">
+              <option>All activity</option>
+            </select>
+          </div>
+        </header>
+
+        <div className="activity-summary-row">
+          {activityStats.map(([label, color]) => (
+            <span key={label} className="chip activity-summary-chip">
+              <span className="chip-dot" style={{ background: color }} />
+              {label}
+            </span>
+          ))}
+        </div>
+
+        <div className="activity-layout">
+          <article className="surface-card activity-feed-card">
+            <header className="activity-card-header">
+              <h3 className="pipeline-card-title">Today — Tuesday, June 9, 2026</h3>
+              <span className="alert-count">24 events</span>
+            </header>
+
+            <div className="activity-period">Morning</div>
+            <div className="activity-list">
+              {morningActivity.map(([time, color, title, meta, action]) => (
+                <ActivityRow
+                  key={`${time}-${title}`}
+                  time={time}
+                  color={color}
+                  title={title}
+                  meta={meta}
+                  action={action}
+                />
+              ))}
+            </div>
+
+            <div className="activity-period">Afternoon</div>
+            <div className="activity-list">
+              {afternoonActivity.map(([time, color, title, meta, action]) => (
+                <ActivityRow
+                  key={`${time}-${title}`}
+                  time={time}
+                  color={color}
+                  title={title}
+                  meta={meta}
+                  action={action}
+                />
+              ))}
+            </div>
+
+            <footer className="activity-feed-footer">
+              <button className="secondary-button" type="button">
+                Load earlier activity
+              </button>
+            </footer>
+          </article>
+
+          <aside className="activity-sidebar">
+            <article className="surface-card section-card activity-side-card">
+              <h3 className="pipeline-card-title">Staff on duty today</h3>
+              <p className="section-subtitle">Caseload vs individual cap</p>
+              <div className="activity-staff-list">
+                {staffDuty.map(([name, role, initials, load, percent, tone, avatarTone]) => (
+                  <div key={name} className="activity-staff-row">
+                    <div className="staff-person">
+                      <span className={`staff-avatar staff-avatar--${avatarTone}`}>{initials}</span>
+                      <div>
+                        <p className="row-title">{name}</p>
+                        <p className="row-meta">{role}</p>
+                      </div>
+                    </div>
+                    <span className="activity-capacity-track">
+                      <span
+                        className={`activity-capacity-fill activity-capacity-fill--${tone}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </span>
+                    <span className="activity-load-value">{load}</span>
+                    <span className={`activity-status-dot activity-status-dot--${tone}`} />
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="surface-card section-card activity-side-card">
+              <h3 className="pipeline-card-title">Team caseload</h3>
+              <p className="section-subtitle">Active vs team cap</p>
+              <div className="activity-team-list">
+                {teamCaseload.map(([label, load, percent, tone]) => (
+                  <div key={label} className="activity-team-row">
+                    <span className="row-title">{label}</span>
+                    <span className="activity-capacity-track">
+                      <span
+                        className={`activity-capacity-fill activity-capacity-fill--${tone}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </span>
+                    <span className="activity-load-value">{load}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="surface-card section-card activity-side-card">
+              <h3 className="pipeline-card-title">System status</h3>
+              <div className="system-status-list">
+                {systemStatuses.map(([label, status, tone, Icon]) => (
+                  <div key={label} className="system-status-row">
+                    <Icon size={13} strokeWidth={1.8} />
+                    <span className="row-meta">{label}</span>
+                    <span className={`practice-pill practice-pill--${tone}`}>
+                      {status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="surface-card section-card activity-side-card">
+              <h3 className="pipeline-card-title">Closed this week</h3>
+              <p className="section-subtitle">2 matters resolved</p>
+              <div className="closed-list">
+                {closedThisWeek.map(([title, meta]) => (
+                  <div key={title} className="closed-row">
+                    <span className="chip-dot" style={{ background: "var(--status-success)" }} />
+                    <div>
+                      <p className="row-title">{title}</p>
+                      <p className="row-meta">{meta}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </aside>
         </div>
       </section>
     </>
