@@ -5,7 +5,7 @@ import {
   PrimaryNavigation,
 } from "@/components/layout/navigation";
 
-export function AppShell() {
+export function AdminLayout() {
   return (
     <Box className="app-shell">
       <PrimaryNavigation />

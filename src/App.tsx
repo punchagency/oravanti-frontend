@@ -1,5 +1,5 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { DashboardPage as AdminDashboardPage } from "@/pages/admin/dashboard";
+import { AdminLayout } from "@/components/layout/admin-layout";
+import { AdminDashboard } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
 import { SignUpPage } from "@/pages/sign-up";
 import { ContractorSignupPage } from "@/pages/sign-up/contractor";
@@ -32,8 +32,10 @@ const router = createBrowserRouter(
       </Route>
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      <Route path="/admin" element={<AppShell />}>
-        <Route index element={<AdminDashboardPage />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="dashboard/pipeline" element={<AdminDashboard />} />
+        <Route path="dashboard/activity" element={<AdminDashboard />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
