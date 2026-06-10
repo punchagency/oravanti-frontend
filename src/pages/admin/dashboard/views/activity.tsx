@@ -47,9 +47,17 @@ export function ActivityView() {
         <div className="activity-filters">
           <select className="pipeline-select" aria-label="Activity date range">
             <option>Today</option>
+            <option>Last 7 days</option>
+            <option>Last 14 days</option>
+            <option>Last 30 days</option>
           </select>
           <select className="pipeline-select" aria-label="Activity type">
             <option>All activity</option>
+            <option>Cases</option>
+            <option>Intake</option>
+            <option>Deadlines</option>
+            <option>Staff</option>
+            <option>Teams</option>
           </select>
         </div>
       </header>
