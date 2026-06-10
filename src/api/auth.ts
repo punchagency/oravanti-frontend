@@ -73,6 +73,9 @@ const buildContractorSignupFormData = (data: ContractorSignupPayload) => {
   data.certificationFiles.forEach((file) => {
     formData.append("certificationFiles", file);
   });
+  data.identificationFiles.forEach((file) => {
+    formData.append("identificationFiles", file);
+  });
 
   return formData;
 };
