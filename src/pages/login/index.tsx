@@ -1,5 +1,6 @@
 import { useColorMode } from "@/hooks/use-color-mode";
 import { useSignInWithEmail } from "@/hooks/useSignInWithEmail";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Box,
   Button,
@@ -109,7 +110,7 @@ export const LoginPage = () => {
           textAlign="center"
         >
           <Image
-            src="oravanti_logo.png"
+            src="/oravanti_logo.png"
             alt="Oravanti Logo"
             w={10}
             mx={"auto"}
@@ -146,9 +147,8 @@ export const LoginPage = () => {
                 <Field.Label textStyle="label" color="fg.muted">
                   Password
                 </Field.Label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   bg="bg.input"
                   borderColor="border.input"
                   focusRingColor="brand.focusRing"

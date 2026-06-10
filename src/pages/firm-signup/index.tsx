@@ -1,118 +1,79 @@
+import { signUpAsFirmAdmin } from "@/api/auth";
+import { PasswordInput } from "@/components/ui/password-input";
+import type { APIError } from "@/hooks/types";
 import { useColorMode } from "@/hooks/use-color-mode";
+import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
+import { getErrorMessage } from "@/utils/getErrorMessage";
 import {
   Box,
   Button,
   Center,
-  Flex,
-  HStack,
+  Field,
   IconButton,
+  Image,
+  Input,
   Link,
-  Steps,
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useQueryState } from "nuqs";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { Link as RouterLink } from "react-router";
-import { AccountStep } from "./components/AccountStep";
-import { FirmDetailsStep } from "./components/FirmDetailsStep";
-import { PaymentStep } from "./components/PaymentStep";
-import { PracticeAreasStep } from "./components/PracticeAreasStep";
-import { ReviewStep } from "./components/ReviewStep";
-import { SuccessStep } from "./components/SuccessStep";
+import { z } from "zod";
 
-const STEP_FIELDS: Record<number, string[]> = {
-  0: ["firmName", "stateOfPractice", "barNumber", "platformTier"],
-  1: ["practiceAreas"],
-  2: ["firstName", "lastName", "workEmail", "phoneNumber", "password"],
-  3: ["termsConsent"],
-  4: ["cardholderName", "cardNumber", "expiryDate", "cvv", "billingAddress"],
-};
+const signupSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Work email is required")
+    .email("Must be a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password cannot exceed 128 characters"),
+});
+
+type SignupFormData = z.infer<typeof signupSchema>;
 
 export const FirmSignupFlow = () => {
-  const [currentStep, setCurrentStep] = useState(0);
   const { colorMode, toggleColorMode } = useColorMode();
-  const [_, setRole] = useQueryState("role");
+  const { showError, showSuccess } = useFeedbackDialog();
 
   const {
     register,
     handleSubmit,
-    control,
-    trigger,
-    getValues,
-    setValue,
-    watch,
     formState: { errors },
-  } = useForm({
-    defaultValues: {
-      firmName: "",
-      stateOfPractice: "",
-      barNumber: "",
-      platformTier: "complete",
-      practiceAreas: [] as string[],
-      firstName: "",
-      lastName: "",
-      workEmail: "",
-      phoneNumber: "",
-      password: "",
-      termsConsent: false,
-      cardholderName: "",
-      cardNumber: "",
-      expiryDate: "",
-      cvv: "",
-      billingAddress: "",
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  useDocumentTitle("Sign up - Oravanti");
+
+  const signupMutation = useMutation({
+    mutationFn: signUpAsFirmAdmin,
+    onSuccess: () => {
+      showSuccess({
+        title: "Account created",
+        description: "Check your email for the verification link.",
+      });
+      window.location.href = "/login";
+    },
+    onError: (error: APIError) => {
+      showError({
+        title: "Sign up failed",
+        description: getErrorMessage(error, "Please try again."),
+      });
     },
   });
 
-  const watchedPracticeAreas = watch("practiceAreas");
-  const formValues = watch();
-
-  const handleNext = async () => {
-    const fieldsToValidate = STEP_FIELDS[currentStep] as any[];
-    const isStepValid = await trigger(fieldsToValidate);
-
-    if (isStepValid && currentStep < 5) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-      return;
-    }
-
-    setRole(null);
-  };
-
-  const onFinalSubmit = (data: any) => {
-    console.log("Form successfully validated & submitted:", data);
-    handleNext();
-  };
-
-  const inputStyleProps = {
-    bg: "bg.input",
-    borderWidth: "1px",
-    borderColor: "border.input",
-    color: "fg",
-    borderRadius: "sm",
-    _hover: { borderColor: "border.emphasized" },
-    _focus: {
-      borderColor: "brand.focusRing",
-      boxShadow: "0 0 0 1px {colors.brand.400}",
-      outline: "none",
-    },
+  const onSubmit: SubmitHandler<SignupFormData> = (data) => {
+    signupMutation.mutate(data);
   };
 
   return (
-    <Center
-      minH="100vh"
-      w="100vw"
-      bg="bg.subtle"
-      py={{ base: 6, md: 12 }}
-      px={4}
-    >
+    <Box minH="100vh" bg="bg.subtle" position="relative">
       <Box position="absolute" top="4" right="4" zIndex="sticky">
         <IconButton
           onClick={toggleColorMode}
@@ -134,7 +95,7 @@ export const FirmSignupFlow = () => {
               width="1.2em"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           ) : (
             <svg
@@ -148,181 +109,99 @@ export const FirmSignupFlow = () => {
               width="1.2em"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
             </svg>
           )}
         </IconButton>
       </Box>
 
-      <Box
-        w="full"
-        maxW="720px"
-        layerStyle="surface-card"
-        p={{ base: 5, md: 8 }}
-        position="relative"
-        bg="bg"
-        as="form"
-        onSubmit={
-          currentStep === 4
-            ? handleSubmit(onFinalSubmit)
-            : (e) => e.preventDefault()
-        }
-      >
-        {currentStep < 5 && (
-          <Steps.Root step={currentStep} count={5} variant="subtle">
-            <Flex align="center" justify="space-between" mb="4" pr="10">
-              <HStack gap="3">
-                <IconButton
-                  aria-label="Go back"
-                  onClick={handlePrev}
-                  variant="ghost"
-                  size="sm"
-                  color="fg"
-                  borderColor="border"
-                  borderWidth="1px"
+      <Center minH="100vh" padding={{ base: 4, sm: 6 }} py={{ base: 8, md: 4 }}>
+        <Box
+          layerStyle="surface-card"
+          p={{ base: 6, md: 10 }}
+          w="full"
+          maxW="480px"
+          textAlign="center"
+        >
+          <Image
+            src="/oravanti_logo.png"
+            alt="Oravanti Logo"
+            w={10}
+            mx="auto"
+            mb={4}
+          />
+
+          <Text textStyle="heading" color="fg" mb="1">
+            Create your firm account
+          </Text>
+          <Text textStyle="subheadline" color="fg.muted" mb="8">
+            Enter your work email to get started.
+          </Text>
+
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <VStack gap="5" align="stretch">
+              <Field.Root invalid={!!errors.email} textAlign="left">
+                <Field.Label textStyle="label" color="fg.muted">
+                  Work email
+                </Field.Label>
+                <Input
+                  id="email"
+                  type="email"
                   bg="bg.input"
-                  _hover={{ bg: "bg.subtle" }}
-                  type="button"
-                >
-                  <svg
-                    stroke="currentColor"
-                    fill="none"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    height="1em"
-                    width="1em"
-                  >
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                  </svg>
-                </IconButton>
-                <VStack align="flex-start" gap="0">
-                  <Text textStyle="heading" fontSize="lg" color="fg">
-                    {currentStep === 0 && "Firm details"}
-                    {currentStep === 1 && "Practice areas"}
-                    {currentStep === 2 && "Your account"}
-                    {currentStep === 3 && "Review"}
-                    {currentStep === 4 && "Payment"}
-                  </Text>
-                  <Text textStyle="body-sm" color="fg.muted">
-                    Step {currentStep + 1} of 5
-                  </Text>
-                </VStack>
-              </HStack>
-              <Box
-                bg="brand.muted"
-                px="2.5"
-                py="0.5"
-                borderRadius="sm"
-                fontSize="xs"
-                fontWeight="bold"
-                color="brand.fg"
-              >
-                Firm
-              </Box>
-            </Flex>
-
-            <Steps.List mb="8">
-              {[0, 1, 2, 3, 4].map((index) => (
-                <Steps.Item key={index} index={index} title="">
-                  <Steps.Separator
-                    bg={currentStep >= index ? "brand.solid" : "border.muted"}
-                  />
-                </Steps.Item>
-              ))}
-            </Steps.List>
-
-            <Box minH="260px" mb="8">
-              {currentStep === 0 && (
-                <FirmDetailsStep
-                  register={register}
-                  errors={errors}
-                  control={control as any}
-                  setValue={setValue}
-                  watch={watch}
-                  inputStyleProps={inputStyleProps}
+                  borderColor="border.input"
+                  focusRingColor="brand.focusRing"
+                  placeholder="e.g. attorney@firm.com"
+                  size="lg"
+                  {...register("email")}
                 />
-              )}
+                <Field.ErrorText>{errors.email?.message}</Field.ErrorText>
+              </Field.Root>
 
-              {currentStep === 1 && (
-                <PracticeAreasStep
-                  register={register}
-                  errors={errors}
-                  setValue={setValue}
-                  getValues={getValues}
-                  watch={watch}
+              <Field.Root invalid={!!errors.password} textAlign="left">
+                <Field.Label textStyle="label" color="fg.muted">
+                  Password
+                </Field.Label>
+                <PasswordInput
+                  id="password"
+                  bg="bg.input"
+                  borderColor="border.input"
+                  focusRingColor="brand.focusRing"
+                  placeholder="At least 8 characters"
+                  size="lg"
+                  {...register("password")}
                 />
-              )}
+                <Field.ErrorText>{errors.password?.message}</Field.ErrorText>
+              </Field.Root>
 
-              {currentStep === 2 && (
-                <AccountStep
-                  register={register}
-                  errors={errors}
-                  inputStyleProps={inputStyleProps}
-                />
-              )}
-
-              {currentStep === 3 && (
-                <ReviewStep
-                  formValues={formValues}
-                  watchedPracticeAreas={watchedPracticeAreas}
-                  errors={errors}
-                  control={control as any}
-                />
-              )}
-
-              {currentStep === 4 && (
-                <PaymentStep
-                  register={register}
-                  errors={errors}
-                  inputStyleProps={inputStyleProps}
-                />
-              )}
-            </Box>
-
-            <Flex justify="space-between" align="center" mt="4">
-              <Box>
-                {currentStep > 0 && (
-                  <Text
-                    textStyle="body-sm"
-                    color="fg.muted"
-                    cursor="pointer"
-                    _hover={{ textDecoration: "underline" }}
-                    onClick={handlePrev}
-                  >
-                    ← Review
-                  </Text>
-                )}
-              </Box>
               <Button
-                onClick={currentStep === 4 ? undefined : handleNext}
-                type={currentStep === 4 ? "submit" : "button"}
+                type="submit"
+                loading={signupMutation.isPending}
                 layerStyle="brand-button"
-                px="6"
+                size="lg"
+                w="full"
+                h="12"
+                mt="2"
               >
-                {currentStep === 4 ? "Start subscription" : "Continue"}
+                Create account
               </Button>
-            </Flex>
-          </Steps.Root>
-        )}
+            </VStack>
+          </form>
 
-        {currentStep === 5 && <SuccessStep />}
-
-        <Text textStyle="body-sm" fontWeight="500" as="button" mt="3">
-          Already have an account?{" "}
-          <Link textDecoration="underline" color="brand.500" asChild>
-            <RouterLink to="/login">Log in</RouterLink>
-          </Link>
-        </Text>
-      </Box>
-    </Center>
+          <Text textStyle="body-sm" fontWeight="500" as="button" mt="4">
+            Already have an account?{" "}
+            <Link textDecoration="underline" color="brand.500" asChild>
+              <RouterLink to="/login">Log in</RouterLink>
+            </Link>
+          </Text>
+        </Box>
+      </Center>
+    </Box>
   );
 };

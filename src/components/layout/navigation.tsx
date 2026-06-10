@@ -1,4 +1,5 @@
 import { ColorModeButton } from "@/components/ui/color-mode";
+import { useSignOut } from "@/hooks/useSignOut";
 import {
   contextNavigation,
   getSectionForPath,
@@ -6,6 +7,7 @@ import {
   type ContextNavigationItem,
   type NavigationIcon,
 } from "@/utils/navigation";
+import { Button } from "@chakra-ui/react";
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
@@ -27,6 +29,7 @@ import {
   Landmark,
   LayoutDashboard,
   Lock,
+  LogOut,
   Mail,
   MessageSquareText,
   Moon,
@@ -203,6 +206,7 @@ export function ContextNavigation() {
   const location = useLocation();
   const activeSection = getSectionForPath(location.pathname);
   const groups = contextNavigation[activeSection];
+  const signOutMutation = useSignOut();
   const [collapsedState, setCollapsedState] = useState<{
     pathname: string;
     items: Set<string>;
@@ -276,6 +280,22 @@ export function ContextNavigation() {
             <span>Managing partner</span>
           </div>
         </div>
+
+        <Button
+          onClick={() => signOutMutation.mutate()}
+          disabled={signOutMutation.isPending}
+          variant={"outline"}
+          color={"fg.subtle"}
+          borderColor={"border.muted"}
+          _hover={{
+            bg: "bg.subtle",
+            color: "fg.muted",
+            borderColor: "border.muted",
+          }}
+        >
+          <LogOut size={13} />
+          {signOutMutation.isPending ? "Signing out..." : "Sign out"}
+        </Button>
       </footer>
     </aside>
   );

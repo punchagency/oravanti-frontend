@@ -2,7 +2,7 @@ import type z from "zod";
 import type {
   firmInformationSchema,
   personalDetailsSchema,
-} from "./pages/onboarding/schema";
+} from "@/types/pages/onboarding/schema";
 
 export type AuthSession = {
   id: string;
@@ -17,18 +17,23 @@ export type AuthSession = {
 
 export type SessionUser = {
   id: string;
+  name: string;
+  email?: string;
+  emailVerified: boolean;
+  image?: string;
   createdAt: Date;
   updatedAt: Date;
-  emailVerified: boolean;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  name: string;
-  phoneNumber?: string;
-  jobTitle?: string;
-  barNumber?: string;
-  image?: string;
   twoFactorEnabled?: boolean;
+  userAccountType: "firm_admin" | "staff" | "contractor" | "client";
+  onboardingState:
+    | "email_unverified"
+    | "email_verified"
+    | "domain_verified"
+    | "profile_completed"
+    | "org_created"
+    | "completed";
+  tosAccepted: boolean;
+  tosAcceptedAt: Date | null;
 };
 
 export type SessionUserUpdateData = Omit<

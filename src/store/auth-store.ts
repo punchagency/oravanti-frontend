@@ -6,12 +6,14 @@ type AuthState = {
   session: AuthSession | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  organizationId: string | null;
   refetch: () => void;
 };
 
 type AuthActions = {
   setAuth: (auth: AuthState) => void;
   clearAuth: () => void;
+  setOrganizationId: (id: string) => void;
 };
 
 export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
@@ -19,6 +21,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
   session: null,
   isAuthenticated: false,
   isLoading: true,
+  organizationId: null,
   refetch: () => {},
   setAuth: (auth) =>
     set({
@@ -26,6 +29,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       session: auth.session,
       isAuthenticated: auth.isAuthenticated,
       isLoading: auth.isLoading,
+      organizationId: auth.organizationId ?? auth.session?.activeOrganizationId ?? null,
       refetch: auth.refetch,
     }),
   clearAuth: () =>
@@ -34,6 +38,8 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       session: null,
       isAuthenticated: false,
       isLoading: false,
+      organizationId: null,
       refetch: () => {},
     }),
+  setOrganizationId: (id: string) => set({ organizationId: id }),
 }));

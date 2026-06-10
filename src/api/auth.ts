@@ -9,6 +9,15 @@ export const signUpWithEmail = async (data: {
   return (await API.post("/auth/sign-up/email", data)).data;
 };
 
+export const signUpAsFirmAdmin = async (data: {
+  email: string;
+  password: string;
+}) => {
+  return (
+    await API.post("/auth/sign-up/email?account_type=firm_admin", data)
+  ).data;
+};
+
 export const signInWithEmail = async (data: {
   email: string;
   password: string;
