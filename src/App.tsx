@@ -1,8 +1,8 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { AdminDashboard } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
-import { SignUpPage } from "@/pages/sign-up";
-import { ContractorSignupPage } from "@/pages/sign-up/contractor";
+import { SignUpPage } from "@/pages/contractor-sign-up";
+import { ContractorSignupPage } from "@/pages/contractor-sign-up/contractor";
 import {
   Route,
   RouterProvider,

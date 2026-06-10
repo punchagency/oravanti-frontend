@@ -326,7 +326,7 @@ export function SpecialtiesStep({
             />
           </SignupField>
           <SignupField
-            label="Issuing organization"
+            label="Issuing organization (optional)"
             error={errors.certificationDocuments?.[index]?.issuingOrganization?.message}
           >
             <input
