@@ -1970,6 +1970,81 @@ a {
   color: #53606b;
 }
 
+html[data-theme="dark"] .signup-page {
+  background: #1e1e1b;
+}
+
+html[data-theme="dark"] .signup-theme-button,
+html[data-theme="dark"] .signup-card,
+html[data-theme="dark"] .signup-back,
+html[data-theme="dark"] .signup-role-card,
+html[data-theme="dark"] .signup-icon-text-button,
+html[data-theme="dark"] .signup-icon-button,
+html[data-theme="dark"] .practice-area-option,
+html[data-theme="dark"] .certification-group,
+html[data-theme="dark"] .payment-option,
+html[data-theme="dark"] .signup-info-box,
+html[data-theme="dark"] .signup-consent {
+  border-color: var(--border-default);
+  background: var(--surface-raised);
+}
+
+html[data-theme="dark"] .signup-theme-button,
+html[data-theme="dark"] .signup-back,
+html[data-theme="dark"] .signup-icon-text-button,
+html[data-theme="dark"] .signup-icon-button {
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .signup-progress__bar {
+  background: #373632;
+}
+
+html[data-theme="dark"] .signup-field input,
+html[data-theme="dark"] .signup-field select,
+html[data-theme="dark"] .signup-field textarea {
+  border-color: var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .upload-area div {
+  border-color: var(--border-default);
+  background: #252520;
+}
+
+html[data-theme="dark"] .practice-area-option.is-selected,
+html[data-theme="dark"] .practice-area-option:hover {
+  border-color: var(--accent-contractor);
+}
+
+html[data-theme="dark"] .specialty-group {
+  border-color: var(--border-default);
+  background: #252520;
+}
+
+html[data-theme="dark"] .specialty-tree {
+  border-left-color: rgba(255, 255, 255, 0.18);
+}
+
+html[data-theme="dark"] .specialty-tree__title {
+  border-color: var(--border-default);
+  background: #2d2c27;
+}
+
+html[data-theme="dark"] .specialty-tree__title.is-active {
+  border-color: var(--accent-contractor);
+}
+
+html[data-theme="dark"] .specialty-tree__title.is-active strong {
+  color: #ffb49b;
+}
+
+html[data-theme="dark"] .signup-alert {
+  background: #372018;
+  color: #ffb49b;
+}
+
 .signup-card {
   width: min(638px, 100%);
   padding: 32px;

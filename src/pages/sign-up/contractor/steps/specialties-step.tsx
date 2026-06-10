@@ -342,7 +342,7 @@ export function SpecialtiesStep({
           </SignupField>
           <div className="signup-form-grid">
             <SignupField
-              label="Issued at"
+              label="Issued at (optional)"
               error={errors.certificationDocuments?.[index]?.issuedAt?.message}
             >
               <input
@@ -352,7 +352,7 @@ export function SpecialtiesStep({
               />
             </SignupField>
             <SignupField
-              label="Expires at"
+              label="Expires at (optional)"
               error={errors.certificationDocuments?.[index]?.expiresAt?.message}
             >
               <input
