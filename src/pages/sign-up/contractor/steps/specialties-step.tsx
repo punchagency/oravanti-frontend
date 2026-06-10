@@ -1,4 +1,18 @@
-import { FileUp, Plus, Trash2 } from "lucide-react";
+import {
+  Building2,
+  Briefcase,
+  FileText,
+  FileUp,
+  HeartPulse,
+  Home,
+  Plane,
+  Plus,
+  Scale,
+  Trash2,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { SignupField } from "../components/signup-field";
 import { SpecialtyGroup } from "../components/specialty-group";
@@ -21,6 +35,41 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const practiceAreaTones = [
+  "mint",
+  "blue",
+  "gold",
+  "rose",
+  "purple",
+  "amber",
+  "peach",
+  "teal",
+] as const;
+
+const practiceAreaIconRules: Array<[RegExp, LucideIcon]> = [
+  [/immigration/i, Plane],
+  [/family/i, Home],
+  [/criminal/i, Scale],
+  [/personal injury|injury/i, HeartPulse],
+  [/business|corporate/i, Briefcase],
+  [/estate/i, FileText],
+  [/employment|labor/i, Users],
+  [/real estate|property/i, Building2],
+];
+
+function getPracticeAreaCaseTypeIds(practiceArea: PublicPracticeArea) {
+  return practiceArea.subcategories.flatMap((subcategory) =>
+    subcategory.caseTypes.map((caseType) => caseType.id),
+  );
+}
+
+function getPracticeAreaIcon(name: string) {
+  return (
+    practiceAreaIconRules.find(([matcher]) => matcher.test(name))?.[1] ??
+    Briefcase
+  );
+}
+
 export function SpecialtiesStep({
   loading,
   practiceAreas,
@@ -37,10 +86,58 @@ export function SpecialtiesStep({
   } = useFormContext<ContractorSignupFormValues>();
   const selectedSpecialtyIds = watch("specialtyIds");
   const certificationFiles = watch("certificationFiles");
+  const [manualPracticeAreaIds, setManualPracticeAreaIds] = useState<
+    string[]
+  >([]);
   const { fields, append, remove } = useFieldArray({
     control,
     name: "certificationDocuments",
   });
+  const activePracticeAreaIds = useMemo(
+    () =>
+      new Set([
+        ...manualPracticeAreaIds,
+        ...practiceAreas
+          .filter((practiceArea) =>
+            getPracticeAreaCaseTypeIds(practiceArea).some((caseTypeId) =>
+              selectedSpecialtyIds.includes(caseTypeId),
+            ),
+          )
+          .map((practiceArea) => practiceArea.id),
+      ]),
+    [manualPracticeAreaIds, practiceAreas, selectedSpecialtyIds],
+  );
+  const selectedPracticeAreas = useMemo(
+    () =>
+      practiceAreas.filter((practiceArea) =>
+        activePracticeAreaIds.has(practiceArea.id),
+      ),
+    [activePracticeAreaIds, practiceAreas],
+  );
+
+  function togglePracticeArea(practiceArea: PublicPracticeArea) {
+    const isSelected = activePracticeAreaIds.has(practiceArea.id);
+
+    if (!isSelected) {
+      setManualPracticeAreaIds((current) => [...current, practiceArea.id]);
+      return;
+    }
+
+    const caseTypeIds = new Set(getPracticeAreaCaseTypeIds(practiceArea));
+
+    setManualPracticeAreaIds((current) =>
+      current.filter((practiceAreaId) => practiceAreaId !== practiceArea.id),
+    );
+    setValue(
+      "specialtyIds",
+      selectedSpecialtyIds.filter((specialtyId) => !caseTypeIds.has(specialtyId)),
+      {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      },
+    );
+  }
 
   function toggleSpecialty(id: string) {
     const nextSpecialtyIds = selectedSpecialtyIds.includes(id)
@@ -99,7 +196,50 @@ export function SpecialtiesStep({
         <p className="signup-helper">No specialties are available yet.</p>
       ) : null}
 
-      {practiceAreas.map((practiceArea) => (
+      {!loading && !practiceAreasError && practiceAreas.length > 0 ? (
+        <>
+          <p className="signup-field-label">
+            Practice areas - select areas you support
+          </p>
+          <div className="practice-area-option-grid">
+            {practiceAreas.map((practiceArea, index) => {
+              const Icon = getPracticeAreaIcon(practiceArea.name);
+              const tone = practiceAreaTones[index % practiceAreaTones.length];
+              const isSelected = activePracticeAreaIds.has(practiceArea.id);
+
+              return (
+                <button
+                  className={
+                    isSelected
+                      ? "practice-area-option is-selected"
+                      : "practice-area-option"
+                  }
+                  type="button"
+                  key={practiceArea.id}
+                  onClick={() => togglePracticeArea(practiceArea)}
+                  aria-pressed={isSelected}
+                >
+                  <span className={`practice-area-option__icon tone-${tone}`}>
+                    <Icon size={15} />
+                  </span>
+                  <span>{practiceArea.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
+
+      {selectedPracticeAreas.length === 0 &&
+      !loading &&
+      !practiceAreasError &&
+      practiceAreas.length > 0 ? (
+        <p className="specialty-empty-state">
+          Select Level 1 Practice Areas above to configure specialties.
+        </p>
+      ) : null}
+
+      {selectedPracticeAreas.map((practiceArea) => (
         <SpecialtyGroup
           key={practiceArea.id}
           practiceArea={practiceArea}
@@ -111,8 +251,8 @@ export function SpecialtiesStep({
         <p className="signup-error">{errors.specialtyIds.message}</p>
       ) : null}
 
-      <div className="signup-section-heading">
-        <h2 className="signup-section-title">Certification documents</h2>
+      <div className="signup-section-heading signup-section-heading--compact">
+        <span className="signup-field-label">Credentials & bar cards</span>
         {certificationFiles.length > 0 ? (
           <label
             className="signup-icon-text-button"
@@ -131,7 +271,6 @@ export function SpecialtiesStep({
             : "upload-area"
         }
       >
-        <span>Credentials & bar cards</span>
         <input
           id="certification-document-upload"
           type="file"
