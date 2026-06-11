@@ -207,15 +207,21 @@ function LeadReviewDrawer({
           onClose();
         }
       }}
-      placement="center"
     >
       <Dialog.Backdrop bg="transparent" />
-      <Dialog.Positioner justifyContent="flex-end">
+      <Dialog.Positioner
+        alignItems="stretch"
+        justifyContent="flex-end"
+        w="100vw"
+        h="100vh"
+        p="0"
+      >
         <Dialog.Content
           w="340px"
           maxW="calc(100vw - 24px)"
           h="100vh"
           maxH="100vh"
+          m="0"
           borderLeft="1px solid"
           borderColor="border.subtle"
           borderRadius="0"
@@ -287,6 +293,9 @@ function LeadReviewDrawer({
                     color="fg"
                     fontSize="13px"
                     lineHeight="1.45"
+                    maxH="96px"
+                    overflowY="auto"
+                    overscrollBehavior="contain"
                   >
                     {lead.situationSummary}
                   </Box>
