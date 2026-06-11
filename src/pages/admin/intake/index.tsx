@@ -173,7 +173,7 @@ export function IntakePipelinePage() {
                   ) : null}
                 </td>
                 <td>{lead.source}</td>
-                <td>{lead.received}</td>
+                <td className="table-muted">{lead.received}</td>
                 <td>
                   <button className="table-action-button" type="button">
                     Review

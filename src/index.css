@@ -1697,7 +1697,7 @@ a {
   display: block;
   width: fit-content;
   min-height: 17px;
-  margin-top: 4px;
+  margin-top: 0;
   padding: 2px 7px;
   border-radius: 4px;
   font-size: 10px;
@@ -1715,15 +1715,24 @@ a {
   color: #9c650b;
 }
 
+.lead-status--archived {
+  background: #f1eee6;
+  color: #817867;
+}
+
 .lead-add-on-warning {
   display: flex;
   align-items: center;
   gap: 3px;
-  margin-top: 5px;
+  margin-top: 0;
   color: var(--status-warning);
   font-size: 10px;
   font-weight: 500;
   line-height: 1;
+}
+
+.table-muted {
+  color: var(--text-muted) !important;
 }
 
 .table-action-button {

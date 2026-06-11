@@ -82,5 +82,12 @@ export const leadInboxLeads = [
   },
 ] as const;
 
-export const leadSources = ["Education flywheel", "Referral", "Direct"] as const;
-export const leadStatuses = ["New", "Reviewed"] as const;
+export const leadSources = [
+  "Education flywheel",
+  "Referral",
+  "Direct",
+  "Walk in",
+  "Phone enquiry",
+  "Client portal",
+] as const;
+export const leadStatuses = ["New", "Reviewed", "Archived"] as const;
