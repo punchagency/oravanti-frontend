@@ -1,58 +1,67 @@
+import { Box, HStack, Stack } from "@chakra-ui/react";
 import { AlertTriangle, FileText, Send } from "lucide-react";
 import { questionnaires } from "../data";
+import {
+  BrandButton,
+  CardTitle,
+  MutedText,
+  OutlineButton,
+  PracticePill,
+  StatusPill,
+  SurfaceCard,
+} from "./intake-ui";
 
 export function QuestionnaireView() {
   return (
-    <section className="questionnaire-section" aria-label="Questionnaire queue">
-      <header className="questionnaire-toolbar">
-        <p>2 questionnaires sent</p>
-        <button className="secondary-button" type="button">
+    <Stack gap="16px" pt="24px" aria-label="Questionnaire queue">
+      <HStack justify="space-between" gap="16px" wrap="wrap">
+        <MutedText fontSize="14px">2 questionnaires sent</MutedText>
+        <OutlineButton>
           <Send size={14} />
           Send new questionnaire
-        </button>
-      </header>
+        </OutlineButton>
+      </HStack>
 
-      <div className="questionnaire-list">
+      <Stack gap="14px">
         {questionnaires.map((questionnaire) => (
-          <article
-            key={questionnaire.title}
-            className="surface-card work-card questionnaire-card"
-          >
-            <header className="work-card__header">
-              <div>
-                <h2 className="work-card__title">{questionnaire.title}</h2>
-                <div className="work-card__meta questionnaire-card__meta">
-                  <span
-                    className={`practice-pill practice-pill--${questionnaire.practiceTone}`}
-                  >
+          <SurfaceCard key={questionnaire.title}>
+            <HStack align="flex-start" justify="space-between" gap="16px">
+              <Box>
+                <CardTitle>{questionnaire.title}</CardTitle>
+                <HStack mt="6px" gap="9px">
+                  <PracticePill tone={questionnaire.practiceTone}>
                     {questionnaire.practiceArea}
-                  </span>
-                  <span>Received from {questionnaire.receivedFrom}</span>
-                </div>
+                  </PracticePill>
+                  <MutedText>Received from {questionnaire.receivedFrom}</MutedText>
+                </HStack>
                 {!questionnaire.addOnActive ? (
-                  <span className="lead-add-on-warning questionnaire-card__warning">
+                  <HStack mt="0" gap="3px" color="brand.700" fontSize="10px" fontWeight="500">
                     <AlertTriangle size={11} />
-                    Not active
-                  </span>
+                    <Box as="span">Not active</Box>
+                  </HStack>
                 ) : null}
-              </div>
-              <span className="conflict-status-badge conflict-status-badge--success">
-                {questionnaire.statusLabel}
-              </span>
-            </header>
+              </Box>
+              <StatusPill>{questionnaire.statusLabel}</StatusPill>
+            </HStack>
 
-            <div className="work-card__actions questionnaire-card__actions">
-              <button className="secondary-button questionnaire-card__button" type="button">
-                View response
-              </button>
-              <button className="brand-button questionnaire-card__button" type="button">
+            <Box
+              display="grid"
+              gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }}
+              gap="8px"
+              mt="14px"
+              pt="14px"
+              borderTop="1px solid"
+              borderColor="border.subtle"
+            >
+              <OutlineButton>View response</OutlineButton>
+              <BrandButton>
                 <FileText size={14} />
                 Generate fee agreement
-              </button>
-            </div>
-          </article>
+              </BrandButton>
+            </Box>
+          </SurfaceCard>
         ))}
-      </div>
-    </section>
+      </Stack>
+    </Stack>
   );
 }

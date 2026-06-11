@@ -1,68 +1,74 @@
+import { Box, Button, HStack, Stack } from "@chakra-ui/react";
 import { AlertTriangle, Check, FolderOpen, Lock } from "lucide-react";
 import { caseOpenings } from "../data";
+import {
+  BrandButton,
+  CardTitle,
+  MutedText,
+  PracticePill,
+  StatusPill,
+  SurfaceCard,
+} from "./intake-ui";
 
 export function CaseOpeningView() {
   return (
-    <section className="case-opening-section" aria-label="Case opening queue">
-      <header className="case-opening-toolbar">
-        <p>2 cases ready to open</p>
-        <span className="conflict-status-badge conflict-status-badge--success">
-          Retainers confirmed
-        </span>
-      </header>
+    <Stack gap="16px" pt="24px" aria-label="Case opening queue">
+      <HStack justify="space-between" gap="16px" wrap="wrap">
+        <MutedText fontSize="14px">2 cases ready to open</MutedText>
+        <StatusPill>Retainers confirmed</StatusPill>
+      </HStack>
 
-      <div className="case-opening-list">
+      <Stack gap="14px">
         {caseOpenings.map((caseOpening) => (
-          <article
-            key={caseOpening.title}
-            className="surface-card work-card case-opening-card"
-          >
-            <header className="work-card__header">
-              <div>
-                <h2 className="work-card__title">{caseOpening.title}</h2>
-                <div className="work-card__meta case-opening-card__meta">
-                  <span className={`practice-pill practice-pill--${caseOpening.practiceTone}`}>
+          <SurfaceCard key={caseOpening.title}>
+            <HStack align="flex-start" justify="space-between" gap="16px">
+              <Box>
+                <CardTitle>{caseOpening.title}</CardTitle>
+                <HStack mt="6px" gap="9px">
+                  <PracticePill tone={caseOpening.practiceTone}>
                     {caseOpening.practiceArea}
-                  </span>
-                  <span>{caseOpening.retainerCopy}</span>
-                </div>
+                  </PracticePill>
+                  <MutedText>{caseOpening.retainerCopy}</MutedText>
+                </HStack>
                 {!caseOpening.addOnActive ? (
-                  <span className="lead-add-on-warning case-opening-card__warning">
+                  <HStack mt="0" gap="3px" color="brand.700" fontSize="10px" fontWeight="500">
                     <AlertTriangle size={11} />
-                    Not active
-                  </span>
+                    <Box as="span">Not active</Box>
+                  </HStack>
                 ) : null}
-              </div>
-              <span className="conflict-status-badge conflict-status-badge--success">
-                <Check size={11} />
-                Retainer Received
-              </span>
-            </header>
+              </Box>
+              <StatusPill icon={<Check size={11} />}>Retainer Received</StatusPill>
+            </HStack>
 
-            <div className="work-card__note case-opening-summary">
+            <Box mt="18px" p="12px" borderRadius="7px" bg="bg.muted" color="fg.muted" fontSize="13px">
               Active Situation Summary: {caseOpening.summary}
-            </div>
+            </Box>
 
-            <div className="work-card__actions case-opening-card__actions">
-              <button
-                className={
-                  caseOpening.actionTone === "danger"
-                    ? "case-opening-danger-button"
-                    : "brand-button case-opening-card__button"
-                }
-                type="button"
-              >
-                {caseOpening.actionTone === "danger" ? (
+            <Box mt="14px" pt="14px" borderTop="1px solid" borderColor="border.subtle">
+              {caseOpening.actionTone === "danger" ? (
+                <Button
+                  w="100%"
+                  minH="32px"
+                  borderRadius="7px"
+                  bg="#c40024"
+                  color="#ffffff"
+                  fontSize="13px"
+                  fontWeight="500"
+                  _hover={{ bg: "#a9001f" }}
+                >
                   <Lock size={14} />
-                ) : (
+                  {caseOpening.actionLabel}
+                </Button>
+              ) : (
+                <BrandButton w="100%">
                   <FolderOpen size={14} />
-                )}
-                {caseOpening.actionLabel}
-              </button>
-            </div>
-          </article>
+                  {caseOpening.actionLabel}
+                </BrandButton>
+              )}
+            </Box>
+          </SurfaceCard>
         ))}
-      </div>
-    </section>
+      </Stack>
+    </Stack>
   );
 }

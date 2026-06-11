@@ -1,60 +1,144 @@
+import {
+  Box,
+  Flex,
+  HStack,
+  Link,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import { Download, Plus } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
-import { NavLink } from "react-router";
+import type { ReactNode } from "react";
+import { Link as RouterLink, useLocation } from "react-router";
 import { intakeStages, intakeTabs } from "../data";
-
-function stepStyle(color: string): CSSProperties {
-  return { "--step-color": color } as CSSProperties;
-}
+import { BrandButton, OutlineButton } from "./intake-ui";
 
 export function PipelineFrame({ children }: { children: ReactNode }) {
+  const location = useLocation();
+
   return (
     <>
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">Intake pipeline</h1>
-          <p className="page-subtitle">Manage leads from first contact to active case</p>
-        </div>
-        <div className="page-actions">
-          <button className="brand-button" type="button">
+      <Flex
+        as="header"
+        align="flex-start"
+        justify="space-between"
+        gap="16px"
+        py="28px"
+        pb="16px"
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+      >
+        <Box>
+          <Text as="h1" m="0" color="fg" fontSize="22px" fontWeight="500" lineHeight="1.2">
+            Intake pipeline
+          </Text>
+          <Text m="6px 0 0" color="fg.muted" fontSize="13px">
+            Manage leads from first contact to active case
+          </Text>
+        </Box>
+        <HStack gap="8px">
+          <BrandButton>
             <Plus size={15} />
             Add lead
-          </button>
-          <button className="secondary-button" type="button">
+          </BrandButton>
+          <OutlineButton>
             <Download size={14} />
             Export
-          </button>
-        </div>
-      </header>
+          </OutlineButton>
+        </HStack>
+      </Flex>
 
-      <section className="pipeline-progress" aria-label="Intake pipeline stages">
-        {intakeStages.map((stage, index) => (
-          <NavLink
-            key={stage.path}
-            className="pipeline-step"
-            style={stepStyle(stage.color)}
-            to={stage.path}
-          >
-            <span className="pipeline-step__number">{index + 1}</span>
-            <span className="pipeline-step__label">{stage.label}</span>
-            <span className="pipeline-step__count">{stage.countLabel}</span>
-          </NavLink>
-        ))}
-      </section>
+      <Box
+        as="section"
+        display="grid"
+        gridTemplateColumns={{ base: "repeat(3, minmax(0, 1fr))", xl: "repeat(6, minmax(0, 1fr))" }}
+        rowGap="18px"
+        mt="34px"
+        mb="28px"
+        pb="28px"
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+        aria-label="Intake pipeline stages"
+      >
+        {intakeStages.map((stage, index) => {
+          const active = location.pathname === stage.path;
 
-      <nav className="pipeline-tabs" aria-label="Intake pipeline views">
-        {intakeTabs.map(([label, path]) => (
-          <NavLink
-            key={path}
-            className={({ isActive }) =>
-              isActive ? "tab-link is-active" : "tab-link"
-            }
-            to={path}
-          >
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+          return (
+            <Link key={stage.path} asChild textDecoration="none">
+              <RouterLink to={stage.path}>
+                <VStack position="relative" gap="6px" textAlign="center">
+                  {index > 0 ? (
+                    <Box
+                      position="absolute"
+                      top="14px"
+                      left="-50%"
+                      w="100%"
+                      h="2px"
+                      bg="border"
+                    />
+                  ) : null}
+                  <Box
+                    zIndex="1"
+                    display="grid"
+                    placeItems="center"
+                    w="28px"
+                    h="28px"
+                    border="2px solid"
+                    borderColor={stage.color}
+                    borderRadius="full"
+                    bg="bg"
+                    color={stage.color}
+                    fontSize="13px"
+                    fontWeight="500"
+                    boxShadow={active ? `0 0 0 3px ${stage.color}1f` : undefined}
+                  >
+                    {index + 1}
+                  </Box>
+                  <Text m="0" color="fg" fontSize="11px" fontWeight="500" lineHeight="1.1">
+                    {stage.label}
+                  </Text>
+                  <Text m="0" color="fg.muted" fontSize="11px" lineHeight="1.1">
+                    {stage.countLabel}
+                  </Text>
+                </VStack>
+              </RouterLink>
+            </Link>
+          );
+        })}
+      </Box>
+
+      <HStack
+        as="nav"
+        gap="18px"
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+        overflowX="auto"
+        aria-label="Intake pipeline views"
+      >
+        {intakeTabs.map(([label, path]) => {
+          const active = location.pathname === path;
+
+          return (
+            <Link key={path} asChild textDecoration="none">
+              <RouterLink to={path}>
+                <Box
+                  display="inline-flex"
+                  alignItems="center"
+                  minH="42px"
+                  px="12px"
+                  borderBottom="2px solid"
+                  borderColor={active ? "brand.solid" : "transparent"}
+                  color={active ? "fg" : "fg.muted"}
+                  fontSize="13px"
+                  fontWeight={active ? "500" : "400"}
+                  whiteSpace="nowrap"
+                >
+                  {label}
+                </Box>
+              </RouterLink>
+            </Link>
+          );
+        })}
+      </HStack>
 
       {children}
     </>

@@ -1,4 +1,11 @@
 import {
+  Box,
+  HStack,
+  Stack,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
+import {
   CalendarDays,
   Check,
   ClipboardCheck,
@@ -11,80 +18,102 @@ import {
   X,
 } from "lucide-react";
 import { consultations } from "../data";
+import type { ReactNode } from "react";
+import {
+  BrandButton,
+  CardTitle,
+  MutedText,
+  OutlineButton,
+  StatusPill,
+  SurfaceCard,
+} from "./intake-ui";
 
 export function ConsultationView() {
   return (
-    <section className="consultation-section" aria-label="Consultation and notes">
-      <header className="questionnaire-toolbar">
-        <p>2 consultations in progress</p>
-        <button className="secondary-button" type="button">
+    <Stack gap="16px" pt="24px" aria-label="Consultation and notes">
+      <HStack justify="space-between" gap="16px" wrap="wrap">
+        <MutedText fontSize="14px">2 consultations in progress</MutedText>
+        <OutlineButton>
           <CalendarDays size={14} />
           Schedule consultation
-        </button>
-      </header>
+        </OutlineButton>
+      </HStack>
 
-      <div className="consultation-list">
+      <Stack gap="16px">
         {consultations.map((consultation) => (
-          <article
-            key={consultation.name}
-            className="surface-card work-card consultation-card"
-          >
-            <header className="consultation-card__header">
-              <div className="consultation-person">
-                <span className={`consultation-avatar consultation-avatar--${consultation.avatarTone}`}>
-                  {consultation.initials}
-                </span>
-                <div>
-                  <h2 className="work-card__title">{consultation.name}</h2>
-                  <p className="consultation-subtitle">{consultation.matter}</p>
-                </div>
-              </div>
-              <div className="consultation-schedule">
-                <span
-                  className={`conflict-status-badge conflict-status-badge--${consultation.statusTone}`}
+          <SurfaceCard key={consultation.name}>
+            <HStack align="center" justify="space-between" gap="16px" wrap="wrap">
+              <PersonHeader
+                initials={consultation.initials}
+                avatarTone={consultation.avatarTone}
+                title={consultation.name}
+                subtitle={consultation.matter}
+              />
+              <HStack gap="8px" wrap="wrap" color="fg.muted" fontSize="12px" justify="flex-end">
+                <StatusPill tone={consultation.statusTone}>{consultation.status}</StatusPill>
+                <HStack
+                  as="span"
+                  gap="4px"
+                  minH="18px"
+                  px="8px"
+                  py="2px"
+                  borderRadius="999px"
+                  bg="bg.subtle"
+                  color="fg.muted"
+                  fontSize="10px"
+                  fontWeight="500"
+                  lineHeight="1"
                 >
-                  {consultation.status}
-                </span>
-                <span className="consultation-mode">
                   {consultation.mode === "Video call" ? (
                     <Video size={11} />
                   ) : (
                     <MapPin size={11} />
                   )}
-                  {consultation.mode}
-                </span>
-                <span>{consultation.date}</span>
-              </div>
-            </header>
+                  <Box as="span">{consultation.mode}</Box>
+                </HStack>
+                <Box as="span">{consultation.date}</Box>
+              </HStack>
+            </HStack>
 
-            <div className="consultation-questionnaire-row">
-              <div className="consultation-person">
-                <span className="consultation-icon consultation-icon--success">
+            <HStack
+              align="center"
+              justify="space-between"
+              gap="16px"
+              wrap="wrap"
+              mt="16px"
+              pt="14px"
+              pb="16px"
+              borderTop="1px solid"
+              borderBottom="1px solid"
+              borderColor="border.subtle"
+            >
+              <HStack gap="12px">
+                <RoundIcon>
                   <ClipboardCheck size={15} />
-                </span>
-                <div>
-                  <h3 className="consultation-row-title">Questionnaire completed</h3>
-                  <p className="consultation-subtitle">{consultation.questionnaire}</p>
-                </div>
-              </div>
-              <button className="link-button" type="button">
-                View responses
-              </button>
-            </div>
+                </RoundIcon>
+                <Box>
+                  <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                    Questionnaire completed
+                  </Text>
+                  <MutedText>{consultation.questionnaire}</MutedText>
+                </Box>
+              </HStack>
+              <LinkButton>View responses</LinkButton>
+            </HStack>
 
-            <section className="consultation-documents" aria-label={`${consultation.name} documents`}>
-              <header className="consultation-documents__header">
-                <p>
-                  <strong>Documents</strong>
-                  <span>{consultation.documentsReceived}</span>
-                </p>
-                <button className="link-button" type="button">
-                  Request missing
-                </button>
-              </header>
+            <Box py="16px" borderBottom="1px solid" borderColor="border.subtle">
+              <HStack justify="space-between" gap="16px" wrap="wrap">
+                <HStack gap="10px">
+                  <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                    Documents
+                  </Text>
+                  <MutedText>{consultation.documentsReceived}</MutedText>
+                </HStack>
+                <LinkButton>Request missing</LinkButton>
+              </HStack>
 
-              <p className="consultation-documents__group-label">Uploaded by client</p>
-              <div className="consultation-document-list">
+              <GroupLabel>Uploaded by client</GroupLabel>
+              <Stack gap="0">
                 {consultation.uploadedDocuments.map((document) => (
                   <DocumentRow
                     key={document.title}
@@ -95,12 +124,10 @@ export function ConsultationView() {
                     checkedTone="success"
                   />
                 ))}
-              </div>
+              </Stack>
 
-              <p className="consultation-documents__group-label">
-                Required — pending receipt
-              </p>
-              <div className="consultation-document-list">
+              <GroupLabel>Required — pending receipt</GroupLabel>
+              <Stack gap="0">
                 {consultation.requiredDocuments.map((document) => (
                   <DocumentRow
                     key={document.title}
@@ -110,60 +137,156 @@ export function ConsultationView() {
                     checkedTone="warning"
                   />
                 ))}
-              </div>
-              <p className="consultation-helper">
+              </Stack>
+              <MutedText>
                 Check the box to manually confirm receipt of documents provided outside the
                 client portal (e.g. in-person, by email, or via scan).
-              </p>
-            </section>
+              </MutedText>
+            </Box>
 
-            <section className="consultation-notes" aria-label={`${consultation.name} attorney notes`}>
-              <div>
-                <h3 className="consultation-row-title">Attorney notes</h3>
-                <p className="consultation-subtitle">
-                  Notes are internal and not visible to the client.
-                </p>
-              </div>
-              <textarea
+            <Stack gap="8px" py="16px" borderBottom="1px solid" borderColor="border.subtle">
+              <Box>
+                <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                  Attorney notes
+                </Text>
+                <MutedText>Notes are internal and not visible to the client.</MutedText>
+              </Box>
+              <Textarea
                 aria-label={`${consultation.name} attorney notes`}
                 defaultValue={consultation.notes}
+                minH="102px"
+                p="12px"
+                borderColor="border"
+                bg="bg"
+                resize="vertical"
               />
-              <button className="secondary-button consultation-save-button" type="button">
-                Save notes
-              </button>
-            </section>
+              <OutlineButton alignSelf="flex-end">Save notes</OutlineButton>
+            </Stack>
 
-            <footer className="consultation-footer">
-              <div className="consultation-assignee">
-                <span className="consultation-assignee__avatar">
+            <HStack justify="space-between" gap="16px" wrap="wrap" pt="16px">
+              <HStack gap="6px" color="fg.muted" fontSize="12px">
+                <Box
+                  display="grid"
+                  placeItems="center"
+                  w="24px"
+                  h="24px"
+                  borderRadius="full"
+                  bg="bg.subtle"
+                  color="fg.muted"
+                  fontSize="10px"
+                  fontWeight="500"
+                >
                   {consultation.assigneeInitials}
-                </span>
-                <span>{consultation.assignee}</span>
-                <span>(Assigned)</span>
-              </div>
-              <div className="consultation-actions">
-                <button className="brand-button" type="button">
+                </Box>
+                <Box as="span" color="fg.muted">{consultation.assignee}</Box>
+                <Box as="span">(Assigned)</Box>
+              </HStack>
+              <HStack gap="8px" wrap="wrap" justify="flex-end">
+                <BrandButton>
                   <Send size={14} />
                   Proceed to fee agreement
-                </button>
-                <button className="secondary-button" type="button">
+                </BrandButton>
+                <OutlineButton>
                   <CalendarDays size={14} />
                   Schedule follow-up
-                </button>
-                <button className="secondary-button" type="button">
+                </OutlineButton>
+                <OutlineButton>
                   <X size={14} />
                   Close — no case
-                </button>
-                <button className="secondary-button" type="button">
+                </OutlineButton>
+                <OutlineButton>
                   <ExternalLink size={14} />
                   Refer elsewhere
-                </button>
-              </div>
-            </footer>
-          </article>
+                </OutlineButton>
+              </HStack>
+            </HStack>
+          </SurfaceCard>
         ))}
-      </div>
-    </section>
+      </Stack>
+    </Stack>
+  );
+}
+
+function PersonHeader({
+  initials,
+  avatarTone,
+  title,
+  subtitle,
+}: {
+  initials: string;
+  avatarTone: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <HStack gap="12px" minW="0">
+      <Box
+        display="grid"
+        placeItems="center"
+        flex="0 0 auto"
+        w="34px"
+        h="34px"
+        borderRadius="full"
+        bg={avatarTone === "blue" ? "#e5efff" : "#d9f8ed"}
+        color={avatarTone === "blue" ? "#1c55b8" : "#00785a"}
+        fontSize="11px"
+        fontWeight="500"
+      >
+        {initials}
+      </Box>
+      <Box>
+        <CardTitle>{title}</CardTitle>
+        <MutedText>{subtitle}</MutedText>
+      </Box>
+    </HStack>
+  );
+}
+
+function RoundIcon({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      display="grid"
+      placeItems="center"
+      flex="0 0 auto"
+      w="32px"
+      h="32px"
+      borderRadius="full"
+      bg="#d9f8ed"
+      color="#00785a"
+    >
+      {children}
+    </Box>
+  );
+}
+
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <Text
+      mt="14px"
+      mb="6px"
+      color="fg.muted"
+      fontSize="10px"
+      fontWeight="500"
+      lineHeight="1"
+      textTransform="uppercase"
+    >
+      {children}
+    </Text>
+  );
+}
+
+function LinkButton({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      as="button"
+      border="0"
+      bg="transparent"
+      color="brand.600"
+      fontSize="12px"
+      fontWeight="500"
+    >
+      {children}
+    </Box>
   );
 }
 
@@ -181,38 +304,57 @@ function DocumentRow({
   checkedTone: "success" | "warning";
 }) {
   return (
-    <div className="consultation-document-row">
-      <span
-        className={
-          received
-            ? `document-check document-check--${checkedTone}`
-            : "document-check document-check--empty"
-        }
-        aria-hidden="true"
+    <Box
+      display="grid"
+      gridTemplateColumns={{ base: "auto minmax(0, 1fr) auto", md: "auto minmax(0, 1fr) auto auto" }}
+      alignItems="center"
+      gap="10px"
+      minH="50px"
+      py={{ base: "9px", md: "0" }}
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+    >
+      <Box
+        display="grid"
+        placeItems="center"
+        w="16px"
+        h="16px"
+        border="1px solid"
+        borderColor={received ? "transparent" : "border"}
+        borderRadius="4px"
+        bg={received ? (checkedTone === "success" ? "accent.attorney" : "brand.solid") : "bg"}
+        color={received && checkedTone === "warning" ? "brand.fg" : "#ffffff"}
       >
         {received ? <Check size={11} /> : null}
-      </span>
-      <div>
-        <p className="consultation-row-title">{title}</p>
-        <p className="consultation-subtitle">
-          {meta}
+      </Box>
+      <Box>
+        <Text m="0" color="fg" fontSize="13px" fontWeight="500" lineHeight="1.15">
+          {title}
+        </Text>
+        <HStack gap="4px" color="fg.muted" fontSize="12px">
+          <Box as="span">{meta}</Box>
           {meta === "Required" ? <Lock size={10} /> : null}
-        </p>
-      </div>
-      <span
-        className={
-          received
-            ? "document-status document-status--received"
-            : "document-status document-status--pending"
-        }
-      >
+        </HStack>
+      </Box>
+      <StatusPill tone={received ? "success" : "warning"}>
         {received ? "Received" : "Pending"}
-      </span>
+      </StatusPill>
       {downloadable ? (
-        <button className="icon-button" type="button" aria-label={`Download ${title}`}>
+        <Box
+          as="button"
+          display="inline-flex"
+          alignItems="center"
+          justifyContent="center"
+          w="26px"
+          h="26px"
+          border="0"
+          bg="transparent"
+          color="fg.muted"
+          aria-label={`Download ${title}`}
+        >
           <Download size={14} />
-        </button>
+        </Box>
       ) : null}
-    </div>
+    </Box>
   );
 }

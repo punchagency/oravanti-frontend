@@ -1,10 +1,24 @@
-import { AlertTriangle, Search } from "lucide-react";
+import {
+  Box,
+  Flex,
+  HStack,
+  Input,
+  Table,
+  chakra,
+} from "@chakra-ui/react";
+import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   leadInboxLeads,
   leadSources,
   leadStatuses,
 } from "../data";
+import {
+  AddOnWarning,
+  MutedText,
+  OutlineButton,
+  PracticePill,
+} from "./intake-ui";
 
 export function LeadInboxView() {
   const [query, setQuery] = useState("");
@@ -35,98 +49,171 @@ export function LeadInboxView() {
 
   return (
     <>
-      <section className="toolbar" aria-label="Lead inbox controls">
-        <div className="toolbar__filters">
-          <label className="input-shell">
+      <Flex
+        as="section"
+        align="center"
+        justify="space-between"
+        gap="16px"
+        my="24px"
+        mb="18px"
+        wrap="wrap"
+        aria-label="Lead inbox controls"
+      >
+        <HStack gap="10px" wrap="wrap">
+          <HStack
+            gap="8px"
+            h="34px"
+            minW="280px"
+            px="12px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="7px"
+            bg="bg"
+            color="fg.muted"
+          >
             <Search size={15} />
-            <input
+            <Input
               aria-label="Search leads"
               placeholder="Search leads..."
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              p="0"
+              h="auto"
+              border="0"
+              bg="transparent"
+              color="fg"
+              _focus={{ boxShadow: "none", outline: "0" }}
             />
-          </label>
+          </HStack>
 
-          <label className="select-shell">
-            <select
-              aria-label="Filter by source"
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-            >
-              <option>All sources</option>
-              {leadSources.map((leadSource) => (
-                <option key={leadSource}>{leadSource}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="select-shell">
-            <select
-              aria-label="Filter by status"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option>All statuses</option>
-              {leadStatuses.map((leadStatus) => (
-                <option key={leadStatus}>{leadStatus}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <span className="record-count">
+          <FilterSelect
+            ariaLabel="Filter by source"
+            value={source}
+            onChange={setSource}
+            options={["All sources", ...leadSources]}
+          />
+          <FilterSelect
+            ariaLabel="Filter by status"
+            value={status}
+            onChange={setStatus}
+            options={["All statuses", ...leadStatuses]}
+          />
+        </HStack>
+        <MutedText fontSize="11px">
           {filteredLeads.length} {filteredLeads.length === 1 ? "lead" : "leads"}
-        </span>
-      </section>
+        </MutedText>
+      </Flex>
 
-      <div className="data-table intake-table" role="region" aria-label="Lead inbox table">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Contact</th>
-              <th scope="col">Practice area interest</th>
-              <th scope="col">Source</th>
-              <th scope="col">Received</th>
-              <th scope="col">Action</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Box
+        overflowX="auto"
+        border="1px solid"
+        borderColor="border"
+        borderRadius="10px"
+        bg="bg"
+        aria-label="Lead inbox table"
+      >
+        <Table.Root minW="980px">
+          <Table.Header>
+            <Table.Row bg="bg.subtle">
+              {[
+                "Name",
+                "Contact",
+                "Practice area interest",
+                "Source",
+                "Received",
+                "Action",
+              ].map((heading) => (
+                <Table.ColumnHeader
+                  key={heading}
+                  h="36px"
+                  px="16px"
+                  color="fg.muted"
+                  fontSize="10px"
+                  fontWeight="500"
+                  textTransform="uppercase"
+                >
+                  {heading}
+                </Table.ColumnHeader>
+              ))}
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
             {filteredLeads.map((lead) => (
-              <tr key={lead.email}>
-                <td>
-                  <span className="table-name">{lead.name}</span>
-                  <span className={`lead-status lead-status--${lead.status.toLowerCase()}`}>
-                    {lead.status}
-                  </span>
-                </td>
-                <td>
+              <Table.Row key={lead.email}>
+                <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                  <Box color="fg" fontSize="13px" fontWeight="500">
+                    {lead.name}
+                  </Box>
+                  <LeadStatus status={lead.status} />
+                </Table.Cell>
+                <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
                   {lead.email}
-                  <span className="table-subtext">{lead.phone}</span>
-                </td>
-                <td>
-                  <span className={`practice-pill practice-pill--${lead.practiceTone}`}>
-                    {lead.practiceArea}
-                  </span>
-                  {!lead.addOnActive ? (
-                    <span className="lead-add-on-warning">
-                      <AlertTriangle size={11} />
-                      Not active
-                    </span>
-                  ) : null}
-                </td>
-                <td>{lead.source}</td>
-                <td className="table-muted">{lead.received}</td>
-                <td>
-                  <button className="table-action-button" type="button">
+                  <MutedText fontSize="11px">{lead.phone}</MutedText>
+                </Table.Cell>
+                <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                  <PracticePill tone={lead.practiceTone}>{lead.practiceArea}</PracticePill>
+                  {!lead.addOnActive ? <AddOnWarning /> : null}
+                </Table.Cell>
+                <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
+                  {lead.source}
+                </Table.Cell>
+                <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
+                  {lead.received}
+                </Table.Cell>
+                <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                  <OutlineButton h="28px" minH="28px" fontSize="12px">
                     Review
-                  </button>
-                </td>
-              </tr>
+                  </OutlineButton>
+                </Table.Cell>
+              </Table.Row>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Table.Body>
+        </Table.Root>
+      </Box>
     </>
+  );
+}
+
+function FilterSelect({
+  ariaLabel,
+  value,
+  onChange,
+  options,
+}: {
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly string[];
+}) {
+  return (
+    <chakra.select
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.currentTarget.value)}
+      h="34px"
+      minW="156px"
+      px="10px"
+      border="1px solid"
+      borderColor="border"
+      borderRadius="7px"
+      bg="bg"
+      color="fg"
+      fontSize="13px"
+    >
+      {options.map((option) => (
+        <option key={option}>{option}</option>
+      ))}
+    </chakra.select>
+  );
+}
+
+function LeadStatus({ status }: { status: string }) {
+  const tone = status === "New" ? "warning" : "neutral";
+
+  return (
+    <PracticePill tone={tone}>
+      {status}
+    </PracticePill>
   );
 }
