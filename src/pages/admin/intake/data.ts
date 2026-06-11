@@ -323,6 +323,51 @@ export const consultations = [
       "Record consultation notes, client statements, key facts, and your preliminary assessment here. These notes are saved to the matter record and referenced in the fee agreement stage.",
     assignee: "Sandra Adeyemi",
     assigneeInitials: "SA",
+    questionnaireResponse: {
+      responseTitle: "Kenji Tanaka's questionnaire",
+      matter: "I-130 — Petition for Alien Relative",
+      submitted: "Submitted June 1, 2026",
+      language: "Japanese",
+      completionPercent: 92,
+      answeredLabel: "22 of 24 questions answered",
+      documents: [
+        "Passport — Sarah Tanaka (petitioner)",
+        "Marriage certificate — June 14, 2022",
+        "Proof of US citizenship — Sarah Tanaka",
+        "Petitioner's proof of US citizenship or LPR status",
+        "Marriage certificate (if filing for spouse)",
+        "Two passport-style photos",
+      ],
+      responseSections: [
+        {
+          title: "Petitioner information",
+          questions: [
+            ["Petitioner full legal name", "Sarah Tanaka"],
+            ["Petitioner immigration status", "U.S. citizen"],
+            ["Current address", "1409 Pine St, Seattle, WA 98101"],
+            ["Preferred language", "English"],
+          ],
+        },
+        {
+          title: "Beneficiary information",
+          questions: [
+            ["Beneficiary full legal name", "Kenji Tanaka"],
+            ["Current country of residence", "Japan"],
+            ["Date of birth", "1990-11-18"],
+            ["Prior U.S. immigration filings", "No prior petitions filed"],
+          ],
+        },
+        {
+          title: "Marriage and relationship history",
+          questions: [
+            ["Date of marriage", "2022-06-14"],
+            ["Place of marriage", "King County, Washington"],
+            ["Have either spouse been married before?", "No"],
+            ["Additional notes for your attorney", "We have lived together in Seattle since 2023 and have joint lease and bank records."],
+          ],
+        },
+      ],
+    },
   },
   {
     initials: "MS",
@@ -379,6 +424,49 @@ export const consultations = [
       "Client confirmed all assets are community property. Both parties cooperative. Main issue is condo ownership split and retirement account division. Alimony was requested — rehabilitative type likely appropriate. Attorney reviewing financial disclosures before fee agreement.",
     assignee: "Ayo Osei",
     assigneeInitials: "AO",
+    questionnaireResponse: {
+      responseTitle: "Maria Santos's questionnaire",
+      matter: "Uncontested / Simplified Dissolution",
+      submitted: "Submitted June 2, 2026",
+      language: "Español",
+      completionPercent: 90,
+      answeredLabel: "18 of 20 questions answered",
+      documents: [
+        "Marriage certificate",
+        "Financial disclosure form",
+        "Bank statements — Chase (6 months)",
+        "Government-issued photo ID",
+        "Tax returns — last 3 years",
+        "Retirement account statement",
+      ],
+      responseSections: [
+        {
+          title: "Personal information",
+          questions: [
+            ["Full legal name", "Maria Elena Santos"],
+            ["Date of birth", "1985-09-03"],
+            ["Current address", "4521 W Fullerton Ave, Chicago, IL 60639"],
+            ["Spouse full legal name", "Ricardo Juan Santos"],
+          ],
+        },
+        {
+          title: "Assets and finances",
+          questions: [
+            ["Do you own real property together?", "Yes"],
+            ["Estimated property value (if applicable)", "Approximately $280,000"],
+            ["Outstanding mortgage balance (if applicable)", "Approximately $190,000"],
+            ["Do you have retirement accounts?", ""],
+          ],
+        },
+        {
+          title: "Additional information",
+          questions: [
+            ["Are there any domestic violence incidents to disclose?", "No"],
+            ["Additional notes for your attorney", "Main dispute is the condo and retirement funds."],
+          ],
+        },
+      ],
+    },
   },
 ] as const;
 

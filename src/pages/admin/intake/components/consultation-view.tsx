@@ -38,12 +38,18 @@ import {
   StatusPill,
   SurfaceCard,
 } from "./intake-ui";
+import {
+  QuestionnaireResponseDialog,
+  type QuestionnaireResponse,
+} from "./questionnaire-response-dialog";
 
 type ScheduleStep = 1 | 2 | 3;
 type ScheduleClient = (typeof scheduleClients)[number];
 
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [selectedQuestionnaireResponse, setSelectedQuestionnaireResponse] =
+    useState<QuestionnaireResponse | null>(null);
 
   return (
     <>
@@ -115,7 +121,11 @@ export function ConsultationView() {
                     <MutedText>{consultation.questionnaire}</MutedText>
                   </Box>
                 </HStack>
-                <LinkButton>View responses</LinkButton>
+                <LinkButton
+                  onClick={() => setSelectedQuestionnaireResponse(consultation.questionnaireResponse)}
+                >
+                  View responses
+                </LinkButton>
               </HStack>
 
               <Box py="16px" borderBottom="1px solid" borderColor="border.subtle">
@@ -225,6 +235,10 @@ export function ConsultationView() {
       <ScheduleConsultationDialog
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
+      />
+      <QuestionnaireResponseDialog
+        questionnaire={selectedQuestionnaireResponse}
+        onClose={() => setSelectedQuestionnaireResponse(null)}
       />
     </>
   );
@@ -981,18 +995,25 @@ function GroupLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function LinkButton({ children }: { children: ReactNode }) {
+function LinkButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+}) {
   return (
-    <Box
-      as="button"
+    <chakra.button
+      type="button"
       border="0"
       bg="transparent"
       color="brand.600"
       fontSize="12px"
       fontWeight="500"
+      onClick={onClick}
     >
       {children}
-    </Box>
+    </chakra.button>
   );
 }
 
