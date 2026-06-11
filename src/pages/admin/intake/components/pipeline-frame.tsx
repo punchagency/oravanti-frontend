@@ -63,9 +63,9 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
           const active = location.pathname === stage.path;
 
           return (
-            <Link key={stage.path} asChild textDecoration="none">
+            <Link key={stage.path} asChild display="block" w="full" textDecoration="none">
               <RouterLink to={stage.path}>
-                <VStack position="relative" gap="6px" textAlign="center">
+                <VStack position="relative" w="full" gap="6px" textAlign="center">
                   {index > 0 ? (
                     <Box
                       position="absolute"
