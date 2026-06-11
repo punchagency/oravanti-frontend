@@ -70,7 +70,20 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
           const active = location.pathname === stage.path;
 
           return (
-            <Link key={stage.path} asChild display="block" w="full" textDecoration="none">
+            <Link
+              key={stage.path}
+              asChild
+              display="block"
+              w="full"
+              textDecoration="none"
+              _focus={{ outline: "none", boxShadow: "none" }}
+              _focusVisible={{
+                outline: "2px solid",
+                outlineColor: "brand.solid",
+                outlineOffset: "4px",
+                borderRadius: "8px",
+              }}
+            >
               <RouterLink to={stage.path}>
                 <VStack position="relative" w="full" gap="6px" textAlign="center">
                   {index > 0 ? (
@@ -125,7 +138,18 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
           const active = location.pathname === path;
 
           return (
-            <Link key={path} asChild textDecoration="none">
+            <Link
+              key={path}
+              asChild
+              textDecoration="none"
+              _focus={{ outline: "none", boxShadow: "none" }}
+              _focusVisible={{
+                outline: "2px solid",
+                outlineColor: "brand.solid",
+                outlineOffset: "2px",
+                borderRadius: "6px",
+              }}
+            >
               <RouterLink to={path}>
                 <Box
                   display="inline-flex"
