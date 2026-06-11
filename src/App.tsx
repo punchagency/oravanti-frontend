@@ -42,6 +42,7 @@ const router = createBrowserRouter(
         <Route path="intake/pipeline/questionnaire" element={<IntakePipelinePage />} />
         <Route path="intake/pipeline/consultation" element={<IntakePipelinePage />} />
         <Route path="intake/pipeline/fee-agreement" element={<IntakePipelinePage />} />
+        <Route path="intake/pipeline/case-opening" element={<IntakePipelinePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 

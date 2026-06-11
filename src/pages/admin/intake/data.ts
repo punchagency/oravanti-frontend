@@ -293,3 +293,26 @@ export const feeAgreements = [
     progress: 30,
   },
 ] as const;
+
+export const caseOpenings = [
+  {
+    title: "Case initialization: Elena Rostova",
+    practiceArea: "Immigration",
+    practiceTone: "success",
+    addOnActive: true,
+    retainerCopy: "Received signed retainer contract (100% full authorization)",
+    summary: "Adjustment of status filing, retainer and contract signed.",
+    actionLabel: "Open physical case",
+    actionTone: "brand",
+  },
+  {
+    title: "Case initialization: Chloe Bennett",
+    practiceArea: "Business",
+    practiceTone: "neutral",
+    addOnActive: false,
+    retainerCopy: "Received signed retainer contract (100% full authorization)",
+    summary: "S-Corp election filings and initial corporate registry.",
+    actionLabel: "Activate Business to open case",
+    actionTone: "danger",
+  },
+] as const;

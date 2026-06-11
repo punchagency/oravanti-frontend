@@ -2222,6 +2222,70 @@ a {
   min-height: 32px;
 }
 
+.case-opening-section {
+  display: grid;
+  gap: 16px;
+  padding-top: 24px;
+}
+
+.case-opening-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.case-opening-toolbar p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.case-opening-list {
+  display: grid;
+  gap: 14px;
+}
+
+.work-card.case-opening-card {
+  margin-bottom: 0;
+}
+
+.case-opening-card__meta {
+  gap: 9px;
+  margin-top: 6px;
+}
+
+.case-opening-card__warning {
+  margin-top: 0;
+}
+
+.case-opening-summary {
+  margin-top: 18px;
+}
+
+.case-opening-card__actions {
+  grid-template-columns: 1fr;
+}
+
+.case-opening-card__button,
+.case-opening-danger-button {
+  width: 100%;
+  min-height: 32px;
+}
+
+.case-opening-danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: #c40024;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .table-action-button {
   display: inline-flex;
   align-items: center;
