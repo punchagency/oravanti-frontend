@@ -1,12 +1,16 @@
 import {
   Box,
+  Dialog,
   Flex,
   HStack,
   Input,
   Table,
+  Text,
+  VStack,
   chakra,
 } from "@chakra-ui/react";
-import { Search } from "lucide-react";
+import { Archive, Search, ShieldCheck, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import {
   leadInboxLeads,
@@ -20,10 +24,13 @@ import {
   PracticePill,
 } from "./intake-ui";
 
+type Lead = (typeof leadInboxLeads)[number];
+
 export function LeadInboxView() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("All sources");
   const [status, setStatus] = useState("All statuses");
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const filteredLeads = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -162,7 +169,12 @@ export function LeadInboxView() {
                   {lead.received}
                 </Table.Cell>
                 <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                  <OutlineButton h="28px" minH="28px" fontSize="12px">
+                  <OutlineButton
+                    h="28px"
+                    minH="28px"
+                    fontSize="12px"
+                    onClick={() => setSelectedLead(lead)}
+                  >
                     Review
                   </OutlineButton>
                 </Table.Cell>
@@ -171,7 +183,167 @@ export function LeadInboxView() {
           </Table.Body>
         </Table.Root>
       </Box>
+
+      <LeadReviewDrawer
+        lead={selectedLead}
+        onClose={() => setSelectedLead(null)}
+      />
     </>
+  );
+}
+
+function LeadReviewDrawer({
+  lead,
+  onClose,
+}: {
+  lead: Lead | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog.Root
+      open={Boolean(lead)}
+      onOpenChange={(details) => {
+        if (!details.open) {
+          onClose();
+        }
+      }}
+      placement="center"
+    >
+      <Dialog.Backdrop bg="transparent" />
+      <Dialog.Positioner justifyContent="flex-end">
+        <Dialog.Content
+          w="340px"
+          maxW="calc(100vw - 24px)"
+          h="100vh"
+          maxH="100vh"
+          borderLeft="1px solid"
+          borderColor="border.subtle"
+          borderRadius="0"
+          bg="bg"
+          boxShadow="-12px 0 28px rgba(0, 0, 0, 0.12)"
+          p="0"
+          _open={{
+            animationName: "slide-from-right, fade-in",
+            animationDuration: "180ms",
+          }}
+          _closed={{
+            animationName: "slide-to-right, fade-out",
+            animationDuration: "140ms",
+          }}
+        >
+          {lead ? (
+            <Flex direction="column" h="full">
+              <Box p="22px 20px 14px">
+                <Flex align="flex-start" justify="space-between" gap="14px">
+                  <Box minW="0">
+                    <Dialog.Title color="fg" fontSize="16px" fontWeight="600" lineHeight="1.15">
+                      {lead.name}
+                    </Dialog.Title>
+                    <PracticePill>{lead.source}</PracticePill>
+                  </Box>
+                  <chakra.button
+                    type="button"
+                    aria-label="Close lead review panel"
+                    display="grid"
+                    placeItems="center"
+                    flex="0 0 auto"
+                    w="34px"
+                    h="34px"
+                    border="1px solid"
+                    borderColor="border"
+                    borderRadius="full"
+                    bg="bg"
+                    color="fg.muted"
+                    onClick={onClose}
+                  >
+                    <X size={16} />
+                  </chakra.button>
+                </Flex>
+              </Box>
+
+              <VStack
+                align="stretch"
+                gap="18px"
+                flex="1"
+                overflowY="auto"
+                px="20px"
+                pb="16px"
+              >
+                <LeadDetail label="Full name">{lead.name}</LeadDetail>
+                <LeadDetail label="Email">{lead.email}</LeadDetail>
+                <LeadDetail label="Phone">{lead.phone}</LeadDetail>
+                <LeadDetail label="Practice area interest">
+                  <PracticePill tone={lead.practiceTone}>{lead.practiceArea}</PracticePill>
+                  {!lead.addOnActive ? <AddOnWarning /> : null}
+                </LeadDetail>
+                <LeadDetail label="Source">{lead.source}</LeadDetail>
+                <LeadDetail label="Received">{lead.receivedDetail}</LeadDetail>
+                <LeadDetail label="Situation summary">
+                  <Box
+                    mt="6px"
+                    p="10px"
+                    borderRadius="7px"
+                    bg="bg.subtle"
+                    color="fg"
+                    fontSize="13px"
+                    lineHeight="1.45"
+                  >
+                    {lead.situationSummary}
+                  </Box>
+                </LeadDetail>
+              </VStack>
+
+              <Box px="20px" py="16px" borderTop="1px solid" borderColor="border.subtle">
+                <Text m="0 0 12px" color="fg" fontSize="12px" fontWeight="600">
+                  Move this lead to
+                </Text>
+                <VStack align="stretch" gap="8px">
+                  <OutlineButton
+                    h="36px"
+                    minH="36px"
+                    layerStyle="brand-button"
+                    borderColor="brand.solid"
+                  >
+                    <ShieldCheck size={14} />
+                    Run conflict check
+                  </OutlineButton>
+                  <OutlineButton h="36px" minH="36px">
+                    <Archive size={14} />
+                    Archive lead
+                  </OutlineButton>
+                </VStack>
+              </Box>
+            </Flex>
+          ) : null}
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+function LeadDetail({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box>
+      <Text
+        m="0 0 7px"
+        color="fg.muted"
+        fontSize="10px"
+        fontWeight="600"
+        lineHeight="1"
+        textTransform="uppercase"
+      >
+        {label}
+      </Text>
+      <Box color="fg" fontSize="13px" fontWeight="500" lineHeight="1.25">
+        {children}
+      </Box>
+    </Box>
   );
 }
 

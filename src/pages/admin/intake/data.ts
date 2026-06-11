@@ -57,6 +57,9 @@ export const leadInboxLeads = [
     addOnActive: false,
     source: "Education flywheel",
     received: "June 1, 2026",
+    receivedDetail: "June 1, 2026 - 3:15 PM",
+    situationSummary:
+      "I received a speeding ticket in Virginia and need representation for the upcoming court date.",
   },
   {
     name: "Sophia Rodriguez",
@@ -68,6 +71,9 @@ export const leadInboxLeads = [
     addOnActive: true,
     source: "Referral",
     received: "May 31, 2026",
+    receivedDetail: "May 31, 2026 - 11:20 AM",
+    situationSummary:
+      "I need help filing an adjustment of status application and understanding what supporting documents are required.",
   },
   {
     name: "Linda Sterling",
@@ -79,6 +85,9 @@ export const leadInboxLeads = [
     addOnActive: false,
     source: "Direct",
     received: "May 30, 2026",
+    receivedDetail: "May 30, 2026 - 9:45 AM",
+    situationSummary:
+      "I want to set up an S-Corp and need guidance on initial filings, compliance, and registry requirements.",
   },
 ] as const;
 
