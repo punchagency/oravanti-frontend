@@ -1,6 +1,6 @@
 import { API } from ".";
-import type { ContractorSignupPayload } from "@/pages/sign-up/contractor/schema";
-import type { PublicPracticeArea } from "@/pages/sign-up/contractor/types";
+import type { ContractorSignupPayload } from "@/pages/contractor-sign-up/schema";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 export const signUpWithEmail = async (data: {
   email: string;
@@ -81,6 +81,9 @@ const buildContractorSignupFormData = (data: ContractorSignupPayload) => {
   );
   data.certificationFiles.forEach((file) => {
     formData.append("certificationFiles", file);
+  });
+  data.identificationFiles.forEach((file) => {
+    formData.append("identificationFiles", file);
   });
 
   return formData;

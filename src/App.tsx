@@ -1,7 +1,6 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { DashboardPage as AdminDashboardPage } from "@/pages/admin/dashboard";
+import { AdminLayout } from "@/components/layout/admin-layout";
+import { AdminDashboard } from "@/pages/admin/dashboard";
 import { NotFoundPage } from "@/pages/not-found";
-import { SignUpPage } from "@/pages/sign-up";
 import {
   Route,
   RouterProvider,
@@ -10,6 +9,7 @@ import {
 } from "react-router";
 import { AuthGuard } from "./guards/auth-guard";
 import { GuestGuard } from "./guards/guest-guard";
+import { SignUpPage } from "./pages/contractor-sign-up";
 import EmailVerifiedPage from "./pages/email-verified";
 import ForgotPassword from "./pages/forgot-password";
 import VerifyOtp from "./pages/forgot-password/verify-otp";
@@ -46,13 +46,16 @@ const router = createBrowserRouter(
           element={<Step2FirmDetailsPage />}
         />
         <Route path="/onboarding/step-3-tos" element={<Step3TosPage />} />
-        <Route path="/admin" element={<AppShell />}>
-          <Route index element={<AdminDashboardPage />} />
+
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard/pipeline" element={<AdminDashboard />} />
+          <Route path="dashboard/activity" element={<AdminDashboard />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
-      </Route>
 
-      <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
     </Route>,
   ),
 );

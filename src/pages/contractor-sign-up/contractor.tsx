@@ -1,29 +1,29 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { useNavigate } from "react-router";
-import { CompleteView } from "./contractor/components/complete-view";
-import { ThemeCircle } from "./contractor/components/theme-circle";
-import { contractorStepFields } from "./contractor/constants";
-import { useContractorSignup } from "./contractor/hooks/use-contractor-signup";
-import { usePublicPracticeAreas } from "./contractor/hooks/use-public-practice-areas";
+import { contractorStepFields } from "./constants";
+import { useContractorSignup } from "../../hooks/use-contractor-signup";
+import { usePublicPracticeAreas } from "../../hooks/use-public-practice-areas";
 import {
   contractorSignupSchema,
   defaultContractorSignupValues,
   type ContractorSignupFormValues,
   type ContractorSignupPayload,
-} from "./contractor/schema";
-import { BackgroundCheckStep } from "./contractor/steps/background-check-step";
-import { PayoutSetupStep } from "./contractor/steps/payout-setup-step";
-import { PersonalDetailsStep } from "./contractor/steps/personal-details-step";
-import { ProfileSetupStep } from "./contractor/steps/profile-setup-step";
-import { SpecialtiesStep } from "./contractor/steps/specialties-step";
+} from "./schema";
+import { BackgroundCheckStep } from "./steps/background-check-step";
+import { PayoutSetupStep } from "./steps/payout-setup-step";
+import { PersonalDetailsStep } from "./steps/personal-details-step";
+import { ProfileSetupStep } from "./steps/profile-setup-step";
+import { SpecialtiesStep } from "./steps/specialties-step";
 import type {
   ContractorSignupFieldPath,
   ContractorSignupStep,
-} from "./contractor/types";
+} from "./types";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useState } from "react";
+import { CompleteView } from "./components/complete-view";
+import { ThemeCircle } from "./components/theme-circle";
 
 export function ContractorSignupPage() {
   const navigate = useNavigate();
