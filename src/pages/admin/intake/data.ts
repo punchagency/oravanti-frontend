@@ -155,3 +155,118 @@ export const questionnaires = [
     statusLabel: "Completed & Received",
   },
 ] as const;
+
+export const consultations = [
+  {
+    initials: "KT",
+    avatarTone: "mint",
+    name: "Kenji Tanaka",
+    matter: "I-130 — Petition for Alien Relative",
+    status: "Scheduled",
+    statusTone: "info",
+    mode: "Video call",
+    date: "June 11, 2026 · 10:00 AM · 60 min",
+    questionnaire: "Submitted June 1, 2026 · Japanese",
+    documentsReceived: "5 of 9 received",
+    uploadedDocuments: [
+      {
+        title: "Passport — Sarah Tanaka (petitioner)",
+        meta: "Identity document · May 30, 2026 · 2.4 MB",
+      },
+      {
+        title: "Marriage certificate — June 14, 2022",
+        meta: "Supporting document · May 30, 2026 · 1.1 MB",
+      },
+      {
+        title: "Proof of US citizenship — Sarah Tanaka",
+        meta: "Supporting document · Jun 1, 2026 · 0.8 MB",
+      },
+    ],
+    requiredDocuments: [
+      {
+        title: "Petitioner's proof of US citizenship or LPR status",
+        received: true,
+      },
+      {
+        title: "Beneficiary's birth certificate (with certified translation)",
+        received: false,
+      },
+      {
+        title: "Marriage certificate (if filing for spouse)",
+        received: true,
+      },
+      {
+        title: "Passports — all pages (petitioner and beneficiary)",
+        received: false,
+      },
+      {
+        title: "Divorce decrees from all prior marriages",
+        received: false,
+      },
+      {
+        title: "Two passport-style photos (each)",
+        received: false,
+      },
+    ],
+    notes:
+      "Record consultation notes, client statements, key facts, and your preliminary assessment here. These notes are saved to the matter record and referenced in the fee agreement stage.",
+    assignee: "Sandra Adeyemi",
+    assigneeInitials: "SA",
+  },
+  {
+    initials: "MS",
+    avatarTone: "blue",
+    name: "Maria Santos",
+    matter: "Uncontested / Simplified Dissolution",
+    status: "In progress",
+    statusTone: "success",
+    mode: "In-person",
+    date: "June 9, 2026 · 2:00 PM · 45 min",
+    questionnaire: "Submitted June 2, 2026 · Español",
+    documentsReceived: "6 of 9 received",
+    uploadedDocuments: [
+      {
+        title: "Marriage certificate",
+        meta: "Legal document · Jun 1, 2026 · 0.9 MB",
+      },
+      {
+        title: "Financial disclosure form",
+        meta: "Financial document · Jun 2, 2026 · 1.8 MB",
+      },
+      {
+        title: "Bank statements — Chase (6 months)",
+        meta: "Financial document · Jun 2, 2026 · 3.2 MB",
+      },
+    ],
+    requiredDocuments: [
+      {
+        title: "Marriage certificate (original or certified copy)",
+        received: true,
+      },
+      {
+        title: "Government-issued photo ID (both parties)",
+        received: false,
+      },
+      {
+        title: "Tax returns — last 3 years (both parties)",
+        received: true,
+      },
+      {
+        title: "Bank and financial account statements (6 months)",
+        received: true,
+      },
+      {
+        title: "Property deed / mortgage documents (if applicable)",
+        received: false,
+      },
+      {
+        title: "Retirement account statements (if applicable)",
+        received: false,
+      },
+    ],
+    notes:
+      "Client confirmed all assets are community property. Both parties cooperative. Main issue is condo ownership split and retirement account division. Alimony was requested — rehabilitative type likely appropriate. Attorney reviewing financial disclosures before fee agreement.",
+    assignee: "Ayo Osei",
+    assigneeInitials: "AO",
+  },
+] as const;
