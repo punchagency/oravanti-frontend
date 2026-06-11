@@ -91,3 +91,48 @@ export const leadSources = [
   "Client portal",
 ] as const;
 export const leadStatuses = ["New", "Reviewed", "Archived"] as const;
+
+export const conflictReviews = [
+  {
+    name: "Liam Gallagher",
+    practiceArea: "Family law",
+    practiceTone: "neutral",
+    addOnActive: false,
+    received: "May 25, 2026",
+    statusLabel: "Cleared & Approved",
+    statusTone: "success",
+    matterFocus: "Prenuptial agreement counsel.",
+    outcome: "Conflict cleared — Approved to initiate retainer workflow.",
+    outcomeTone: "success",
+    actions: [
+      {
+        label: "Proceed to Questionnaire",
+        tone: "brand",
+      },
+    ],
+  },
+  {
+    name: "Amara Chen",
+    practiceArea: "Immigration",
+    practiceTone: "success",
+    addOnActive: true,
+    received: "June 2, 2026",
+    statusLabel: "Conflict detected",
+    statusTone: "danger",
+    matterFocus:
+      "My spouse and I are applying for a green card. We have been married for 3 years and he is a U.S. citizen.",
+    outcome:
+      "Record match identified: \"Chen found in adversary database on matching Matter #1084-A\". Please execute manual verification or request supervisor clearance prior to executing retainer.",
+    outcomeTone: "danger",
+    actions: [
+      {
+        label: "Flag Conflict",
+        tone: "danger",
+      },
+      {
+        label: "Clear & Approve",
+        tone: "brand",
+      },
+    ],
+  },
+] as const;
