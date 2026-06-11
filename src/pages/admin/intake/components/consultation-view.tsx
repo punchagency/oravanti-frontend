@@ -136,7 +136,16 @@ export function ConsultationView() {
                     </Text>
                     <MutedText>{consultation.documentsReceived}</MutedText>
                   </HStack>
-                  <LinkButton>Request missing</LinkButton>
+                  <LinkButton
+                    onClick={() => {
+                      toast.success(`Document request sent to ${consultation.name}`, {
+                        duration: 4000,
+                        position: "top-right",
+                      });
+                    }}
+                  >
+                    Request missing
+                  </LinkButton>
                 </HStack>
 
                 <GroupLabel>Uploaded by client</GroupLabel>
