@@ -9,7 +9,7 @@ export const contractorSignupSteps = [
 export const contractorStepFields = {
   1: ["firstName", "lastName", "email", "phoneNumber", "password"],
   2: ["specialtyIds", "certificationDocuments", "certificationFiles"],
-  3: ["consentedToBackgroundCheck", "desiredHourlyRate"],
+  3: ["consentedToBackgroundCheck", "desiredHourlyRate", "identificationFiles"],
   4: ["bio", "availability", "recognizedDirectoryListingVerificationAccepted"],
   5: ["paymentDetails"],
 } as const;

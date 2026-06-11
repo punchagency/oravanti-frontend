@@ -10,8 +10,16 @@ export type PublicCaseType = {
   code: string;
   name: string;
   caseNumberPrefix: string;
+  jurisdiction: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type PublicPracticeAreaSubcategory = {
+  id: string;
+  code: string;
+  name: string;
+  caseTypes: PublicCaseType[];
 };
 
 export type PublicPracticeArea = {
@@ -19,5 +27,5 @@ export type PublicPracticeArea = {
   name: string;
   createdAt: string;
   updatedAt: string;
-  caseTypes: PublicCaseType[];
+  subcategories: PublicPracticeAreaSubcategory[];
 };

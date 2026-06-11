@@ -118,6 +118,27 @@ export const contractorSignupSchema = contractorSignupRequestSchema.extend({
         ),
     )
     .min(1, "At least one certification document file is required"),
+  identificationFiles: z
+    .array(
+      z
+        .custom<File>(
+          (value) => typeof File !== "undefined" && value instanceof File,
+          "A valid identification document file is required",
+        )
+        .refine((file) => file.size > 0, {
+          message: "Identification document file cannot be empty",
+        })
+        .refine(
+          (file) =>
+            acceptedCertificationFileTypes.includes(file.type) ||
+            /\.(pdf|png|jpe?g)$/i.test(file.name),
+          {
+            message: "Identification documents must be PDF, PNG, or JPG files",
+          },
+        ),
+    )
+    .min(2, "Two forms of identification are required")
+    .max(2, "Only two forms of identification are required"),
 });
 
 export type ContractorSignupRequestPayload = z.output<
@@ -152,6 +173,7 @@ export type ContractorSignupFormValues = {
     expiresAt?: string;
   }>;
   certificationFiles: File[];
+  identificationFiles: File[];
 };
 
 export const defaultContractorSignupValues: ContractorSignupFormValues = {
@@ -175,4 +197,5 @@ export const defaultContractorSignupValues: ContractorSignupFormValues = {
   },
   certificationDocuments: [],
   certificationFiles: [],
+  identificationFiles: [],
 };
