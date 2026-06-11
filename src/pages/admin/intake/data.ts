@@ -149,19 +149,121 @@ export const conflictReviews = [
 export const questionnaires = [
   {
     title: "Family Law Questionnaire: Maria Santos",
+    responseTitle: "Maria Santos's questionnaire",
+    matter: "Uncontested / Simplified Dissolution",
+    submitted: "Submitted June 2, 2026",
+    language: "Español",
+    completionPercent: 90,
+    answeredLabel: "18 of 20 questions answered",
     practiceArea: "Family law",
     practiceTone: "neutral",
     addOnActive: false,
     receivedFrom: "webhook portal",
     statusLabel: "Completed & Received",
+    documents: [
+      "Marriage certificate",
+      "Financial disclosure form",
+      "Bank statements - Chase (6 months)",
+      "Government-issued photo ID",
+      "Tax returns - last 3 years",
+      "Retirement account statement",
+    ],
+    responseSections: [
+      {
+        title: "Personal information",
+        questions: [
+          ["Full legal name", "Maria Elena Santos"],
+          ["Date of birth", "1985-09-03"],
+          ["Current address", "4521 W Fullerton Ave, Chicago, IL 60639"],
+          ["Date of marriage", "2014-04-12"],
+          ["Place of marriage", "Cook County, Illinois"],
+          ["Date of separation", "2026-01-01"],
+          ["Spouse full legal name", "Ricardo Juan Santos"],
+          ["Spouse current address", "8820 N Clark St, Chicago, IL 60626"],
+        ],
+      },
+      {
+        title: "Assets and finances",
+        questions: [
+          ["Do you own real property together?", "Yes"],
+          ["Estimated property value (if applicable)", "Approximately $280,000"],
+          ["Outstanding mortgage balance (if applicable)", "Approximately $190,000"],
+          ["Do you have joint bank accounts?", "Yes"],
+          ["Do you have retirement accounts?", ""],
+          ["Do you have any business interests together?", "No"],
+          ["Are you requesting spousal support / alimony?", "Yes"],
+        ],
+      },
+      {
+        title: "Children and custody",
+        questions: [
+          ["Do you have minor children from this marriage?", "No"],
+          ["Names and dates of birth of minor children", ""],
+          ["Have both parties agreed on custody arrangements?", "Yes - both parties in agreement"],
+        ],
+      },
+      {
+        title: "Additional information",
+        questions: [
+          ["Are there any domestic violence incidents to disclose?", "No"],
+          [
+            "Additional notes for your attorney",
+            "We have already divided most personal property by mutual agreement. Main dispute is the condo and retirement funds.",
+          ],
+        ],
+      },
+    ],
   },
   {
     title: "Standard client onboarding questionnaire: Arthur Pendelton",
+    responseTitle: "Arthur Pendelton's questionnaire",
+    matter: "Business formation",
+    submitted: "Submitted June 2, 2026",
+    language: "English",
+    completionPercent: 90,
+    answeredLabel: "18 of 20 questions answered",
     practiceArea: "Business",
     practiceTone: "neutral",
     addOnActive: false,
     receivedFrom: "webhook portal",
     statusLabel: "Completed & Received",
+    documents: [
+      "Articles of organization",
+      "EIN confirmation",
+      "Operating agreement draft",
+      "Founder ID",
+      "Registered agent consent",
+      "Prior business tax notice",
+    ],
+    responseSections: [
+      {
+        title: "Business information",
+        questions: [
+          ["Legal business name", "Pendelton Studio Works LLC"],
+          ["Business address", "1209 Market St, Philadelphia, PA 19107"],
+          ["Entity type requested", "Limited liability company"],
+          ["Primary business activity", "Design consulting and digital production"],
+        ],
+      },
+      {
+        title: "Ownership and management",
+        questions: [
+          ["Number of owners", "2"],
+          ["Managing member", "Arthur Pendelton"],
+          ["Ownership split", "Arthur Pendelton 70%, Mina Rao 30%"],
+          ["Will the business hire employees this year?", ""],
+        ],
+      },
+      {
+        title: "Filing preferences",
+        questions: [
+          ["Requested tax election", "S-Corp election"],
+          ["Preferred filing state", "Pennsylvania"],
+          ["Need registered agent support?", "Yes"],
+          ["Additional notes for your attorney", "We want to complete formation before signing our first enterprise contract."],
+        ],
+      },
+    ],
   },
 ] as const;
 
