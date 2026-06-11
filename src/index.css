@@ -1636,6 +1636,15 @@ a {
   padding: 0 10px;
 }
 
+.select-shell select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+
 .record-count {
   color: var(--text-muted);
   font-size: 11px;
@@ -1674,6 +1683,61 @@ a {
   color: var(--text-secondary);
   font-size: 13px;
   vertical-align: middle;
+}
+
+.intake-table {
+  overflow-x: auto;
+}
+
+.intake-table table {
+  min-width: 980px;
+}
+
+.lead-status {
+  display: block;
+  width: fit-content;
+  min-height: 17px;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.lead-status--reviewed {
+  background: #e8e6df;
+  color: #6b6252;
+}
+
+.lead-status--new {
+  background: #fff0c9;
+  color: #9c650b;
+}
+
+.lead-add-on-warning {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 5px;
+  color: var(--status-warning);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.table-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .table-name {
