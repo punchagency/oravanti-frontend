@@ -29,6 +29,7 @@ import {
 import { consultations } from "../data";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
   BrandButton,
@@ -46,10 +47,25 @@ import {
 type ScheduleStep = 1 | 2 | 3;
 type ScheduleClient = (typeof scheduleClients)[number];
 
+function getDocumentKey(consultationName: string, documentTitle: string) {
+  return `${consultationName}:${documentTitle}`;
+}
+
 export function ConsultationView() {
+  const navigate = useNavigate();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [selectedQuestionnaireResponse, setSelectedQuestionnaireResponse] =
     useState<QuestionnaireResponse | null>(null);
+  const [manualReceivedDocs, setManualReceivedDocs] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  function showSuccess(message: string) {
+    toast.success(message, {
+      duration: 4000,
+      position: "top-right",
+    });
+  }
 
   return (
     <>
@@ -63,181 +79,294 @@ export function ConsultationView() {
         </HStack>
 
         <Stack gap="16px">
-          {consultations.map((consultation) => (
-            <SurfaceCard key={consultation.name}>
-              <HStack align="center" justify="space-between" gap="16px" wrap="wrap">
-                <PersonHeader
-                  initials={consultation.initials}
-                  avatarTone={consultation.avatarTone}
-                  title={consultation.name}
-                  subtitle={consultation.matter}
-                />
-                <HStack gap="8px" wrap="wrap" color="fg.muted" fontSize="12px" justify="flex-end">
-                  <StatusPill tone={consultation.statusTone}>{consultation.status}</StatusPill>
-                  <HStack
-                    as="span"
-                    gap="4px"
-                    minH="18px"
-                    px="8px"
-                    py="2px"
-                    borderRadius="999px"
-                    bg="bg.subtle"
-                    color="fg.muted"
-                    fontSize="10px"
-                    fontWeight="500"
-                    lineHeight="1"
-                  >
-                    {consultation.mode === "Video call" ? (
-                      <Video size={11} />
-                    ) : (
-                      <MapPin size={11} />
-                    )}
-                    <Box as="span">{consultation.mode}</Box>
-                  </HStack>
-                  <Box as="span">{consultation.date}</Box>
-                </HStack>
-              </HStack>
+          {consultations.map((consultation) => {
+            const receivedDocumentCount =
+              consultation.uploadedDocuments.length +
+              consultation.requiredDocuments.filter(
+                (document) =>
+                  document.received ||
+                  manualReceivedDocs.has(
+                    getDocumentKey(consultation.name, document.title),
+                  ),
+              ).length;
+            const totalDocumentCount =
+              consultation.uploadedDocuments.length +
+              consultation.requiredDocuments.length;
 
-              <HStack
-                align="center"
-                justify="space-between"
-                gap="16px"
-                wrap="wrap"
-                mt="16px"
-                pt="14px"
-                pb="16px"
-                borderTop="1px solid"
-                borderBottom="1px solid"
-                borderColor="border.subtle"
-              >
-                <HStack gap="12px">
-                  <RoundIcon>
-                    <ClipboardCheck size={15} />
-                  </RoundIcon>
-                  <Box>
-                    <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                      Questionnaire completed
-                    </Text>
-                    <MutedText>{consultation.questionnaire}</MutedText>
-                  </Box>
-                </HStack>
-                <LinkButton
-                  onClick={() => setSelectedQuestionnaireResponse(consultation.questionnaireResponse)}
+            return (
+              <SurfaceCard key={consultation.name}>
+                <HStack
+                  align="center"
+                  justify="space-between"
+                  gap="16px"
+                  wrap="wrap"
                 >
-                  View responses
-                </LinkButton>
-              </HStack>
+                  <PersonHeader
+                    initials={consultation.initials}
+                    avatarTone={consultation.avatarTone}
+                    title={consultation.name}
+                    subtitle={consultation.matter}
+                  />
+                  <HStack
+                    gap="8px"
+                    wrap="wrap"
+                    color="fg.muted"
+                    fontSize="12px"
+                    justify="flex-end"
+                  >
+                    <StatusPill tone={consultation.statusTone}>
+                      {consultation.status}
+                    </StatusPill>
+                    <HStack
+                      as="span"
+                      gap="4px"
+                      minH="18px"
+                      px="8px"
+                      py="2px"
+                      borderRadius="999px"
+                      bg="bg.subtle"
+                      color="fg.muted"
+                      fontSize="10px"
+                      fontWeight="500"
+                      lineHeight="1"
+                    >
+                      {consultation.mode === "Video call" ? (
+                        <Video size={11} />
+                      ) : (
+                        <MapPin size={11} />
+                      )}
+                      <Box as="span">{consultation.mode}</Box>
+                    </HStack>
+                    <Box as="span">{consultation.date}</Box>
+                  </HStack>
+                </HStack>
 
-              <Box py="16px" borderBottom="1px solid" borderColor="border.subtle">
-                <HStack justify="space-between" gap="16px" wrap="wrap">
-                  <HStack gap="10px">
-                    <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                      Documents
-                    </Text>
-                    <MutedText>{consultation.documentsReceived}</MutedText>
+                <HStack
+                  align="center"
+                  justify="space-between"
+                  gap="16px"
+                  wrap="wrap"
+                  mt="16px"
+                  pt="14px"
+                  pb="16px"
+                  borderTop="1px solid"
+                  borderBottom="1px solid"
+                  borderColor="border.subtle"
+                >
+                  <HStack gap="12px">
+                    <RoundIcon>
+                      <ClipboardCheck size={15} />
+                    </RoundIcon>
+                    <Box>
+                      <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                        Questionnaire completed
+                      </Text>
+                      <MutedText>{consultation.questionnaire}</MutedText>
+                    </Box>
                   </HStack>
                   <LinkButton
-                    onClick={() => {
-                      toast.success(`Document request sent to ${consultation.name}`, {
-                        duration: 4000,
-                        position: "top-right",
-                      });
-                    }}
+                    onClick={() =>
+                      setSelectedQuestionnaireResponse(
+                        consultation.questionnaireResponse,
+                      )
+                    }
                   >
-                    Request missing
+                    View responses
                   </LinkButton>
                 </HStack>
 
-                <GroupLabel>Uploaded by client</GroupLabel>
-                <Stack gap="0">
-                  {consultation.uploadedDocuments.map((document) => (
-                    <DocumentRow
-                      key={document.title}
-                      title={document.title}
-                      meta={document.meta}
-                      received
-                      downloadable
-                      checkedTone="success"
-                    />
-                  ))}
-                </Stack>
+                <Box
+                  py="16px"
+                  borderBottom="1px solid"
+                  borderColor="border.subtle"
+                >
+                  <HStack justify="space-between" gap="16px" wrap="wrap">
+                    <HStack gap="10px">
+                      <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                        Documents
+                      </Text>
+                      <MutedText>
+                        {receivedDocumentCount} of {totalDocumentCount} received
+                      </MutedText>
+                    </HStack>
+                    <LinkButton
+                      onClick={() => {
+                        toast.success(
+                          `Document request sent to ${consultation.name}`,
+                          {
+                            duration: 4000,
+                            position: "top-right",
+                          },
+                        );
+                      }}
+                    >
+                      Request missing
+                    </LinkButton>
+                  </HStack>
 
-                <GroupLabel>Required — pending receipt</GroupLabel>
-                <Stack gap="0">
-                  {consultation.requiredDocuments.map((document) => (
-                    <DocumentRow
-                      key={document.title}
-                      title={document.title}
-                      meta="Required"
-                      received={document.received}
-                      checkedTone="warning"
-                    />
-                  ))}
-                </Stack>
-                <MutedText>
-                  Check the box to manually confirm receipt of documents provided outside the
-                  client portal (e.g. in-person, by email, or via scan).
-                </MutedText>
-              </Box>
+                  <GroupLabel>Uploaded by client</GroupLabel>
+                  <Stack gap="0">
+                    {consultation.uploadedDocuments.map((document) => (
+                      <DocumentRow
+                        key={document.title}
+                        title={document.title}
+                        meta={document.meta}
+                        received
+                        downloadable
+                        checkedTone="success"
+                        onDownload={() =>
+                          showSuccess(`Downloading ${document.title}`)
+                        }
+                      />
+                    ))}
+                  </Stack>
 
-              <Stack gap="8px" py="16px" borderBottom="1px solid" borderColor="border.subtle">
-                <Box>
-                  <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                    Attorney notes
-                  </Text>
-                  <MutedText>Notes are internal and not visible to the client.</MutedText>
+                  <GroupLabel>Required — pending receipt</GroupLabel>
+                  <Stack gap="0">
+                    {consultation.requiredDocuments.map((document) => {
+                      const documentKey = getDocumentKey(
+                        consultation.name,
+                        document.title,
+                      );
+                      const isReceived =
+                        document.received ||
+                        manualReceivedDocs.has(documentKey);
+
+                      return (
+                        <DocumentRow
+                          key={document.title}
+                          title={document.title}
+                          meta="Required"
+                          received={isReceived}
+                          checkedTone="warning"
+                          onManualConfirm={
+                            isReceived
+                              ? undefined
+                              : () => {
+                                  setManualReceivedDocs((currentKeys) => {
+                                    const nextKeys = new Set(currentKeys);
+                                    nextKeys.add(documentKey);
+                                    return nextKeys;
+                                  });
+                                  showSuccess("Document marked as received");
+                                }
+                          }
+                        />
+                      );
+                    })}
+                  </Stack>
+                  <MutedText>
+                    Check the box to manually confirm receipt of documents
+                    provided outside the client portal (e.g. in-person, by
+                    email, or via scan).
+                  </MutedText>
                 </Box>
-                <Textarea
-                  aria-label={`${consultation.name} attorney notes`}
-                  defaultValue={consultation.notes}
-                  minH="102px"
-                  p="12px"
-                  borderColor="border"
-                  bg="bg"
-                  resize="vertical"
-                />
-                <OutlineButton alignSelf="flex-end">Save notes</OutlineButton>
-              </Stack>
 
-              <HStack justify="space-between" gap="16px" wrap="wrap" pt="16px">
-                <HStack gap="6px" color="fg.muted" fontSize="12px">
-                  <Box
-                    display="grid"
-                    placeItems="center"
-                    w="24px"
-                    h="24px"
-                    borderRadius="full"
-                    bg="bg.subtle"
-                    color="fg.muted"
-                    fontSize="10px"
-                    fontWeight="500"
-                  >
-                    {consultation.assigneeInitials}
+                <Stack
+                  gap="8px"
+                  py="16px"
+                  borderBottom="1px solid"
+                  borderColor="border.subtle"
+                >
+                  <Box>
+                    <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                      Attorney notes
+                    </Text>
+                    <MutedText>
+                      Notes are internal and not visible to the client.
+                    </MutedText>
                   </Box>
-                  <Box as="span" color="fg.muted">{consultation.assignee}</Box>
-                  <Box as="span">(Assigned)</Box>
+                  <Textarea
+                    aria-label={`${consultation.name} attorney notes`}
+                    defaultValue={consultation.notes}
+                    minH="102px"
+                    p="12px"
+                    borderColor="border"
+                    bg="bg"
+                    resize="vertical"
+                  />
+                  <OutlineButton
+                    alignSelf="flex-end"
+                    onClick={() =>
+                      showSuccess(`Notes saved for ${consultation.name}`)
+                    }
+                  >
+                    Save notes
+                  </OutlineButton>
+                </Stack>
+
+                <HStack
+                  justify="space-between"
+                  gap="16px"
+                  wrap="wrap"
+                  pt="16px"
+                >
+                  <HStack gap="6px" color="fg.muted" fontSize="12px">
+                    <Box
+                      display="grid"
+                      placeItems="center"
+                      w="24px"
+                      h="24px"
+                      borderRadius="full"
+                      bg="bg.subtle"
+                      color="fg.muted"
+                      fontSize="10px"
+                      fontWeight="500"
+                    >
+                      {consultation.assigneeInitials}
+                    </Box>
+                    <Box as="span" color="fg.muted">
+                      {consultation.assignee}
+                    </Box>
+                    <Box as="span">(Assigned)</Box>
+                  </HStack>
+                  <HStack gap="8px" wrap="wrap" justify="flex-end">
+                    <BrandButton
+                      onClick={() => {
+                        showSuccess(
+                          `${consultation.name} moved to fee agreement stage. Fee agreement draft initiated.`,
+                        );
+                        navigate("/admin/intake/pipeline/fee-agreement");
+                      }}
+                    >
+                      <Send size={14} />
+                      Proceed to fee agreement
+                    </BrandButton>
+                    <OutlineButton
+                      onClick={() =>
+                        showSuccess(
+                          `Follow-up scheduled for ${consultation.name}`,
+                        )
+                      }
+                    >
+                      <CalendarDays size={14} />
+                      Schedule follow-up
+                    </OutlineButton>
+                    <OutlineButton
+                      onClick={() =>
+                        showSuccess(
+                          `${consultation.name} consultation closed — no case opened.`,
+                        )
+                      }
+                    >
+                      <X size={14} />
+                      Close — no case
+                    </OutlineButton>
+                    <OutlineButton
+                      onClick={() =>
+                        showSuccess(
+                          `${consultation.name} referred to outside counsel.`,
+                        )
+                      }
+                    >
+                      <ExternalLink size={14} />
+                      Refer elsewhere
+                    </OutlineButton>
+                  </HStack>
                 </HStack>
-                <HStack gap="8px" wrap="wrap" justify="flex-end">
-                  <BrandButton>
-                    <Send size={14} />
-                    Proceed to fee agreement
-                  </BrandButton>
-                  <OutlineButton>
-                    <CalendarDays size={14} />
-                    Schedule follow-up
-                  </OutlineButton>
-                  <OutlineButton>
-                    <X size={14} />
-                    Close — no case
-                  </OutlineButton>
-                  <OutlineButton>
-                    <ExternalLink size={14} />
-                    Refer elsewhere
-                  </OutlineButton>
-                </HStack>
-              </HStack>
-            </SurfaceCard>
-          ))}
+              </SurfaceCard>
+            );
+          })}
         </Stack>
       </Stack>
 
@@ -272,9 +401,13 @@ function ScheduleConsultationDialog({
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(true);
   const [notifyPortal, setNotifyPortal] = useState(false);
-  const [touchedField, setTouchedField] = useState<"client" | "date" | "attorney" | null>(null);
+  const [touchedField, setTouchedField] = useState<
+    "client" | "date" | "attorney" | null
+  >(null);
 
-  const selectedClient = scheduleClients.find((client) => client.id === selectedClientId);
+  const selectedClient = scheduleClients.find(
+    (client) => client.id === selectedClientId,
+  );
   const selectedDate = date || "2026-06-26";
   const selectedAttorney = attorney || "Sandra Adeyemi";
 
@@ -377,11 +510,22 @@ function ScheduleConsultationDialog({
             <Box p="24px 24px 12px">
               <Flex align="flex-start" justify="space-between" gap="16px">
                 <Box minW="0">
-                  <Dialog.Title color="fg" fontSize="17px" fontWeight="600" lineHeight="1.2">
+                  <Dialog.Title
+                    color="fg"
+                    fontSize="17px"
+                    fontWeight="600"
+                    lineHeight="1.2"
+                  >
                     Schedule consultation
                   </Dialog.Title>
-                  <Dialog.Description mt="8px" color="fg.muted" fontSize="12px" lineHeight="1.45">
-                    Schedule a consultation with a client who has completed or is completing their questionnaire.
+                  <Dialog.Description
+                    mt="8px"
+                    color="fg.muted"
+                    fontSize="12px"
+                    lineHeight="1.45"
+                  >
+                    Schedule a consultation with a client who has completed or
+                    is completing their questionnaire.
                   </Dialog.Description>
                 </Box>
                 <Dialog.CloseTrigger asChild>
@@ -475,7 +619,11 @@ function ScheduleConsultationDialog({
               bg="bg"
             >
               {step > 1 ? (
-                <OutlineButton onClick={() => setStep((currentStep) => (currentStep - 1) as ScheduleStep)}>
+                <OutlineButton
+                  onClick={() =>
+                    setStep((currentStep) => (currentStep - 1) as ScheduleStep)
+                  }
+                >
                   Back
                 </OutlineButton>
               ) : (
@@ -551,7 +699,9 @@ function SelectClientStep({
       >
         <Info size={13} />
         <Box>
-          Only clients who have passed conflict check and are currently in the questionnaire stage are shown. The consultation is the step between questionnaire completion and fee agreement.
+          Only clients who have passed conflict check and are currently in the
+          questionnaire stage are shown. The consultation is the step between
+          questionnaire completion and fee agreement.
         </Box>
       </HStack>
 
@@ -575,7 +725,9 @@ function SelectClientStep({
                 minH="58px"
                 p="10px 12px"
                 border="1px solid"
-                borderColor={selected ? "brand.solid" : touched ? invalidColor : "border"}
+                borderColor={
+                  selected ? "brand.solid" : touched ? invalidColor : "border"
+                }
                 borderRadius="8px"
                 bg="bg"
                 textAlign="left"
@@ -583,20 +735,28 @@ function SelectClientStep({
               >
                 <HStack gap="12px" minW="0">
                   <SelectionDot selected={selected} />
-                  <AvatarPill tone={client.avatarTone}>{client.initials}</AvatarPill>
+                  <AvatarPill tone={client.avatarTone}>
+                    {client.initials}
+                  </AvatarPill>
                   <Box minW="0">
                     <HStack gap="7px" wrap="wrap">
                       <Text m="0" color="fg" fontSize="13px" fontWeight="500">
                         {client.name}
                       </Text>
-                      <StatusPill tone={client.practiceTone}>{client.practiceArea}</StatusPill>
+                      <StatusPill tone={client.practiceTone}>
+                        {client.practiceArea}
+                      </StatusPill>
                     </HStack>
                     <MutedText>{client.matter}</MutedText>
                   </Box>
                 </HStack>
                 <HStack gap="5px" justify="flex-end" wrap="wrap">
-                  <StatusPill tone={client.statusTone}>{client.status}</StatusPill>
-                  {client.language ? <StatusPill tone="neutral">{client.language}</StatusPill> : null}
+                  <StatusPill tone={client.statusTone}>
+                    {client.status}
+                  </StatusPill>
+                  {client.language ? (
+                    <StatusPill tone="neutral">{client.language}</StatusPill>
+                  ) : null}
                 </HStack>
               </chakra.button>
             );
@@ -605,12 +765,19 @@ function SelectClientStep({
       </Box>
 
       {selectedClientId ? (
-        <Grid templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }} gap="10px">
+        <Grid
+          templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+          gap="10px"
+        >
           <ReadOnlyField label="Matter type">
-            {scheduleClients.find((client) => client.id === selectedClientId)?.matter}
+            {
+              scheduleClients.find((client) => client.id === selectedClientId)
+                ?.matter
+            }
           </ReadOnlyField>
           <ReadOnlyField label="Language">
-            {scheduleClients.find((client) => client.id === selectedClientId)?.language || "English"}
+            {scheduleClients.find((client) => client.id === selectedClientId)
+              ?.language || "English"}
           </ReadOnlyField>
         </Grid>
       ) : null}
@@ -665,7 +832,10 @@ function ScheduleDetailsStep({
 }) {
   return (
     <Stack gap="12px" pt="10px">
-      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }} gap="10px">
+      <Grid
+        templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+        gap="10px"
+      >
         <FormField label="Date">
           <Input
             type="date"
@@ -676,13 +846,25 @@ function ScheduleDetailsStep({
           />
         </FormField>
         <FormField label="Start time">
-          <Select value={startTime} onChange={onStartTimeChange} options={["8:00 AM", "9:00 AM", "10:00 AM", "2:00 PM"]} />
+          <Select
+            value={startTime}
+            onChange={onStartTimeChange}
+            options={["8:00 AM", "9:00 AM", "10:00 AM", "2:00 PM"]}
+          />
         </FormField>
         <FormField label="Duration">
-          <Select value={duration} onChange={onDurationChange} options={["30 minutes", "45 minutes", "60 minutes", "90 minutes"]} />
+          <Select
+            value={duration}
+            onChange={onDurationChange}
+            options={["30 minutes", "45 minutes", "60 minutes", "90 minutes"]}
+          />
         </FormField>
         <FormField label="Consultation type">
-          <Select value={consultationType} onChange={onConsultationTypeChange} options={["Video call", "Phone call", "In-person"]} />
+          <Select
+            value={consultationType}
+            onChange={onConsultationTypeChange}
+            options={["Video call", "Phone call", "In-person"]}
+          />
         </FormField>
       </Grid>
 
@@ -703,7 +885,9 @@ function ScheduleDetailsStep({
           placeholder="https://zoom.us/j/... or Teams / Google Meet link"
           {...fieldStyles}
         />
-        <MutedText>Link will be included in the client's calendar invitation.</MutedText>
+        <MutedText>
+          Link will be included in the client's calendar invitation.
+        </MutedText>
       </FormField>
 
       <FormField label="Pre-consultation notes (optional)">
@@ -724,13 +908,25 @@ function ScheduleDetailsStep({
           Notify client via
         </Text>
         <HStack gap="8px" wrap="wrap">
-          <NotifyChip active={notifyEmail} onClick={() => onNotifyEmailChange(!notifyEmail)} icon={<Mail size={12} />}>
+          <NotifyChip
+            active={notifyEmail}
+            onClick={() => onNotifyEmailChange(!notifyEmail)}
+            icon={<Mail size={12} />}
+          >
             Email
           </NotifyChip>
-          <NotifyChip active={notifySms} onClick={() => onNotifySmsChange(!notifySms)} icon={<MessageSquare size={12} />}>
+          <NotifyChip
+            active={notifySms}
+            onClick={() => onNotifySmsChange(!notifySms)}
+            icon={<MessageSquare size={12} />}
+          >
             SMS
           </NotifyChip>
-          <NotifyChip active={notifyPortal} onClick={() => onNotifyPortalChange(!notifyPortal)} icon={<Monitor size={12} />}>
+          <NotifyChip
+            active={notifyPortal}
+            onClick={() => onNotifyPortalChange(!notifyPortal)}
+            icon={<Monitor size={12} />}
+          >
             Client portal
           </NotifyChip>
         </HStack>
@@ -759,7 +955,9 @@ function ReviewStep({
       <Box p="14px 16px" borderRadius="8px" bg="bg.subtle">
         <SummaryItem label="Client">{client.name}</SummaryItem>
         <SummaryItem label="Matter type">{client.matter}</SummaryItem>
-        <SummaryItem label="Language">{client.language || "English"}</SummaryItem>
+        <SummaryItem label="Language">
+          {client.language || "English"}
+        </SummaryItem>
         <SummaryItem label="Date">{date}</SummaryItem>
         <SummaryItem label="Time">{startTime}</SummaryItem>
         <SummaryItem label="Duration">{duration}</SummaryItem>
@@ -767,7 +965,18 @@ function ReviewStep({
         <SummaryItem label="Lead attorney">{attorney}</SummaryItem>
       </Box>
 
-      <HStack align="flex-start" gap="10px" p="12px" border="1px solid" borderColor="#377dff" borderRadius="7px" bg="#e8f1ff" color="#0f4aa8" fontSize="12px" lineHeight="1.45">
+      <HStack
+        align="flex-start"
+        gap="10px"
+        p="12px"
+        border="1px solid"
+        borderColor="#377dff"
+        borderRadius="7px"
+        bg="#e8f1ff"
+        color="#0f4aa8"
+        fontSize="12px"
+        lineHeight="1.45"
+      >
         <Info size={14} />
         <Box>
           <Text m="0 0 4px" fontSize="12px" fontWeight="500">
@@ -776,9 +985,11 @@ function ReviewStep({
           <Text m="0">
             1. Client receives a notification via the selected channels.
             <br />
-            2. The lead moves to Consultation & Notes stage and a consultation card is created.
+            2. The lead moves to Consultation & Notes stage and a consultation
+            card is created.
             <br />
-            3. The assigned attorney sees the consultation in their portal with the client's questionnaire responses and documents ready to review.
+            3. The assigned attorney sees the consultation in their portal with
+            the client's questionnaire responses and documents ready to review.
             <br />
             4. After the consultation the attorney selects an outcome.
           </Text>
@@ -788,7 +999,13 @@ function ReviewStep({
   );
 }
 
-function FormField({ label, children }: { label: string; children: ReactNode }) {
+function FormField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <Box>
       <Text m="0 0 6px" color="fg" fontSize="12px" fontWeight="500">
@@ -861,10 +1078,22 @@ function NotifyChip({
   );
 }
 
-function ReadOnlyField({ label, children }: { label: string; children: ReactNode }) {
+function ReadOnlyField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <Box>
-      <Text m="0 0 5px" color="fg.muted" fontSize="10px" fontWeight="600" textTransform="uppercase">
+      <Text
+        m="0 0 5px"
+        color="fg.muted"
+        fontSize="10px"
+        fontWeight="600"
+        textTransform="uppercase"
+      >
         {label}
       </Text>
       <Box
@@ -883,10 +1112,27 @@ function ReadOnlyField({ label, children }: { label: string; children: ReactNode
   );
 }
 
-function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
+function SummaryItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
-    <Box py="7px" borderBottom="1px solid" borderColor="border.subtle" _last={{ borderBottom: 0 }}>
-      <Text m="0 0 4px" color="fg.muted" fontSize="10px" fontWeight="600" textTransform="uppercase">
+    <Box
+      py="7px"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      _last={{ borderBottom: 0 }}
+    >
+      <Text
+        m="0 0 4px"
+        color="fg.muted"
+        fontSize="10px"
+        fontWeight="600"
+        textTransform="uppercase"
+      >
         {label}
       </Text>
       <Text m="0" color="fg" fontSize="13px" lineHeight="1.2">
@@ -1032,17 +1278,24 @@ function DocumentRow({
   received,
   downloadable = false,
   checkedTone,
+  onDownload,
+  onManualConfirm,
 }: {
   title: string;
   meta: string;
   received: boolean;
   downloadable?: boolean;
   checkedTone: "success" | "warning";
+  onDownload?: () => void;
+  onManualConfirm?: () => void;
 }) {
   return (
     <Box
       display="grid"
-      gridTemplateColumns={{ base: "auto minmax(0, 1fr) auto", md: "auto minmax(0, 1fr) auto auto" }}
+      gridTemplateColumns={{
+        base: "auto minmax(0, 1fr) auto",
+        md: "auto minmax(0, 1fr) auto auto",
+      }}
       alignItems="center"
       gap="10px"
       minH="50px"
@@ -1050,7 +1303,8 @@ function DocumentRow({
       borderBottom="1px solid"
       borderColor="border.subtle"
     >
-      <Box
+      <chakra.button
+        type="button"
         display="grid"
         placeItems="center"
         w="16px"
@@ -1058,13 +1312,30 @@ function DocumentRow({
         border="1px solid"
         borderColor={received ? "transparent" : "border"}
         borderRadius="4px"
-        bg={received ? (checkedTone === "success" ? "accent.attorney" : "brand.solid") : "bg"}
+        bg={
+          received
+            ? checkedTone === "success"
+              ? "accent.attorney"
+              : "brand.solid"
+            : "bg"
+        }
         color={received && checkedTone === "warning" ? "brand.fg" : "#ffffff"}
+        cursor={onManualConfirm ? "pointer" : "default"}
+        onClick={onManualConfirm}
+        aria-label={
+          received ? `${title} received` : `Mark ${title} as received`
+        }
       >
         {received ? <Check size={11} /> : null}
-      </Box>
+      </chakra.button>
       <Box>
-        <Text m="0" color="fg" fontSize="13px" fontWeight="500" lineHeight="1.15">
+        <Text
+          m="0"
+          color="fg"
+          fontSize="13px"
+          fontWeight="500"
+          lineHeight="1.15"
+        >
           {title}
         </Text>
         <HStack gap="4px" color="fg.muted" fontSize="12px">
@@ -1076,8 +1347,8 @@ function DocumentRow({
         {received ? "Received" : "Pending"}
       </StatusPill>
       {downloadable ? (
-        <Box
-          as="button"
+        <chakra.button
+          type="button"
           display="inline-flex"
           alignItems="center"
           justifyContent="center"
@@ -1086,10 +1357,11 @@ function DocumentRow({
           border="0"
           bg="transparent"
           color="fg.muted"
+          onClick={onDownload}
           aria-label={`Download ${title}`}
         >
           <Download size={14} />
-        </Box>
+        </chakra.button>
       ) : null}
     </Box>
   );
@@ -1108,7 +1380,10 @@ const fieldStyles = {
   color: "fg",
   fontSize: "13px",
   _placeholder: { color: "fg.muted" },
-  _focus: { borderColor: "brand.solid", boxShadow: "0 0 0 1px var(--brand-cta)" },
+  _focus: {
+    borderColor: "brand.solid",
+    boxShadow: "0 0 0 1px var(--brand-cta)",
+  },
 };
 
 const scheduleClients = [
