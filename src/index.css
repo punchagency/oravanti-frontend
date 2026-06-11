@@ -1820,6 +1820,52 @@ a {
   min-height: 32px;
 }
 
+.questionnaire-section {
+  display: grid;
+  gap: 16px;
+  padding-top: 24px;
+}
+
+.questionnaire-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.questionnaire-toolbar p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.questionnaire-list {
+  display: grid;
+  gap: 14px;
+}
+
+.questionnaire-card {
+  margin-bottom: 0;
+}
+
+.questionnaire-card__meta {
+  gap: 9px;
+  margin-top: 6px;
+}
+
+.questionnaire-card__warning {
+  margin-top: 0;
+}
+
+.questionnaire-card__actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.questionnaire-card__button {
+  width: 100%;
+  min-height: 32px;
+}
+
 .table-action-button {
   display: inline-flex;
   align-items: center;

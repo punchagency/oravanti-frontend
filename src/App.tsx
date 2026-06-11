@@ -39,6 +39,7 @@ const router = createBrowserRouter(
         <Route path="dashboard/activity" element={<AdminDashboard />} />
         <Route path="intake/pipeline/lead-inbox" element={<IntakePipelinePage />} />
         <Route path="intake/pipeline/conflict-check" element={<IntakePipelinePage />} />
+        <Route path="intake/pipeline/questionnaire" element={<IntakePipelinePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 

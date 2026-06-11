@@ -136,3 +136,22 @@ export const conflictReviews = [
     ],
   },
 ] as const;
+
+export const questionnaires = [
+  {
+    title: "Family Law Questionnaire: Maria Santos",
+    practiceArea: "Family law",
+    practiceTone: "neutral",
+    addOnActive: false,
+    receivedFrom: "webhook portal",
+    statusLabel: "Completed & Received",
+  },
+  {
+    title: "Standard client onboarding questionnaire: Arthur Pendelton",
+    practiceArea: "Business",
+    practiceTone: "neutral",
+    addOnActive: false,
+    receivedFrom: "webhook portal",
+    statusLabel: "Completed & Received",
+  },
+] as const;
