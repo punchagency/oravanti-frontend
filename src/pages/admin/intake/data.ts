@@ -270,3 +270,26 @@ export const consultations = [
     assigneeInitials: "AO",
   },
 ] as const;
+
+export const feeAgreements = [
+  {
+    title: "Standard contingency agreement (33%): Robert Vance",
+    practiceArea: "Personal injury",
+    practiceTone: "neutral",
+    addOnActive: false,
+    generatedBy: "administrator hub",
+    statusLabel: "Pending signature",
+    progressLabel: "75% complete",
+    progress: 75,
+  },
+  {
+    title: "General fee agreement & retainer contract: Kenji Tanaka",
+    practiceArea: "Immigration",
+    practiceTone: "success",
+    addOnActive: true,
+    generatedBy: "administrator hub",
+    statusLabel: "Pending signature",
+    progressLabel: "30% complete",
+    progress: 30,
+  },
+] as const;
