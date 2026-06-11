@@ -94,7 +94,6 @@ export function QuestionnaireView() {
       </Stack>
 
       <QuestionnaireResponseDialog
-        key={selectedQuestionnaire?.title ?? "closed-questionnaire-response"}
         questionnaire={selectedQuestionnaire}
         onClose={() => setSelectedQuestionnaire(null)}
       />
@@ -114,6 +113,8 @@ function QuestionnaireResponseDialog({
   return (
     <Dialog.Root
       open={Boolean(questionnaire)}
+      lazyMount
+      unmountOnExit
       onOpenChange={(details) => {
         if (!details.open) {
           onClose();
@@ -137,16 +138,17 @@ function QuestionnaireResponseDialog({
         >
           {questionnaire ? (
             <Flex direction="column" maxH="calc(100vh - 72px)">
-              <Box p="22px 24px 14px">
-                <Flex align="flex-start" justify="space-between" gap="16px">
-                  <Box minW="0">
-                    <Dialog.Title color="fg" fontSize="17px" fontWeight="600" lineHeight="1.2">
-                      {questionnaire.responseTitle}
-                    </Dialog.Title>
-                    <Dialog.Description mt="6px" color="fg.muted" fontSize="12px" lineHeight="1.3">
-                      {questionnaire.matter} · {questionnaire.submitted} · {questionnaire.language}
-                    </Dialog.Description>
-                  </Box>
+            <Box p="22px 24px 14px">
+              <Flex align="flex-start" justify="space-between" gap="16px">
+                <Box minW="0">
+                  <Dialog.Title color="fg" fontSize="17px" fontWeight="600" lineHeight="1.2">
+                    {questionnaire.responseTitle}
+                  </Dialog.Title>
+                  <Dialog.Description mt="6px" color="fg.muted" fontSize="12px" lineHeight="1.3">
+                    {questionnaire.matter} · {questionnaire.submitted} · {questionnaire.language}
+                  </Dialog.Description>
+                </Box>
+                <Dialog.CloseTrigger asChild>
                   <chakra.button
                     type="button"
                     aria-label="Close questionnaire response"
@@ -160,94 +162,94 @@ function QuestionnaireResponseDialog({
                     borderRadius="full"
                     bg="bg"
                     color="fg.muted"
-                    onClick={onClose}
                   >
                     <X size={16} />
                   </chakra.button>
-                </Flex>
-
-                <Box mt="14px">
-                  <Flex justify="space-between" gap="12px" color="fg.muted" fontSize="11px">
-                    <Box as="span">Completion</Box>
-                    <Box as="span">{questionnaire.answeredLabel}</Box>
-                  </Flex>
-                  <Box mt="7px" h="5px" borderRadius="999px" bg="border.subtle" overflow="hidden">
-                    <Box
-                      h="full"
-                      w={`${questionnaire.completionPercent}%`}
-                      borderRadius="inherit"
-                      bg="brand.solid"
-                    />
-                  </Box>
-                </Box>
-
-                <HStack
-                  align="flex-start"
-                  gap="8px"
-                  mt="14px"
-                  p="10px 12px"
-                  border="1px solid"
-                  borderColor="brand.solid"
-                  borderRadius="8px"
-                  bg="#fff8e7"
-                  color="brand.700"
-                  fontSize="11px"
-                  lineHeight="1.35"
-                >
-                  <Lock size={13} />
-                  <Box>
-                    Standard questions (marked with a lock) are pre-defined for this matter type and linked to court filings and case records. They cannot be removed.
-                  </Box>
-                </HStack>
-
-                <HStack mt="18px" gap="0" borderBottom="1px solid" borderColor="border.subtle">
-                  <ResponseTabButton
-                    active={activeTab === "responses"}
-                    onClick={() => setActiveTab("responses")}
-                  >
-                    Responses (18)
-                  </ResponseTabButton>
-                  <ResponseTabButton
-                    active={activeTab === "documents"}
-                    onClick={() => setActiveTab("documents")}
-                  >
-                    Documents ({questionnaire.documents.length})
-                  </ResponseTabButton>
-                </HStack>
-              </Box>
-
-              <Box flex="1" minH="0" overflowY="auto" px="24px" pb="18px">
-                {activeTab === "responses" ? (
-                  <QuestionnaireResponses questionnaire={questionnaire} />
-                ) : (
-                  <QuestionnaireDocuments documents={questionnaire.documents} />
-                )}
-              </Box>
-
-              <Flex
-                align="center"
-                justify="space-between"
-                gap="12px"
-                p="14px 24px"
-                borderTop="1px solid"
-                borderColor="border.subtle"
-                bg="bg"
-              >
-                <OutlineButton>
-                  <Download size={14} />
-                  Download PDF
-                </OutlineButton>
-                <HStack gap="8px">
-                  <OutlineButton>
-                    <Bell size={14} />
-                    Send reminder
-                  </OutlineButton>
-                  <BrandButton minW="198px">
-                    <ArrowRight size={14} />
-                    Mark complete & proceed
-                  </BrandButton>
-                </HStack>
+                </Dialog.CloseTrigger>
               </Flex>
+
+              <Box mt="14px">
+                <Flex justify="space-between" gap="12px" color="fg.muted" fontSize="11px">
+                  <Box as="span">Completion</Box>
+                  <Box as="span">{questionnaire.answeredLabel}</Box>
+                </Flex>
+                <Box mt="7px" h="5px" borderRadius="999px" bg="border.subtle" overflow="hidden">
+                  <Box
+                    h="full"
+                    w={`${questionnaire.completionPercent}%`}
+                    borderRadius="inherit"
+                    bg="brand.solid"
+                  />
+                </Box>
+              </Box>
+
+              <HStack
+                align="flex-start"
+                gap="8px"
+                mt="14px"
+                p="10px 12px"
+                border="1px solid"
+                borderColor="brand.solid"
+                borderRadius="8px"
+                bg="#fff8e7"
+                color="brand.700"
+                fontSize="11px"
+                lineHeight="1.35"
+              >
+                <Lock size={13} />
+                <Box>
+                  Standard questions (marked with a lock) are pre-defined for this matter type and linked to court filings and case records. They cannot be removed.
+                </Box>
+              </HStack>
+
+              <HStack mt="18px" gap="0" borderBottom="1px solid" borderColor="border.subtle">
+                <ResponseTabButton
+                  active={activeTab === "responses"}
+                  onClick={() => setActiveTab("responses")}
+                >
+                  Responses (18)
+                </ResponseTabButton>
+                <ResponseTabButton
+                  active={activeTab === "documents"}
+                  onClick={() => setActiveTab("documents")}
+                >
+                  Documents ({questionnaire.documents.length})
+                </ResponseTabButton>
+              </HStack>
+            </Box>
+
+            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="18px">
+              {activeTab === "responses" ? (
+                <QuestionnaireResponses questionnaire={questionnaire} />
+              ) : (
+                <QuestionnaireDocuments documents={questionnaire.documents} />
+              )}
+            </Box>
+
+            <Flex
+              align="center"
+              justify="space-between"
+              gap="12px"
+              p="14px 24px"
+              borderTop="1px solid"
+              borderColor="border.subtle"
+              bg="bg"
+            >
+              <OutlineButton>
+                <Download size={14} />
+                Download PDF
+              </OutlineButton>
+              <HStack gap="8px">
+                <OutlineButton>
+                  <Bell size={14} />
+                  Send reminder
+                </OutlineButton>
+                <BrandButton minW="198px">
+                  <ArrowRight size={14} />
+                  Mark complete & proceed
+                </BrandButton>
+              </HStack>
+            </Flex>
             </Flex>
           ) : null}
         </Dialog.Content>
