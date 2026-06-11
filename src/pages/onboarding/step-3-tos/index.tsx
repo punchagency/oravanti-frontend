@@ -1,7 +1,6 @@
 import { useColorMode } from "@/hooks/use-color-mode";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useSubmitOnboardingData } from "@/hooks/use-onboarding";
-import { useAuthStore } from "@/store/auth-store";
 import { useOnboardingStore } from "@/store/onboarding-store";
 import {
   Box,
@@ -17,9 +16,8 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 
-export default function Step4TosPage() {
+export default function Step3TosPage() {
   const { colorMode, toggleColorMode } = useColorMode();
-  const organizationId = useAuthStore((s) => s.organizationId);
   const profile = useOnboardingStore((s) => s.profile);
   const firmDetails = useOnboardingStore((s) => s.firmDetails);
   const setTosAccepted = useOnboardingStore((s) => s.setTosAccepted);
@@ -30,13 +28,12 @@ export default function Step4TosPage() {
   useDocumentTitle("Terms of service - Oravanti");
 
   const handleAccept = () => {
-    if (!organizationId || !profile || !firmDetails) return;
+    if (!profile || !firmDetails) return;
     setTosAccepted(true);
     submitOnboarding.mutate({
       accountType: "firm_admin",
       profile,
       firmDetails,
-      organizationId,
     });
   };
 
@@ -117,16 +114,16 @@ export default function Step4TosPage() {
               color="brand.fg"
               letterSpacing="0.05em"
             >
-              STEP 4 OF 4 &bull; ONBOARDING
+              STEP 3 OF 3 &bull; ONBOARDING
             </Box>
           </Box>
 
-          <Steps.Root step={3} count={4} variant="subtle" mb="8">
+          <Steps.Root step={2} count={3} variant="subtle" mb="8">
             <Steps.List>
-              {[0, 1, 2, 3].map((i) => (
+              {[0, 1, 2].map((i) => (
                 <Steps.Item key={i} index={i} title="">
                   <Steps.Separator
-                    bg={3 >= i ? "brand.solid" : "border.muted"}
+                    bg={2 >= i ? "brand.solid" : "border.muted"}
                   />
                 </Steps.Item>
               ))}
@@ -223,7 +220,7 @@ This agreement shall be governed by the laws of the State of Delaware.`}
                 color="fg"
                 borderColor="border"
                 _hover={{ bg: "bg.muted" }}
-                onClick={() => navigate("/onboarding/step-3-firm-details")}
+                onClick={() => navigate("/onboarding/step-2-firm-details")}
               >
                 <ArrowLeft size={16} />
                 Back

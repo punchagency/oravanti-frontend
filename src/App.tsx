@@ -14,10 +14,9 @@ import EmailVerifiedPage from "./pages/email-verified";
 import ForgotPassword from "./pages/forgot-password";
 import VerifyOtp from "./pages/forgot-password/verify-otp";
 import { LoginPage } from "./pages/login";
-import Step1DomainPage from "./pages/onboarding/step-1-domain";
-import Step2ProfilePage from "./pages/onboarding/step-2-profile";
-import Step3FirmDetailsPage from "./pages/onboarding/step-3-firm-details";
-import Step4TosPage from "./pages/onboarding/step-4-tos";
+import Step1ProfilePage from "./pages/onboarding/step-1-profile";
+import Step2FirmDetailsPage from "./pages/onboarding/step-2-firm-details";
+import Step3TosPage from "./pages/onboarding/step-3-tos";
 import ResetPassword from "./pages/reset-password";
 import VerifyEmailNoticePage from "./pages/verify-email";
 
@@ -38,16 +37,15 @@ const router = createBrowserRouter(
       <Route element={<AuthGuard />}>
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
-        <Route path="/onboarding/step-1-domain" element={<Step1DomainPage />} />
         <Route
-          path="/onboarding/step-2-profile"
-          element={<Step2ProfilePage />}
+          path="/onboarding/step-1-profile"
+          element={<Step1ProfilePage />}
         />
         <Route
-          path="/onboarding/step-3-firm-details"
-          element={<Step3FirmDetailsPage />}
+          path="/onboarding/step-2-firm-details"
+          element={<Step2FirmDetailsPage />}
         />
-        <Route path="/onboarding/step-4-tos" element={<Step4TosPage />} />
+        <Route path="/onboarding/step-3-tos" element={<Step3TosPage />} />
         <Route path="/admin" element={<AppShell />}>
           <Route index element={<AdminDashboardPage />} />
           <Route path="*" element={<NotFoundPage />} />

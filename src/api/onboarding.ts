@@ -1,23 +1,5 @@
 import { API } from ".";
 
-export const submitDomain = async (data: { domain: string }) => {
-  return (await API.post("/onboarding/step1a-submit-domain", data))
-    .data as unknown as {
-    organizationId: string;
-    txtRecordName: string;
-    txtRecordValue: string;
-  };
-};
-
-export const verifyDomain = async (data: { organizationId: string }) => {
-  return (await API.post("/onboarding/step1b-verify-dns", data))
-    .data as unknown as {
-    success: boolean;
-    message?: string;
-    nextStep?: string;
-  };
-};
-
 export const submitOnboardingData = async (data: {
   accountType: "firm_admin";
   profile: {
@@ -37,7 +19,6 @@ export const submitOnboardingData = async (data: {
     website?: string;
     taxId: string;
   };
-  organizationId: string;
 }) => {
   return (await API.post("/onboarding/submit", data)).data;
 };

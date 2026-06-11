@@ -22,15 +22,3 @@ export const firmInformationSchema = z.object({
 });
 
 export type FirmInformationInput = z.infer<typeof firmInformationSchema>;
-
-export const domainSchema = z.object({
-  domain: z
-    .string()
-    .min(1, "Domain is required")
-    .regex(
-      /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
-      "Enter a valid domain (e.g. firm.com)",
-    ),
-});
-
-export type DomainInput = z.infer<typeof domainSchema>;

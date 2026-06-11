@@ -22,7 +22,6 @@ export function useAuthRefresh() {
         };
 
         setAuth({
-          organizationId: sessionData?.session?.activeOrganizationId ?? null,
           user: sessionData.user,
           session: sessionData.session,
           isAuthenticated: !!sessionData.user,

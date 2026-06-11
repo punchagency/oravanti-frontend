@@ -1,6 +1,5 @@
 import { useColorMode } from "@/hooks/use-color-mode";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { useAuthStore } from "@/store/auth-store";
 import { useOnboardingStore } from "@/store/onboarding-store";
 import {
   firmInformationSchema,
@@ -12,7 +11,6 @@ import {
   Center,
   createListCollection,
   Field,
-  Group,
   HStack,
   IconButton,
   Image,
@@ -25,7 +23,6 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router";
 
@@ -183,27 +180,21 @@ const cityCollection = createListCollection({
   ],
 });
 
-export default function Step3FirmDetailsPage() {
+export default function Step2FirmDetailsPage() {
   const { colorMode, toggleColorMode } = useColorMode();
   const savedFirmDetails = useOnboardingStore((s) => s.firmDetails);
   const setFirmDetails = useOnboardingStore((s) => s.setFirmDetails);
-  const userEmail = useAuthStore((s) => s.user?.email ?? "");
-  const userDomain = useMemo(
-    () => (userEmail.includes("@") ? userEmail.split("@")[1] : ""),
-    [userEmail],
-  );
 
   const {
     register,
     handleSubmit,
-    setValue,
     control,
     formState: { errors },
   } = useForm<FirmInformationInput>({
     resolver: zodResolver(firmInformationSchema),
     defaultValues: {
       firmName: savedFirmDetails?.firmName ?? "",
-      firmEmail: savedFirmDetails?.firmEmail ?? `@${userDomain}`,
+      firmEmail: savedFirmDetails?.firmEmail ?? "",
       firmPhoneNumber: savedFirmDetails?.firmPhoneNumber ?? "",
       address: savedFirmDetails?.address ?? "",
       city: savedFirmDetails?.city ?? "",
@@ -213,16 +204,6 @@ export default function Step3FirmDetailsPage() {
       taxId: savedFirmDetails?.taxId ?? "",
     },
   });
-
-  const savedEmail = savedFirmDetails?.firmEmail ?? "";
-  const [localPart, setLocalPart] = useState(
-    savedEmail.includes("@") ? savedEmail.split("@")[0] : "",
-  );
-
-  // Sync localPart → firmEmail form field
-  useEffect(() => {
-    setValue("firmEmail", `${localPart}@${userDomain}`);
-  }, [localPart, userDomain, setValue]);
 
   const navigate = useNavigate();
 
@@ -240,7 +221,7 @@ export default function Step3FirmDetailsPage() {
       website: data.website,
       taxId: data.taxId,
     });
-    navigate("/onboarding/step-4-tos");
+    navigate("/onboarding/step-3-tos");
   };
 
   return (
@@ -320,16 +301,16 @@ export default function Step3FirmDetailsPage() {
               color="brand.fg"
               letterSpacing="0.05em"
             >
-              STEP 3 OF 4 &bull; ONBOARDING
+              STEP 2 OF 3 &bull; ONBOARDING
             </Box>
           </Box>
 
-          <Steps.Root step={2} count={4} variant="subtle" mb="8">
+          <Steps.Root step={1} count={3} variant="subtle" mb="8">
             <Steps.List>
-              {[0, 1, 2, 3].map((i) => (
+              {[0, 1, 2].map((i) => (
                 <Steps.Item key={i} index={i} title="">
                   <Steps.Separator
-                    bg={2 >= i ? "brand.solid" : "border.muted"}
+                    bg={1 >= i ? "brand.solid" : "border.muted"}
                   />
                 </Steps.Item>
               ))}
@@ -365,33 +346,15 @@ export default function Step3FirmDetailsPage() {
                 <Field.Label textStyle="label" color="fg.muted">
                   Firm email
                 </Field.Label>
-                <Group attached w="full">
-                  <Input
-                    id="firmEmailLocal"
-                    bg="bg.input"
-                    borderColor="border.input"
-                    focusRingColor="brand.focusRing"
-                    placeholder="admin"
-                    size="lg"
-                    flex="1"
-                    value={localPart}
-                    onChange={(e) =>
-                      setLocalPart(e.target.value.replace(/[^a-zA-Z0-9._%+-]/g, ""))
-                    }
-                  />
-                  <Input
-                    readOnly
-                    bg="bg.subtle"
-                    color="fg.muted"
-                    borderColor="border.input"
-                    size="lg"
-                    w="auto"
-                    minW="140px"
-                    cursor="not-allowed"
-                    opacity={0.7}
-                    value={`@${userDomain}`}
-                  />
-                </Group>
+                <Input
+                  id="firmEmail"
+                  bg="bg.input"
+                  borderColor="border.input"
+                  focusRingColor="brand.focusRing"
+                  placeholder="admin@myfirm.com"
+                  size="lg"
+                  {...register("firmEmail")}
+                />
                 <Field.ErrorText>{errors.firmEmail?.message}</Field.ErrorText>
               </Field.Root>
 
@@ -592,7 +555,7 @@ export default function Step3FirmDetailsPage() {
                   color="fg"
                   borderColor="border"
                   _hover={{ bg: "bg.muted" }}
-                  onClick={() => navigate("/onboarding/step-2-profile")}
+                  onClick={() => navigate("/onboarding/step-1-profile")}
                 >
                   <ArrowLeft size={16} />
                   Back

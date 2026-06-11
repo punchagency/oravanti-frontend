@@ -22,7 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router";
 
-export default function Step2ProfilePage() {
+export default function Step1ProfilePage() {
   const { colorMode, toggleColorMode } = useColorMode();
   const userEmail = useAuthStore((s) => s.user?.email ?? "");
   const savedProfile = useOnboardingStore((s) => s.profile);
@@ -54,7 +54,7 @@ export default function Step2ProfilePage() {
       phone: data.phone,
       jobTitle: data.jobTitle || undefined,
     });
-    navigate("/onboarding/step-3-firm-details");
+    navigate("/onboarding/step-2-firm-details");
   };
 
   return (
@@ -134,16 +134,16 @@ export default function Step2ProfilePage() {
               color="brand.fg"
               letterSpacing="0.05em"
             >
-              STEP 2 OF 4 &bull; ONBOARDING
+              STEP 1 OF 3 &bull; ONBOARDING
             </Box>
           </Box>
 
-          <Steps.Root step={1} count={4} variant="subtle" mb="8">
+          <Steps.Root step={0} count={3} variant="subtle" mb="8">
             <Steps.List>
-              {[0, 1, 2, 3].map((i) => (
+              {[0, 1, 2].map((i) => (
                 <Steps.Item key={i} index={i} title="">
                   <Steps.Separator
-                    bg={1 >= i ? "brand.solid" : "border.muted"}
+                    bg={0 >= i ? "brand.solid" : "border.muted"}
                   />
                 </Steps.Item>
               ))}

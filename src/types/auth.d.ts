@@ -28,9 +28,6 @@ export type SessionUser = {
   onboardingState:
     | "email_unverified"
     | "email_verified"
-    | "domain_verified"
-    | "profile_completed"
-    | "org_created"
     | "completed";
   tosAccepted: boolean;
   tosAcceptedAt: Date | null;

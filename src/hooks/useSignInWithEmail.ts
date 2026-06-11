@@ -40,7 +40,6 @@ export const useSignInWithEmail = () => {
         });
 
         useAuthStore.getState().setAuth({
-          organizationId: sessionData?.session?.activeOrganizationId ?? null,
           user: sessionData?.user ?? null,
           session: sessionData?.session ?? null,
           isAuthenticated: !!sessionData?.session,
