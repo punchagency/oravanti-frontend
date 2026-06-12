@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSession, signInWithEmail } from "@/api/auth";
 import { useAuthStore } from "@/store/auth-store";
+import type { AuthSession, SessionUser } from "@/types/auth";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
@@ -27,13 +28,17 @@ export const useSignInWithEmail = () => {
       if (data?.data?.twoFactorRedirect) {
         navigate("/auth/2fa");
       } else {
-        const sessionData = await queryClient.fetchQuery({
+        const sessionData: {
+          user: SessionUser;
+          session: AuthSession;
+        } = await queryClient.fetchQuery({
           queryKey: ["session"],
           queryFn: async () => {
             const response = await getSession();
             return response.data;
           },
         });
+
         useAuthStore.getState().setAuth({
           user: sessionData?.user ?? null,
           session: sessionData?.session ?? null,

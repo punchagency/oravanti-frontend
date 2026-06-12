@@ -21,14 +21,18 @@ export const FeedbackDialogProvider = ({
                 <Dialog.Title fontSize="lg" fontWeight="semibold">
                   {title}
                 </Dialog.Title>
-                <Text color="fg.subtle" fontSize="sm">
+                <Text color="fg.muted" fontSize="sm">
                   {description}
                 </Text>
               </Stack>
             </Dialog.Body>
             <Dialog.Footer gap="3" p="6" pt="0">
               <Button
-                colorPalette={variant === "error" ? "red" : "blue"}
+                color={{
+                  _dark: variant === "error" ? "fg" : "white",
+                  _light: variant === "error" ? "white" : "fg",
+                }}
+                bg={variant === "error" ? "red.500" : "brand.solid"}
                 onClick={close}
               >
                 OK

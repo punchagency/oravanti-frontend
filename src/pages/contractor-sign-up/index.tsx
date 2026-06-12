@@ -139,7 +139,7 @@ export const SignUpPage = () => {
         textAlign="center"
       >
         <Image
-          src="oravanti_logo.png"
+          src="/oravanti_logo.png"
           alt="Oravanti Logo"
           w={10}
           mx={"auto"}
