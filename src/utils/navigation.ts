@@ -60,15 +60,48 @@ export type ContextNavigationGroup = {
 
 export const primaryNavigation: PrimaryNavigationItem[] = [
   { label: "Overview", section: "overview", path: "/admin", icon: "dashboard" },
-  { label: "Intake", section: "intake", path: "/admin/intake/pipeline/lead-inbox", icon: "intake" },
-  { label: "Cases", section: "cases", path: "/admin/cases/all-matters", icon: "folder" },
-  { label: "Staff", section: "staff", path: "/admin/staff/accounts", icon: "users" },
-  { label: "Finance", section: "finance", path: "/admin/finance/invoicing", icon: "billing" },
-  { label: "Analytics", section: "analytics", path: "/admin/analytics/firm-overview", icon: "analytics" },
-  { label: "Settings", section: "settings", path: "/admin/settings/add-on-activation", icon: "settings" },
+  {
+    label: "Intake",
+    section: "intake",
+    path: "/admin/intake/pipeline/lead-inbox",
+    icon: "intake",
+  },
+  {
+    label: "Cases",
+    section: "cases",
+    path: "/admin/cases/all-matters",
+    icon: "folder",
+  },
+  {
+    label: "Staff",
+    section: "staff",
+    path: "/admin/staff/accounts",
+    icon: "users",
+  },
+  {
+    label: "Finance",
+    section: "finance",
+    path: "/admin/finance/invoicing",
+    icon: "billing",
+  },
+  {
+    label: "Analytics",
+    section: "analytics",
+    path: "/admin/analytics/firm-overview",
+    icon: "analytics",
+  },
+  {
+    label: "Settings",
+    section: "settings",
+    path: "/admin/settings/add-on-activation",
+    icon: "settings",
+  },
 ];
 
-export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]> = {
+export const contextNavigation: Record<
+  PrimarySection,
+  ContextNavigationGroup[]
+> = {
   overview: [
     {
       label: "Overview",
@@ -84,15 +117,43 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/intake/pipeline/lead-inbox",
           icon: "intake",
           children: [
-            { label: "Lead inbox", path: "/admin/intake/pipeline/lead-inbox", icon: "mail" },
-            { label: "Conflict check", path: "/admin/intake/pipeline/conflict-check", icon: "shield" },
-            { label: "Questionnaire", path: "/admin/intake/pipeline/questionnaire", icon: "clipboard" },
-            { label: "Consultation & notes", path: "/admin/intake/pipeline/consultation", icon: "file" },
-            { label: "Fee agreement", path: "/admin/intake/pipeline/fee-agreement", icon: "signature" },
-            { label: "Case opening", path: "/admin/intake/pipeline/case-opening", icon: "folder" },
+            {
+              label: "Lead inbox",
+              path: "/admin/intake/pipeline/lead-inbox",
+              icon: "mail",
+            },
+            {
+              label: "Conflict check",
+              path: "/admin/intake/pipeline/conflict-check",
+              icon: "shield",
+            },
+            {
+              label: "Questionnaire",
+              path: "/admin/intake/pipeline/questionnaire",
+              icon: "clipboard",
+            },
+            {
+              label: "Consultation & notes",
+              path: "/admin/intake/pipeline/consultation",
+              icon: "file",
+            },
+            {
+              label: "Fee agreement",
+              path: "/admin/intake/pipeline/fee-agreement",
+              icon: "signature",
+            },
+            {
+              label: "Case opening",
+              path: "/admin/intake/pipeline/case-opening",
+              icon: "folder",
+            },
           ],
         },
-        { label: "CRM & leads", path: "/admin/intake/crm-leads", icon: "chart-pie" },
+        {
+          label: "CRM & leads",
+          path: "/admin/intake/crm-leads",
+          icon: "chart-pie",
+        },
       ],
     },
   ],
@@ -105,8 +166,16 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/cases/all-matters",
           icon: "folder",
           children: [
-            { label: "All matters", path: "/admin/cases/all-matters", icon: "folder-open" },
-            { label: "Policy alerts", path: "/admin/cases/policy-alerts", icon: "rss" },
+            {
+              label: "All matters",
+              path: "/admin/cases/all-matters",
+              icon: "folder-open",
+            },
+            {
+              label: "Policy alerts",
+              path: "/admin/cases/policy-alerts",
+              icon: "rss",
+            },
           ],
         },
       ],
@@ -121,10 +190,26 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/staff/accounts",
           icon: "users",
           children: [
-            { label: "Staff accounts", path: "/admin/staff/accounts", icon: "users" },
-            { label: "Certifications", path: "/admin/staff/certifications", icon: "book-open-check" },
-            { label: "Performance", path: "/admin/staff/performance", icon: "chart-column-big" },
-            { label: "Leave management", path: "/admin/staff/leave-management", icon: "calendar" },
+            {
+              label: "Staff accounts",
+              path: "/admin/staff/accounts",
+              icon: "users",
+            },
+            {
+              label: "Certifications",
+              path: "/admin/staff/certifications",
+              icon: "book-open-check",
+            },
+            {
+              label: "Performance",
+              path: "/admin/staff/performance",
+              icon: "chart-column-big",
+            },
+            {
+              label: "Leave management",
+              path: "/admin/staff/leave-management",
+              icon: "calendar",
+            },
           ],
         },
         {
@@ -132,8 +217,16 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/staff/contractors/marketplace",
           icon: "briefcase",
           children: [
-            { label: "Marketplace", path: "/admin/staff/contractors/marketplace", icon: "search" },
-            { label: "Active engagements", path: "/admin/staff/contractors/active-engagements", icon: "lock" },
+            {
+              label: "Marketplace",
+              path: "/admin/staff/contractors/marketplace",
+              icon: "search",
+            },
+            {
+              label: "Active engagements",
+              path: "/admin/staff/contractors/active-engagements",
+              icon: "lock",
+            },
           ],
         },
       ],
@@ -148,9 +241,21 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/finance/invoicing",
           icon: "billing",
           children: [
-            { label: "Invoicing", path: "/admin/finance/invoicing", icon: "file" },
-            { label: "Trust accounts", path: "/admin/finance/trust-accounts", icon: "landmark" },
-            { label: "International payments", path: "/admin/finance/international-payments", icon: "globe" },
+            {
+              label: "Invoicing",
+              path: "/admin/finance/invoicing",
+              icon: "file",
+            },
+            {
+              label: "Trust accounts",
+              path: "/admin/finance/trust-accounts",
+              icon: "landmark",
+            },
+            {
+              label: "International payments",
+              path: "/admin/finance/international-payments",
+              icon: "globe",
+            },
           ],
         },
       ],
@@ -165,11 +270,31 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/analytics/firm-overview",
           icon: "analytics",
           children: [
-            { label: "Firm overview", path: "/admin/analytics/firm-overview", icon: "overview" },
-            { label: "Revenue & billing", path: "/admin/analytics/revenue-billing", icon: "billing" },
-            { label: "Staff performance", path: "/admin/analytics/staff-performance", icon: "users" },
-            { label: "Intake & CRM", path: "/admin/analytics/intake-crm", icon: "intake" },
-            { label: "Compliance", path: "/admin/analytics/compliance", icon: "shield" },
+            {
+              label: "Firm overview",
+              path: "/admin/analytics/firm-overview",
+              icon: "overview",
+            },
+            {
+              label: "Revenue & billing",
+              path: "/admin/analytics/revenue-billing",
+              icon: "billing",
+            },
+            {
+              label: "Staff performance",
+              path: "/admin/analytics/staff-performance",
+              icon: "users",
+            },
+            {
+              label: "Intake & CRM",
+              path: "/admin/analytics/intake-crm",
+              icon: "intake",
+            },
+            {
+              label: "Compliance",
+              path: "/admin/analytics/compliance",
+              icon: "shield",
+            },
           ],
         },
       ],
@@ -184,12 +309,37 @@ export const contextNavigation: Record<PrimarySection, ContextNavigationGroup[]>
           path: "/admin/settings/add-on-activation",
           icon: "settings",
           children: [
-            { label: "Add-on activation", path: "/admin/settings/add-on-activation", icon: "intake" },
+            {
+              label: "Add-on activation",
+              path: "/admin/settings/add-on-activation",
+              icon: "intake",
+            },
             { label: "RBAC", path: "/admin/settings/rbac", icon: "shield" },
-            { label: "Integrations", path: "/admin/settings/integrations", icon: "briefcase" },
-            { label: "Firm settings", path: "/admin/settings/firm-settings", icon: "settings" },
-            { label: "Training platform", path: "/admin/settings/training-platform", icon: "education" },
-            { label: "Education & leads", path: "/admin/settings/education-leads", icon: "education" },
+            {
+              label: "Integrations",
+              path: "/admin/settings/integrations",
+              icon: "briefcase",
+            },
+            {
+              label: "Email accounts",
+              path: "/admin/settings/email-accounts",
+              icon: "mail",
+            },
+            {
+              label: "Firm settings",
+              path: "/admin/settings/firm-settings",
+              icon: "settings",
+            },
+            {
+              label: "Training platform",
+              path: "/admin/settings/training-platform",
+              icon: "education",
+            },
+            {
+              label: "Education & leads",
+              path: "/admin/settings/education-leads",
+              icon: "education",
+            },
           ],
         },
       ],

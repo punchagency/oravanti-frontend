@@ -1,9 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
+import { useAuthStore } from "@/store/auth-store";
 
 export const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
+});
+
+API.interceptors.request.use((config) => {
+  const { user, session } = useAuthStore.getState();
+  if (user?.id) config.headers["x-user-id"] = user.id;
+  if (session?.activeOrganizationId)
+    config.headers["x-organization-id"] = session.activeOrganizationId;
+  return config;
 });
 
 // 1. Tab Synchronization via BroadcastChannel

@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import type { PropsWithChildren } from "react";
 import { Toaster } from "sonner";
+import { ConfirmDialogProvider } from "./confirmDialogProvider";
 import { FeedbackDialogProvider } from "./feedbackDialogProvider";
 
 const queryClient = new QueryClient();
@@ -21,7 +22,9 @@ export function Provider({
       <QueryClientProvider client={queryClient}>
         <ChakraProvider value={systemThemeConfig}>
           <ColorModeProvider {...colorModeProps}>
-            <FeedbackDialogProvider>{children}</FeedbackDialogProvider>
+            <ConfirmDialogProvider>
+              <FeedbackDialogProvider>{children}</FeedbackDialogProvider>
+            </ConfirmDialogProvider>
           </ColorModeProvider>
         </ChakraProvider>
         <Toaster richColors />

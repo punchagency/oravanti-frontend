@@ -1,5 +1,6 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { AdminDashboard } from "@/pages/admin/dashboard";
+import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { NotFoundPage } from "@/pages/not-found";
 import {
   Route,
@@ -51,6 +52,11 @@ const router = createBrowserRouter(
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard/pipeline" element={<AdminDashboard />} />
           <Route path="dashboard/activity" element={<AdminDashboard />} />
+
+          <Route path="settings">
+            <Route path="email-accounts" element={<EmailAccountConnectionPage />} />
+          </Route>
+
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
