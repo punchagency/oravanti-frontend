@@ -1,5 +1,7 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
+import { CrmLeadsPage } from "@/pages/admin/crm-leads";
 import { AdminDashboard } from "@/pages/admin/dashboard";
+import { IntakePipelinePage } from "@/pages/admin/intake";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { NotFoundPage } from "@/pages/not-found";
 import {
@@ -54,12 +56,38 @@ const router = createBrowserRouter(
           <Route path="dashboard/activity" element={<AdminDashboard />} />
 
           <Route path="settings">
-            <Route path="email-accounts" element={<EmailAccountConnectionPage />} />
+            <Route
+              path="email-accounts"
+              element={<EmailAccountConnectionPage />}
+            />
           </Route>
 
-          <Route path="*" element={<NotFoundPage />} />
+          <Route
+            path="intake/pipeline/lead-inbox"
+            element={<IntakePipelinePage />}
+          />
+          <Route
+            path="intake/pipeline/conflict-check"
+            element={<IntakePipelinePage />}
+          />
+          <Route
+            path="intake/pipeline/questionnaire"
+            element={<IntakePipelinePage />}
+          />
+          <Route
+            path="intake/pipeline/consultation"
+            element={<IntakePipelinePage />}
+          />
+          <Route
+            path="intake/pipeline/fee-agreement"
+            element={<IntakePipelinePage />}
+          />
+          <Route
+            path="intake/pipeline/case-opening"
+            element={<IntakePipelinePage />}
+          />
+          <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
         </Route>
-
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>,

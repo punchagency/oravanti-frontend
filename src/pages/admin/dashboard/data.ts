@@ -197,7 +197,9 @@ export const staff = [
 ] as const;
 
 export const dashboardTabs = [
-  ["Overview", "/admin"],
-  ["Pipeline", "/admin/dashboard/pipeline"],
-  ["Activity", "/admin/dashboard/activity"],
+  "Overview",
+  "Pipeline",
+  "Activity",
 ] as const;
+
+export type DashboardTabs = (typeof dashboardTabs)[number]
