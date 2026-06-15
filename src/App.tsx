@@ -87,6 +87,8 @@ const router = createBrowserRouter(
             element={<IntakePipelinePage />}
           />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
+
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Route>
