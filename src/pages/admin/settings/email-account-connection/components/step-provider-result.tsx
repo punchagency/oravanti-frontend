@@ -51,7 +51,7 @@ export function StepProviderResult({
         <Button
           variant="outline"
           loading={oauthLoading}
-          loadingText="Opening Google..."
+          loadingText={`Opening ${provider === "google" ? "Google" : "Microsoft"}...`}
           onClick={onOAuthConnect}
         >
           <Globe size={15} />

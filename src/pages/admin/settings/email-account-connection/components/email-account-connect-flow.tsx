@@ -4,10 +4,11 @@ import {
   useConnectEmailAccountAuto,
   useConnectEmailAccountManual,
   useConnectGoogleOAuth,
+  useConnectMicrosoftOAuth,
 } from "@/hooks/use-email-accounts";
 import { Box, Dialog, IconButton } from "@chakra-ui/react";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StepEmailInput } from "./step-email-input";
 import { StepIndicator } from "./step-indicator";
 import { StepManualConfig } from "./step-manual-config";
@@ -27,6 +28,7 @@ export function EmailAccountConnectFlow({
   const [password, setPassword] = useState("");
   const [provider, setProvider] = useState<EmailProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
   const [manualEmail, setManualEmail] = useState("");
   const [manualPassword, setManualPassword] = useState("");
   const [manualProtocol, setManualProtocol] = useState<"imap" | "pop3">("imap");
@@ -37,8 +39,6 @@ export function EmailAccountConnectFlow({
   const [manualSmtpHost, setManualSmtpHost] = useState("");
   const [manualSmtpPort, setManualSmtpPort] = useState("465");
   const [manualSecure, setManualSecure] = useState(true);
-  const [oauthLoading, setOauthLoading] = useState(false);
-
   const PORTS = {
     imap: { secure: 993, insecure: 143 },
     pop3: { secure: 995, insecure: 110 },
@@ -49,27 +49,14 @@ export function EmailAccountConnectFlow({
   const autoConnectMutation = useConnectEmailAccountAuto();
   const manualConnectMutation = useConnectEmailAccountManual();
   const googleOAuth = useConnectGoogleOAuth();
+  const microsoftOAuth = useConnectMicrosoftOAuth();
 
   function handleOAuthConnect() {
-    setOauthLoading(true);
-    googleOAuth.setCallbacks({
-      onSuccess: () => {
-        setOauthLoading(false);
-        handleClose();
-      },
-      onError: (message) => {
-        setOauthLoading(false);
-        setError(message);
-      },
-    });
-    googleOAuth.connect();
+    setRedirecting(true);
+    const oauth = provider === "microsoft" ? microsoftOAuth : googleOAuth;
+    // Small delay so the loading indicator renders before navigation
+    setTimeout(() => oauth.connect(), 100);
   }
-
-  useEffect(() => {
-    return () => {
-      googleOAuth.cleanup();
-    };
-  }, []);
 
   function reset() {
     setStep(1);
@@ -128,9 +115,13 @@ export function EmailAccountConnectFlow({
   function handleProtocolChange(protocol: "imap" | "pop3") {
     setManualProtocol(protocol);
     if (protocol === "imap") {
-      setManualImapPort(String(manualSecure ? PORTS.imap.secure : PORTS.imap.insecure));
+      setManualImapPort(
+        String(manualSecure ? PORTS.imap.secure : PORTS.imap.insecure),
+      );
     } else {
-      setManualPop3Port(String(manualSecure ? PORTS.pop3.secure : PORTS.pop3.insecure));
+      setManualPop3Port(
+        String(manualSecure ? PORTS.pop3.secure : PORTS.pop3.insecure),
+      );
     }
   }
 
@@ -242,7 +233,7 @@ export function EmailAccountConnectFlow({
                   provider={provider}
                   password={password}
                   loading={autoConnectMutation.isPending}
-                  oauthLoading={oauthLoading}
+                  oauthLoading={redirecting}
                   onPasswordChange={setPassword}
                   onSubmit={handleAutoConnect}
                   onOAuthConnect={handleOAuthConnect}

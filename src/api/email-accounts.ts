@@ -14,6 +14,7 @@ export type ClassifyResponse = {
 const rootPath = "/email-accounts";
 
 export const GOOGLE_OAUTH_URL = `${import.meta.env.VITE_API_URL}${rootPath}/oauth/google`;
+export const MICROSOFT_OAUTH_URL = `${import.meta.env.VITE_API_URL}${rootPath}/oauth/microsoft`;
 
 export type ConnectAutoResponse =
   | { success: true; message: string }
