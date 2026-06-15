@@ -15,8 +15,10 @@ type StepProviderResultProps = {
   provider: EmailProvider;
   password: string;
   loading: boolean;
+  oauthLoading: boolean;
   onPasswordChange: (value: string) => void;
   onSubmit: () => void;
+  onOAuthConnect?: () => void;
   onSkipOAuth?: () => void;
 };
 
@@ -24,8 +26,10 @@ export function StepProviderResult({
   provider,
   password,
   loading,
+  oauthLoading,
   onPasswordChange,
   onSubmit,
+  onOAuthConnect,
   onSkipOAuth,
 }: StepProviderResultProps) {
   if (provider === "google" || provider === "microsoft") {
@@ -44,13 +48,15 @@ export function StepProviderResult({
           </Text>
         </VStack>
 
-        <Button variant="outline" disabled>
+        <Button
+          variant="outline"
+          loading={oauthLoading}
+          loadingText="Opening Google..."
+          onClick={onOAuthConnect}
+        >
           <Globe size={15} />
           Connect with {provider === "google" ? "Google" : "Microsoft"}
         </Button>
-        <Text textStyle="body-xs" color="fg.subtle" textAlign="center">
-          OAuth support coming soon
-        </Text>
 
         <Separator />
 

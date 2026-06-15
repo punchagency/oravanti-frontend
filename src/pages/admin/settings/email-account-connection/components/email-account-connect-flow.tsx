@@ -3,10 +3,11 @@ import {
   useClassifyEmailAccount,
   useConnectEmailAccountAuto,
   useConnectEmailAccountManual,
+  useConnectGoogleOAuth,
 } from "@/hooks/use-email-accounts";
 import { Box, Dialog, IconButton } from "@chakra-ui/react";
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StepEmailInput } from "./step-email-input";
 import { StepIndicator } from "./step-indicator";
 import { StepManualConfig } from "./step-manual-config";
@@ -36,6 +37,7 @@ export function EmailAccountConnectFlow({
   const [manualSmtpHost, setManualSmtpHost] = useState("");
   const [manualSmtpPort, setManualSmtpPort] = useState("465");
   const [manualSecure, setManualSecure] = useState(true);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   const PORTS = {
     imap: { secure: 993, insecure: 143 },
@@ -46,6 +48,28 @@ export function EmailAccountConnectFlow({
   const classifyMutation = useClassifyEmailAccount();
   const autoConnectMutation = useConnectEmailAccountAuto();
   const manualConnectMutation = useConnectEmailAccountManual();
+  const googleOAuth = useConnectGoogleOAuth();
+
+  function handleOAuthConnect() {
+    setOauthLoading(true);
+    googleOAuth.setCallbacks({
+      onSuccess: () => {
+        setOauthLoading(false);
+        handleClose();
+      },
+      onError: (message) => {
+        setOauthLoading(false);
+        setError(message);
+      },
+    });
+    googleOAuth.connect();
+  }
+
+  useEffect(() => {
+    return () => {
+      googleOAuth.cleanup();
+    };
+  }, []);
 
   function reset() {
     setStep(1);
@@ -218,8 +242,10 @@ export function EmailAccountConnectFlow({
                   provider={provider}
                   password={password}
                   loading={autoConnectMutation.isPending}
+                  oauthLoading={oauthLoading}
                   onPasswordChange={setPassword}
                   onSubmit={handleAutoConnect}
+                  onOAuthConnect={handleOAuthConnect}
                   onSkipOAuth={handleSkipOAuth}
                 />
               )}

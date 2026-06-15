@@ -5,10 +5,12 @@ import {
   deleteEmailAccount,
   disableEmailAccount,
   enableEmailAccount,
+  GOOGLE_OAUTH_URL,
   listEmailAccounts,
 } from "@/api/email-accounts";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useRef } from "react";
 import type { APIError } from "./types";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
@@ -167,4 +169,83 @@ export function useConnectEmailAccountManual() {
       });
     },
   });
+}
+
+export function useConnectGoogleOAuth() {
+  const queryClient = useQueryClient();
+  const popupRef = useRef<Window | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const callbacksRef = useRef<{
+    onSuccess?: () => void;
+    onError?: (message: string) => void;
+  }>({});
+
+  const setCallbacks = useCallback(
+    (callbacks: { onSuccess?: () => void; onError?: (message: string) => void }) => {
+      callbacksRef.current = callbacks;
+    },
+    [],
+  );
+
+  const cleanup = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close();
+    }
+    popupRef.current = null;
+  }, []);
+
+  const connect = useCallback(() => {
+    cleanup();
+
+    const w = 600;
+    const h = 700;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+
+    popupRef.current = window.open(
+      GOOGLE_OAUTH_URL,
+      "google-oauth",
+      `width=${w},height=${h},left=${left},top=${top}`,
+    );
+
+    if (!popupRef.current) {
+      callbacksRef.current.onError?.(
+        "Popup blocked. Please allow popups for this site and try again.",
+      );
+      return;
+    }
+
+    intervalRef.current = window.setInterval(() => {
+      try {
+        if (popupRef.current?.closed) {
+          cleanup();
+          callbacksRef.current.onError?.("Google sign-in was cancelled.");
+          return;
+        }
+
+        const location = popupRef.current?.location.href;
+        if (!location) return;
+
+        const url = new URL(location);
+
+        if (url.searchParams.get("oauth") === "success") {
+          cleanup();
+          queryClient.invalidateQueries({ queryKey: ["email-accounts"] });
+          callbacksRef.current.onSuccess?.();
+        } else if (url.searchParams.get("oauth") === "error") {
+          const message =
+            url.searchParams.get("message") || "Google connection failed.";
+          cleanup();
+          callbacksRef.current.onError?.(message);
+        }
+      } catch {
+      }
+    }, 500);
+  }, [cleanup, queryClient]);
+
+  return { connect, cleanup, setCallbacks };
 }
