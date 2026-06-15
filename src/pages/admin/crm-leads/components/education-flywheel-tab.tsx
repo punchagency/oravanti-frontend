@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import {
   OutlineButton,
   PracticePill,
-} from "@/pages/admin/intake/components/intake-ui";
+} from "@/components/ui/intake-ui";
 import { educationLeads, educationTiers, practiceAreas } from "../data";
 
 const tierCards = [

@@ -5,7 +5,7 @@ import { PipelineView } from "./views/pipeline";
 import { useState } from "react";
 import { Download, Plus } from "lucide-react";
 import { Box, Flex, HStack, Text, chakra } from "@chakra-ui/react";
-import { BrandButton, OutlineButton } from "../intake/components/intake-ui";
+import { BrandButton, OutlineButton } from "../../../components/ui/intake-ui";
 import { dashboardTabs, type DashboardTabs } from "./data";
 
 export function AdminDashboard() {

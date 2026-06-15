@@ -18,7 +18,7 @@ import {
   PracticePill,
   StatusPill,
   SurfaceCard,
-} from "./intake-ui";
+} from "../../../../components/ui/intake-ui";
 import {
   QuestionnaireResponseDialog,
   type QuestionnaireResponse,

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { BrandButton, MutedText, OutlineButton } from "./intake-ui";
+import { BrandButton, MutedText, OutlineButton } from "../../../../components/ui/intake-ui";
 
 export type QuestionnaireResponse = {
   responseTitle: string;

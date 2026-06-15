@@ -22,7 +22,7 @@ import {
   MutedText,
   OutlineButton,
   PracticePill,
-} from "./intake-ui";
+} from "../../../../components/ui/intake-ui";
 
 type Lead = (typeof leadInboxLeads)[number];
 

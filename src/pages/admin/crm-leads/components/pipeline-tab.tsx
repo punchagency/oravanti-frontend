@@ -13,7 +13,7 @@ import {
   BrandButton,
   OutlineButton,
   PracticePill,
-} from "@/pages/admin/intake/components/intake-ui";
+} from "@/components/ui/intake-ui";
 import {
   leadSources,
   pipelineLeads,

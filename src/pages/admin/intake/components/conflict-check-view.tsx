@@ -10,7 +10,7 @@ import {
   PracticePill,
   StatusPill,
   SurfaceCard,
-} from "./intake-ui";
+} from "../../../../components/ui/intake-ui";
 
 export function ConflictCheckView() {
   return (

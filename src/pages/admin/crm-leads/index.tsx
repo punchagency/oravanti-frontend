@@ -1,20 +1,19 @@
 import { Box, Flex, Grid, HStack, Text, chakra } from "@chakra-ui/react";
 import { Download, Plus } from "lucide-react";
 import { useState } from "react";
-import {
-  BrandButton,
-  OutlineButton,
-} from "@/pages/admin/intake/components/intake-ui";
+import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ArchivedLeadsTab } from "./components/archived-leads-tab";
 import { ConversionMetricsTab } from "./components/conversion-metrics-tab";
 import { EducationFlywheelTab } from "./components/education-flywheel-tab";
 import { PipelineTab } from "./components/pipeline-tab";
 import { type CrmTab, crmStats, crmTabs } from "./data";
+import { AddLeadDialog } from "@/components/ui/add-lead";
 
 export function CrmLeadsPage() {
   useDocumentTitle("CRM & leads - Oravanti");
   const [activeTab, setActiveTab] = useState<CrmTab>("Pipeline");
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
 
   return (
     <>
@@ -44,7 +43,7 @@ export function CrmLeadsPage() {
           </Text>
         </Box>
         <HStack gap="8px">
-          <BrandButton>
+          <BrandButton onClick={() => setAddLeadOpen(true)}>
             <Plus size={15} />
             Add lead
           </BrandButton>
@@ -132,6 +131,8 @@ export function CrmLeadsPage() {
       {activeTab === "Conversion metrics" && <ConversionMetricsTab />}
       {activeTab === "Education flywheel" && <EducationFlywheelTab />}
       {activeTab === "Archived leads" && <ArchivedLeadsTab />}
+
+      <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
     </>
   );
 }
