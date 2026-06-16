@@ -1,5 +1,5 @@
 import { Button, Field, HStack, Input, Separator, Text, VStack } from "@chakra-ui/react";
-import { Globe, Mail } from "lucide-react";
+import { GoogleIcon, MicrosoftIcon } from "./icons";
 
 type StepEmailInputProps = {
   email: string;
@@ -35,7 +35,7 @@ export function StepEmailInput({
           onClick={onGoogleConnect}
           flex={{ base: 1, sm: "initial" }}
         >
-          <Globe size={15} />
+          <GoogleIcon width={15} height={15} />
           Connect Google
         </Button>
         <Button
@@ -43,7 +43,7 @@ export function StepEmailInput({
           onClick={onMicrosoftConnect}
           flex={{ base: 1, sm: "initial" }}
         >
-          <Mail size={15} />
+          <MicrosoftIcon width={15} height={15} />
           Connect Microsoft
         </Button>
       </HStack>
