@@ -28,7 +28,6 @@ export function EmailAccountConnectFlow({
   const [password, setPassword] = useState("");
   const [provider, setProvider] = useState<EmailProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
   const [manualEmail, setManualEmail] = useState("");
   const [manualPassword, setManualPassword] = useState("");
   const [manualProtocol, setManualProtocol] = useState<"imap" | "pop3">("imap");
@@ -51,11 +50,14 @@ export function EmailAccountConnectFlow({
   const googleOAuth = useConnectGoogleOAuth();
   const microsoftOAuth = useConnectMicrosoftOAuth();
 
-  function handleOAuthConnect() {
-    setRedirecting(true);
+  function handleOAuthConnect(provider: "google" | "microsoft") {
     const oauth = provider === "microsoft" ? microsoftOAuth : googleOAuth;
-    // Small delay so the loading indicator renders before navigation
-    setTimeout(() => oauth.connect(), 100);
+    oauth.connect();
+  }
+
+  function handleOAuthConnectClassified() {
+    if (!provider) return;
+    handleOAuthConnect(provider);
   }
 
   function reset() {
@@ -225,6 +227,8 @@ export function EmailAccountConnectFlow({
                   loading={classifyMutation.isPending}
                   onChange={setEmail}
                   onSubmit={handleClassify}
+                  onGoogleConnect={() => handleOAuthConnect("google")}
+                  onMicrosoftConnect={() => handleOAuthConnect("microsoft")}
                 />
               )}
 
@@ -233,10 +237,10 @@ export function EmailAccountConnectFlow({
                   provider={provider}
                   password={password}
                   loading={autoConnectMutation.isPending}
-                  oauthLoading={redirecting}
+                  oauthLoading={false}
                   onPasswordChange={setPassword}
                   onSubmit={handleAutoConnect}
-                  onOAuthConnect={handleOAuthConnect}
+                  onOAuthConnect={handleOAuthConnectClassified}
                   onSkipOAuth={handleSkipOAuth}
                 />
               )}

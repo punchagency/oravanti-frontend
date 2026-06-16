@@ -1,10 +1,13 @@
-import { Button, Field, Input, Text, VStack } from "@chakra-ui/react";
+import { Button, Field, HStack, Input, Separator, Text, VStack } from "@chakra-ui/react";
+import { Globe, Mail } from "lucide-react";
 
 type StepEmailInputProps = {
   email: string;
   loading: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onGoogleConnect: () => void;
+  onMicrosoftConnect: () => void;
 };
 
 export function StepEmailInput({
@@ -12,16 +15,47 @@ export function StepEmailInput({
   loading,
   onChange,
   onSubmit,
+  onGoogleConnect,
+  onMicrosoftConnect,
 }: StepEmailInputProps) {
   return (
     <VStack gap="5" align="stretch">
       <VStack gap="1" align="stretch">
         <Text textStyle="heading" color="fg">
-          Enter your email address
+          Quick connect
         </Text>
         <Text textStyle="subheadline" color="fg.muted">
-          We'll detect your email provider and guide you through the connection
-          process.
+          Connect your email account with one click.
+        </Text>
+      </VStack>
+
+      <HStack gap="3" flexWrap="wrap">
+        <Button
+          variant="outline"
+          onClick={onGoogleConnect}
+          flex={{ base: 1, sm: "initial" }}
+        >
+          <Globe size={15} />
+          Connect Google
+        </Button>
+        <Button
+          variant="outline"
+          onClick={onMicrosoftConnect}
+          flex={{ base: 1, sm: "initial" }}
+        >
+          <Mail size={15} />
+          Connect Microsoft
+        </Button>
+      </HStack>
+
+      <Separator />
+
+      <VStack gap="1" align="stretch">
+        <Text textStyle="heading" color="fg">
+          Or connect with email
+        </Text>
+        <Text textStyle="subheadline" color="fg.muted">
+          Enter your email address and we'll guide you through the rest.
         </Text>
       </VStack>
 
