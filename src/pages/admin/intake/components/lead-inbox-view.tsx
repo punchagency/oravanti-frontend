@@ -13,18 +13,35 @@ import { Archive, Search, ShieldCheck, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import {
-  leadInboxLeads,
   leadSources,
   leadStatuses,
 } from "../data";
 import {
-  AddOnWarning,
   MutedText,
   OutlineButton,
   PracticePill,
 } from "../../../../components/ui/intake-ui";
+import {
+  sourceLabels,
+  sourceValues,
+  statusLabels,
+  formatReceivedDate,
+  formatReceivedDateDetail,
+  type Lead,
+  type LeadSource,
+  type LeadStatus,
+} from "@/api/leads";
+import { useLeads, useRunConflictCheck, useArchiveLead } from "@/hooks/use-leads";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
-type Lead = (typeof leadInboxLeads)[number];
+function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
+  const map = new Map<string, string>();
+  for (const area of areas) {
+    map.set(area.id, area.name);
+  }
+  return map;
+}
 
 export function LeadInboxView() {
   const [query, setQuery] = useState("");
@@ -32,27 +49,26 @@ export function LeadInboxView() {
   const [status, setStatus] = useState("All statuses");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const filteredLeads = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  const sourceFilter = source === "All sources" ? undefined : sourceValues[source] as LeadSource | undefined;
+  const statusFilter = status === "All statuses" ? undefined : (status.toLowerCase() as LeadStatus | undefined);
 
-    return leadInboxLeads.filter((lead) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        [
-          lead.name,
-          lead.email,
-          lead.phone,
-          lead.practiceArea,
-          lead.source,
-          lead.status,
-        ].some((value) => value.toLowerCase().includes(normalizedQuery));
+  const { data, isLoading } = useLeads({
+    stage: "lead_inbox",
+    source: sourceFilter,
+    status: statusFilter,
+    search: query || undefined,
+  });
 
-      const matchesSource = source === "All sources" || lead.source === source;
-      const matchesStatus = status === "All statuses" || lead.status === status;
+  const { data: practiceAreas } = usePublicPracticeAreas();
+  const practiceAreaMap = useMemo(
+    () => buildPracticeAreaMap(practiceAreas ?? []),
+    [practiceAreas],
+  );
 
-      return matchesQuery && matchesSource && matchesStatus;
-    });
-  }, [query, source, status]);
+  const leads = useMemo(() => {
+    const list = Array.isArray(data) ? data : (data?.leads ?? []);
+    return list;
+  }, [data]);
 
   return (
     <>
@@ -108,7 +124,7 @@ export function LeadInboxView() {
           />
         </HStack>
         <MutedText fontSize="11px">
-          {filteredLeads.length} {filteredLeads.length === 1 ? "lead" : "leads"}
+          {isLoading ? "Loading…" : `${leads.length} ${leads.length === 1 ? "lead" : "leads"}`}
         </MutedText>
       </Flex>
 
@@ -146,27 +162,32 @@ export function LeadInboxView() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {filteredLeads.map((lead) => (
-              <Table.Row key={lead.email}>
+            {leads.map((lead) => (
+              <Table.Row key={lead.id}>
                 <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
                   <Box color="fg" fontSize="13px" fontWeight="500">
                     {lead.name}
                   </Box>
-                  <LeadStatus status={lead.status} />
+                  <LeadStatusPill status={lead.status} />
                 </Table.Cell>
                 <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
                   {lead.email}
-                  <MutedText fontSize="11px">{lead.phone}</MutedText>
+                  <MutedText fontSize="11px">{lead.phone ?? ""}</MutedText>
                 </Table.Cell>
                 <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                  <PracticePill tone={lead.practiceTone}>{lead.practiceArea}</PracticePill>
-                  {!lead.addOnActive ? <AddOnWarning /> : null}
+                  {lead.practiceAreaId ? (
+                    <PracticePill tone="neutral">
+                      {practiceAreaMap.get(lead.practiceAreaId) ?? "Practice area"}
+                    </PracticePill>
+                  ) : (
+                    <MutedText>—</MutedText>
+                  )}
                 </Table.Cell>
                 <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
-                  {lead.source}
+                  {sourceLabels[lead.source]}
                 </Table.Cell>
                 <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
-                  {lead.received}
+                  {formatReceivedDate(lead.receivedAt)}
                 </Table.Cell>
                 <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
                   <OutlineButton
@@ -186,6 +207,7 @@ export function LeadInboxView() {
 
       <LeadReviewDrawer
         lead={selectedLead}
+        practiceAreaMap={practiceAreaMap}
         onClose={() => setSelectedLead(null)}
       />
     </>
@@ -194,11 +216,30 @@ export function LeadInboxView() {
 
 function LeadReviewDrawer({
   lead,
+  practiceAreaMap,
   onClose,
 }: {
   lead: Lead | null;
+  practiceAreaMap: Map<string, string>;
   onClose: () => void;
 }) {
+  const runCheck = useRunConflictCheck();
+  const archive = useArchiveLead();
+
+  function handleRunConflictCheck() {
+    if (!lead) return;
+    runCheck.mutate(lead.id, {
+      onSuccess: () => onClose(),
+    });
+  }
+
+  function handleArchive() {
+    if (!lead) return;
+    archive.mutate(lead.id, {
+      onSuccess: () => onClose(),
+    });
+  }
+
   return (
     <Dialog.Root
       open={Boolean(lead)}
@@ -245,7 +286,7 @@ function LeadReviewDrawer({
                     <Dialog.Title color="fg" fontSize="16px" fontWeight="600" lineHeight="1.15">
                       {lead.name}
                     </Dialog.Title>
-                    <PracticePill>{lead.source}</PracticePill>
+                    <PracticePill>{sourceLabels[lead.source]}</PracticePill>
                   </Box>
                   <chakra.button
                     type="button"
@@ -277,29 +318,37 @@ function LeadReviewDrawer({
               >
                 <LeadDetail label="Full name">{lead.name}</LeadDetail>
                 <LeadDetail label="Email">{lead.email}</LeadDetail>
-                <LeadDetail label="Phone">{lead.phone}</LeadDetail>
+                <LeadDetail label="Phone">{lead.phone ?? "—"}</LeadDetail>
                 <LeadDetail label="Practice area interest">
-                  <PracticePill tone={lead.practiceTone}>{lead.practiceArea}</PracticePill>
-                  {!lead.addOnActive ? <AddOnWarning /> : null}
+                  {lead.practiceAreaId ? (
+                    <PracticePill tone="neutral">
+                      {practiceAreaMap.get(lead.practiceAreaId) ?? "Unknown"}
+                    </PracticePill>
+                  ) : (
+                    "—"
+                  )}
                 </LeadDetail>
-                <LeadDetail label="Source">{lead.source}</LeadDetail>
-                <LeadDetail label="Received">{lead.receivedDetail}</LeadDetail>
-                <LeadDetail label="Situation summary">
-                  <Box
-                    mt="6px"
-                    p="10px"
-                    borderRadius="7px"
-                    bg="bg.subtle"
-                    color="fg"
-                    fontSize="13px"
-                    lineHeight="1.45"
-                    maxH="96px"
-                    overflowY="auto"
-                    overscrollBehavior="contain"
-                  >
-                    {lead.situationSummary}
-                  </Box>
-                </LeadDetail>
+                <LeadDetail label="Source">{sourceLabels[lead.source]}</LeadDetail>
+                <LeadDetail label="Status">{statusLabels[lead.status]}</LeadDetail>
+                <LeadDetail label="Received">{formatReceivedDateDetail(lead.receivedAt)}</LeadDetail>
+                {lead.situationSummary ? (
+                  <LeadDetail label="Situation summary">
+                    <Box
+                      mt="6px"
+                      p="10px"
+                      borderRadius="7px"
+                      bg="bg.subtle"
+                      color="fg"
+                      fontSize="13px"
+                      lineHeight="1.45"
+                      maxH="96px"
+                      overflowY="auto"
+                      overscrollBehavior="contain"
+                    >
+                      {lead.situationSummary}
+                    </Box>
+                  </LeadDetail>
+                ) : null}
               </VStack>
 
               <Box px="20px" py="16px" borderTop="1px solid" borderColor="border.subtle">
@@ -312,11 +361,18 @@ function LeadReviewDrawer({
                     minH="36px"
                     layerStyle="brand-button"
                     borderColor="brand.solid"
+                    loading={runCheck.isPending}
+                    onClick={handleRunConflictCheck}
                   >
                     <ShieldCheck size={14} />
                     Run conflict check
                   </OutlineButton>
-                  <OutlineButton h="36px" minH="36px">
+                  <OutlineButton
+                    h="36px"
+                    minH="36px"
+                    loading={archive.isPending}
+                    onClick={handleArchive}
+                  >
                     <Archive size={14} />
                     Archive lead
                   </OutlineButton>
@@ -389,12 +445,11 @@ function FilterSelect({
   );
 }
 
-function LeadStatus({ status }: { status: string }) {
-  const tone = status === "New" ? "warning" : "neutral";
-
+function LeadStatusPill({ status }: { status: LeadStatus }) {
+  const tone = status === "new" ? "warning" : "neutral";
   return (
     <PracticePill tone={tone}>
-      {status}
+      {statusLabels[status]}
     </PracticePill>
   );
 }
