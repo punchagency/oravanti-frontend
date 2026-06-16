@@ -10,54 +10,65 @@ import {
 } from "@chakra-ui/react";
 import { Info, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import {
-  OutlineButton,
-  PracticePill,
-} from "@/components/ui/intake-ui";
-import { archiveReasons, archivedLeads, practiceAreas } from "../data";
+import { OutlineButton, PracticePill } from "@/components/ui/intake-ui";
+import { formatReceivedDate, sourceLabels, type PipelineStage } from "@/api/leads";
+import { useLeads } from "@/hooks/use-leads";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 const archiveSummary = [
   {
     label: "DECLINED (CONFLICT)",
-    count: 8,
+    count: "—",
     color: "#b00020",
     note: "ABA conflict of interest",
   },
   {
     label: "UNRESPONSIVE",
-    count: 14,
+    count: "—",
     color: "#1a1a1a",
     note: "No response after 3 reminders",
   },
   {
     label: "WITHDRAWN",
-    count: 6,
+    count: "—",
     color: "#534AB7",
     note: "Client withdrew enquiry",
   },
 ] as const;
 
+const stageLabel: Record<PipelineStage, string> = {
+  lead_inbox: "New lead",
+  conflict_check: "Conflict check",
+  questionnaire: "Questionnaire",
+  consultation: "Consultation",
+  fee_agreement: "Fee agreement",
+  case_opening: "Case opening",
+};
+
+function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
+  const map = new Map<string, string>();
+  for (const area of areas) {
+    map.set(area.id, area.name);
+  }
+  return map;
+}
+
 export function ArchivedLeadsTab() {
   const [query, setQuery] = useState("");
-  const [reason, setReason] = useState("All reasons");
-  const [practiceArea, setPracticeArea] = useState("All practice areas");
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return archivedLeads.filter((lead) => {
-      if (
-        q &&
-        !lead.name.toLowerCase().includes(q) &&
-        !lead.email.toLowerCase().includes(q)
-      ) {
-        return false;
-      }
-      if (reason !== "All reasons" && lead.archiveReason !== reason) return false;
-      if (practiceArea !== "All practice areas" && lead.practiceArea !== practiceArea)
-        return false;
-      return true;
-    });
-  }, [query, reason, practiceArea]);
+  const { data, isLoading } = useLeads({
+    status: "archived",
+    search: query || undefined,
+  });
+
+  const { data: practiceAreas } = usePublicPracticeAreas();
+  const practiceAreaMap = useMemo(
+    () => buildPracticeAreaMap(practiceAreas ?? []),
+    [practiceAreas],
+  );
+
+  const leads = data?.leads ?? [];
 
   return (
     <Box mt="20px">
@@ -101,52 +112,43 @@ export function ArchivedLeadsTab() {
         ))}
       </Grid>
 
-      <Flex align="center" justify="space-between" gap="16px" mb="16px" wrap="wrap">
-        <HStack gap="10px" wrap="wrap">
-          <HStack
-            gap="8px"
-            h="34px"
-            minW="240px"
-            px="12px"
-            border="1px solid"
-            borderColor="border"
-            borderRadius="7px"
-            bg="bg"
-            color="fg.muted"
-          >
-            <Search size={14} />
-            <Input
-              aria-label="Search clients and leads"
-              placeholder="Search clients and leads..."
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              p="0"
-              h="auto"
-              border="0"
-              bg="transparent"
-              color="fg"
-              fontSize="13px"
-              _focus={{ boxShadow: "none", outline: "0" }}
-            />
-          </HStack>
-
-          <FilterSelect
-            ariaLabel="Filter by reason"
-            value={reason}
-            onChange={(e) => setReason(e.currentTarget.value)}
-            options={archiveReasons}
-          />
-          <FilterSelect
-            ariaLabel="Filter by practice area"
-            value={practiceArea}
-            onChange={(e) => setPracticeArea(e.currentTarget.value)}
-            options={practiceAreas}
+      <Flex
+        align="center"
+        justify="space-between"
+        gap="16px"
+        mb="16px"
+        wrap="wrap"
+      >
+        <HStack
+          gap="8px"
+          h="34px"
+          minW="240px"
+          px="12px"
+          border="1px solid"
+          borderColor="border"
+          borderRadius="7px"
+          bg="bg"
+          color="fg.muted"
+        >
+          <Search size={14} />
+          <Input
+            aria-label="Search archived leads"
+            placeholder="Search archived leads..."
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            p="0"
+            h="auto"
+            border="0"
+            bg="transparent"
+            color="fg"
+            fontSize="13px"
+            _focus={{ boxShadow: "none", outline: "0" }}
           />
         </HStack>
 
         <Text m="0" color="fg.muted" fontSize="11px">
-          {filtered.length} archived
+          {isLoading ? "Loading…" : `${leads.length} archived`}
         </Text>
       </Flex>
 
@@ -158,15 +160,15 @@ export function ArchivedLeadsTab() {
         bg="bg"
         mb="16px"
       >
-        <Table.Root minW="760px">
+        <Table.Root minW="700px">
           <Table.Header>
             <Table.Row bg="bg.subtle">
               {[
                 "NAME / EMAIL",
                 "PRACTICE AREA",
-                "ARCHIVE REASON",
-                "ARCHIVED BY",
-                "ARCHIVE DATE",
+                "STAGE AT ARCHIVE",
+                "SOURCE",
+                "RECEIVED",
                 "ACTION",
               ].map((h) => (
                 <Table.ColumnHeader
@@ -185,78 +187,96 @@ export function ArchivedLeadsTab() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {filtered.map((lead) => (
-              <Table.Row key={lead.email}>
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                    {lead.name}
-                  </Text>
-                  <Text m="0" color="fg.muted" fontSize="11px">
-                    {lead.email}
-                  </Text>
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <PracticePill tone={lead.practiceTone}>
-                    {lead.practiceArea}
-                  </PracticePill>
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <PracticePill tone={lead.archiveReasonTone}>
-                    {lead.archiveReason}
-                  </PracticePill>
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  color="fg.muted"
-                  fontSize="13px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  {lead.archivedBy}
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  color="fg.muted"
-                  fontSize="13px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  {lead.archiveDate}
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <OutlineButton h="28px" minH="28px" px="12px" fontSize="12px">
-                    Restore
-                  </OutlineButton>
+            {isLoading ? (
+              <Table.Row>
+                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
+                  Loading…
                 </Table.Cell>
               </Table.Row>
-            ))}
+            ) : leads.length === 0 ? (
+              <Table.Row>
+                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
+                  No archived leads.
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              leads.map((lead) => (
+                <Table.Row key={lead.id}>
+                  <Table.Cell
+                    px="16px"
+                    py="10px"
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                      {lead.name}
+                    </Text>
+                    <Text m="0" color="fg.muted" fontSize="11px">
+                      {lead.email}
+                    </Text>
+                  </Table.Cell>
+
+                  <Table.Cell
+                    px="16px"
+                    py="10px"
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    {lead.practiceAreaId ? (
+                      <PracticePill tone="neutral">
+                        {practiceAreaMap.get(lead.practiceAreaId) ?? "—"}
+                      </PracticePill>
+                    ) : (
+                      <Text m="0" color="fg.muted" fontSize="13px">—</Text>
+                    )}
+                  </Table.Cell>
+
+                  <Table.Cell
+                    px="16px"
+                    py="10px"
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    <PracticePill tone="neutral">
+                      {stageLabel[lead.pipelineStage]}
+                    </PracticePill>
+                  </Table.Cell>
+
+                  <Table.Cell
+                    px="16px"
+                    py="10px"
+                    color="fg.muted"
+                    fontSize="13px"
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    {sourceLabels[lead.source]}
+                  </Table.Cell>
+
+                  <Table.Cell
+                    px="16px"
+                    py="10px"
+                    color="fg.muted"
+                    fontSize="13px"
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    {formatReceivedDate(lead.receivedAt)}
+                  </Table.Cell>
+
+                  <Table.Cell
+                    px="16px"
+                    py="10px"
+                    borderBottom="1px solid"
+                    borderColor="border.subtle"
+                  >
+                    <OutlineButton h="28px" minH="28px" px="12px" fontSize="12px" disabled>
+                      Restore
+                    </OutlineButton>
+                  </Table.Cell>
+                </Table.Row>
+              ))
+            )}
           </Table.Body>
         </Table.Root>
       </Box>
@@ -270,39 +290,5 @@ export function ArchivedLeadsTab() {
         </Text>
       </HStack>
     </Box>
-  );
-}
-
-function FilterSelect({
-  ariaLabel,
-  value,
-  onChange,
-  options,
-}: {
-  ariaLabel: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  options: readonly string[];
-}) {
-  return (
-    <chakra.select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={onChange}
-      h="34px"
-      minW="148px"
-      px="10px"
-      border="1px solid"
-      borderColor="border"
-      borderRadius="7px"
-      bg="bg"
-      color="fg"
-      fontSize="13px"
-      cursor="pointer"
-    >
-      {options.map((opt) => (
-        <option key={opt}>{opt}</option>
-      ))}
-    </chakra.select>
   );
 }

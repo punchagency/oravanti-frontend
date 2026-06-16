@@ -114,6 +114,7 @@ export type GetLeadsParams = {
   stage?: PipelineStage;
   status?: LeadStatus;
   source?: LeadSource;
+  practiceAreaId?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -125,6 +126,7 @@ export const getLeads = async (params: GetLeadsParams = {}): Promise<LeadsRespon
   if (params.stage) query.stage = params.stage;
   if (params.status) query.status = params.status;
   if (params.source) query.source = params.source;
+  if (params.practiceAreaId) query.practiceAreaId = params.practiceAreaId;
   if (params.search) query.search = params.search;
   if (params.page) query.page = String(params.page);
   if (params.limit) query.limit = String(params.limit);

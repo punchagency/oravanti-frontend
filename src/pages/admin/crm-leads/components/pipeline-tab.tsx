@@ -15,49 +15,84 @@ import {
   PracticePill,
 } from "@/components/ui/intake-ui";
 import {
-  leadSources,
-  pipelineLeads,
-  pipelineStages,
-  practiceAreas,
-} from "../data";
+  sourceLabels,
+  formatReceivedDate,
+  type LeadSource,
+  type PipelineStage,
+} from "@/api/leads";
+import { useLeads } from "@/hooks/use-leads";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 const PAGE_SIZE = 10;
 
+const stageOptions: Array<{ label: string; value: PipelineStage | "" }> = [
+  { label: "All stages", value: "" },
+  { label: "New lead", value: "lead_inbox" },
+  { label: "Conflict check", value: "conflict_check" },
+  { label: "Questionnaire sent", value: "questionnaire" },
+  { label: "Consultation", value: "consultation" },
+  { label: "Fee agreement", value: "fee_agreement" },
+  { label: "Case opened", value: "case_opening" },
+];
+
+const stageLabel: Record<PipelineStage, string> = {
+  lead_inbox: "New lead",
+  conflict_check: "Conflict check",
+  questionnaire: "Questionnaire sent",
+  consultation: "Consultation",
+  fee_agreement: "Fee agreement",
+  case_opening: "Case opened",
+};
+
+const stageTone: Record<
+  PipelineStage,
+  "neutral" | "warning" | "info" | "brand" | "gold" | "success"
+> = {
+  lead_inbox: "neutral",
+  conflict_check: "warning",
+  questionnaire: "info",
+  consultation: "brand",
+  fee_agreement: "gold",
+  case_opening: "success",
+};
+
+function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
+  const map = new Map<string, string>();
+  for (const area of areas) {
+    map.set(area.id, area.name);
+  }
+  return map;
+}
+
 export function PipelineTab() {
   const [query, setQuery] = useState("");
-  const [stage, setStage] = useState("All stages");
-  const [practiceArea, setPracticeArea] = useState("All practice areas");
-  const [source, setSource] = useState("All sources");
+  const [stage, setStage] = useState<PipelineStage | "">("");
+  const [practiceAreaId, setPracticeAreaId] = useState("");
+  const [source, setSource] = useState<LeadSource | "">("");
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return pipelineLeads.filter((lead) => {
-      if (
-        q &&
-        !lead.name.toLowerCase().includes(q) &&
-        !lead.email.toLowerCase().includes(q)
-      ) {
-        return false;
-      }
-      if (stage !== "All stages" && lead.stage !== stage) return false;
-      if (practiceArea !== "All practice areas" && lead.practiceArea !== practiceArea)
-        return false;
-      if (source !== "All sources" && lead.source !== source) return false;
-      return true;
-    });
-  }, [query, stage, practiceArea, source]);
+  const { data, isLoading } = useLeads({
+    stage: stage || undefined,
+    practiceAreaId: practiceAreaId || undefined,
+    source: source || undefined,
+    search: query || undefined,
+    page,
+    limit: PAGE_SIZE,
+  });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  const { data: practiceAreas } = usePublicPracticeAreas();
+  const practiceAreaMap = useMemo(
+    () => buildPracticeAreaMap(practiceAreas ?? []),
+    [practiceAreas],
+  );
 
-  function handleFilterChange(setter: (v: string) => void) {
-    return (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setter(e.currentTarget.value);
-      setPage(1);
-    };
+  const leads = data?.leads ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function resetPage() {
+    setPage(1);
   }
 
   return (
@@ -83,13 +118,13 @@ export function PipelineTab() {
           >
             <Search size={14} />
             <Input
-              aria-label="Search clients and leads"
+              aria-label="Search leads"
               placeholder="Search clients and leads..."
               type="search"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
-                setPage(1);
+                resetPage();
               }}
               p="0"
               h="auto"
@@ -104,25 +139,55 @@ export function PipelineTab() {
           <FilterSelect
             ariaLabel="Filter by stage"
             value={stage}
-            onChange={handleFilterChange(setStage)}
-            options={pipelineStages}
-          />
+            onChange={(e) => {
+              setStage(e.currentTarget.value as PipelineStage | "");
+              resetPage();
+            }}
+          >
+            {stageOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FilterSelect>
+
           <FilterSelect
             ariaLabel="Filter by practice area"
-            value={practiceArea}
-            onChange={handleFilterChange(setPracticeArea)}
-            options={practiceAreas}
-          />
+            value={practiceAreaId}
+            onChange={(e) => {
+              setPracticeAreaId(e.currentTarget.value);
+              resetPage();
+            }}
+          >
+            <option value="">All practice areas</option>
+            {(practiceAreas ?? []).map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.name}
+              </option>
+            ))}
+          </FilterSelect>
+
           <FilterSelect
             ariaLabel="Filter by source"
             value={source}
-            onChange={handleFilterChange(setSource)}
-            options={leadSources}
-          />
+            onChange={(e) => {
+              setSource(e.currentTarget.value as LeadSource | "");
+              resetPage();
+            }}
+          >
+            <option value="">All sources</option>
+            {(Object.entries(sourceLabels) as [LeadSource, string][]).map(
+              ([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ),
+            )}
+          </FilterSelect>
         </HStack>
 
         <Text m="0" color="fg.muted" fontSize="11px">
-          {filtered.length} {filtered.length === 1 ? "record" : "records"}
+          {isLoading ? "Loading…" : `${total} ${total === 1 ? "record" : "records"}`}
         </Text>
       </Flex>
 
@@ -141,8 +206,7 @@ export function PipelineTab() {
                 "PRACTICE AREA",
                 "STAGE",
                 "SOURCE",
-                "ASSIGNED TO",
-                "LAST ACTIVITY",
+                "RECEIVED",
                 "ACTION",
               ].map((h) => (
                 <Table.ColumnHeader
@@ -161,122 +225,145 @@ export function PipelineTab() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {pageItems.map((lead) => (
-              <Table.Row key={lead.email}>
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                    {lead.name}
-                  </Text>
-                  <Text m="0" color="fg.muted" fontSize="11px">
-                    {lead.email}
-                  </Text>
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <PracticePill tone={lead.practiceTone}>
-                    {lead.practiceArea}
-                  </PracticePill>
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  <PracticePill tone={lead.stageTone}>{lead.stage}</PracticePill>
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  color="fg.muted"
-                  fontSize="13px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  {lead.source}
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  color="fg.muted"
-                  fontSize="13px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  {lead.assignedTo}
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  color="fg.muted"
-                  fontSize="13px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  {lead.lastActivity}
-                </Table.Cell>
-
-                <Table.Cell
-                  px="16px"
-                  py="10px"
-                  borderBottom="1px solid"
-                  borderColor="border.subtle"
-                >
-                  {lead.actionPrimary ? (
-                    <BrandButton h="28px" minH="28px" px="12px" fontSize="12px">
-                      {lead.actionLabel}
-                    </BrandButton>
-                  ) : (
-                    <OutlineButton h="28px" minH="28px" px="12px" fontSize="12px">
-                      {lead.actionLabel}
-                    </OutlineButton>
-                  )}
+            {isLoading ? (
+              <Table.Row>
+                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
+                  Loading…
                 </Table.Cell>
               </Table.Row>
-            ))}
+            ) : leads.length === 0 ? (
+              <Table.Row>
+                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
+                  No leads found.
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              leads.map((lead) => {
+                const practiceAreaName = lead.practiceAreaId
+                  ? (practiceAreaMap.get(lead.practiceAreaId) ?? "—")
+                  : "—";
+                const isPrimary =
+                  lead.pipelineStage === "lead_inbox" ||
+                  lead.pipelineStage === "case_opening";
+
+                return (
+                  <Table.Row key={lead.id}>
+                    <Table.Cell
+                      px="16px"
+                      py="10px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                        {lead.name}
+                      </Text>
+                      <Text m="0" color="fg.muted" fontSize="11px">
+                        {lead.email}
+                      </Text>
+                    </Table.Cell>
+
+                    <Table.Cell
+                      px="16px"
+                      py="10px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {lead.practiceAreaId ? (
+                        <PracticePill tone="neutral">{practiceAreaName}</PracticePill>
+                      ) : (
+                        <Text m="0" color="fg.muted" fontSize="13px">—</Text>
+                      )}
+                    </Table.Cell>
+
+                    <Table.Cell
+                      px="16px"
+                      py="10px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      <PracticePill tone={stageTone[lead.pipelineStage]}>
+                        {stageLabel[lead.pipelineStage]}
+                      </PracticePill>
+                    </Table.Cell>
+
+                    <Table.Cell
+                      px="16px"
+                      py="10px"
+                      color="fg.muted"
+                      fontSize="13px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {sourceLabels[lead.source]}
+                    </Table.Cell>
+
+                    <Table.Cell
+                      px="16px"
+                      py="10px"
+                      color="fg.muted"
+                      fontSize="13px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {formatReceivedDate(lead.receivedAt)}
+                    </Table.Cell>
+
+                    <Table.Cell
+                      px="16px"
+                      py="10px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {isPrimary ? (
+                        <BrandButton h="28px" minH="28px" px="12px" fontSize="12px">
+                          Review
+                        </BrandButton>
+                      ) : (
+                        <OutlineButton h="28px" minH="28px" px="12px" fontSize="12px">
+                          View
+                        </OutlineButton>
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })
+            )}
           </Table.Body>
         </Table.Root>
       </Box>
 
-      {totalPages > 1 || filtered.length > 0 ? (
+      {totalPages > 1 || total > 0 ? (
         <Flex align="center" justify="space-between" mt="16px" wrap="wrap" gap="10px">
           <Text m="0" color="fg.muted" fontSize="12px">
-            Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of{" "}
-            {filtered.length} records
+            {total === 0
+              ? "No records"
+              : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} records`}
           </Text>
 
           <HStack gap="4px">
             <PageButton
               aria-label="Previous page"
-              disabled={currentPage === 1}
+              disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
             >
               <ChevronLeft size={14} />
             </PageButton>
 
-            {buildPageRange(currentPage, totalPages).map((entry, i) =>
+            {buildPageRange(page, totalPages).map((entry, i) =>
               entry === "..." ? (
-                <Text key={`ellipsis-${i}`} m="0" color="fg.muted" fontSize="13px" px="4px">
+                <Text
+                  key={`ellipsis-${i}`}
+                  m="0"
+                  color="fg.muted"
+                  fontSize="13px"
+                  px="4px"
+                >
                   …
                 </Text>
               ) : (
                 <PageButton
                   key={entry}
-                  active={entry === currentPage}
+                  active={entry === page}
                   onClick={() => setPage(entry as number)}
                 >
                   {entry}
@@ -286,7 +373,7 @@ export function PipelineTab() {
 
             <PageButton
               aria-label="Next page"
-              disabled={currentPage === totalPages}
+              disabled={page === totalPages}
               onClick={() => setPage((p) => p + 1)}
             >
               <ChevronRight size={14} />
@@ -302,12 +389,12 @@ function FilterSelect({
   ariaLabel,
   value,
   onChange,
-  options,
+  children,
 }: {
   ariaLabel: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  options: readonly string[];
+  children: React.ReactNode;
 }) {
   return (
     <chakra.select
@@ -325,9 +412,7 @@ function FilterSelect({
       fontSize="13px"
       cursor="pointer"
     >
-      {options.map((opt) => (
-        <option key={opt}>{opt}</option>
-      ))}
+      {children}
     </chakra.select>
   );
 }
@@ -374,6 +459,7 @@ function PageButton({
 function buildPageRange(current: number, total: number): (number | "...")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
-  if (current >= total - 3) return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+  if (current >= total - 3)
+    return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
   return [1, "...", current - 1, current, current + 1, "...", total];
 }

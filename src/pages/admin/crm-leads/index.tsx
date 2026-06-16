@@ -3,17 +3,55 @@ import { Download, Plus } from "lucide-react";
 import { useState } from "react";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useLeads } from "@/hooks/use-leads";
 import { ArchivedLeadsTab } from "./components/archived-leads-tab";
 import { ConversionMetricsTab } from "./components/conversion-metrics-tab";
 import { EducationFlywheelTab } from "./components/education-flywheel-tab";
 import { PipelineTab } from "./components/pipeline-tab";
-import { type CrmTab, crmStats, crmTabs } from "./data";
+import { type CrmTab, crmTabs } from "./data";
 import { AddLeadDialog } from "@/components/ui/add-lead";
 
 export function CrmLeadsPage() {
   useDocumentTitle("CRM & leads - Oravanti");
   const [activeTab, setActiveTab] = useState<CrmTab>("Pipeline");
   const [addLeadOpen, setAddLeadOpen] = useState(false);
+
+  const { data: allLeadsData } = useLeads({ all: true });
+  const allLeads = Array.isArray(allLeadsData)
+    ? allLeadsData
+    : (allLeadsData?.leads ?? []);
+
+  const crmStats = [
+    {
+      label: "NEW LEADS",
+      count: allLeads.filter((l) => l.pipelineStage === "lead_inbox").length,
+      color: "#1a1a1a",
+    },
+    {
+      label: "CONFLICT CHECK",
+      count: allLeads.filter((l) => l.pipelineStage === "conflict_check").length,
+      color: "#d18400",
+    },
+    {
+      label: "QUESTIONNAIRE",
+      count: allLeads.filter((l) => l.pipelineStage === "questionnaire").length,
+      color: "#377dff",
+    },
+    {
+      label: "PROSPECTIVE",
+      count: allLeads.filter(
+        (l) =>
+          l.pipelineStage === "consultation" ||
+          l.pipelineStage === "fee_agreement",
+      ).length,
+      color: "#534AB7",
+    },
+    {
+      label: "ACTIVE CLIENTS",
+      count: allLeads.filter((l) => l.convertedCaseId !== null).length,
+      color: "#1D9E75",
+    },
+  ];
 
   return (
     <>
