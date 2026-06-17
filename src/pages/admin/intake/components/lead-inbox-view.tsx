@@ -4,6 +4,7 @@ import {
   Flex,
   HStack,
   Input,
+  Skeleton,
   Table,
   Text,
   VStack,
@@ -12,10 +13,7 @@ import {
 import { Archive, Search, ShieldCheck, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import {
-  leadSources,
-  leadStatuses,
-} from "../data";
+import { leadSources, leadStatuses } from "../data";
 import {
   MutedText,
   OutlineButton,
@@ -31,7 +29,11 @@ import {
   type LeadSource,
   type LeadStatus,
 } from "@/api/leads";
-import { useLeads, useRunConflictCheck, useArchiveLead } from "@/hooks/use-leads";
+import {
+  useLeads,
+  useRunConflictCheck,
+  useArchiveLead,
+} from "@/hooks/use-leads";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
@@ -43,20 +45,32 @@ function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
   return map;
 }
 
+const PAGE_SIZE_OPTIONS = [10, 15, 20, 50] as const;
+
 export function LeadInboxView() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("All sources");
   const [status, setStatus] = useState("All statuses");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const sourceFilter = source === "All sources" ? undefined : sourceValues[source] as LeadSource | undefined;
-  const statusFilter = status === "All statuses" ? undefined : (status.toLowerCase() as LeadStatus | undefined);
+  const sourceFilter =
+    source === "All sources"
+      ? undefined
+      : (sourceValues[source] as LeadSource | undefined);
+  const statusFilter =
+    status === "All statuses"
+      ? undefined
+      : (status.toLowerCase() as LeadStatus | undefined);
 
   const { data, isLoading } = useLeads({
     stage: "lead_inbox",
     source: sourceFilter,
     status: statusFilter,
     search: query || undefined,
+    page,
+    limit,
   });
 
   const { data: practiceAreas } = usePublicPracticeAreas();
@@ -69,6 +83,31 @@ export function LeadInboxView() {
     const list = Array.isArray(data) ? data : (data?.leads ?? []);
     return list;
   }, [data]);
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    setPage(1);
+  }
+
+  function handleSourceChange(value: string) {
+    setSource(value);
+    setPage(1);
+  }
+
+  function handleStatusChange(value: string) {
+    setStatus(value);
+    setPage(1);
+  }
+
+  function handleLimitChange(value: number) {
+    setLimit(value);
+    setPage(1);
+  }
+
+  const total = data?.pagination?.total ?? 0;
+  const totalPages = data?.pagination?.totalPages ?? 1;
+  const hasNextPage = data?.pagination?.hasNextPage ?? false;
+  const hasPreviousPage = data?.pagination?.hasPreviousPage ?? false;
 
   return (
     <>
@@ -100,7 +139,7 @@ export function LeadInboxView() {
               placeholder="Search leads..."
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => handleQueryChange(event.target.value)}
               p="0"
               h="auto"
               border="0"
@@ -113,19 +152,42 @@ export function LeadInboxView() {
           <FilterSelect
             ariaLabel="Filter by source"
             value={source}
-            onChange={setSource}
+            onChange={handleSourceChange}
             options={["All sources", ...leadSources]}
           />
           <FilterSelect
             ariaLabel="Filter by status"
             value={status}
-            onChange={setStatus}
+            onChange={handleStatusChange}
             options={["All statuses", ...leadStatuses]}
           />
         </HStack>
-        <MutedText fontSize="11px">
-          {isLoading ? "Loading…" : `${leads.length} ${leads.length === 1 ? "lead" : "leads"}`}
-        </MutedText>
+        <HStack gap="10px">
+          <chakra.select
+            aria-label="Rows per page"
+            value={limit}
+            onChange={(e) => handleLimitChange(Number(e.currentTarget.value))}
+            h="34px"
+            px="10px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="7px"
+            bg="bg"
+            color="fg"
+            fontSize="13px"
+          >
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} per page
+              </option>
+            ))}
+          </chakra.select>
+          <MutedText fontSize="11px">
+            {isLoading
+              ? "Loading…"
+              : `${total} ${total === 1 ? "lead" : "leads"}`}
+          </MutedText>
+        </HStack>
       </Flex>
 
       <Box
@@ -162,48 +224,136 @@ export function LeadInboxView() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {leads.map((lead) => (
-              <Table.Row key={lead.id}>
-                <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                  <Box color="fg" fontSize="13px" fontWeight="500">
-                    {lead.name}
-                  </Box>
-                  <LeadStatusPill status={lead.status} />
-                </Table.Cell>
-                <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
-                  {lead.email}
-                  <MutedText fontSize="11px">{lead.phone ?? ""}</MutedText>
-                </Table.Cell>
-                <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                  {lead.practiceAreaId ? (
-                    <PracticePill tone="neutral">
-                      {practiceAreaMap.get(lead.practiceAreaId) ?? "Practice area"}
-                    </PracticePill>
-                  ) : (
-                    <MutedText>—</MutedText>
-                  )}
-                </Table.Cell>
-                <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
-                  {sourceLabels[lead.source]}
-                </Table.Cell>
-                <Table.Cell px="16px" py="9px" color="fg.muted" fontSize="13px" borderBottom="1px solid" borderColor="border.subtle">
-                  {formatReceivedDate(lead.receivedAt)}
-                </Table.Cell>
-                <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                  <OutlineButton
-                    h="28px"
-                    minH="28px"
-                    fontSize="12px"
-                    onClick={() => setSelectedLead(lead)}
-                  >
-                    Review
-                  </OutlineButton>
-                </Table.Cell>
-              </Table.Row>
-            ))}
+            {isLoading
+              ? Array.from({ length: 8 }, (_, i) => (
+                  <Table.Row key={i}>
+                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                      <Skeleton h="13px" w="120px" mb="6px" borderRadius="4px" />
+                      <Skeleton h="16px" w="48px" borderRadius="99px" />
+                    </Table.Cell>
+                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                      <Skeleton h="13px" w="160px" mb="5px" borderRadius="4px" />
+                      <Skeleton h="11px" w="90px" borderRadius="4px" />
+                    </Table.Cell>
+                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                      <Skeleton h="20px" w="100px" borderRadius="99px" />
+                    </Table.Cell>
+                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                      <Skeleton h="13px" w="80px" borderRadius="4px" />
+                    </Table.Cell>
+                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                      <Skeleton h="13px" w="110px" borderRadius="4px" />
+                    </Table.Cell>
+                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                      <Skeleton h="28px" w="62px" borderRadius="7px" />
+                    </Table.Cell>
+                  </Table.Row>
+                ))
+              : leads.map((lead) => (
+                  <Table.Row key={lead.id}>
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      <Box color="fg" fontSize="13px" fontWeight="500">
+                        {lead.name}
+                      </Box>
+                      <LeadStatusPill status={lead.status} />
+                    </Table.Cell>
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      color="fg.muted"
+                      fontSize="13px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {lead.email}
+                      <MutedText fontSize="11px">{lead.phone ?? ""}</MutedText>
+                    </Table.Cell>
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {lead.practiceAreaId ? (
+                        <PracticePill tone="neutral">
+                          {practiceAreaMap.get(lead.practiceAreaId) ??
+                            "Practice area"}
+                        </PracticePill>
+                      ) : (
+                        <MutedText>—</MutedText>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      color="fg.muted"
+                      fontSize="13px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {sourceLabels[lead.source as LeadSource]}
+                    </Table.Cell>
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      color="fg.muted"
+                      fontSize="13px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      {formatReceivedDate(lead.receivedAt)}
+                    </Table.Cell>
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      <OutlineButton
+                        h="28px"
+                        minH="28px"
+                        fontSize="12px"
+                        onClick={() => setSelectedLead(lead)}
+                      >
+                        Review
+                      </OutlineButton>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
           </Table.Body>
         </Table.Root>
       </Box>
+
+      {totalPages > 1 && (
+        <Flex align="center" justify="space-between" mt="16px" px="2px">
+          <OutlineButton
+            h="32px"
+            minH="32px"
+            fontSize="12px"
+            disabled={!hasPreviousPage}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </OutlineButton>
+          <MutedText fontSize="12px">
+            Page {page} of {totalPages}
+          </MutedText>
+          <OutlineButton
+            h="32px"
+            minH="32px"
+            fontSize="12px"
+            disabled={!hasNextPage}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </OutlineButton>
+        </Flex>
+      )}
 
       <LeadReviewDrawer
         lead={selectedLead}
@@ -283,7 +433,12 @@ function LeadReviewDrawer({
               <Box p="22px 20px 14px">
                 <Flex align="flex-start" justify="space-between" gap="14px">
                   <Box minW="0">
-                    <Dialog.Title color="fg" fontSize="16px" fontWeight="600" lineHeight="1.15">
+                    <Dialog.Title
+                      color="fg"
+                      fontSize="16px"
+                      fontWeight="600"
+                      lineHeight="1.15"
+                    >
                       {lead.name}
                     </Dialog.Title>
                     <PracticePill>{sourceLabels[lead.source]}</PracticePill>
@@ -328,9 +483,15 @@ function LeadReviewDrawer({
                     "—"
                   )}
                 </LeadDetail>
-                <LeadDetail label="Source">{sourceLabels[lead.source]}</LeadDetail>
-                <LeadDetail label="Status">{statusLabels[lead.status]}</LeadDetail>
-                <LeadDetail label="Received">{formatReceivedDateDetail(lead.receivedAt)}</LeadDetail>
+                <LeadDetail label="Source">
+                  {sourceLabels[lead.source]}
+                </LeadDetail>
+                <LeadDetail label="Status">
+                  {statusLabels[lead.status]}
+                </LeadDetail>
+                <LeadDetail label="Received">
+                  {formatReceivedDateDetail(lead.receivedAt)}
+                </LeadDetail>
                 {lead.situationSummary ? (
                   <LeadDetail label="Situation summary">
                     <Box
@@ -351,7 +512,12 @@ function LeadReviewDrawer({
                 ) : null}
               </VStack>
 
-              <Box px="20px" py="16px" borderTop="1px solid" borderColor="border.subtle">
+              <Box
+                px="20px"
+                py="16px"
+                borderTop="1px solid"
+                borderColor="border.subtle"
+              >
                 <Text m="0 0 12px" color="fg" fontSize="12px" fontWeight="600">
                   Move this lead to
                 </Text>
@@ -447,9 +613,5 @@ function FilterSelect({
 
 function LeadStatusPill({ status }: { status: LeadStatus }) {
   const tone = status === "new" ? "warning" : "neutral";
-  return (
-    <PracticePill tone={tone}>
-      {statusLabels[status]}
-    </PracticePill>
-  );
+  return <PracticePill tone={tone}>{statusLabels[status]}</PracticePill>;
 }
