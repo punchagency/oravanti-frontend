@@ -6,6 +6,7 @@ import {
   generateFeeAgreement,
   getLeadById,
   getLeads,
+  getLeadsStageCount,
   nudgeClient,
   openCase,
   resolveConflictCheck,
@@ -23,6 +24,13 @@ export function useLeads(params: GetLeadsParams = {}) {
   return useQuery({
     queryKey: ["leads", params],
     queryFn: () => getLeads(params),
+  });
+}
+
+export function useLeadsStageCount() {
+  return useQuery({
+    queryKey: ["leadsStageCount"],
+    queryFn: () => getLeadsStageCount(),
   });
 }
 

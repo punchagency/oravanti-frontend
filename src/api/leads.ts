@@ -105,9 +105,23 @@ export type LeadDetail = Lead & {
 
 export type LeadsResponse = {
   leads: Lead[];
-  total: number;
-  page: number;
-  limit: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+export type LeadsStageCountResponse = {
+  lead_inbox: number;
+  conflict_check: number;
+  questionnaire: number;
+  consultation: number;
+  fee_agreement: number;
+  case_opening: number;
 };
 
 export type GetLeadsParams = {
@@ -121,7 +135,9 @@ export type GetLeadsParams = {
   all?: boolean;
 };
 
-export const getLeads = async (params: GetLeadsParams = {}): Promise<LeadsResponse> => {
+export const getLeads = async (
+  params: GetLeadsParams = {},
+): Promise<LeadsResponse> => {
   const query: Record<string, string> = {};
   if (params.stage) query.stage = params.stage;
   if (params.status) query.status = params.status;
@@ -134,6 +150,12 @@ export const getLeads = async (params: GetLeadsParams = {}): Promise<LeadsRespon
   const res = await API.get("/leads", { params: query });
   return res.data.data;
 };
+
+export const getLeadsStageCount =
+  async (): Promise<LeadsStageCountResponse> => {
+    const res = await API.get("/leads/stage-counts");
+    return res.data.data;
+  };
 
 export const getLeadById = async (id: string): Promise<LeadDetail> => {
   const res = await API.get(`/leads/${id}`);
@@ -159,7 +181,10 @@ export const archiveLead = async (id: string): Promise<Lead> => {
   return res.data.data;
 };
 
-export const advanceLeadStage = async (id: string, stage: PipelineStage): Promise<Lead> => {
+export const advanceLeadStage = async (
+  id: string,
+  stage: PipelineStage,
+): Promise<Lead> => {
   const res = await API.patch(`/leads/${id}/stage`, { stage });
   return res.data.data;
 };
@@ -205,7 +230,12 @@ export const updateConsultation = async (
   id: string,
   data: {
     attorneyNotes?: string;
-    status?: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
+    status?:
+      | "scheduled"
+      | "in_progress"
+      | "completed"
+      | "cancelled"
+      | "no_show";
     outcome?: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up";
   },
 ): Promise<Consultation> => {
