@@ -436,7 +436,10 @@ function LeadReviewDrawer({
   function handleArchive() {
     if (!lead) return;
     updateLeadStatus.mutate(
-      { id: lead.id, status: "archived" },
+      {
+        id: lead.id,
+        status: lead.status === "archived" ? "reviewed" : "archived",
+      },
       {
         onSuccess: () => onClose(),
       },
@@ -593,7 +596,7 @@ function LeadReviewDrawer({
                     onClick={handleArchive}
                   >
                     <Archive size={14} />
-                    Archive lead
+                    {lead.status === "archived" ? "Unarchive" : "Archive"} lead
                   </OutlineButton>
                 </VStack>
               </Box>

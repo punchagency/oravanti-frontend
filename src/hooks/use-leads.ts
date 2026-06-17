@@ -62,7 +62,9 @@ export function useUpdateLeadStatus() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateLeadStatus(id, status),
     onSuccess: (_, params) => {
-      toast.success(`Lead ${params.status}`);
+      if (params.status === "archived") {
+        toast.success(`Lead ${params.status}`);
+      }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", params.id] });
     },
