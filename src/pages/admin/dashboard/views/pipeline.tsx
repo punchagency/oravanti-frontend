@@ -1,14 +1,91 @@
 import { Link } from "react-router";
+import { useLeads } from "@/hooks/use-leads";
+import { useCases } from "@/hooks/use-cases";
+import type { PipelineStage } from "@/api/leads";
 import {
   deadlines,
   healthIndicators,
   matterStageStats,
-  pipelineStages,
-  practiceAreaStats,
   velocityWeeks,
 } from "../data";
 
+const PIPELINE_STAGE_DEFS: Array<{ label: string; stage: PipelineStage; color: string }> = [
+  { label: "Lead inbox", stage: "lead_inbox", color: "#8c8f87" },
+  { label: "Conflict check", stage: "conflict_check", color: "#d18400" },
+  { label: "Questionnaire", stage: "questionnaire", color: "#4b78dd" },
+  { label: "Consultation", stage: "consultation", color: "#6a00c7" },
+  { label: "Fee agreement", stage: "fee_agreement", color: "#d18400" },
+  { label: "Case opening", stage: "case_opening", color: "#00a878" },
+];
+
+const MAX_BAR_HEIGHT = 110;
+
+const PRACTICE_AREA_COLORS = [
+  "#00a878",
+  "#6a00c7",
+  "#e14a2d",
+  "#5e4500",
+  "#377dff",
+  "#d18400",
+  "#b00020",
+];
+
+const PRACTICE_AREA_TONES = [
+  "success",
+  "purple",
+  "red",
+  "gold",
+  "info",
+  "warning",
+  "red",
+];
+
 export function PipelineView() {
+  const { data: allLeadsData } = useLeads({ all: true });
+  const allLeads = Array.isArray(allLeadsData)
+    ? allLeadsData
+    : (allLeadsData?.leads ?? []);
+
+  const { data: casesData } = useCases();
+  const allCases = casesData ?? [];
+
+  const stageCounts = PIPELINE_STAGE_DEFS.map((def) => ({
+    ...def,
+    count: allLeads.filter((l) => l.pipelineStage === def.stage).length,
+  }));
+  const maxCount = Math.max(...stageCounts.map((s) => s.count), 1);
+  const pipelineStagesLive = stageCounts.map((s) => ({
+    ...s,
+    height: Math.max(Math.round((s.count / maxCount) * MAX_BAR_HEIGHT), 8),
+  }));
+  const totalLeads = stageCounts.reduce((sum, s) => sum + s.count, 0);
+
+  const practiceAreaCounts = new Map<string, { name: string; count: number }>();
+  for (const c of allCases) {
+    const id = c.practiceArea?.id ?? "__none";
+    const name = c.practiceArea?.name ?? "Unknown";
+    const existing = practiceAreaCounts.get(id);
+    if (existing) {
+      existing.count++;
+    } else {
+      practiceAreaCounts.set(id, { name, count: 1 });
+    }
+  }
+  const totalCases = allCases.length;
+  const practiceAreaStatsLive = Array.from(practiceAreaCounts.entries())
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([, { name, count }], i) => {
+      const pct = totalCases > 0 ? Math.round((count / totalCases) * 100) : 0;
+      return {
+        label: name.toUpperCase(),
+        count: String(count),
+        percentText: `${pct}%`,
+        color: PRACTICE_AREA_COLORS[i % PRACTICE_AREA_COLORS.length],
+        tone: PRACTICE_AREA_TONES[i % PRACTICE_AREA_TONES.length],
+        percent: pct,
+      };
+    });
+
   return (
     <>
       <section className="pipeline-overview">
@@ -20,7 +97,7 @@ export function PipelineView() {
         </header>
 
         <div className="pipeline-bar-chart" aria-label="Intake pipeline counts by stage">
-          {pipelineStages.map(([label, count, color, height]) => (
+          {pipelineStagesLive.map(({ label, count, color, height }) => (
             <div key={label} className="pipeline-bar-item">
               <span className="pipeline-bar-count" style={{ color }}>
                 {count}
@@ -37,11 +114,7 @@ export function PipelineView() {
         <div className="pipeline-summary-row">
           <span className="chip">
             <span className="chip-dot" style={{ background: "var(--text-primary)" }} />
-            14 total leads in pipeline
-          </span>
-          <span className="chip">
-            <span className="chip-dot" style={{ background: "var(--status-success)" }} />
-            48% avg conversion rate
+            {totalLeads} total leads in pipeline
           </span>
         </div>
       </section>
@@ -76,22 +149,28 @@ export function PipelineView() {
           <article className="surface-card section-card pipeline-stat-card">
             <h3 className="pipeline-card-title">Matters by practice area</h3>
             <div className="practice-progress-list">
-              {practiceAreaStats.map(([label, count, percentText, color, tone, percent]) => (
-                <div key={label} className="practice-progress-row">
-                  <span className={`practice-pill practice-pill--${tone}`}>
-                    {label}
-                  </span>
-                  <span className="progress-track">
-                    <span
-                      className="progress-fill"
-                      style={{ width: `${percent}%`, backgroundColor: color }}
-                    />
-                  </span>
-                  <span className="practice-progress-value">
-                    <strong>{count}</strong> {percentText}
-                  </span>
-                </div>
-              ))}
+              {practiceAreaStatsLive.length === 0 ? (
+                <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: 0 }}>
+                  No cases yet.
+                </p>
+              ) : (
+                practiceAreaStatsLive.map(({ label, count, percentText, color, tone, percent }) => (
+                  <div key={label} className="practice-progress-row">
+                    <span className={`practice-pill practice-pill--${tone}`}>
+                      {label}
+                    </span>
+                    <span className="progress-track">
+                      <span
+                        className="progress-fill"
+                        style={{ width: `${percent}%`, backgroundColor: color }}
+                      />
+                    </span>
+                    <span className="practice-progress-value">
+                      <strong>{count}</strong> {percentText}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </article>
         </div>
@@ -100,7 +179,7 @@ export function PipelineView() {
       <article className="surface-card section-card dashboard-panel deadline-card">
         <header className="section-card__header">
           <h2 className="section-heading">Deadlines this week</h2>
-          <span className="alert-count">7 deadlines</span>
+          <span className="alert-count">{deadlines.length} deadlines</span>
         </header>
         <div className="deadline-list">
           {deadlines.map(([color, name, id, matter, due, tone]) => (
