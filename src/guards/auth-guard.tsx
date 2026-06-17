@@ -1,12 +1,14 @@
 import { useAuthRefresh } from "@/hooks/useAuthRefresh";
+import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
-import { Center, Spinner, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Center, Spinner, Text, VStack } from "@chakra-ui/react";
 import { Navigate, Outlet, useLocation } from "react-router";
 
 export function AuthGuard() {
   const location = useLocation();
   const { isLoading: queryLoading } = useAuthRefresh();
   const { user, isAuthenticated, isLoading: storeLoading } = useAuthStore();
+  const { mutateAsync: logOut } = useSignOut();
 
   const isLoading = queryLoading || storeLoading;
 
@@ -32,6 +34,16 @@ export function AuthGuard() {
       return <Navigate to="/verify-email" replace />;
     }
     return <Outlet />;
+  }
+
+  // if user is not an admin, show a page with the logout button
+  if (!user.accountType || user.accountType !== "firm_admin") {
+    return (
+      <Box>
+        <p>Dashboard not ready</p>
+        <Button onClick={() => logOut()}>log out</Button>
+      </Box>
+    );
   }
 
   const isOnboarding = location.pathname.startsWith("/onboarding");
