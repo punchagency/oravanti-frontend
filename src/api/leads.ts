@@ -176,10 +176,10 @@ export const createLead = async (data: {
   return res.data.data;
 };
 
-export const archiveLead = async (id: string): Promise<Lead> => {
-  const res = await API.patch(`/leads/${id}/archive`);
-  return res.data.data;
-};
+export const updateLeadStatus = async (id: string, status: string): Promise<Lead> => {
+  const res = await API.patch(`/leads/${id}/status`, { status })
+  return res.data.data
+}
 
 export const advanceLeadStage = async (
   id: string,

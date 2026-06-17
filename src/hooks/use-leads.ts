@@ -1,6 +1,5 @@
 import {
   advanceLeadStage,
-  archiveLead,
   createConsultation,
   createLead,
   generateFeeAgreement,
@@ -13,6 +12,7 @@ import {
   runConflictCheck,
   sendQuestionnaire,
   updateConsultation,
+  updateLeadStatus,
   type GetLeadsParams,
   type PipelineStage,
 } from "@/api/leads";
@@ -56,14 +56,15 @@ export function useCreateLead() {
   });
 }
 
-export function useArchiveLead() {
+export function useUpdateLeadStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => archiveLead(id),
-    onSuccess: (_, id) => {
-      toast.success("Lead archived");
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      updateLeadStatus(id, status),
+    onSuccess: (_, params) => {
+      toast.success(`Lead ${params.status}`);
       qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["lead", params.id] });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to archive lead");
@@ -124,7 +125,9 @@ export function useResolveConflictCheck() {
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
     onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to resolve conflict check");
+      toast.error(
+        err.response?.data?.message ?? "Failed to resolve conflict check",
+      );
     },
   });
 }
@@ -139,7 +142,9 @@ export function useSendQuestionnaire() {
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
     onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to send questionnaire");
+      toast.error(
+        err.response?.data?.message ?? "Failed to send questionnaire",
+      );
     },
   });
 }
@@ -160,7 +165,9 @@ export function useCreateConsultation() {
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
     onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to schedule consultation");
+      toast.error(
+        err.response?.data?.message ?? "Failed to schedule consultation",
+      );
     },
   });
 }
@@ -181,7 +188,9 @@ export function useUpdateConsultation() {
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
     onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to update consultation");
+      toast.error(
+        err.response?.data?.message ?? "Failed to update consultation",
+      );
     },
   });
 }
@@ -189,15 +198,22 @@ export function useUpdateConsultation() {
 export function useGenerateFeeAgreement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { agreementType: string } }) =>
-      generateFeeAgreement(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { agreementType: string };
+    }) => generateFeeAgreement(id, data),
     onSuccess: (_, { id }) => {
       toast.success("Fee agreement generated — signing link sent to lead");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
     onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to generate fee agreement");
+      toast.error(
+        err.response?.data?.message ?? "Failed to generate fee agreement",
+      );
     },
   });
 }
@@ -217,8 +233,13 @@ export function useNudgeClient() {
 export function useOpenCase() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof openCase>[1] }) =>
-      openCase(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof openCase>[1];
+    }) => openCase(id, data),
     onSuccess: (_, { id }) => {
       toast.success("Case opened successfully");
       qc.invalidateQueries({ queryKey: ["leads"] });

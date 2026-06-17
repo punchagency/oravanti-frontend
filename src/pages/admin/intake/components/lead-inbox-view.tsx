@@ -32,7 +32,7 @@ import {
 import {
   useLeads,
   useRunConflictCheck,
-  useArchiveLead,
+  useUpdateLeadStatus,
 } from "@/hooks/use-leads";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
@@ -54,6 +54,7 @@ export function LeadInboxView() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const updateLeadStatus = useUpdateLeadStatus();
 
   const sourceFilter =
     source === "All sources"
@@ -102,6 +103,10 @@ export function LeadInboxView() {
   function handleLimitChange(value: number) {
     setLimit(value);
     setPage(1);
+  }
+
+  function handleLeadStatusUpdate(leadId: string) {
+    updateLeadStatus.mutate({ id: leadId, status: "reviewed" });
   }
 
   const total = data?.pagination?.total ?? 0;
@@ -227,24 +232,64 @@ export function LeadInboxView() {
             {isLoading
               ? Array.from({ length: 8 }, (_, i) => (
                   <Table.Row key={i}>
-                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                      <Skeleton h="13px" w="120px" mb="6px" borderRadius="4px" />
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      <Skeleton
+                        h="13px"
+                        w="120px"
+                        mb="6px"
+                        borderRadius="4px"
+                      />
                       <Skeleton h="16px" w="48px" borderRadius="99px" />
                     </Table.Cell>
-                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                      <Skeleton h="13px" w="160px" mb="5px" borderRadius="4px" />
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
+                      <Skeleton
+                        h="13px"
+                        w="160px"
+                        mb="5px"
+                        borderRadius="4px"
+                      />
                       <Skeleton h="11px" w="90px" borderRadius="4px" />
                     </Table.Cell>
-                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
                       <Skeleton h="20px" w="100px" borderRadius="99px" />
                     </Table.Cell>
-                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
                       <Skeleton h="13px" w="80px" borderRadius="4px" />
                     </Table.Cell>
-                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
                       <Skeleton h="13px" w="110px" borderRadius="4px" />
                     </Table.Cell>
-                    <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
+                    <Table.Cell
+                      px="16px"
+                      py="9px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                    >
                       <Skeleton h="28px" w="62px" borderRadius="7px" />
                     </Table.Cell>
                   </Table.Row>
@@ -318,7 +363,12 @@ export function LeadInboxView() {
                         h="28px"
                         minH="28px"
                         fontSize="12px"
-                        onClick={() => setSelectedLead(lead)}
+                        onClick={() => {
+                          setSelectedLead(lead);
+                          if (lead.status === "new") {
+                            handleLeadStatusUpdate(lead.id);
+                          }
+                        }}
                       >
                         Review
                       </OutlineButton>
@@ -374,7 +424,7 @@ function LeadReviewDrawer({
   onClose: () => void;
 }) {
   const runCheck = useRunConflictCheck();
-  const archive = useArchiveLead();
+  const updateLeadStatus = useUpdateLeadStatus();
 
   function handleRunConflictCheck() {
     if (!lead) return;
@@ -385,9 +435,12 @@ function LeadReviewDrawer({
 
   function handleArchive() {
     if (!lead) return;
-    archive.mutate(lead.id, {
-      onSuccess: () => onClose(),
-    });
+    updateLeadStatus.mutate(
+      { id: lead.id, status: "archived" },
+      {
+        onSuccess: () => onClose(),
+      },
+    );
   }
 
   return (
@@ -536,7 +589,7 @@ function LeadReviewDrawer({
                   <OutlineButton
                     h="36px"
                     minH="36px"
-                    loading={archive.isPending}
+                    loading={updateLeadStatus.isPending}
                     onClick={handleArchive}
                   >
                     <Archive size={14} />
