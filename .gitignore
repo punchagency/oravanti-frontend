@@ -35,3 +35,5 @@ coverage/
 .agents/
 openc*
 skills-lock.json
+
+CLAUDE.md
