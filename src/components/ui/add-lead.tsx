@@ -1,8 +1,9 @@
-import {
-  BrandButton,
-  OutlineButton,
-} from "@/components/ui/intake-ui";
+import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { leadSources } from "@/pages/admin/intake/data";
+import { sourceValues, type LeadSource } from "@/api/leads";
+import { useCreateLead } from "@/hooks/use-leads";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import {
   Box,
   Dialog,
@@ -17,6 +18,15 @@ import {
 import { UserPlus, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+function getCaseTypes(
+  practiceAreaId: string,
+  practiceAreas: PublicPracticeArea[] | undefined,
+): { id: string; name: string }[] {
+  if (!practiceAreaId || !practiceAreas) return [];
+  const area = practiceAreas.find((a) => a.id === practiceAreaId);
+  return area ? area.subcategories.flatMap((s) => s.caseTypes) : [];
+}
+
 export function AddLeadDialog({
   open,
   onOpenChange,
@@ -24,16 +34,60 @@ export function AddLeadDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [practiceArea, setPracticeArea] = useState("");
-  const [caseType, setCaseType] = useState("");
-  const caseTypeOptions = practiceArea
-    ? (caseTypesByPracticeArea[practiceArea] ?? defaultCaseTypes)
-    : [];
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [practiceAreaId, setPracticeAreaId] = useState("");
+  const [caseTypeId, setCaseTypeId] = useState("");
+  const [source, setSource] = useState("Direct");
+  const [situationSummary, setSituationSummary] = useState("");
+
+  const { data: practiceAreas } = usePublicPracticeAreas();
+  const createLead = useCreateLead();
+
+  const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
+
+  function resetForm() {
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+    setPracticeAreaId("");
+    setCaseTypeId("");
+    setSource("Direct");
+    setSituationSummary("");
+  }
+
+  function handleClose() {
+    onOpenChange(false);
+    resetForm();
+  }
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+    createLead.mutate(
+      {
+        name,
+        email,
+        phone: phone || undefined,
+        practiceAreaId: practiceAreaId || undefined,
+        caseTypeId: caseTypeId || undefined,
+        source: (sourceValues[source] ?? "direct") as LeadSource,
+        situationSummary: situationSummary || undefined,
+      },
+      { onSuccess: () => handleClose() },
+    );
+  }
 
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={(details) => onOpenChange(details.open)}
+      onOpenChange={(details) => {
+        if (!details.open) handleClose();
+        else onOpenChange(true);
+      }}
       placement="center"
     >
       <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
@@ -63,19 +117,12 @@ export function AddLeadDialog({
             borderRadius="8px"
             bg="bg"
             color="fg.muted"
-            onClick={() => onOpenChange(false)}
+            onClick={handleClose}
           >
             <X size={16} />
           </chakra.button>
 
-          <Box
-            as="form"
-            p="32px 24px 24px"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onOpenChange(false);
-            }}
-          >
+          <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit}>
             <Dialog.Title
               color="fg"
               fontSize="17px"
@@ -103,16 +150,31 @@ export function AddLeadDialog({
                 gap="10px"
               >
                 <FormField label="First name">
-                  <Input placeholder="e.g. Sandra" {...fieldStyles} />
+                  <Input
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.currentTarget.value)}
+                    placeholder="e.g. Sandra"
+                    {...fieldStyles}
+                  />
                 </FormField>
                 <FormField label="Last name">
-                  <Input placeholder="e.g. Osei" {...fieldStyles} />
+                  <Input
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.currentTarget.value)}
+                    placeholder="e.g. Osei"
+                    {...fieldStyles}
+                  />
                 </FormField>
               </Grid>
 
               <FormField label="Email address">
                 <Input
                   type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.currentTarget.value)}
                   placeholder="e.g. sandra@example.com"
                   {...fieldStyles}
                 />
@@ -121,6 +183,8 @@ export function AddLeadDialog({
               <FormField label="Phone number">
                 <Input
                   type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.currentTarget.value)}
                   placeholder="e.g. +1 (555) 012-3456"
                   {...fieldStyles}
                 />
@@ -128,16 +192,18 @@ export function AddLeadDialog({
 
               <FormField label="Practice area interest">
                 <chakra.select
-                  value={practiceArea}
+                  value={practiceAreaId}
                   onChange={(event) => {
-                    setPracticeArea(event.currentTarget.value);
-                    setCaseType("");
+                    setPracticeAreaId(event.currentTarget.value);
+                    setCaseTypeId("");
                   }}
                   {...selectStyles}
                 >
                   <option value="">Select practice area</option>
-                  {practiceAreaOptions.map((option) => (
-                    <option key={option}>{option}</option>
+                  {(practiceAreas ?? []).map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.name}
+                    </option>
                   ))}
                 </chakra.select>
               </FormField>
@@ -145,33 +211,41 @@ export function AddLeadDialog({
               <FormField label="Case type">
                 <chakra.select
                   {...selectStyles}
-                  value={caseType}
-                  onChange={(event) => setCaseType(event.currentTarget.value)}
-                  disabled={!practiceArea}
-                  opacity={practiceArea ? 1 : 0.62}
-                  cursor={practiceArea ? "pointer" : "not-allowed"}
+                  value={caseTypeId}
+                  onChange={(event) => setCaseTypeId(event.currentTarget.value)}
+                  disabled={!practiceAreaId}
+                  opacity={practiceAreaId ? 1 : 0.62}
+                  cursor={practiceAreaId ? "pointer" : "not-allowed"}
                 >
                   <option value="">
-                    {practiceArea
+                    {practiceAreaId
                       ? "Select case type"
                       : "Select practice area first"}
                   </option>
-                  {caseTypeOptions.map((option) => (
-                    <option key={option}>{option}</option>
+                  {caseTypeOptions.map((ct) => (
+                    <option key={ct.id} value={ct.id}>
+                      {ct.name}
+                    </option>
                   ))}
                 </chakra.select>
               </FormField>
 
               <FormField label="Source">
-                <chakra.select defaultValue="Direct" {...selectStyles}>
-                  {leadSources.map((source) => (
-                    <option key={source}>{source}</option>
+                <chakra.select
+                  value={source}
+                  onChange={(e) => setSource(e.currentTarget.value)}
+                  {...selectStyles}
+                >
+                  {leadSources.map((s) => (
+                    <option key={s}>{s}</option>
                   ))}
                 </chakra.select>
               </FormField>
 
               <FormField label="Situation summary">
                 <Textarea
+                  value={situationSummary}
+                  onChange={(e) => setSituationSummary(e.currentTarget.value)}
                   minH="70px"
                   resize="vertical"
                   placeholder="Brief description of client's situation..."
@@ -181,10 +255,10 @@ export function AddLeadDialog({
             </VStack>
 
             <Flex justify="space-between" gap="12px" mt="18px">
-              <OutlineButton type="button" onClick={() => onOpenChange(false)}>
+              <OutlineButton type="button" onClick={handleClose}>
                 Cancel
               </OutlineButton>
-              <BrandButton type="submit" minW="152px">
+              <BrandButton type="submit" minW="152px" loading={createLead.isPending}>
                 <UserPlus size={15} />
                 Add to lead inbox
               </BrandButton>
@@ -234,49 +308,6 @@ const fieldStyles = {
     borderColor: "brand.solid",
     boxShadow: "0 0 0 1px var(--brand-cta)",
   },
-};
-
-const practiceAreaOptions = [
-  "Immigration (Active)",
-  "Family law",
-  "Business",
-  "Criminal defense",
-  "Personal injury",
-] as const;
-
-const defaultCaseTypes = ["General consultation"] as const;
-
-const caseTypesByPracticeArea: Record<string, readonly string[]> = {
-  "Immigration (Active)": [
-    "Adjustment of status",
-    "Family petition",
-    "Naturalization",
-    "Work authorization",
-  ],
-  "Family law": [
-    "Divorce / dissolution",
-    "Prenuptial agreement",
-    "Child custody",
-    "Support modification",
-  ],
-  Business: [
-    "Entity formation",
-    "Contract review",
-    "S-Corp election",
-    "Corporate registry",
-  ],
-  "Criminal defense": [
-    "Misdemeanor defense",
-    "Felony defense",
-    "DUI / traffic",
-    "Record expungement",
-  ],
-  "Personal injury": [
-    "Auto accident",
-    "Premises liability",
-    "Medical negligence",
-    "Contingency review",
-  ],
 };
 
 const selectStyles = {

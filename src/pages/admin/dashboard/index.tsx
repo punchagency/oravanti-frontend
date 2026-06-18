@@ -3,13 +3,13 @@ import { ActivityView } from "./views/activity";
 import { OverviewView } from "./views/overview";
 import { PipelineView } from "./views/pipeline";
 import { useState } from "react";
-import { Download, Plus } from "lucide-react";
+import { Download } from "lucide-react";
 import { Box, Flex, HStack, Text, chakra } from "@chakra-ui/react";
-import { BrandButton, OutlineButton } from "../../../components/ui/intake-ui";
+import { OutlineButton } from "../../../components/ui/intake-ui";
 import { dashboardTabs, type DashboardTabs } from "./data";
 
 export function AdminDashboard() {
-  useDocumentTitle("Dashboard - Oravanti");
+  useDocumentTitle("Dashboard — Oravanti");
   const [activeTab, setActiveTab] = useState<DashboardTabs>("Overview");
 
   return (
@@ -33,17 +33,13 @@ export function AdminDashboard() {
             fontWeight="500"
             lineHeight="1.2"
           >
-            CRM & leads
+            Dashboard
           </Text>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
-            Full pipeline from first contact to active client
+            Firm overview — cases, pipeline and staff at a glance
           </Text>
         </Box>
         <HStack gap="8px">
-          <BrandButton>
-            <Plus size={15} />
-            Add lead
-          </BrandButton>
           <OutlineButton>
             <Download size={14} />
             Export
@@ -56,7 +52,7 @@ export function AdminDashboard() {
         gap="0"
         borderBottom="1px solid"
         borderColor="border.subtle"
-        aria-label="CRM & leads views"
+        aria-label="Dashboard views"
       >
         {dashboardTabs.map((tab) => {
           const active = tab === activeTab;

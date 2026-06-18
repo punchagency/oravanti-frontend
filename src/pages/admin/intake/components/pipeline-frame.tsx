@@ -6,10 +6,23 @@ import { Link as RouterLink, useLocation } from "react-router";
 import { intakeStages, intakeTabs } from "../data";
 import { BrandButton, OutlineButton } from "../../../../components/ui/intake-ui";
 import { AddLeadDialog } from "@/components/ui/add-lead";
+import { useLeads } from "@/hooks/use-leads";
+import type { PipelineStage } from "@/api/leads";
+
+function useStageCounts() {
+  const { data } = useLeads({ all: true });
+  const leads = Array.isArray(data) ? data : (data as { leads?: { pipelineStage: PipelineStage }[] } | undefined)?.leads ?? [];
+  const counts: Record<string, number> = {};
+  for (const lead of leads) {
+    counts[lead.pipelineStage] = (counts[lead.pipelineStage] ?? 0) + 1;
+  }
+  return counts;
+}
 
 export function PipelineFrame({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [addLeadOpen, setAddLeadOpen] = useState(false);
+  const stageCounts = useStageCounts();
 
   return (
     <>
@@ -67,6 +80,10 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
       >
         {intakeStages.map((stage, index) => {
           const active = location.pathname === stage.path;
+          const count = stageCounts[stage.stage] ?? 0;
+          const label = stage.stage === "case_opening"
+            ? `${count} ${count === 1 ? "case" : "cases"}`
+            : `${count} ${count === 1 ? "lead" : "leads"}`;
 
           return (
             <Link
@@ -129,7 +146,7 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
                     {stage.label}
                   </Text>
                   <Text m="0" color="fg.muted" fontSize="11px" lineHeight="1.1">
-                    {stage.countLabel}
+                    {label}
                   </Text>
                 </VStack>
               </RouterLink>

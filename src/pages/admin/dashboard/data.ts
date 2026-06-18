@@ -1,42 +1,12 @@
 import {
   AlertTriangle,
   Bot,
-  BriefcaseBusiness,
   CalendarDays,
   Clock,
   Cloud,
-  FileText,
   Rss,
   ShieldCheck,
-  UserRound,
 } from "lucide-react";
-
-export const metrics = [
-  {
-    label: "Active cases",
-    value: "80",
-    helper: "↑ from active add-ons",
-    icon: BriefcaseBusiness,
-  },
-  {
-    label: "Pending actions",
-    value: "46",
-    helper: "Awaiting review/action",
-    icon: Clock,
-  },
-  {
-    label: "Processing / issues",
-    value: "33",
-    helper: "Outside processing window",
-    icon: UserRound,
-  },
-  {
-    label: "Estimated revenue",
-    value: "$96,000",
-    helper: "Based on case volumes",
-    icon: FileText,
-  },
-];
 
 export const chips = [
   ["All active", "#6b6252"],
@@ -58,23 +28,6 @@ export const alerts = [
   ["#377dff", "Invoice overdue — Okonkwo matter", "$3,200 outstanding — 7 days overdue", "2d ago"],
 ] as const;
 
-export const pipeline = [
-  ["Lead inbox", "Awaiting review", "4", "neutral"],
-  ["Conflict check", "Attorney review pending", "3", "warning"],
-  ["Questionnaire", "Sent, awaiting completion", "2", "info"],
-  ["Fee agreement", "Sent for eSignature", "1", "gold"],
-  ["Case opening", "Ready to open", "2", "success"],
-] as const;
-
-export const pipelineStages = [
-  ["Lead inbox", "4", "#8c8f87", 110],
-  ["Conflict check", "3", "#d18400", 82],
-  ["Questionnaire", "2", "#4b78dd", 55],
-  ["Consultation & notes", "2", "#6a00c7", 55],
-  ["Fee agreement", "1", "#d18400", 28],
-  ["Case opening", "2", "#00a878", 55],
-] as const;
-
 export const matterStageStats = [
   ["Intake", "4", "#8c8f87", 8],
   ["Forms preparation", "11", "#4b78dd", 23],
@@ -83,13 +36,6 @@ export const matterStageStats = [
   ["Response due", "5", "#e82c45", 10],
   ["Interview scheduled", "4", "#6a00c7", 8],
   ["Decision received", "3", "#00a878", 6],
-] as const;
-
-export const practiceAreaStats = [
-  ["IMMIGRATION", "35", "73%", "#00a878", "success", 73],
-  ["BUSINESS", "0", "0%", "#6a00c7", "purple", 0],
-  ["EMPLOYMENT", "0", "0%", "#e14a2d", "red", 0],
-  ["CRIMINAL DEFENSE", "0", "0%", "#5e4500", "gold", 0],
 ] as const;
 
 export const deadlines = [
@@ -180,26 +126,10 @@ export const closedThisWeek = [
   ["Chioma Okafor — Child Custody", "ORV-2026-0054 · Closed Jun 3, 2026"],
 ] as const;
 
-export const matters = [
-  ["Amara Chen", "I-485 AOS", "Active", "Yemi Okafor", "success"],
-  ["James Okonkwo", "I-130", "RFE", "Sandra Adeyemi", "red"],
-  ["Maria Santos", "N-400", "Active", "Yemi Okafor", "success"],
-  ["David Kim", "H-1B", "Pending", "Unassigned", "gold"],
-  ["Aisha Patel", "I-589 Asylum", "Active", "Sandra Adeyemi", "success"],
-] as const;
-
-export const staff = [
-  ["Sandra Adeyemi", "Attorney", "SA", "Active", "success", "mint"],
-  ["Yemi Okafor", "Paralegal", "YO", "Active", "success", "gold"],
-  ["Ruth Babatunde", "Case manager", "RB", "On leave", "neutral", "gold"],
-  ["James Martinez", "Contractor", "JM", "Assigned", "purple", "rose"],
-  ["Ayo Osei", "Paralegal", "AO", "Recertify", "red", "gold"],
-] as const;
-
 export const dashboardTabs = [
   "Overview",
   "Pipeline",
   "Activity",
 ] as const;
 
-export type DashboardTabs = (typeof dashboardTabs)[number]
+export type DashboardTabs = (typeof dashboardTabs)[number];
