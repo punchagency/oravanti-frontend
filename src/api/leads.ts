@@ -32,6 +32,7 @@ export type Lead = {
   status: LeadStatus;
   pipelineStage: PipelineStage;
   conflictCheckId: string | null;
+  conflictMatches?: ConflictCheckMatch[];
   questionnaireSendId: string | null;
   consultationId: string | null;
   feeAgreementId: string | null;
@@ -45,10 +46,10 @@ export type Lead = {
 };
 
 export type ConflictCheckMatch = {
-  type: "current_client" | "adverse_party" | "former_client";
+  type: "current_client" | "adverse_party" | "former_client" | "related_party";
   matchedId: string;
   matchedName: string;
-  confidence: "exact_email" | "exact_name" | "fuzzy_name";
+  confidence: "exact_email" | "exact_name" | "fuzzy_name" | "surname_match";
   rule: "ABA_1.7" | "ABA_1.9";
   details: string;
 };

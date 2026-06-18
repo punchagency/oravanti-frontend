@@ -65,6 +65,7 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
 
   const result = localResult;
   const status = result?.status;
+  const displayMatches = result ? result.matches : (lead.conflictMatches ?? []);
   const hasConflict = status === "conflict_found";
   const isPass = status === "pass";
   const needsReview = status === "needs_review";
@@ -95,7 +96,7 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
   const outcomeTone = hasConflict ? "danger" : "success";
   const outcomeText = result
     ? hasConflict
-      ? `Record match identified: ${result.matches.map((m) => `"${m.matchedName}" (${m.rule})`).join(", ")}. Please execute manual verification or request supervisor clearance.`
+      ? `Record match identified: ${displayMatches.map((m) => `"${m.matchedName}" (${m.rule})`).join(", ")}. Please execute manual verification or request supervisor clearance.`
       : isPass
       ? "Conflict check cleared — approved to initiate retainer workflow."
       : needsReview
@@ -148,6 +149,68 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
         </HStack>
       ) : null}
 
+      {displayMatches.length > 0 ? (
+        <Box mt="14px">
+          <Text fontWeight="600" fontSize="12px" color="fg.muted" mb="8px" textTransform="uppercase" letterSpacing="0.05em">
+            Potential matches ({displayMatches.length})
+          </Text>
+          <Stack gap="6px">
+            {displayMatches.map((match, i) => (
+              <HStack
+                key={match.matchedId + i}
+                gap="10px"
+                p="10px 12px"
+                border="1px solid"
+                borderColor="border.muted"
+                borderRadius="6px"
+                bg="bg.subtle"
+                fontSize="12px"
+                align="flex-start"
+              >
+                <AlertTriangle size={13} color="#b00020" style={{ flexShrink: 0, marginTop: 2 }} />
+                <Stack gap="2px" flex="1">
+                  <HStack gap="6px" flexWrap="wrap">
+                    <Text fontWeight="600" color="fg" m="0">{match.matchedName}</Text>
+                    <Box
+                      as="span"
+                      px="6px"
+                      py="1px"
+                      borderRadius="4px"
+                      bg="#fff2f3"
+                      color="#b00020"
+                      fontWeight="500"
+                    >
+                      {match.rule}
+                    </Box>
+                    <Box
+                      as="span"
+                      px="6px"
+                      py="1px"
+                      borderRadius="4px"
+                      bg="bg.muted"
+                      color="fg.muted"
+                    >
+                      {match.type.replace(/_/g, " ")}
+                    </Box>
+                    <Box
+                      as="span"
+                      px="6px"
+                      py="1px"
+                      borderRadius="4px"
+                      bg="bg.muted"
+                      color="fg.muted"
+                    >
+                      {match.confidence.replace(/_/g, " ")}
+                    </Box>
+                  </HStack>
+                  <Text m="0" color="fg.muted">{match.details}</Text>
+                </Stack>
+              </HStack>
+            ))}
+          </Stack>
+        </Box>
+      ) : null}
+
       <Box
         display="grid"
         gridTemplateColumns={{ base: "1fr", md: "repeat(auto-fit, minmax(220px, 1fr))" }}
@@ -157,7 +220,7 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
         borderTop="1px solid"
         borderColor="border.subtle"
       >
-        {!result ? (
+        {!result && !displayMatches.length ? (
           <BrandButton loading={runCheck.isPending} onClick={handleRunCheck}>
             <Shield size={14} />
             Run conflict check
@@ -171,7 +234,7 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </BrandButton>
         ) : null}
 
-        {hasConflict || needsReview ? (
+        {hasConflict || needsReview || displayMatches.length ? (
           <>
             <OutlineButton
               color="#b00020"
