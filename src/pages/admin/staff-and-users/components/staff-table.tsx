@@ -18,6 +18,7 @@ import {
   getStatusLabel,
 } from "../data";
 import { useStaffData } from "../staff-data-context";
+import { StaffDetailsDrawer } from "./staff-details-drawer";
 
 export function StaffTable() {
   const { filteredStaff } = useStaffData();
@@ -281,16 +282,18 @@ export function StaffTable() {
                       </Table.Cell>
 
                       <Table.Cell py={4} textAlign="right" whiteSpace="nowrap">
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          borderColor="border"
-                          color="fg"
-                          px={4}
-                          _hover={{ bg: "bg.muted" }}
-                        >
-                          View
-                        </Button>
+                        <StaffDetailsDrawer staff={staff}>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            borderColor="border"
+                            color="fg"
+                            px={4}
+                            _hover={{ bg: "bg.muted" }}
+                          >
+                            View
+                          </Button>
+                        </StaffDetailsDrawer>
                       </Table.Cell>
                     </Table.Row>
                   ))}

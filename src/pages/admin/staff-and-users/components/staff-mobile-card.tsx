@@ -15,6 +15,7 @@ import {
   getStatusLabel,
   type StaffMember,
 } from "../data";
+import { StaffDetailsDrawer } from "./staff-details-drawer";
 
 interface StaffMobileCardProps {
   staff: StaffMember;
@@ -126,18 +127,31 @@ export function StaffMobileCard({ staff }: StaffMobileCardProps) {
         </Box>
       </Stack>
 
-      <Button
-        variant="outline"
-        size="sm"
-        w="full"
-        mt={4}
-        borderColor="border"
-        _hover={{ bg: "bg.muted" }}
-      >
-        {staff.status === "pending_invitation"
-          ? "Resend Invitation"
-          : "View Details"}
-      </Button>
+      {staff.status === "pending_invitation" ? (
+        <Button
+          variant="outline"
+          size="sm"
+          w="full"
+          mt={4}
+          borderColor="border"
+          _hover={{ bg: "bg.muted" }}
+        >
+          Resend Invitation
+        </Button>
+      ) : (
+        <StaffDetailsDrawer staff={staff}>
+          <Button
+            variant="outline"
+            size="sm"
+            w="full"
+            mt={4}
+            borderColor="border"
+            _hover={{ bg: "bg.muted" }}
+          >
+            View Details
+          </Button>
+        </StaffDetailsDrawer>
+      )}
     </Box>
   );
 }
