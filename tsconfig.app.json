@@ -19,5 +19,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    ".agents/fe-implementation/teams-tab.tsx",
+    ".agents/fe-implementation/staff-details.tsx",
+    ".agents/fe-implementation/team-details.tsx",
+    ".agents/fe-implementation/create-team.tsx",
+    ".agents/fe-implementation/create-team-dialog.tsx"
+  ]
 }

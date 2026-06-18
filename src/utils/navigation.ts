@@ -75,7 +75,7 @@ export const primaryNavigation: PrimaryNavigationItem[] = [
   {
     label: "Staff",
     section: "staff",
-    path: "/admin/staff/accounts",
+    path: "/admin/staff-management",
     icon: "users",
   },
   {
@@ -186,28 +186,28 @@ export const contextNavigation: Record<
       label: "Staff",
       items: [
         {
-          label: "Staff & users",
-          path: "/admin/staff/accounts",
+          label: "Staff Management",
+          path: "/admin/staff-management",
           icon: "users",
           children: [
             {
               label: "Staff accounts",
-              path: "/admin/staff/accounts",
+              path: "/admin/staff-management",
               icon: "users",
             },
             {
               label: "Certifications",
-              path: "/admin/staff/certifications",
+              path: "/admin/staff-management/certifications",
               icon: "book-open-check",
             },
             {
               label: "Performance",
-              path: "/admin/staff/performance",
+              path: "/admin/staff-management/performance",
               icon: "chart-column-big",
             },
             {
               label: "Leave management",
-              path: "/admin/staff/leave-management",
+              path: "/admin/staff-management/leave",
               icon: "calendar",
             },
           ],
