@@ -29,6 +29,8 @@ export type Lead = {
   source: LeadSource;
   situationSummary: string | null;
   notes: string | null;
+  intakeAdversePartyName: string | null;
+  intakeAdversePartyEmail: string | null;
   status: LeadStatus;
   pipelineStage: PipelineStage;
   conflictCheckId: string | null;
@@ -45,13 +47,30 @@ export type Lead = {
   updatedAt: string;
 };
 
+export type CaseDetail = {
+  id: string;
+  caseNumber: string;
+  caseType: string;
+  status: string;
+  practiceArea: string | null;
+};
+
 export type ConflictCheckMatch = {
-  type: "current_client" | "adverse_party" | "former_client" | "related_party";
+  type:
+    | "current_client"
+    | "adverse_party"
+    | "former_client"
+    | "related_party"
+    | "client_is_opponent"
+    | "former_client_is_opponent";
   matchedId: string;
   matchedName: string;
   confidence: "exact_email" | "exact_name" | "fuzzy_name" | "surname_match";
   rule: "ABA_1.7" | "ABA_1.9";
   details: string;
+  caseDetails: CaseDetail[];
+  adversePartyRelationship?: string;
+  firmClientName?: string;
 };
 
 export type ConflictCheck = {
@@ -172,6 +191,8 @@ export const createLead = async (data: {
   caseTypeId?: string;
   source: LeadSource;
   situationSummary?: string;
+  intakeAdversePartyName?: string;
+  intakeAdversePartyEmail?: string;
 }): Promise<Lead> => {
   const res = await API.post("/leads", data);
   return res.data.data;
@@ -198,8 +219,8 @@ export const runConflictCheck = async (id: string): Promise<ConflictCheck> => {
 export const resolveConflictCheck = async (
   id: string,
   data:
-    | { status: "pass" | "needs_review"; reviewNotes?: string }
-    | { supervisorOverride: true; supervisorNotes?: string },
+    | { action: "manual_review"; status: "pass" | "needs_review"; reviewNotes?: string }
+    | { action: "supervisor_override"; supervisorNotes: string },
 ): Promise<ConflictCheck> => {
   const res = await API.patch(`/leads/${id}/conflict-check`, data);
   return res.data.data;

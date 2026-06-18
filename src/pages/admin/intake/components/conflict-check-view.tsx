@@ -1,7 +1,7 @@
-import { Box, HStack, Stack, Text } from "@chakra-ui/react";
-import { AlertTriangle, Send, Shield } from "lucide-react";
+import { Box, HStack, Stack, Text, Textarea } from "@chakra-ui/react";
+import { AlertTriangle, Send, Shield, ShieldAlert } from "lucide-react";
 import { useState } from "react";
-import type { ConflictCheck, Lead } from "@/api/leads";
+import type { CaseDetail, ConflictCheck, ConflictCheckMatch, Lead } from "@/api/leads";
 import { conflictStatusLabels, formatReceivedDate } from "@/api/leads";
 import {
   useLeads,
@@ -17,6 +17,32 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
+
+const matchTypeLabels: Record<ConflictCheckMatch["type"], string> = {
+  current_client: "Current client",
+  former_client: "Former client",
+  adverse_party: "Adverse party",
+  related_party: "Related party",
+  client_is_opponent: "Active client is opponent",
+  former_client_is_opponent: "Former client is opponent",
+};
+
+const matchTypeTone: Record<ConflictCheckMatch["type"], "danger" | "warning" | "neutral"> = {
+  current_client: "danger",
+  client_is_opponent: "danger",
+  adverse_party: "danger",
+  former_client: "warning",
+  former_client_is_opponent: "warning",
+  related_party: "neutral",
+};
+
+const caseStatusColors: Record<string, { bg: string; color: string }> = {
+  active: { bg: "#dff8ee", color: "#006b4b" },
+  completed: { bg: "#e8f0fe", color: "#1a56db" },
+  cancelled: { bg: "#f3f4f6", color: "#6b7280" },
+  on_hold: { bg: "#fef3c7", color: "#92400e" },
+  pending_review: { bg: "#fef3c7", color: "#92400e" },
+};
 
 export function ConflictCheckView() {
   const { data, isLoading } = useLeads({ stage: "conflict_check" });
@@ -60,6 +86,8 @@ export function ConflictCheckView() {
 
 function ConflictCheckCard({ lead }: { lead: Lead }) {
   const [localResult, setLocalResult] = useState<ConflictCheck | null>(null);
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideNotes, setOverrideNotes] = useState("");
   const runCheck = useRunConflictCheck();
   const resolveCheck = useResolveConflictCheck();
 
@@ -78,15 +106,29 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
 
   function handleClearAndApprove() {
     resolveCheck.mutate(
-      { id: lead.id, data: { status: "pass", reviewNotes: "Cleared by manual review" } },
+      { id: lead.id, data: { action: "manual_review", status: "pass", reviewNotes: "Cleared by manual review" } },
       { onSuccess: (check) => setLocalResult(check) },
     );
   }
 
   function handleFlagConflict() {
     resolveCheck.mutate(
-      { id: lead.id, data: { status: "needs_review", reviewNotes: "Flagged for supervisor review" } },
+      { id: lead.id, data: { action: "manual_review", status: "needs_review", reviewNotes: "Flagged for supervisor review" } },
       { onSuccess: (check) => setLocalResult(check) },
+    );
+  }
+
+  function handleSupervisorOverride() {
+    if (!overrideNotes.trim()) return;
+    resolveCheck.mutate(
+      { id: lead.id, data: { action: "supervisor_override", supervisorNotes: overrideNotes.trim() } },
+      {
+        onSuccess: (check) => {
+          setLocalResult(check);
+          setOverrideOpen(false);
+          setOverrideNotes("");
+        },
+      },
     );
   }
 
@@ -122,6 +164,29 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
         </StatusPill>
       </HStack>
 
+      {(lead.intakeAdversePartyName || lead.intakeAdversePartyEmail) ? (
+        <HStack
+          gap="8px"
+          mt="14px"
+          px="12px"
+          py="9px"
+          border="1px solid"
+          borderColor="#fde68a"
+          borderRadius="7px"
+          bg="#fffbeb"
+          color="#92400e"
+          fontSize="12px"
+        >
+          <ShieldAlert size={13} style={{ flexShrink: 0 }} />
+          <Box as="span">
+            <Box as="span" fontWeight="600">Declared opposing party: </Box>
+            {[lead.intakeAdversePartyName, lead.intakeAdversePartyEmail]
+              .filter(Boolean)
+              .join(" · ")}
+          </Box>
+        </HStack>
+      ) : null}
+
       {lead.situationSummary ? (
         <Box mt="14px" p="12px" borderRadius="7px" bg="bg.muted" color="fg.muted" fontSize="13px">
           Matter focus: {lead.situationSummary}
@@ -156,58 +221,56 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </Text>
           <Stack gap="6px">
             {displayMatches.map((match, i) => (
-              <HStack
-                key={match.matchedId + i}
-                gap="10px"
-                p="10px 12px"
-                border="1px solid"
-                borderColor="border.muted"
-                borderRadius="6px"
-                bg="bg.subtle"
-                fontSize="12px"
-                align="flex-start"
-              >
-                <AlertTriangle size={13} color="#b00020" style={{ flexShrink: 0, marginTop: 2 }} />
-                <Stack gap="2px" flex="1">
-                  <HStack gap="6px" flexWrap="wrap">
-                    <Text fontWeight="600" color="fg" m="0">{match.matchedName}</Text>
-                    <Box
-                      as="span"
-                      px="6px"
-                      py="1px"
-                      borderRadius="4px"
-                      bg="#fff2f3"
-                      color="#b00020"
-                      fontWeight="500"
-                    >
-                      {match.rule}
-                    </Box>
-                    <Box
-                      as="span"
-                      px="6px"
-                      py="1px"
-                      borderRadius="4px"
-                      bg="bg.muted"
-                      color="fg.muted"
-                    >
-                      {match.type.replace(/_/g, " ")}
-                    </Box>
-                    <Box
-                      as="span"
-                      px="6px"
-                      py="1px"
-                      borderRadius="4px"
-                      bg="bg.muted"
-                      color="fg.muted"
-                    >
-                      {match.confidence.replace(/_/g, " ")}
-                    </Box>
-                  </HStack>
-                  <Text m="0" color="fg.muted">{match.details}</Text>
-                </Stack>
-              </HStack>
+              <MatchCard key={match.matchedId + i} match={match} />
             ))}
           </Stack>
+        </Box>
+      ) : null}
+
+      {overrideOpen ? (
+        <Box
+          mt="14px"
+          p="14px"
+          border="1px solid"
+          borderColor="#ffb8bd"
+          borderRadius="8px"
+          bg="#fff2f3"
+        >
+          <Text fontWeight="600" fontSize="13px" color="#b00020" mb="8px">
+            Supervisor override — justification required
+          </Text>
+          <Textarea
+            value={overrideNotes}
+            onChange={(e) => setOverrideNotes(e.currentTarget.value)}
+            placeholder="Explain why proceeding despite the identified conflict is permissible…"
+            minH="80px"
+            resize="vertical"
+            fontSize="13px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="7px"
+            bg="bg"
+            color="fg"
+            px="12px"
+            py="8px"
+            mb="10px"
+            _focus={{ borderColor: "brand.solid", boxShadow: "0 0 0 1px var(--brand-cta)" }}
+          />
+          <HStack gap="8px" justify="flex-end">
+            <OutlineButton
+              type="button"
+              onClick={() => { setOverrideOpen(false); setOverrideNotes(""); }}
+            >
+              Cancel
+            </OutlineButton>
+            <BrandButton
+              loading={resolveCheck.isPending}
+              disabled={!overrideNotes.trim()}
+              onClick={handleSupervisorOverride}
+            >
+              Confirm override
+            </BrandButton>
+          </HStack>
         </Box>
       ) : null}
 
@@ -234,7 +297,7 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </BrandButton>
         ) : null}
 
-        {hasConflict || needsReview || displayMatches.length ? (
+        {(needsReview || (!hasConflict && displayMatches.length > 0)) ? (
           <>
             <OutlineButton
               color="#b00020"
@@ -253,6 +316,27 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </>
         ) : null}
 
+        {hasConflict && !overrideOpen ? (
+          <>
+            <OutlineButton
+              color="#b00020"
+              borderColor="#ffc3c8"
+              loading={resolveCheck.isPending}
+              onClick={handleFlagConflict}
+            >
+              Flag Conflict
+            </OutlineButton>
+            <OutlineButton
+              color="#b00020"
+              borderColor="#ffc3c8"
+              onClick={() => setOverrideOpen(true)}
+            >
+              <ShieldAlert size={14} />
+              Supervisor Override
+            </OutlineButton>
+          </>
+        ) : null}
+
         {result && !hasConflict && !needsReview && !isPass ? (
           <Text m="0" color="fg.muted" fontSize="12px">
             Conflict check result: {statusLabel}
@@ -260,5 +344,78 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
         ) : null}
       </Box>
     </SurfaceCard>
+  );
+}
+
+function MatchCard({ match }: { match: ConflictCheckMatch }) {
+  const tone = matchTypeTone[match.type] ?? "neutral";
+  const typeLabel = matchTypeLabels[match.type] ?? match.type.replace(/_/g, " ");
+
+  const badgeBg = tone === "danger" ? "#fff2f3" : tone === "warning" ? "#fffbeb" : "bg.muted";
+  const badgeColor = tone === "danger" ? "#b00020" : tone === "warning" ? "#92400e" : "fg.muted";
+
+  return (
+    <Box
+      p="10px 12px"
+      border="1px solid"
+      borderColor={tone === "danger" ? "#ffb8bd" : tone === "warning" ? "#fde68a" : "border.muted"}
+      borderRadius="6px"
+      bg="bg.subtle"
+      fontSize="12px"
+    >
+      <HStack gap="6px" flexWrap="wrap" align="center">
+        <AlertTriangle size={13} color={tone === "neutral" ? "#6b7280" : "#b00020"} style={{ flexShrink: 0 }} />
+        <Text fontWeight="600" color="fg" m="0">{match.matchedName}</Text>
+        <Box as="span" px="6px" py="1px" borderRadius="4px" bg="#fff2f3" color="#b00020" fontWeight="500">
+          {match.rule}
+        </Box>
+        <Box as="span" px="6px" py="1px" borderRadius="4px" bg={badgeBg} color={badgeColor} fontWeight="500">
+          {typeLabel}
+        </Box>
+        <Box as="span" px="6px" py="1px" borderRadius="4px" bg="bg.muted" color="fg.muted">
+          {match.confidence.replace(/_/g, " ")}
+        </Box>
+      </HStack>
+
+      {match.caseDetails && match.caseDetails.length > 0 ? (
+        <Stack gap="4px" mt="8px" pl="21px">
+          {match.caseDetails.map((c) => (
+            <CaseRow key={c.id} caseDetail={c} />
+          ))}
+          {match.type === "adverse_party" && (match.adversePartyRelationship || match.firmClientName) ? (
+            <HStack gap="10px" flexWrap="wrap" mt="2px">
+              {match.adversePartyRelationship ? (
+                <Text m="0" color="fg.muted">
+                  Role: <Box as="span" color="fg">{match.adversePartyRelationship.replace(/_/g, " ")}</Box>
+                </Text>
+              ) : null}
+              {match.firmClientName ? (
+                <Text m="0" color="fg.muted">
+                  Firm's client: <Box as="span" color="fg" fontWeight="500">{match.firmClientName}</Box>
+                </Text>
+              ) : null}
+            </HStack>
+          ) : null}
+        </Stack>
+      ) : (
+        <Text m="4px 0 0 21px" color="fg.muted">{match.details}</Text>
+      )}
+    </Box>
+  );
+}
+
+function CaseRow({ caseDetail }: { caseDetail: CaseDetail }) {
+  const colors = caseStatusColors[caseDetail.status] ?? { bg: "bg.muted", color: "fg.muted" };
+  return (
+    <HStack gap="8px" flexWrap="wrap">
+      <Text m="0" color="fg" fontWeight="500">#{caseDetail.caseNumber}</Text>
+      <Text m="0" color="fg.muted">{caseDetail.caseType}</Text>
+      {caseDetail.practiceArea ? (
+        <Text m="0" color="fg.muted">· {caseDetail.practiceArea}</Text>
+      ) : null}
+      <Box as="span" px="6px" py="1px" borderRadius="4px" bg={colors.bg} color={colors.color} fontSize="11px">
+        {caseDetail.status.replace(/_/g, " ")}
+      </Box>
+    </HStack>
   );
 }

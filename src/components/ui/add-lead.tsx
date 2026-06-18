@@ -42,6 +42,8 @@ export function AddLeadDialog({
   const [caseTypeId, setCaseTypeId] = useState("");
   const [source, setSource] = useState("Direct");
   const [situationSummary, setSituationSummary] = useState("");
+  const [adversePartyName, setAdversePartyName] = useState("");
+  const [adversePartyEmail, setAdversePartyEmail] = useState("");
 
   const { data: practiceAreas } = usePublicPracticeAreas();
   const createLead = useCreateLead();
@@ -57,6 +59,8 @@ export function AddLeadDialog({
     setCaseTypeId("");
     setSource("Direct");
     setSituationSummary("");
+    setAdversePartyName("");
+    setAdversePartyEmail("");
   }
 
   function handleClose() {
@@ -76,6 +80,8 @@ export function AddLeadDialog({
         caseTypeId: caseTypeId || undefined,
         source: (sourceValues[source] ?? "direct") as LeadSource,
         situationSummary: situationSummary || undefined,
+        intakeAdversePartyName: adversePartyName.trim() || undefined,
+        intakeAdversePartyEmail: adversePartyEmail.trim() || undefined,
       },
       { onSuccess: () => handleClose() },
     );
@@ -252,6 +258,38 @@ export function AddLeadDialog({
                   {...fieldStyles}
                 />
               </FormField>
+
+              <Box pt="4px">
+                <Text fontSize="11px" fontWeight="600" color="fg.muted" textTransform="uppercase" letterSpacing="0.05em" mb="4px">
+                  Known opposing party (optional)
+                </Text>
+                <Text fontSize="12px" color="fg.muted" mb="10px" lineHeight="1.4">
+                  Recording the opposing party now lets the conflict check flag issues before the intake proceeds.
+                </Text>
+                <Grid
+                  templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+                  gap="10px"
+                >
+                  <FormField label="Opposing party name">
+                    <Input
+                      type="text"
+                      value={adversePartyName}
+                      onChange={(e) => setAdversePartyName(e.currentTarget.value)}
+                      placeholder="e.g. Acme Corp"
+                      {...fieldStyles}
+                    />
+                  </FormField>
+                  <FormField label="Opposing party email">
+                    <Input
+                      type="email"
+                      value={adversePartyEmail}
+                      onChange={(e) => setAdversePartyEmail(e.currentTarget.value)}
+                      placeholder="e.g. legal@acme.com"
+                      {...fieldStyles}
+                    />
+                  </FormField>
+                </Grid>
+              </Box>
             </VStack>
 
             <Flex justify="space-between" gap="12px" mt="18px">

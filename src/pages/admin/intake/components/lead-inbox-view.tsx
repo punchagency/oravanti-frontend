@@ -566,6 +566,25 @@ function LeadReviewDrawer({
                     </Box>
                   </LeadDetail>
                 ) : null}
+                {(lead.intakeAdversePartyName || lead.intakeAdversePartyEmail) ? (
+                  <LeadDetail label="Declared opposing party">
+                    <Box
+                      mt="6px"
+                      p="10px"
+                      borderRadius="7px"
+                      border="1px solid"
+                      borderColor="#fde68a"
+                      bg="#fffbeb"
+                      color="#92400e"
+                      fontSize="13px"
+                      lineHeight="1.45"
+                    >
+                      {[lead.intakeAdversePartyName, lead.intakeAdversePartyEmail]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Box>
+                  </LeadDetail>
+                ) : null}
               </VStack>
 
               <Box
