@@ -44,11 +44,23 @@ export function OverviewView() {
 
           return (
             <SurfaceCard key={metric.label} minH="114px" p="18px 20px">
-              <HStack gap="8px" color="fg.muted" fontSize="11px" fontWeight="500" textTransform="uppercase">
+              <HStack
+                gap="8px"
+                color="fg.muted"
+                fontSize="11px"
+                fontWeight="500"
+                textTransform="uppercase"
+              >
                 <Icon size={14} strokeWidth={1.8} />
                 <Box as="span">{metric.label}</Box>
               </HStack>
-              <Text m="12px 0 0" color="fg" fontSize="28px" fontWeight="500" letterSpacing="0">
+              <Text
+                m="12px 0 0"
+                color="fg"
+                fontSize="28px"
+                fontWeight="500"
+                letterSpacing="0"
+              >
                 {metric.value}
               </Text>
               <Text m="6px 0 0" color="accent.attorney" fontSize="12px">
@@ -167,7 +179,10 @@ export function OverviewView() {
               <Box
                 key={name}
                 display="grid"
-                gridTemplateColumns={{ base: "1fr auto", md: "1fr .72fr .5fr .72fr" }}
+                gridTemplateColumns={{
+                  base: "1fr auto",
+                  md: "1fr .72fr .5fr .72fr",
+                }}
                 alignItems="start"
                 gap="8px 18px"
                 py="12px"
@@ -184,36 +199,44 @@ export function OverviewView() {
               </Box>
             ))}
           </Stack>
-          <FooterLink to="/admin/cases/all-matters">View all matters →</FooterLink>
+          <FooterLink to="/admin/cases/all-matters">
+            View all matters →
+          </FooterLink>
         </SurfaceCard>
 
         <SurfaceCard gridColumn={{ base: "1", xl: "span 6" }} minH="100%">
           <SectionTitle>Staff snapshot</SectionTitle>
-          <SectionSubtitle>Active staff and certification status</SectionSubtitle>
+          <SectionSubtitle>
+            Active staff and certification status
+          </SectionSubtitle>
           <Stack mt="18px" gap="0">
-            {staff.map(([name, role, initials, status, statusTone, avatarTone]) => (
-              <HStack
-                key={name}
-                justify="space-between"
-                gap="12px"
-                minH="50px"
-                py="10px"
-                borderBottom="1px solid"
-                borderColor="border.subtle"
-                _last={{ borderBottom: 0 }}
-              >
-                <HStack gap="10px" minW="0">
-                  <AvatarPill tone={avatarTone as Tone}>{initials}</AvatarPill>
-                  <Box minW="0">
-                    <RowTitle>{name}</RowTitle>
-                    <RowMeta>{role}</RowMeta>
-                  </Box>
+            {staff.map(
+              ([name, role, initials, status, statusTone, avatarTone]) => (
+                <HStack
+                  key={name}
+                  justify="space-between"
+                  gap="12px"
+                  minH="50px"
+                  py="10px"
+                  borderBottom="1px solid"
+                  borderColor="border.subtle"
+                  _last={{ borderBottom: 0 }}
+                >
+                  <HStack gap="10px" minW="0">
+                    <AvatarPill tone={avatarTone as Tone}>
+                      {initials}
+                    </AvatarPill>
+                    <Box minW="0">
+                      <RowTitle>{name}</RowTitle>
+                      <RowMeta>{role}</RowMeta>
+                    </Box>
+                  </HStack>
+                  <StatusPill tone={statusTone as Tone}>{status}</StatusPill>
                 </HStack>
-                <StatusPill tone={statusTone as Tone}>{status}</StatusPill>
-              </HStack>
-            ))}
+              ),
+            )}
           </Stack>
-          <FooterLink to="/admin/staff/accounts">Manage staff →</FooterLink>
+          <FooterLink to="/admin/staff-management">Manage staff →</FooterLink>
         </SurfaceCard>
       </Box>
     </>
@@ -242,7 +265,13 @@ function SurfaceCard({
   );
 }
 
-function CardHeader({ title, action }: { title: ReactNode; action: ReactNode }) {
+function CardHeader({
+  title,
+  action,
+}: {
+  title: ReactNode;
+  action: ReactNode;
+}) {
   return (
     <HStack align="center" justify="space-between" gap="12px">
       <SectionTitle>{title}</SectionTitle>
@@ -253,7 +282,14 @@ function CardHeader({ title, action }: { title: ReactNode; action: ReactNode }) 
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <Text as="h2" m="0" color="fg" fontSize="16px" fontWeight="500" lineHeight="1.05">
+    <Text
+      as="h2"
+      m="0"
+      color="fg"
+      fontSize="16px"
+      fontWeight="500"
+      lineHeight="1.05"
+    >
       {children}
     </Text>
   );

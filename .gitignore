@@ -33,5 +33,6 @@ coverage/
 .vite/
 
 .agents/
+.gemini/
 openc*
 skills-lock.json

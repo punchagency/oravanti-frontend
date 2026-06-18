@@ -1,4 +1,5 @@
 import { ColorModeButton } from "@/components/ui/color-mode";
+import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-dialog";
 import { useSignOut } from "@/hooks/useSignOut";
 import {
   contextNavigation,
@@ -268,10 +269,12 @@ export function ContextNavigation() {
           </button>
         </div>
 
-        <button className="context-nav__invite" type="button">
-          <Mail size={13} />
-          Invite staff
-        </button>
+        <InviteStaffDialog>
+          <button className="context-nav__invite" type="button">
+            <Mail size={13} />
+            Invite staff
+          </button>
+        </InviteStaffDialog>
 
         <div className="context-nav__user">
           <div className="context-nav__avatar">RA</div>

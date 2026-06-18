@@ -2,9 +2,18 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
 import { AdminDashboard } from "@/pages/admin/dashboard";
 import { IntakePipelinePage } from "@/pages/admin/intake";
+import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { NotFoundPage } from "@/pages/not-found";
+import Certifications from "@/pages/admin/staff-and-users/tabs/certifications";
+import Invitations from "@/pages/admin/staff-and-users/tabs/invitations";
+import Leave from "@/pages/admin/staff-and-users/tabs/leave";
+import Performance from "@/pages/admin/staff-and-users/tabs/performance";
+import Staff from "@/pages/admin/staff-and-users/tabs/staff";
+import Teams from "@/pages/admin/staff-and-users/tabs/teams";
+import TimeTracking from "@/pages/admin/staff-and-users/tabs/time-tracking";
 import {
+  Navigate,
   Route,
   RouterProvider,
   createBrowserRouter,
@@ -87,6 +96,17 @@ const router = createBrowserRouter(
             element={<IntakePipelinePage />}
           />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
+
+          <Route path="staff-management" element={<StaffAndUsersPage />}>
+            <Route index element={<Staff />} />
+            <Route path="accounts" element={<Navigate to="/admin/staff-management" replace />} />
+            <Route path="teams" element={<Teams />} />
+            <Route path="certifications" element={<Certifications />} />
+            <Route path="performance" element={<Performance />} />
+            <Route path="time-tracking" element={<TimeTracking />} />
+            <Route path="leave" element={<Leave />} />
+            <Route path="invitations" element={<Invitations />} />
+          </Route>
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
