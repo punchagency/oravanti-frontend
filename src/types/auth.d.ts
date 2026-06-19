@@ -28,7 +28,8 @@ export type SessionUser = {
   onboardingState:
     | "email_unverified"
     | "email_verified"
-    | "completed";
+    | "completed"
+    | "password_reset_required";
   tosAccepted: boolean;
   tosAcceptedAt: Date | null;
 };

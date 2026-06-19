@@ -7,7 +7,7 @@ export const ConfirmDialogProvider = ({
 }: {
   children: ReactNode;
 }) => {
-  const { isOpen, title, description, confirmLabel, cancelLabel, loading, _onConfirm, close } =
+  const { isOpen, title, description, confirmLabel, cancelLabel, loading, _onConfirm, close, setLoading } =
     useConfirmStore();
 
   return (
@@ -35,9 +35,14 @@ export const ConfirmDialogProvider = ({
                 color={{ _dark: "white", _light: "white" }}
                 bg="red.500"
                 _hover={{ bg: "red.600" }}
-                onClick={() => {
+                onClick={async () => {
                   if (_onConfirm) {
-                    _onConfirm();
+                    setLoading(true);
+                    try {
+                      await Promise.resolve(_onConfirm());
+                    } finally {
+                      close();
+                    }
                   }
                 }}
                 loading={loading}

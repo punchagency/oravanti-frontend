@@ -1,3 +1,7 @@
+import type { PipelineStage } from "@/api/leads";
+import { useCases } from "@/hooks/use-cases";
+import { useLeads } from "@/hooks/use-leads";
+import { useStaff } from "@/hooks/use-staff";
 import {
   Box,
   Button,
@@ -18,10 +22,6 @@ import type { ComponentProps, ReactNode } from "react";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router";
 import { alerts, chips } from "../data";
-import { useLeads } from "@/hooks/use-leads";
-import { useCases } from "@/hooks/use-cases";
-import { useStaff } from "@/hooks/use-staff";
-import type { PipelineStage } from "@/api/leads";
 
 const toneColors = {
   success: { bg: "#d9f8ed", color: "#00785a" },
@@ -67,11 +67,36 @@ const pipelineDefs: Array<{
   stage: PipelineStage;
   tone: Tone;
 }> = [
-  { title: "Lead inbox", meta: "Awaiting review", stage: "lead_inbox", tone: "neutral" },
-  { title: "Conflict check", meta: "Attorney review pending", stage: "conflict_check", tone: "warning" },
-  { title: "Questionnaire", meta: "Sent, awaiting completion", stage: "questionnaire", tone: "info" },
-  { title: "Fee agreement", meta: "Sent for eSignature", stage: "fee_agreement", tone: "gold" },
-  { title: "Case opening", meta: "Ready to open", stage: "case_opening", tone: "success" },
+  {
+    title: "Lead inbox",
+    meta: "Awaiting review",
+    stage: "lead_inbox",
+    tone: "neutral",
+  },
+  {
+    title: "Conflict check",
+    meta: "Attorney review pending",
+    stage: "conflict_check",
+    tone: "warning",
+  },
+  {
+    title: "Questionnaire",
+    meta: "Sent, awaiting completion",
+    stage: "questionnaire",
+    tone: "info",
+  },
+  {
+    title: "Fee agreement",
+    meta: "Sent for eSignature",
+    stage: "fee_agreement",
+    tone: "gold",
+  },
+  {
+    title: "Case opening",
+    meta: "Ready to open",
+    stage: "case_opening",
+    tone: "success",
+  },
 ];
 
 export function OverviewView() {
@@ -89,16 +114,38 @@ export function OverviewView() {
   const allStaff = staffData ?? [];
 
   const activeCaseCount = allCases.filter((c) => c.status === "active").length;
-  const pendingActionCount = allLeads.filter((l) => l.convertedCaseId === null).length;
+  const pendingActionCount = allLeads.filter(
+    (l) => l.convertedCaseId === null,
+  ).length;
   const processingIssuesCount = allCases.filter(
     (c) => c.status === "on_hold" || c.status === "pending_review",
   ).length;
 
   const metricCards = [
-    { label: "Active cases", value: String(activeCaseCount), helper: "Currently active", icon: BriefcaseBusiness },
-    { label: "Pending actions", value: String(pendingActionCount), helper: "Leads awaiting review", icon: Clock },
-    { label: "Processing / issues", value: String(processingIssuesCount), helper: "Cases on hold or in review", icon: UserRound },
-    { label: "Estimated revenue", value: "$—", helper: "Based on case volumes", icon: FileText },
+    {
+      label: "Active cases",
+      value: String(activeCaseCount),
+      helper: "Currently active",
+      icon: BriefcaseBusiness,
+    },
+    {
+      label: "Pending actions",
+      value: String(pendingActionCount),
+      helper: "Leads awaiting review",
+      icon: Clock,
+    },
+    {
+      label: "Processing / issues",
+      value: String(processingIssuesCount),
+      helper: "Cases on hold or in review",
+      icon: UserRound,
+    },
+    {
+      label: "Estimated revenue",
+      value: "$—",
+      helper: "Based on case volumes",
+      icon: FileText,
+    },
   ];
 
   const pipelineItems = pipelineDefs.map((def) => ({
@@ -136,11 +183,23 @@ export function OverviewView() {
           const Icon = metric.icon;
           return (
             <SurfaceCard key={metric.label} minH="114px" p="18px 20px">
-              <HStack gap="8px" color="fg.muted" fontSize="11px" fontWeight="500" textTransform="uppercase">
+              <HStack
+                gap="8px"
+                color="fg.muted"
+                fontSize="11px"
+                fontWeight="500"
+                textTransform="uppercase"
+              >
                 <Icon size={14} strokeWidth={1.8} />
                 <Box as="span">{metric.label}</Box>
               </HStack>
-              <Text m="12px 0 0" color="fg" fontSize="28px" fontWeight="500" letterSpacing="0">
+              <Text
+                m="12px 0 0"
+                color="fg"
+                fontSize="28px"
+                fontWeight="500"
+                letterSpacing="0"
+              >
                 {metric.value}
               </Text>
               <Text m="6px 0 0" color="accent.attorney" fontSize="12px">
@@ -226,7 +285,9 @@ export function OverviewView() {
           <Stack mt="18px" gap="0">
             {pipelineItems.map(({ title, meta, stage, tone, count }) => (
               <Link key={title} asChild textDecoration="none">
-                <RouterLink to={`/admin/intake/pipeline/${stage.replace(/_/g, "-")}`}>
+                <RouterLink
+                  to={`/admin/intake/pipeline/${stage.replace(/_/g, "-")}`}
+                >
                   <HStack
                     justify="space-between"
                     gap="12px"
@@ -263,7 +324,10 @@ export function OverviewView() {
                 <Box
                   key={i}
                   display="grid"
-                  gridTemplateColumns={{ base: "1fr auto", md: "1fr .72fr .5fr .72fr" }}
+                  gridTemplateColumns={{
+                    base: "1fr auto",
+                    md: "1fr .72fr .5fr .72fr",
+                  }}
                   alignItems="start"
                   gap="8px 18px"
                   py="12px"
@@ -281,12 +345,16 @@ export function OverviewView() {
               ))
             )}
           </Stack>
-          <FooterLink to="/admin/cases/all-matters">View all matters →</FooterLink>
+          <FooterLink to="/admin/cases/all-matters">
+            View all matters →
+          </FooterLink>
         </SurfaceCard>
 
         <SurfaceCard gridColumn={{ base: "1", xl: "span 6" }} minH="100%">
           <SectionTitle>Staff snapshot</SectionTitle>
-          <SectionSubtitle>Active staff and certification status</SectionSubtitle>
+          <SectionSubtitle>
+            Active staff and certification status
+          </SectionSubtitle>
           <Stack mt="18px" gap="0">
             {staffItems.length === 0 ? (
               <Text m="0" color="fg.muted" fontSize="13px" py="12px">
@@ -316,7 +384,7 @@ export function OverviewView() {
               ))
             )}
           </Stack>
-          <FooterLink to="/admin/staff/accounts">Manage staff →</FooterLink>
+          <FooterLink to="/admin/staff-management">Manage staff →</FooterLink>
         </SurfaceCard>
       </Box>
     </>
@@ -345,7 +413,13 @@ function SurfaceCard({
   );
 }
 
-function CardHeader({ title, action }: { title: ReactNode; action: ReactNode }) {
+function CardHeader({
+  title,
+  action,
+}: {
+  title: ReactNode;
+  action: ReactNode;
+}) {
   return (
     <HStack align="center" justify="space-between" gap="12px">
       <SectionTitle>{title}</SectionTitle>
@@ -356,7 +430,14 @@ function CardHeader({ title, action }: { title: ReactNode; action: ReactNode }) 
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <Text as="h2" m="0" color="fg" fontSize="16px" fontWeight="500" lineHeight="1.05">
+    <Text
+      as="h2"
+      m="0"
+      color="fg"
+      fontSize="16px"
+      fontWeight="500"
+      lineHeight="1.05"
+    >
       {children}
     </Text>
   );
