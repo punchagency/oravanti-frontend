@@ -6,7 +6,13 @@ import { Navigate, Outlet, useLocation } from "react-router";
 export function AuthGuard() {
   const location = useLocation();
   const { isLoading: queryLoading } = useAuthRefresh();
-  const { user, isAuthenticated, isLoading: storeLoading } = useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: storeLoading,
+    needsAcceptInvitation,
+    needsPasswordChange,
+  } = useAuthStore();
 
   const isLoading = queryLoading || storeLoading;
 
@@ -32,6 +38,15 @@ export function AuthGuard() {
       return <Navigate to="/verify-email" replace />;
     }
     return <Outlet />;
+  }
+
+  if (needsAcceptInvitation && location.pathname !== "/accept-invitation") {
+    return <Navigate to="/accept-invitation" replace />;
+  }
+
+  if (needsPasswordChange && location.pathname !== "/set-password") {
+    if (location.pathname === "/accept-invitation") return <Outlet />;
+    return <Navigate to="/set-password" replace />;
   }
 
   const isOnboarding = location.pathname.startsWith("/onboarding");

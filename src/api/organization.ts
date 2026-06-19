@@ -122,6 +122,52 @@ export async function updateStaff(staffId: string, data: UpdateStaffPayload) {
   return API.patch(`/organization/staff/${staffId}`, data);
 }
 
+export interface PendingInvitation {
+  id: string;
+  email: string;
+  role: string | null;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  organizationId: string;
+  organizationName: string;
+  inviterId: string;
+  inviterName: string;
+  inviterEmail: string;
+}
+
+export async function getMyPendingInvitation(): Promise<{
+  invitation: PendingInvitation | null;
+}> {
+  const response = await API.get("/organization/my-pending-invitation");
+  return response.data;
+}
+
+export async function acceptInvitation(invitationId: string) {
+  const response = await API.post("/organization/accept-invite", {
+    invitationId,
+  });
+  return response.data;
+}
+
+export async function setPassword(data: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const response = await API.post("/organization/set-password", data);
+  return response.data;
+}
+
+export interface NeedsSetupResponse {
+  needsAcceptInvitation: boolean;
+  needsPasswordChange: boolean;
+}
+
+export async function getNeedsSetup(): Promise<NeedsSetupResponse> {
+  const response = await API.get("/organization/needs-setup");
+  return response.data;
+}
+
 export async function updateStaffRole(
   staffId: string,
   role: string,

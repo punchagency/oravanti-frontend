@@ -26,6 +26,8 @@ import EmailVerifiedPage from "./pages/email-verified";
 import ForgotPassword from "./pages/forgot-password";
 import VerifyOtp from "./pages/forgot-password/verify-otp";
 import { LoginPage } from "./pages/login";
+import AcceptInvitationPage from "./pages/accept-invitation";
+import SetPasswordPage from "./pages/set-password";
 import Step1ProfilePage from "./pages/onboarding/step-1-profile";
 import Step2FirmDetailsPage from "./pages/onboarding/step-2-firm-details";
 import Step3TosPage from "./pages/onboarding/step-3-tos";
@@ -49,6 +51,14 @@ const router = createBrowserRouter(
       <Route element={<AuthGuard />}>
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
+        <Route
+          path="/accept-invitation"
+          element={<AcceptInvitationPage />}
+        />
+        <Route
+          path="/set-password"
+          element={<SetPasswordPage />}
+        />
         <Route
           path="/onboarding/step-1-profile"
           element={<Step1ProfilePage />}
