@@ -260,14 +260,14 @@ export function AddLeadDialog({
               </FormField>
 
               <Box pt="4px">
-                <Text fontSize="11px" fontWeight="600" color="fg.muted" textTransform="uppercase" letterSpacing="0.05em" mb="4px">
+                <Text fontSize="11px" fontWeight="600" color="fg.muted" mb="4px">
                   Known opposing party (optional)
                 </Text>
                 <Text fontSize="12px" color="fg.muted" mb="10px" lineHeight="1.4">
                   Recording the opposing party now lets the conflict check flag issues before the intake proceeds.
                 </Text>
                 <Grid
-                  templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+                  templateColumns={{ base: "1fr" }}
                   gap="10px"
                 >
                   <FormField label="Opposing party name">

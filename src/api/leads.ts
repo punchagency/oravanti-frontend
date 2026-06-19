@@ -35,6 +35,7 @@ export type Lead = {
   pipelineStage: PipelineStage;
   conflictCheckId: string | null;
   conflictMatches?: ConflictCheckMatch[];
+  conflictCheckStatus?: string;
   questionnaireSendId: string | null;
   consultationId: string | null;
   feeAgreementId: string | null;

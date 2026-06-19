@@ -1,7 +1,12 @@
 import { Box, HStack, Stack, Text, Textarea } from "@chakra-ui/react";
 import { AlertTriangle, Send, Shield, ShieldAlert } from "lucide-react";
 import { useState } from "react";
-import type { CaseDetail, ConflictCheck, ConflictCheckMatch, Lead } from "@/api/leads";
+import type {
+  CaseDetail,
+  ConflictCheck,
+  ConflictCheckMatch,
+  Lead,
+} from "@/api/leads";
 import { conflictStatusLabels, formatReceivedDate } from "@/api/leads";
 import {
   useLeads,
@@ -17,6 +22,7 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
+import { toast } from "sonner";
 
 const matchTypeLabels: Record<ConflictCheckMatch["type"], string> = {
   current_client: "Current client",
@@ -27,7 +33,10 @@ const matchTypeLabels: Record<ConflictCheckMatch["type"], string> = {
   former_client_is_opponent: "Former client is opponent",
 };
 
-const matchTypeTone: Record<ConflictCheckMatch["type"], "danger" | "warning" | "neutral"> = {
+const matchTypeTone: Record<
+  ConflictCheckMatch["type"],
+  "danger" | "warning" | "neutral"
+> = {
   current_client: "danger",
   client_is_opponent: "danger",
   adverse_party: "danger",
@@ -64,8 +73,8 @@ export function ConflictCheckView() {
       >
         <Shield size={15} />
         <Box as="span">
-          All leads must pass a conflict of interest check (ABA Rules 1.7 and 1.9)
-          before any engagement. Attorney review required.
+          All leads must pass a conflict of interest check (ABA Rules 1.7 and
+          1.9) before any engagement. Attorney review required.
         </Box>
       </HStack>
 
@@ -92,7 +101,14 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
   const resolveCheck = useResolveConflictCheck();
 
   const result = localResult;
-  const status = result?.status;
+  const status =
+    result?.status ??
+    (lead.conflictCheckStatus as
+      | "pass"
+      | "needs_review"
+      | "pending"
+      | "conflict_found"
+      | undefined);
   const displayMatches = result ? result.matches : (lead.conflictMatches ?? []);
   const hasConflict = status === "conflict_found";
   const isPass = status === "pass";
@@ -106,22 +122,52 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
 
   function handleClearAndApprove() {
     resolveCheck.mutate(
-      { id: lead.id, data: { action: "manual_review", status: "pass", reviewNotes: "Cleared by manual review" } },
-      { onSuccess: (check) => setLocalResult(check) },
+      {
+        id: lead.id,
+        data: {
+          action: "manual_review",
+          status: "pass",
+          reviewNotes: "Cleared by manual review",
+        },
+      },
+      {
+        onSuccess: (check) => {
+          setLocalResult(check);
+          toast.success("Conflict check resolved");
+        },
+      },
     );
   }
 
   function handleFlagConflict() {
     resolveCheck.mutate(
-      { id: lead.id, data: { action: "manual_review", status: "needs_review", reviewNotes: "Flagged for supervisor review" } },
-      { onSuccess: (check) => setLocalResult(check) },
+      {
+        id: lead.id,
+        data: {
+          action: "manual_review",
+          status: "needs_review",
+          reviewNotes: "Flagged for supervisor review",
+        },
+      },
+      {
+        onSuccess: (check) => {
+          setLocalResult(check);
+          toast.success("Conflict check flagged for manual review");
+        },
+      },
     );
   }
 
   function handleSupervisorOverride() {
     if (!overrideNotes.trim()) return;
     resolveCheck.mutate(
-      { id: lead.id, data: { action: "supervisor_override", supervisorNotes: overrideNotes.trim() } },
+      {
+        id: lead.id,
+        data: {
+          action: "supervisor_override",
+          supervisorNotes: overrideNotes.trim(),
+        },
+      },
       {
         onSuccess: (check) => {
           setLocalResult(check);
@@ -132,19 +178,26 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
     );
   }
 
-  const statusTone = hasConflict ? "danger" : isPass ? "success" : needsReview ? "warning" : "neutral";
+  const statusTone = hasConflict
+    ? "danger"
+    : isPass
+      ? "success"
+      : needsReview
+        ? "warning"
+        : "neutral";
   const statusLabel = status ? conflictStatusLabels[status] : "Pending check";
 
-  const outcomeTone = hasConflict ? "danger" : "success";
-  const outcomeText = result
-    ? hasConflict
-      ? `Record match identified: ${displayMatches.map((m) => `"${m.matchedName}" (${m.rule})`).join(", ")}. Please execute manual verification or request supervisor clearance.`
-      : isPass
-      ? "Conflict check cleared — approved to initiate retainer workflow."
-      : needsReview
-      ? "Potential match flagged for attorney review. Please verify before proceeding."
-      : ""
-    : null;
+  const outcomeTone = hasConflict || needsReview ? "danger" : "success";
+  const outcomeText =
+    result || displayMatches.length
+      ? hasConflict
+        ? `Record match identified: ${displayMatches.map((m) => `"${m.matchedName}" (${m.rule})`).join(", ")}. Please execute manual verification or request supervisor clearance.`
+        : isPass
+          ? "Conflict check cleared — approved to initiate retainer workflow."
+          : needsReview
+            ? "Potential match flagged for attorney review. Please verify before proceeding."
+            : ""
+      : null;
 
   return (
     <SurfaceCard>
@@ -153,18 +206,22 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           <CardTitle>Conflict review: {lead.name}</CardTitle>
           <HStack mt="6px" gap="9px">
             <PracticePill tone="neutral">Lead</PracticePill>
-            <MutedText>Received {formatReceivedDate(lead.receivedAt)}</MutedText>
+            <MutedText>
+              Received {formatReceivedDate(lead.receivedAt)}
+            </MutedText>
           </HStack>
         </Box>
         <StatusPill
           tone={statusTone}
-          icon={hasConflict || needsReview ? <AlertTriangle size={11} /> : undefined}
+          icon={
+            hasConflict || needsReview ? <AlertTriangle size={11} /> : undefined
+          }
         >
           {statusLabel}
         </StatusPill>
       </HStack>
 
-      {(lead.intakeAdversePartyName || lead.intakeAdversePartyEmail) ? (
+      {lead.intakeAdversePartyName || lead.intakeAdversePartyEmail ? (
         <HStack
           gap="8px"
           mt="14px"
@@ -179,7 +236,9 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
         >
           <ShieldAlert size={13} style={{ flexShrink: 0 }} />
           <Box as="span">
-            <Box as="span" fontWeight="600">Declared opposing party: </Box>
+            <Box as="span" fontWeight="600">
+              Declared opposing party:{" "}
+            </Box>
             {[lead.intakeAdversePartyName, lead.intakeAdversePartyEmail]
               .filter(Boolean)
               .join(" · ")}
@@ -188,7 +247,14 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
       ) : null}
 
       {lead.situationSummary ? (
-        <Box mt="14px" p="12px" borderRadius="7px" bg="bg.muted" color="fg.muted" fontSize="13px">
+        <Box
+          mt="14px"
+          p="12px"
+          borderRadius="7px"
+          bg="bg.muted"
+          color="fg.muted"
+          fontSize="13px"
+        >
           Matter focus: {lead.situationSummary}
         </Box>
       ) : null}
@@ -198,15 +264,19 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           align="center"
           gap="10px"
           mt="14px"
-          p="12px"
           border="1px solid"
+          p="12px"
           borderColor={outcomeTone === "danger" ? "#ffb8bd" : "#91ddc2"}
           borderRadius="7px"
           bg={outcomeTone === "danger" ? "#fff2f3" : "#dff8ee"}
           color={outcomeTone === "danger" ? "#b00020" : "#006b4b"}
           fontSize="13px"
         >
-          {outcomeTone === "danger" ? <AlertTriangle size={15} /> : <Shield size={15} />}
+          {outcomeTone === "danger" ? (
+            <AlertTriangle size={15} />
+          ) : (
+            <Shield size={15} />
+          )}
           <Box as="span">
             {outcomeTone === "danger" ? "Alert details: " : ""}
             {outcomeText}
@@ -216,7 +286,14 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
 
       {displayMatches.length > 0 ? (
         <Box mt="14px">
-          <Text fontWeight="600" fontSize="12px" color="fg.muted" mb="8px" textTransform="uppercase" letterSpacing="0.05em">
+          <Text
+            fontWeight="600"
+            fontSize="12px"
+            color="fg.muted"
+            mb="8px"
+            textTransform="uppercase"
+            letterSpacing="0.05em"
+          >
             Potential matches ({displayMatches.length})
           </Text>
           <Stack gap="6px">
@@ -254,12 +331,18 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
             px="12px"
             py="8px"
             mb="10px"
-            _focus={{ borderColor: "brand.solid", boxShadow: "0 0 0 1px var(--brand-cta)" }}
+            _focus={{
+              borderColor: "brand.solid",
+              boxShadow: "0 0 0 1px var(--brand-cta)",
+            }}
           />
           <HStack gap="8px" justify="flex-end">
             <OutlineButton
               type="button"
-              onClick={() => { setOverrideOpen(false); setOverrideNotes(""); }}
+              onClick={() => {
+                setOverrideOpen(false);
+                setOverrideNotes("");
+              }}
             >
               Cancel
             </OutlineButton>
@@ -276,7 +359,10 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
 
       <Box
         display="grid"
-        gridTemplateColumns={{ base: "1fr", md: "repeat(auto-fit, minmax(220px, 1fr))" }}
+        gridTemplateColumns={{
+          base: "1fr",
+          md: "repeat(auto-fit, minmax(220px, 1fr))",
+        }}
         gap="8px"
         mt="14px"
         pt="14px"
@@ -297,7 +383,7 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </BrandButton>
         ) : null}
 
-        {(needsReview || (!hasConflict && displayMatches.length > 0)) ? (
+        {needsReview || (!hasConflict && displayMatches.length > 0) ? (
           <>
             <OutlineButton
               color="#b00020"
@@ -349,30 +435,68 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
 
 function MatchCard({ match }: { match: ConflictCheckMatch }) {
   const tone = matchTypeTone[match.type] ?? "neutral";
-  const typeLabel = matchTypeLabels[match.type] ?? match.type.replace(/_/g, " ");
+  const typeLabel =
+    matchTypeLabels[match.type] ?? match.type.replace(/_/g, " ");
 
-  const badgeBg = tone === "danger" ? "#fff2f3" : tone === "warning" ? "#fffbeb" : "bg.muted";
-  const badgeColor = tone === "danger" ? "#b00020" : tone === "warning" ? "#92400e" : "fg.muted";
+  const badgeBg =
+    tone === "danger" ? "#fff2f3" : tone === "warning" ? "#fffbeb" : "bg.muted";
+  const badgeColor =
+    tone === "danger" ? "#b00020" : tone === "warning" ? "#92400e" : "fg.muted";
 
   return (
     <Box
       p="10px 12px"
       border="1px solid"
-      borderColor={tone === "danger" ? "#ffb8bd" : tone === "warning" ? "#fde68a" : "border.muted"}
+      borderColor={
+        tone === "danger"
+          ? "#ffb8bd"
+          : tone === "warning"
+            ? "#fde68a"
+            : "border.muted"
+      }
       borderRadius="6px"
       bg="bg.subtle"
       fontSize="12px"
     >
       <HStack gap="6px" flexWrap="wrap" align="center">
-        <AlertTriangle size={13} color={tone === "neutral" ? "#6b7280" : "#b00020"} style={{ flexShrink: 0 }} />
-        <Text fontWeight="600" color="fg" m="0">{match.matchedName}</Text>
-        <Box as="span" px="6px" py="1px" borderRadius="4px" bg="#fff2f3" color="#b00020" fontWeight="500">
+        <AlertTriangle
+          size={13}
+          color={tone === "neutral" ? "#6b7280" : "#b00020"}
+          style={{ flexShrink: 0 }}
+        />
+        <Text fontWeight="600" color="fg" m="0">
+          {match.matchedName}
+        </Text>
+        <Box
+          as="span"
+          px="6px"
+          py="1px"
+          borderRadius="4px"
+          bg="#fff2f3"
+          color="#b00020"
+          fontWeight="500"
+        >
           {match.rule}
         </Box>
-        <Box as="span" px="6px" py="1px" borderRadius="4px" bg={badgeBg} color={badgeColor} fontWeight="500">
+        <Box
+          as="span"
+          px="6px"
+          py="1px"
+          borderRadius="4px"
+          bg={badgeBg}
+          color={badgeColor}
+          fontWeight="500"
+        >
           {typeLabel}
         </Box>
-        <Box as="span" px="6px" py="1px" borderRadius="4px" bg="bg.muted" color="fg.muted">
+        <Box
+          as="span"
+          px="6px"
+          py="1px"
+          borderRadius="4px"
+          bg="bg.muted"
+          color="fg.muted"
+        >
           {match.confidence.replace(/_/g, " ")}
         </Box>
       </HStack>
@@ -382,38 +506,64 @@ function MatchCard({ match }: { match: ConflictCheckMatch }) {
           {match.caseDetails.map((c) => (
             <CaseRow key={c.id} caseDetail={c} />
           ))}
-          {match.type === "adverse_party" && (match.adversePartyRelationship || match.firmClientName) ? (
+          {match.type === "adverse_party" &&
+          (match.adversePartyRelationship || match.firmClientName) ? (
             <HStack gap="10px" flexWrap="wrap" mt="2px">
               {match.adversePartyRelationship ? (
                 <Text m="0" color="fg.muted">
-                  Role: <Box as="span" color="fg">{match.adversePartyRelationship.replace(/_/g, " ")}</Box>
+                  Role:{" "}
+                  <Box as="span" color="fg">
+                    {match.adversePartyRelationship.replace(/_/g, " ")}
+                  </Box>
                 </Text>
               ) : null}
               {match.firmClientName ? (
                 <Text m="0" color="fg.muted">
-                  Firm's client: <Box as="span" color="fg" fontWeight="500">{match.firmClientName}</Box>
+                  Firm's client:{" "}
+                  <Box as="span" color="fg" fontWeight="500">
+                    {match.firmClientName}
+                  </Box>
                 </Text>
               ) : null}
             </HStack>
           ) : null}
         </Stack>
       ) : (
-        <Text m="4px 0 0 21px" color="fg.muted">{match.details}</Text>
+        <Text m="4px 0 0 21px" color="fg.muted">
+          {match.details}
+        </Text>
       )}
     </Box>
   );
 }
 
 function CaseRow({ caseDetail }: { caseDetail: CaseDetail }) {
-  const colors = caseStatusColors[caseDetail.status] ?? { bg: "bg.muted", color: "fg.muted" };
+  const colors = caseStatusColors[caseDetail.status] ?? {
+    bg: "bg.muted",
+    color: "fg.muted",
+  };
   return (
     <HStack gap="8px" flexWrap="wrap">
-      <Text m="0" color="fg" fontWeight="500">#{caseDetail.caseNumber}</Text>
-      <Text m="0" color="fg.muted">{caseDetail.caseType}</Text>
+      <Text m="0" color="fg" fontWeight="500">
+        #{caseDetail.caseNumber}
+      </Text>
+      <Text m="0" color="fg.muted">
+        {caseDetail.caseType}
+      </Text>
       {caseDetail.practiceArea ? (
-        <Text m="0" color="fg.muted">· {caseDetail.practiceArea}</Text>
+        <Text m="0" color="fg.muted">
+          · {caseDetail.practiceArea}
+        </Text>
       ) : null}
-      <Box as="span" px="6px" py="1px" borderRadius="4px" bg={colors.bg} color={colors.color} fontSize="11px">
+      <Box
+        as="span"
+        px="6px"
+        py="1px"
+        borderRadius="4px"
+        bg={colors.bg}
+        color={colors.color}
+        fontSize="11px"
+      >
         {caseDetail.status.replace(/_/g, " ")}
       </Box>
     </HStack>

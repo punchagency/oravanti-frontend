@@ -122,7 +122,6 @@ export function useResolveConflictCheck() {
       data: Parameters<typeof resolveConflictCheck>[1];
     }) => resolveConflictCheck(id, data),
     onSuccess: (_, { id }) => {
-      toast.success("Conflict check resolved");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
