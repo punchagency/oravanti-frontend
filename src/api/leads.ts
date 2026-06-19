@@ -29,9 +29,13 @@ export type Lead = {
   source: LeadSource;
   situationSummary: string | null;
   notes: string | null;
+  intakeAdversePartyName: string | null;
+  intakeAdversePartyEmail: string | null;
   status: LeadStatus;
   pipelineStage: PipelineStage;
   conflictCheckId: string | null;
+  conflictMatches?: ConflictCheckMatch[];
+  conflictCheckStatus?: string;
   questionnaireSendId: string | null;
   consultationId: string | null;
   feeAgreementId: string | null;
@@ -44,13 +48,30 @@ export type Lead = {
   updatedAt: string;
 };
 
+export type CaseDetail = {
+  id: string;
+  caseNumber: string;
+  caseType: string;
+  status: string;
+  practiceArea: string | null;
+};
+
 export type ConflictCheckMatch = {
-  type: "current_client" | "adverse_party" | "former_client";
+  type:
+    | "current_client"
+    | "adverse_party"
+    | "former_client"
+    | "related_party"
+    | "client_is_opponent"
+    | "former_client_is_opponent";
   matchedId: string;
   matchedName: string;
-  confidence: "exact_email" | "exact_name" | "fuzzy_name";
+  confidence: "exact_email" | "exact_name" | "fuzzy_name" | "surname_match";
   rule: "ABA_1.7" | "ABA_1.9";
   details: string;
+  caseDetails: CaseDetail[];
+  adversePartyRelationship?: string;
+  firmClientName?: string;
 };
 
 export type ConflictCheck = {
@@ -105,9 +126,23 @@ export type LeadDetail = Lead & {
 
 export type LeadsResponse = {
   leads: Lead[];
-  total: number;
-  page: number;
-  limit: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+export type LeadsStageCountResponse = {
+  lead_inbox: number;
+  conflict_check: number;
+  questionnaire: number;
+  consultation: number;
+  fee_agreement: number;
+  case_opening: number;
 };
 
 export type GetLeadsParams = {
@@ -121,7 +156,9 @@ export type GetLeadsParams = {
   all?: boolean;
 };
 
-export const getLeads = async (params: GetLeadsParams = {}): Promise<LeadsResponse> => {
+export const getLeads = async (
+  params: GetLeadsParams = {},
+): Promise<LeadsResponse> => {
   const query: Record<string, string> = {};
   if (params.stage) query.stage = params.stage;
   if (params.status) query.status = params.status;
@@ -134,6 +171,12 @@ export const getLeads = async (params: GetLeadsParams = {}): Promise<LeadsRespon
   const res = await API.get("/leads", { params: query });
   return res.data.data;
 };
+
+export const getLeadsStageCount =
+  async (): Promise<LeadsStageCountResponse> => {
+    const res = await API.get("/leads/stage-counts");
+    return res.data.data;
+  };
 
 export const getLeadById = async (id: string): Promise<LeadDetail> => {
   const res = await API.get(`/leads/${id}`);
@@ -149,17 +192,22 @@ export const createLead = async (data: {
   caseTypeId?: string;
   source: LeadSource;
   situationSummary?: string;
+  intakeAdversePartyName?: string;
+  intakeAdversePartyEmail?: string;
 }): Promise<Lead> => {
   const res = await API.post("/leads", data);
   return res.data.data;
 };
 
-export const archiveLead = async (id: string): Promise<Lead> => {
-  const res = await API.patch(`/leads/${id}/archive`);
-  return res.data.data;
-};
+export const updateLeadStatus = async (id: string, status: string): Promise<Lead> => {
+  const res = await API.patch(`/leads/${id}/status`, { status })
+  return res.data.data
+}
 
-export const advanceLeadStage = async (id: string, stage: PipelineStage): Promise<Lead> => {
+export const advanceLeadStage = async (
+  id: string,
+  stage: PipelineStage,
+): Promise<Lead> => {
   const res = await API.patch(`/leads/${id}/stage`, { stage });
   return res.data.data;
 };
@@ -172,8 +220,8 @@ export const runConflictCheck = async (id: string): Promise<ConflictCheck> => {
 export const resolveConflictCheck = async (
   id: string,
   data:
-    | { status: "pass" | "needs_review"; reviewNotes?: string }
-    | { supervisorOverride: true; supervisorNotes?: string },
+    | { action: "manual_review"; status: "pass" | "needs_review"; reviewNotes?: string }
+    | { action: "supervisor_override"; supervisorNotes: string },
 ): Promise<ConflictCheck> => {
   const res = await API.patch(`/leads/${id}/conflict-check`, data);
   return res.data.data;
@@ -205,7 +253,12 @@ export const updateConsultation = async (
   id: string,
   data: {
     attorneyNotes?: string;
-    status?: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
+    status?:
+      | "scheduled"
+      | "in_progress"
+      | "completed"
+      | "cancelled"
+      | "no_show";
     outcome?: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up";
   },
 ): Promise<Consultation> => {

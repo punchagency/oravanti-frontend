@@ -36,3 +36,5 @@ coverage/
 .gemini/
 openc*
 skills-lock.json
+
+CLAUDE.md

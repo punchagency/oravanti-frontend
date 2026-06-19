@@ -24,7 +24,7 @@ export type SessionUser = {
   createdAt: Date;
   updatedAt: Date;
   twoFactorEnabled?: boolean;
-  userAccountType: "firm_admin" | "staff" | "contractor" | "client";
+  accountType: "firm_admin" | "staff" | "contractor" | "client";
   onboardingState:
     | "email_unverified"
     | "email_verified"
