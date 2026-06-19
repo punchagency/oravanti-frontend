@@ -65,7 +65,7 @@ export interface InvitationDTO {
   lastName: string | null;
   invitedBy: string | null;
   invitedByEmail: string | null;
-  practiceAreas: string[];
+  practiceAreas: { id: string; name: string }[];
   team: string;
 }
 
@@ -104,4 +104,27 @@ export async function cancelInvitation(invitationId: string) {
 
 export async function resendInvitation(email: string, role: string) {
   return API.post("/organization/resend-invitation", { email, role });
+}
+
+export interface UpdateStaffPayload {
+  phone?: string;
+  jobTitle?: string;
+  maxCaseload?: number;
+  startDate?: string;
+  email?: string;
+  orgEmail?: string;
+  firstName?: string;
+  lastName?: string;
+  practiceAreaIds?: string[];
+}
+
+export async function updateStaff(staffId: string, data: UpdateStaffPayload) {
+  return API.patch(`/organization/staff/${staffId}`, data);
+}
+
+export async function updateStaffRole(
+  staffId: string,
+  role: string,
+): Promise<void> {
+  await API.patch(`/organization/staff/${staffId}/role`, { role });
 }

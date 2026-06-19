@@ -456,7 +456,7 @@ export default function Invitations() {
                                       bg="rgba(186, 117, 23, 0.12)"
                                       color="#BA7517"
                                     >
-                                      {area}
+                                      {area.name}
                                     </Badge>
                                   ))}
                                   {inv.practiceAreas.length > 2 && (
@@ -480,7 +480,7 @@ export default function Invitations() {
                                       <Portal>
                                         <Tooltip.Positioner>
                                           <Tooltip.Content>
-                                            {inv.practiceAreas.join(", ")}
+                                            {inv.practiceAreas.map((a) => a.name).join(", ")}
                                           </Tooltip.Content>
                                         </Tooltip.Positioner>
                                       </Portal>

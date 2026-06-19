@@ -5,9 +5,11 @@ import {
   Button,
   Flex,
   HStack,
+  Portal,
   Progress,
   Stack,
   Text,
+  Tooltip,
 } from "@chakra-ui/react";
 import {
   getProgressColor,
@@ -16,12 +18,14 @@ import {
   type StaffMember,
 } from "../data";
 import { StaffDetailsDrawer } from "./staff-details-drawer";
+import { useAuthStore } from "@/store/auth-store";
 
 interface StaffMobileCardProps {
   staff: StaffMember;
 }
 
 export function StaffMobileCard({ staff }: StaffMobileCardProps) {
+  const currentUserId = useAuthStore((s) => s.user?.id);
   return (
     <Box
       p={4}
@@ -42,9 +46,27 @@ export function StaffMobileCard({ staff }: StaffMobileCardProps) {
             />
           </Avatar.Root>
           <Box minW={0}>
-            <Text fontWeight="600" color="fg" truncate>
-              {staff.name}
-            </Text>
+            <HStack gap={1}>
+              <Text fontWeight="600" color="fg" truncate>
+                {staff.name}
+              </Text>
+              {staff.userId === currentUserId && (
+                <Badge
+                  size="xs"
+                  borderRadius="full"
+                  px={2}
+                  py={0.5}
+                  bg="brand.solid"
+                  color="white"
+                  fontSize="10px"
+                  fontWeight="500"
+                  lineHeight="1"
+                  flexShrink={0}
+                >
+                  You
+                </Badge>
+              )}
+            </HStack>
             <Text textStyle="body-sm" color="fg.muted" truncate>
               {staff.email}
             </Text>
@@ -88,18 +110,49 @@ export function StaffMobileCard({ staff }: StaffMobileCardProps) {
           {staff.practiceAreas.length === 0 ? (
             <Text color="fg.subtle">None</Text>
           ) : (
-          <HStack gap={1} wrap="wrap" justify="flex-end">
-            {staff.practiceAreas.map((area, idx) => (
-              <Badge
-                key={idx}
-                size="sm"
-                variant="subtle"
-                textTransform="none"
-              >
-                {area}
-              </Badge>
-            ))}
-          </HStack>
+            <HStack gap={1} wrap="wrap" justify="flex-end">
+              {(() => {
+                const areas = staff.practiceAreas;
+                const visible = areas.slice(0, 2);
+                const extra = areas.length - 2;
+                return (
+                  <>
+                    {visible.map((area, idx) => (
+                      <Badge
+                        key={idx}
+                        size="sm"
+                        variant="subtle"
+                        textTransform="none"
+                      >
+                        {area.name}
+                      </Badge>
+                    ))}
+                    {extra > 0 && (
+                      <Tooltip.Root positioning={{ placement: "top" }}>
+                        <Tooltip.Trigger asChild>
+                          <Badge
+                            size="sm"
+                            variant="subtle"
+                            textTransform="none"
+                            fontWeight="500"
+                            cursor="pointer"
+                          >
+                            +{extra}
+                          </Badge>
+                        </Tooltip.Trigger>
+                        <Portal>
+                          <Tooltip.Positioner>
+                            <Tooltip.Content>
+                              {areas.map((a) => a.name).join(", ")}
+                            </Tooltip.Content>
+                          </Tooltip.Positioner>
+                        </Portal>
+                      </Tooltip.Root>
+                    )}
+                  </>
+                );
+              })()}
+            </HStack>
           )}
         </Flex>
         <Box pt={1}>

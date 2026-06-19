@@ -21,6 +21,8 @@ import {
   getStatusLabel,
   type StaffMember,
 } from "../data";
+import { EditStaffDialog } from "./edit-staff-dialog";
+import { useAuthStore } from "@/store/auth-store";
 
 interface StaffDetailsDrawerProps {
   staff: StaffMember;
@@ -71,6 +73,7 @@ export function StaffDetailsDrawer({
   staff,
   children,
 }: StaffDetailsDrawerProps) {
+  const currentUserId = useAuthStore((s) => s.user?.id);
   return (
     <Drawer.Root placement="end" size="md">
       <Drawer.Trigger asChild>{children}</Drawer.Trigger>
@@ -96,14 +99,31 @@ export function StaffDetailsDrawer({
                     />
                   </Avatar.Root>
                   <Box>
-                    <Text
-                      color="fg"
-                      fontSize="15px"
-                      fontWeight="500"
-                      lineHeight="18px"
-                    >
-                      {staff.name}
-                    </Text>
+                    <HStack gap={1}>
+                      <Text
+                        color="fg"
+                        fontSize="15px"
+                        fontWeight="500"
+                        lineHeight="18px"
+                      >
+                        {staff.name}
+                      </Text>
+                      {staff.userId === currentUserId && (
+                        <Badge
+                          size="xs"
+                          borderRadius="full"
+                          px={2}
+                          py={0.5}
+                          bg="brand.solid"
+                          color="white"
+                          fontSize="10px"
+                          fontWeight="500"
+                          lineHeight="1"
+                        >
+                          You
+                        </Badge>
+                      )}
+                    </HStack>
                     <HStack gap={1} mt={1}>
                       <Box bg="#FAEEDA" borderRadius="10px" px={1.5} py={0.5}>
                         <Text
@@ -192,7 +212,46 @@ export function StaffDetailsDrawer({
 
                 <Tabs.Content value="overview">
                   <VStack gap={0} align="stretch" px={5} pb={5}>
-                    <FieldRow label="Email" value={staff.email ?? "N/A"} />
+                    <HStack gap={0} wrap="wrap">
+                      <Box borderBottom="1px solid" borderColor="border.muted" py={2} flex="1 1 50%" minW="140px">
+                        <Text
+                          color="fg.subtle"
+                          fontSize="10px"
+                          fontWeight="500"
+                          letterSpacing="0.5px"
+                          textTransform="uppercase"
+                          mb={0.5}
+                        >
+                          First name
+                        </Text>
+                        <Text color="fg" fontSize="12px" lineHeight="150%">
+                          {staff.firstName || "N/A"}
+                        </Text>
+                      </Box>
+                      <Box borderBottom="1px solid" borderColor="border.muted" py={2} flex="1 1 50%" minW="140px">
+                        <Text
+                          color="fg.subtle"
+                          fontSize="10px"
+                          fontWeight="500"
+                          letterSpacing="0.5px"
+                          textTransform="uppercase"
+                          mb={0.5}
+                        >
+                          Last name
+                        </Text>
+                        <Text color="fg" fontSize="12px" lineHeight="150%">
+                          {staff.lastName || "N/A"}
+                        </Text>
+                      </Box>
+                    </HStack>
+                    <FieldRow
+                      label="Personal email"
+                      value={staff.email ?? "N/A"}
+                    />
+                    <FieldRow
+                      label="Organization email"
+                      value={staff.orgEmail || "N/A"}
+                    />
                     <FieldRow label="Phone" value={staff.phone ?? "N/A"} />
                     <FieldRow label="Role" value={staff.role ?? "N/A"} />
                     <FieldRow label="Team" value={staff.team || "None"} />
@@ -232,7 +291,7 @@ export function StaffDetailsDrawer({
                                 color: "#0C447C",
                               },
                             };
-                            const style = colorMap[area] || {
+                            const style = colorMap[area.name] || {
                               bg: "#FAEEDA",
                               color: "#633806",
                             };
@@ -250,7 +309,7 @@ export function StaffDetailsDrawer({
                                   fontWeight="500"
                                   lineHeight="12px"
                                 >
-                                  {area}
+                                  {area.name}
                                 </Text>
                               </Box>
                             );
@@ -332,22 +391,24 @@ export function StaffDetailsDrawer({
 
                     <SectionLabel>Quick actions</SectionLabel>
                     <VStack gap={1.5} w="full">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        w="full"
-                        h="32px"
-                        borderColor="border"
-                        color="fg"
-                        fontSize="12px"
-                        fontWeight="400"
-                        _hover={{ bg: "bg.muted" }}
-                        justifyContent="center"
-                        gap={1.5}
-                      >
-                        <Pencil size={14} />
-                        Edit staff details
-                      </Button>
+                      <EditStaffDialog staff={staff}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          w="full"
+                          h="32px"
+                          borderColor="border"
+                          color="fg"
+                          fontSize="12px"
+                          fontWeight="400"
+                          _hover={{ bg: "bg.muted" }}
+                          justifyContent="center"
+                          gap={1.5}
+                        >
+                          <Pencil size={14} />
+                          Edit staff details
+                        </Button>
+                      </EditStaffDialog>
                       <Button
                         variant="outline"
                         size="sm"

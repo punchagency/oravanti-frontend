@@ -19,9 +19,11 @@ import {
 } from "../data";
 import { useStaffData } from "../staff-data-context";
 import { StaffDetailsDrawer } from "./staff-details-drawer";
+import { useAuthStore } from "@/store/auth-store";
 
 export function StaffTable() {
   const { filteredStaff } = useStaffData();
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   return (
     <Box
@@ -136,9 +138,26 @@ export function StaffTable() {
                             />
                           </Avatar.Root>
                           <Box>
-                            <Text fontWeight="600" color="fg">
-                              {staff.name}
-                            </Text>
+                            <HStack gap={1}>
+                              <Text fontWeight="600" color="fg">
+                                {staff.name}
+                              </Text>
+                              {staff.userId === currentUserId && (
+                                <Badge
+                                  size="xs"
+                                  borderRadius="full"
+                                  px={2}
+                                  py={0.5}
+                                  bg="brand.solid"
+                                  color="white"
+                                  fontSize="10px"
+                                  fontWeight="500"
+                                  lineHeight="1"
+                                >
+                                  You
+                                </Badge>
+                              )}
+                            </HStack>
                             <Text textStyle="body-sm" color="fg.muted">
                               {staff.email}
                             </Text>
@@ -179,7 +198,7 @@ export function StaffTable() {
                               return (
                                 <>
                                   {visible.map((area, idx) => {
-                                    const style = colorMap[area] || {
+                                    const style = colorMap[area.name] || {
                                       bg: "rgba(186, 117, 23, 0.12)",
                                       color: "#BA7517",
                                     };
@@ -196,7 +215,7 @@ export function StaffTable() {
                                         bg={style.bg}
                                         color={style.color}
                                       >
-                                        {area}
+                                        {area.name}
                                       </Badge>
                                     );
                                   })}
@@ -223,7 +242,7 @@ export function StaffTable() {
                                       <Portal>
                                         <Tooltip.Positioner>
                                           <Tooltip.Content>
-                                            {areas.join(", ")}
+                                            {areas.map((a) => a.name).join(", ")}
                                           </Tooltip.Content>
                                         </Tooltip.Positioner>
                                       </Portal>
