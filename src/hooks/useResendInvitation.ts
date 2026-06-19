@@ -1,25 +1,25 @@
-import { cancelInvitation } from "@/api/organization";
+import { resendInvitation } from "@/api/organization";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
-export function useCancelInvitation() {
+export function useResendInvitation() {
   const { showSuccess, showError } = useFeedbackDialog();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (invitationId: string) => cancelInvitation(invitationId),
+    mutationFn: ({ email, role }: { email: string; role: string }) =>
+      resendInvitation(email, role),
     onSuccess: () => {
       showSuccess({
-        title: "Invitation cancelled",
-        description: "The invitation has been cancelled.",
+        title: "Invitation resent",
+        description: "The invitation has been resent successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
     },
     onError: (error: Error) => {
       showError({
-        title: "Failed to cancel invitation",
+        title: "Failed to resend invitation",
         description: getErrorMessage(error, "Please try again later."),
       });
     },
