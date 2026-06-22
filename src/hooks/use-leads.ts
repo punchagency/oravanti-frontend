@@ -124,6 +124,9 @@ export function useResolveConflictCheck() {
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      // Stage counts live under a distinct key — refresh badges after a
+      // decline (which drops the lead out of the pipeline) or an approve.
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
     },
     onError: (err: APIError) => {
       toast.error(

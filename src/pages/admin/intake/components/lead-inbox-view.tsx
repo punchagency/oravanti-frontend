@@ -686,7 +686,15 @@ function FilterSelect({
   );
 }
 
+const leadStatusTone: Record<LeadStatus, "warning" | "neutral" | "danger"> = {
+  new: "warning",
+  reviewed: "neutral",
+  archived: "neutral",
+  declined: "danger",
+  overridden: "warning",
+};
+
 function LeadStatusPill({ status }: { status: LeadStatus }) {
-  const tone = status === "new" ? "warning" : "neutral";
+  const tone = leadStatusTone[status] ?? "neutral";
   return <PracticePill tone={tone}>{statusLabels[status]}</PracticePill>;
 }

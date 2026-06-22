@@ -8,7 +8,12 @@ export type LeadSource =
   | "phone_enquiry"
   | "client_portal";
 
-export type LeadStatus = "new" | "reviewed" | "archived";
+export type LeadStatus =
+  | "new"
+  | "reviewed"
+  | "archived"
+  | "declined"
+  | "overridden";
 
 export type PipelineStage =
   | "lead_inbox"
@@ -217,11 +222,14 @@ export const runConflictCheck = async (id: string): Promise<ConflictCheck> => {
   return res.data.data;
 };
 
+export type ResolveConflictCheckPayload = {
+  action: "approve" | "decline";
+  reviewNotes: string;
+};
+
 export const resolveConflictCheck = async (
   id: string,
-  data:
-    | { action: "manual_review"; status: "pass" | "needs_review"; reviewNotes?: string }
-    | { action: "supervisor_override"; supervisorNotes: string },
+  data: ResolveConflictCheckPayload,
 ): Promise<ConflictCheck> => {
   const res = await API.patch(`/leads/${id}/conflict-check`, data);
   return res.data.data;
@@ -311,6 +319,8 @@ export const statusLabels: Record<LeadStatus, string> = {
   new: "New",
   reviewed: "Reviewed",
   archived: "Archived",
+  declined: "Declined",
+  overridden: "Overridden",
 };
 
 export const conflictStatusLabels: Record<ConflictCheck["status"], string> = {

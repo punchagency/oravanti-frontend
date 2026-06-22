@@ -1,5 +1,5 @@
-import { Box, HStack, Stack, Text, Textarea } from "@chakra-ui/react";
-import { AlertTriangle, Send, Shield, ShieldAlert } from "lucide-react";
+import { Box, chakra, Dialog, HStack, Stack, Text, Textarea } from "@chakra-ui/react";
+import { AlertTriangle, Send, Shield, ShieldAlert, X } from "lucide-react";
 import { useState } from "react";
 import type {
   CaseDetail,
@@ -8,6 +8,7 @@ import type {
   Lead,
 } from "@/api/leads";
 import { conflictStatusLabels, formatReceivedDate } from "@/api/leads";
+import { useCanReviewConflicts } from "@/hooks/use-can-review-conflicts";
 import {
   useLeads,
   useRunConflictCheck,
@@ -95,10 +96,13 @@ export function ConflictCheckView() {
 
 function ConflictCheckCard({ lead }: { lead: Lead }) {
   const [localResult, setLocalResult] = useState<ConflictCheck | null>(null);
-  const [overrideOpen, setOverrideOpen] = useState(false);
-  const [overrideNotes, setOverrideNotes] = useState("");
+  // Which resolution modal is open (if any).
+  const [resolveMode, setResolveMode] = useState<"approve" | "decline" | null>(
+    null,
+  );
   const runCheck = useRunConflictCheck();
   const resolveCheck = useResolveConflictCheck();
+  const canReview = useCanReviewConflicts();
 
   const result = localResult;
   const status =
@@ -120,59 +124,18 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
     });
   }
 
-  function handleClearAndApprove() {
+  function handleResolve(action: "approve" | "decline", reviewNotes: string) {
     resolveCheck.mutate(
-      {
-        id: lead.id,
-        data: {
-          action: "manual_review",
-          status: "pass",
-          reviewNotes: "Cleared by manual review",
-        },
-      },
+      { id: lead.id, data: { action, reviewNotes } },
       {
         onSuccess: (check) => {
           setLocalResult(check);
-          toast.success("Conflict check resolved");
-        },
-      },
-    );
-  }
-
-  function handleFlagConflict() {
-    resolveCheck.mutate(
-      {
-        id: lead.id,
-        data: {
-          action: "manual_review",
-          status: "needs_review",
-          reviewNotes: "Flagged for supervisor review",
-        },
-      },
-      {
-        onSuccess: (check) => {
-          setLocalResult(check);
-          toast.success("Conflict check flagged for manual review");
-        },
-      },
-    );
-  }
-
-  function handleSupervisorOverride() {
-    if (!overrideNotes.trim()) return;
-    resolveCheck.mutate(
-      {
-        id: lead.id,
-        data: {
-          action: "supervisor_override",
-          supervisorNotes: overrideNotes.trim(),
-        },
-      },
-      {
-        onSuccess: (check) => {
-          setLocalResult(check);
-          setOverrideOpen(false);
-          setOverrideNotes("");
+          setResolveMode(null);
+          toast.success(
+            action === "approve"
+              ? "Conflict cleared — lead advanced to questionnaire"
+              : "Lead declined and notified",
+          );
         },
       },
     );
@@ -304,59 +267,6 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
         </Box>
       ) : null}
 
-      {overrideOpen ? (
-        <Box
-          mt="14px"
-          p="14px"
-          border="1px solid"
-          borderColor="#ffb8bd"
-          borderRadius="8px"
-          bg="#fff2f3"
-        >
-          <Text fontWeight="600" fontSize="13px" color="#b00020" mb="8px">
-            Supervisor override — justification required
-          </Text>
-          <Textarea
-            value={overrideNotes}
-            onChange={(e) => setOverrideNotes(e.currentTarget.value)}
-            placeholder="Explain why proceeding despite the identified conflict is permissible…"
-            minH="80px"
-            resize="vertical"
-            fontSize="13px"
-            border="1px solid"
-            borderColor="border"
-            borderRadius="7px"
-            bg="bg"
-            color="fg"
-            px="12px"
-            py="8px"
-            mb="10px"
-            _focus={{
-              borderColor: "brand.solid",
-              boxShadow: "0 0 0 1px var(--brand-cta)",
-            }}
-          />
-          <HStack gap="8px" justify="flex-end">
-            <OutlineButton
-              type="button"
-              onClick={() => {
-                setOverrideOpen(false);
-                setOverrideNotes("");
-              }}
-            >
-              Cancel
-            </OutlineButton>
-            <BrandButton
-              loading={resolveCheck.isPending}
-              disabled={!overrideNotes.trim()}
-              onClick={handleSupervisorOverride}
-            >
-              Confirm override
-            </BrandButton>
-          </HStack>
-        </Box>
-      ) : null}
-
       <Box
         display="grid"
         gridTemplateColumns={{
@@ -383,44 +293,27 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </BrandButton>
         ) : null}
 
-        {needsReview || (!hasConflict && displayMatches.length > 0) ? (
+        {(needsReview || hasConflict) && canReview ? (
           <>
             <OutlineButton
               color="#b00020"
               borderColor="#ffc3c8"
-              loading={resolveCheck.isPending}
-              onClick={handleFlagConflict}
+              onClick={() => setResolveMode("decline")}
             >
-              Flag Conflict
+              <ShieldAlert size={14} />
+              Flag &amp; terminate
             </OutlineButton>
-            <BrandButton
-              loading={resolveCheck.isPending}
-              onClick={handleClearAndApprove}
-            >
-              Clear &amp; Approve
+            <BrandButton onClick={() => setResolveMode("approve")}>
+              <Shield size={14} />
+              Clear &amp; approve
             </BrandButton>
           </>
         ) : null}
 
-        {hasConflict && !overrideOpen ? (
-          <>
-            <OutlineButton
-              color="#b00020"
-              borderColor="#ffc3c8"
-              loading={resolveCheck.isPending}
-              onClick={handleFlagConflict}
-            >
-              Flag Conflict
-            </OutlineButton>
-            <OutlineButton
-              color="#b00020"
-              borderColor="#ffc3c8"
-              onClick={() => setOverrideOpen(true)}
-            >
-              <ShieldAlert size={14} />
-              Supervisor Override
-            </OutlineButton>
-          </>
+        {(needsReview || hasConflict) && !canReview ? (
+          <Text m="0" color="fg.muted" fontSize="12px">
+            A conflict was flagged. Only an owner or admin can resolve it.
+          </Text>
         ) : null}
 
         {result && !hasConflict && !needsReview && !isPass ? (
@@ -429,7 +322,186 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
           </Text>
         ) : null}
       </Box>
+
+      <ResolutionDialog
+        mode={resolveMode}
+        leadName={lead.name}
+        isPending={resolveCheck.isPending}
+        onClose={() => setResolveMode(null)}
+        onConfirm={(notes) => {
+          if (resolveMode) handleResolve(resolveMode, notes);
+        }}
+      />
     </SurfaceCard>
+  );
+}
+
+function ResolutionDialog({
+  mode,
+  leadName,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  mode: "approve" | "decline" | null;
+  leadName: string;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: (reviewNotes: string) => void;
+}) {
+  const [notes, setNotes] = useState("");
+  const isDecline = mode === "decline";
+
+  function handleClose() {
+    setNotes("");
+    onClose();
+  }
+
+  return (
+    <Dialog.Root
+      open={mode !== null}
+      onOpenChange={(details) => {
+        if (!details.open) handleClose();
+      }}
+      placement="center"
+    >
+      <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
+      <Dialog.Positioner px="16px">
+        <Dialog.Content
+          w="full"
+          maxW="460px"
+          border="1px solid"
+          borderColor="border"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          boxShadow="0 24px 70px rgba(0, 0, 0, 0.26)"
+        >
+          <chakra.button
+            type="button"
+            aria-label="Close conflict resolution dialog"
+            position="absolute"
+            top="22px"
+            right="22px"
+            display="grid"
+            placeItems="center"
+            w="32px"
+            h="32px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="8px"
+            bg="bg"
+            color="fg.muted"
+            onClick={handleClose}
+          >
+            <X size={16} />
+          </chakra.button>
+
+          <Box p="32px 24px 24px">
+            <Dialog.Title
+              color="fg"
+              fontSize="17px"
+              fontWeight="600"
+              lineHeight="1.2"
+            >
+              {isDecline ? "Flag & terminate lead" : "Clear & approve"}
+            </Dialog.Title>
+            <Dialog.Description
+              mt="10px"
+              color="fg.muted"
+              fontSize="13px"
+              lineHeight="1.4"
+            >
+              {isDecline ? (
+                <>
+                  {leadName} will be marked <strong>declined</strong>, removed
+                  from the active pipeline, and emailed that the firm cannot
+                  proceed. This cannot be undone. A note is required for the
+                  audit record.
+                </>
+              ) : (
+                <>
+                  Record your justification for clearing this conflict.{" "}
+                  {leadName} will advance to the questionnaire stage. A note is
+                  required for the audit record.
+                </>
+              )}
+            </Dialog.Description>
+
+            {isDecline ? (
+              <HStack
+                gap="8px"
+                mt="14px"
+                px="12px"
+                py="9px"
+                border="1px solid"
+                borderColor="#ffb8bd"
+                borderRadius="7px"
+                bg="#fff2f3"
+                color="#b00020"
+                fontSize="12px"
+              >
+                <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                <Box as="span">
+                  The decline email is neutral and never discloses the conflict
+                  or the matched party.
+                </Box>
+              </HStack>
+            ) : null}
+
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.currentTarget.value)}
+              placeholder={
+                isDecline
+                  ? "Reason for terminating this lead…"
+                  : "Reason for clearing this conflict…"
+              }
+              minH="90px"
+              resize="vertical"
+              fontSize="13px"
+              border="1px solid"
+              borderColor="border"
+              borderRadius="7px"
+              bg="bg"
+              color="fg"
+              px="12px"
+              py="8px"
+              mt="14px"
+              _focus={{
+                borderColor: "brand.solid",
+                boxShadow: "0 0 0 1px var(--brand-cta)",
+              }}
+            />
+
+            <HStack gap="8px" justify="flex-end" mt="16px">
+              <OutlineButton type="button" onClick={handleClose}>
+                Cancel
+              </OutlineButton>
+              {isDecline ? (
+                <OutlineButton
+                  color="#b00020"
+                  borderColor="#ffc3c8"
+                  loading={isPending}
+                  disabled={!notes.trim() || isPending}
+                  onClick={() => onConfirm(notes.trim())}
+                >
+                  Decline lead
+                </OutlineButton>
+              ) : (
+                <BrandButton
+                  loading={isPending}
+                  disabled={!notes.trim() || isPending}
+                  onClick={() => onConfirm(notes.trim())}
+                >
+                  Clear &amp; approve
+                </BrandButton>
+              )}
+            </HStack>
+          </Box>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   );
 }
 
