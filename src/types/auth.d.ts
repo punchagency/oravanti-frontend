@@ -39,5 +39,9 @@ export type SessionUserUpdateData = Omit<
   "id" | "createdAt" | "updatedAt" | "emailVerified"
 >;
 
+// Active organization member role, surfaced on the session via the backend
+// customSession plugin. Gates conflict-check review (owners + admins only).
+export type MemberRole = "owner" | "admin" | "attorney" | "paralegal";
+
 export type PersonalDetails = z.infer<typeof personalDetailsSchema>;
 export type FirmInformation = z.infer<typeof firmInformationSchema>;

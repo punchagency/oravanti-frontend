@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSession, signInWithEmail } from "@/api/auth";
 import { useAuthStore } from "@/store/auth-store";
-import type { AuthSession, SessionUser } from "@/types/auth";
+import type { AuthSession, MemberRole, SessionUser } from "@/types/auth";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
@@ -31,6 +31,7 @@ export const useSignInWithEmail = () => {
         const sessionData: {
           user: SessionUser;
           session: AuthSession;
+          memberRole?: MemberRole | null;
         } = await queryClient.fetchQuery({
           queryKey: ["session"],
           queryFn: async () => {
@@ -42,6 +43,7 @@ export const useSignInWithEmail = () => {
         useAuthStore.getState().setAuth({
           user: sessionData?.user ?? null,
           session: sessionData?.session ?? null,
+          memberRole: sessionData?.memberRole ?? null,
           isAuthenticated: !!sessionData?.session,
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
