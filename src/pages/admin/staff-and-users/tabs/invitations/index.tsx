@@ -556,7 +556,7 @@ export default function Invitations() {
                           pb={3}
                           whiteSpace="nowrap"
                         >
-                          TEAM
+                          TEAM(S)
                         </Table.ColumnHeader>
                         <Table.ColumnHeader
                           textStyle="body-sm"
@@ -701,12 +701,56 @@ export default function Invitations() {
                               )}
                             </Table.Cell>
 
-                            <Table.Cell
-                              py={4}
-                              color="fg.muted"
-                              whiteSpace="nowrap"
-                            >
-                              {inv.team || "—"}
+                            <Table.Cell py={4} whiteSpace="nowrap">
+                              {!inv.team ? (
+                                <Text color="fg.subtle">None</Text>
+                              ) : (() => {
+                                const teams = inv.team.split(", ");
+                                return (
+                                  <HStack gap={1.5} wrap="wrap">
+                                    <Badge
+                                      size="sm"
+                                      borderRadius="full"
+                                      px={2.5}
+                                      py={0.5}
+                                      variant="subtle"
+                                      textTransform="none"
+                                      fontWeight="400"
+                                      bg="rgba(29, 158, 117, 0.12)"
+                                      color="#1D9E75"
+                                    >
+                                      {teams[0]}
+                                    </Badge>
+                                    {teams.length > 1 && (
+                                      <Tooltip.Root positioning={{ placement: "top" }}>
+                                        <Tooltip.Trigger asChild>
+                                          <Badge
+                                            size="sm"
+                                            variant="subtle"
+                                            textTransform="none"
+                                            fontWeight="500"
+                                            borderRadius="full"
+                                            px={2.5}
+                                            py={0.5}
+                                            bg="rgba(180, 178, 169, 0.2)"
+                                            color="fg.muted"
+                                            cursor="pointer"
+                                          >
+                                            +{teams.length - 1}
+                                          </Badge>
+                                        </Tooltip.Trigger>
+                                        <Portal>
+                                          <Tooltip.Positioner>
+                                            <Tooltip.Content>
+                                              {teams.slice(1).join(", ")}
+                                            </Tooltip.Content>
+                                          </Tooltip.Positioner>
+                                        </Portal>
+                                      </Tooltip.Root>
+                                    )}
+                                  </HStack>
+                                );
+                              })()}
                             </Table.Cell>
 
                             <Table.Cell py={4} whiteSpace="nowrap">

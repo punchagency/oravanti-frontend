@@ -26,7 +26,7 @@ function InvitationTableSkeleton() {
             <Table.Root size="md">
               <Table.Header borderBottom="1px solid" borderColor="border">
                 <Table.Row bg="bg.subtle">
-                  {["INVITEE", "ROLE", "PRACTICE AREAS", "TEAM", "INVITED BY", "SENT", "STATUS", "ACTION"].map(
+                  {["INVITEE", "ROLE", "PRACTICE AREAS", "TEAM(S)", "INVITED BY", "SENT", "STATUS", "ACTION"].map(
                     (h) => (
                       <Table.ColumnHeader
                         key={h}

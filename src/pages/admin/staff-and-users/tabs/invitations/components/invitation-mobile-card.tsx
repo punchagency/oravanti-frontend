@@ -129,10 +129,45 @@ export function InvitationMobileCard({
           </Text>
         </Flex>
         <Flex justify="space-between" align="center">
-          <Text color="fg.subtle">Team:</Text>
-          <Text color={inv.team ? "fg" : "fg.subtle"} textAlign="right">
-            {inv.team || "—"}
-          </Text>
+          <Text color="fg.subtle">Team(s):</Text>
+          {!inv.team ? (
+            <Text color="fg.subtle">None</Text>
+          ) : (() => {
+            const teams = inv.team.split(", ");
+            return (
+              <HStack gap={1}>
+                <Badge
+                  size="sm"
+                  borderRadius="full"
+                  px={2}
+                  py={0.5}
+                  variant="subtle"
+                  textTransform="none"
+                  fontWeight="400"
+                  bg="rgba(29, 158, 117, 0.12)"
+                  color="#1D9E75"
+                >
+                  {teams[0]}
+                </Badge>
+                {teams.length > 1 && (
+                  <Tooltip.Root positioning={{ placement: "top" }}>
+                    <Tooltip.Trigger asChild>
+                      <Text textStyle="body-sm" color="fg.muted" cursor="pointer">
+                        +{teams.length - 1}
+                      </Text>
+                    </Tooltip.Trigger>
+                    <Portal>
+                      <Tooltip.Positioner>
+                        <Tooltip.Content>
+                          {teams.slice(1).join(", ")}
+                        </Tooltip.Content>
+                      </Tooltip.Positioner>
+                    </Portal>
+                  </Tooltip.Root>
+                )}
+              </HStack>
+            );
+          })()}
         </Flex>
         <Flex justify="space-between" align="center">
           <Text color="fg.subtle" flexShrink={0}>
