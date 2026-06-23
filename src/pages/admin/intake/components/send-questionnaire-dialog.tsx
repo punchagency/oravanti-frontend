@@ -67,13 +67,22 @@ export function SendQuestionnaireDialog({
   presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
-  const [leadId, setLeadId] = useState(() => presetLeadId ?? "");
+  const [leadId, setLeadId] = useState("");
   const [channels, setChannels] = useState<Channel[]>(["email", "sms"]);
   const [reminder, setReminder] = useState<ReminderOption>("3");
   const [customQuestions, setCustomQuestions] = useState<DraftCustomQuestion[]>(
     [],
   );
   const [customDocs, setCustomDocs] = useState<DraftCustomDoc[]>([]);
+
+  // Pre-select the lead when the wizard transitions to open from a specific lead
+  // card. Done during render (React's "adjust state on prop change" pattern) rather
+  // than in an effect to avoid cascading renders.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setLeadId(presetLeadId ?? "");
+  }
 
   const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
   const selectedLead = leads.find((l) => l.id === leadId) ?? null;
@@ -408,8 +417,8 @@ function RecipientStep({
                 key={c}
                 type="button"
                 onClick={() => onToggleChannel(c)}
-                px="14px"
-                h="34px"
+                px="8px"
+                h="24px"
                 borderRadius="999px"
                 border="1px solid"
                 borderColor={active ? "brand.solid" : "border"}
