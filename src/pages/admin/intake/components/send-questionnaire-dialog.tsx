@@ -5,10 +5,20 @@ import {
   Flex,
   Grid,
   HStack,
+  Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { Info, Lock, Plus, Send, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  Info,
+  Lock,
+  Minus,
+  Plus,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type {
@@ -439,7 +449,29 @@ function CustomizeStep({
 }) {
   const { data: preview } = useCaseTypeQuestionnairePreview(caseTypeId);
   const [showBank, setShowBank] = useState(false);
-  const { data: bank = [] } = useQuestionBank(showBank);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const { data: bank = [], isLoading: bankLoading } = useQuestionBank(showBank);
+
+  const addedLabels = useMemo(
+    () => new Set(customQuestions.map((q) => q.label.trim())),
+    [customQuestions],
+  );
+
+  const addSnippet = (label: string) =>
+    setCustomQuestions((prev) => [...prev, { label, saveToFirm: false }]);
+  const removeSnippet = (label: string) =>
+    setCustomQuestions((prev) => {
+      const idx = prev.findIndex((q) => q.label.trim() === label.trim());
+      if (idx === -1) return prev;
+      return prev.filter((_, i) => i !== idx);
+    });
+  const toggleGroup = (id: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const [expandStandard, setExpandStandard] = useState(false);
 
@@ -487,15 +519,15 @@ function CustomizeStep({
 
       {/* Standard (locked) questions */}
       <Box>
-        <HStack gap="6px" mb="8px" color="fg" fontSize="12px" fontWeight="600">
+        <HStack gap="6px" mb="2px" color="fg" fontSize="12px" fontWeight="600" background="bg.muted" padding="1" paddingInline="2">
           <Lock size={12} />
-          <Text>Standard questions ({standardQuestions.length} — locked)</Text>
+          <Text color="fg.muted">Standard questions ({standardQuestions.length} — locked)</Text>
         </HStack>
         <Stack gap="2px">
           {visibleStandard.map((q) => (
-            <HStack key={q.id} align="flex-start" gap="8px" py="6px">
+            <HStack key={q.id} align="flex-start" gap="8px" py="4px" px="8px">
               <Box pt="2px" color="fg.muted">
-                <Lock size={11} />
+                <Lock size={10} />
               </Box>
               <Text fontSize="12px" color="fg.muted" lineHeight="1.4">
                 {q.label}
@@ -510,7 +542,7 @@ function CustomizeStep({
             mt="4px"
             fontSize="11px"
             fontWeight="500"
-            color="brand.solid"
+            color="fg.subtle"
             textAlign="left"
           >
             … and {hiddenCount} more standard question
@@ -582,51 +614,161 @@ function CustomizeStep({
         {showBank ? (
           <Box
             mt="10px"
-            maxH="180px"
-            overflowY="auto"
+            borderRadius="9px"
+            bg="bg.muted"
             border="1px solid"
-            borderColor="border"
-            borderRadius="7px"
-            p="8px"
+            borderColor="border.subtle"
+            p="10px"
           >
-            {bank.length === 0 ? (
-              <MutedText fontSize="12px">Loading snippets…</MutedText>
+            <Text
+              fontSize="10px"
+              fontWeight="600"
+              color="fg.muted"
+              textTransform="uppercase"
+              letterSpacing="0.06em"
+              mb="8px"
+            >
+              Question snippets — click to add
+            </Text>
+
+            {bankLoading ? (
+              <HStack justify="center" gap="8px" py="20px" color="fg.muted">
+                <Spinner size="sm" />
+                <MutedText fontSize="12px">Loading snippets…</MutedText>
+              </HStack>
+            ) : bank.length === 0 ? (
+              <MutedText fontSize="12px">No snippets available.</MutedText>
             ) : (
-              bank.map((entry) => (
-                <Box key={entry.caseTypeId} mb="8px">
-                  <Text
-                    fontSize="10px"
-                    fontWeight="600"
-                    color="fg.muted"
-                    textTransform="uppercase"
-                  >
-                    {entry.caseTypeName ?? "General"}
-                  </Text>
-                  {entry.questions.slice(0, 12).map((q, i) => (
-                    <chakra.button
-                      key={`${entry.caseTypeId}-${i}`}
-                      type="button"
-                      display="block"
-                      textAlign="left"
-                      w="full"
-                      px="6px"
-                      py="4px"
-                      borderRadius="5px"
-                      fontSize="12px"
-                      color="fg"
-                      _hover={{ bg: "bg.muted" }}
-                      onClick={() =>
-                        setCustomQuestions((prev) => [
-                          ...prev,
-                          { label: q.label, saveToFirm: false },
-                        ])
-                      }
+              <Stack gap="6px" maxH="220px" overflowY="auto">
+                {bank.map((entry) => {
+                  const isOpen = openGroups.has(entry.caseTypeId);
+                  return (
+                    <Box
+                      key={entry.caseTypeId}
+                      borderRadius="7px"
+                      bg="bg"
+                      border="1px solid"
+                      borderColor="border.subtle"
                     >
-                      + {q.label}
-                    </chakra.button>
-                  ))}
-                </Box>
-              ))
+                      <HStack
+                        justify="space-between"
+                        gap="8px"
+                        px="10px"
+                        py="8px"
+                      >
+                        <Text
+                          fontSize="12px"
+                          fontWeight="600"
+                          color="fg"
+                          truncate
+                        >
+                          {entry.caseTypeName ?? "General"}
+                        </Text>
+                        <HStack gap="6px" flex="0 0 auto">
+                          <chakra.button
+                            type="button"
+                            onClick={() =>
+                              entry.questions.forEach((q) => {
+                                if (!addedLabels.has(q.label.trim()))
+                                  addSnippet(q.label);
+                              })
+                            }
+                            px="10px"
+                            h="26px"
+                            borderRadius="6px"
+                            border="1px solid"
+                            borderColor="border"
+                            bg="bg"
+                            color="fg"
+                            fontSize="11px"
+                            fontWeight="500"
+                          >
+                            Add all
+                          </chakra.button>
+                          <chakra.button
+                            type="button"
+                            aria-label="Toggle questions"
+                            onClick={() => toggleGroup(entry.caseTypeId)}
+                            display="grid"
+                            placeItems="center"
+                            w="26px"
+                            h="26px"
+                            borderRadius="6px"
+                            border="1px solid"
+                            borderColor="border"
+                            bg="bg"
+                            color="fg.muted"
+                          >
+                            <ChevronDown
+                              size={14}
+                              style={{
+                                transform: isOpen ? "rotate(180deg)" : undefined,
+                                transition: "transform 0.15s",
+                              }}
+                            />
+                          </chakra.button>
+                        </HStack>
+                      </HStack>
+
+                      {isOpen ? (
+                        <Stack
+                          gap="0"
+                          borderTop="1px solid"
+                          borderColor="border.subtle"
+                        >
+                          {entry.questions.map((q, i) => {
+                            const added = addedLabels.has(q.label.trim());
+                            return (
+                              <HStack
+                                key={`${entry.caseTypeId}-${i}`}
+                                justify="space-between"
+                                gap="8px"
+                                px="10px"
+                                py="7px"
+                                borderTop={i === 0 ? undefined : "1px solid"}
+                                borderColor="border.subtle"
+                              >
+                                <Text
+                                  fontSize="12px"
+                                  color="fg.muted"
+                                  lineHeight="1.35"
+                                >
+                                  {q.label}
+                                </Text>
+                                <chakra.button
+                                  type="button"
+                                  flex="0 0 auto"
+                                  onClick={() =>
+                                    added
+                                      ? removeSnippet(q.label)
+                                      : addSnippet(q.label)
+                                  }
+                                  display="grid"
+                                  placeItems="center"
+                                  w="24px"
+                                  h="24px"
+                                  borderRadius="6px"
+                                  border="1px solid"
+                                  borderColor={added ? "#e0796f" : "brand.solid"}
+                                  bg={added ? "#fdecea" : "bg"}
+                                  color={added ? "#c0392b" : "brand.solid"}
+                                  aria-label={added ? "Remove" : "Add"}
+                                >
+                                  {added ? (
+                                    <Minus size={13} />
+                                  ) : (
+                                    <Plus size={13} />
+                                  )}
+                                </chakra.button>
+                              </HStack>
+                            );
+                          })}
+                        </Stack>
+                      ) : null}
+                    </Box>
+                  );
+                })}
+              </Stack>
             )}
           </Box>
         ) : null}
