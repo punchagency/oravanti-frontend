@@ -2,6 +2,7 @@ import {
   acceptResponse,
   getCaseTypeQuestionnairePreview,
   getEligibleLeads,
+  getFirmName,
   getLeadQuestionnaire,
   getQuestionBank,
   getResponseDetail,
@@ -18,6 +19,16 @@ export function useEligibleLeads(enabled = true) {
     queryKey: ["questionnaire-eligible-leads"],
     queryFn: getEligibleLeads,
     enabled,
+  });
+}
+
+export function useFirmName(enabled = true) {
+  return useQuery({
+    queryKey: ["firm-name"],
+    queryFn: getFirmName,
+    enabled,
+    retry: false, // 403 for non-admin staff — fall back gracefully
+    staleTime: 5 * 60 * 1000,
   });
 }
 

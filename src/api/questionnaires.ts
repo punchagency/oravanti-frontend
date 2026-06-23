@@ -127,6 +127,11 @@ export const getEligibleLeads = async (): Promise<EligibleLead[]> => {
   return res.data;
 };
 
+export const getFirmName = async (): Promise<string | null> => {
+  const res = await API.get("/settings/firm-info");
+  return res.data?.firmName ?? null;
+};
+
 export const getQuestionBank = async (): Promise<QuestionBankEntry[]> => {
   const res = await API.get("/questionnaires/question-bank");
   return res.data;

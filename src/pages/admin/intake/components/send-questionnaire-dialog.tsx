@@ -29,6 +29,7 @@ import type {
 import {
   useCaseTypeQuestionnairePreview,
   useEligibleLeads,
+  useFirmName,
   useQuestionBank,
   useSendQuestionnaireConfigured,
 } from "@/hooks/use-questionnaires";
@@ -86,6 +87,7 @@ export function SendQuestionnaireDialog({
 
   const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
   const selectedLead = leads.find((l) => l.id === leadId) ?? null;
+  const { data: firmName } = useFirmName(open);
   const send = useSendQuestionnaireConfigured();
 
   // Cached/deduped with the same query in CustomizeStep — used for the review counts.
@@ -250,6 +252,7 @@ export function SendQuestionnaireDialog({
               {step === 3 ? (
                 <ReviewStep
                   lead={selectedLead}
+                  firmName={firmName ?? null}
                   channels={channels}
                   reminder={reminder}
                   standardCount={standardCount}
@@ -950,6 +953,7 @@ function DraftRow({
 
 function ReviewStep({
   lead,
+  firmName,
   channels,
   reminder,
   standardCount,
@@ -958,6 +962,7 @@ function ReviewStep({
   customDocCount,
 }: {
   lead: { name: string; caseTypeName: string | null } | null;
+  firmName: string | null;
   channels: Channel[];
   reminder: ReminderOption;
   standardCount: number;
@@ -1012,15 +1017,25 @@ function ReviewStep({
         borderColor="border.subtle"
         bg="bg"
       >
-        <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase" mb="6px">
+        <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase" mb="8px">
           Client notification preview
         </Text>
-        <MutedText fontSize="12px">
-          Hi {lead?.name ?? "there"}, your attorney's office has sent you an
-          intake questionnaire for your {lead?.caseTypeName ?? "matter"}. Please
-          complete it via the secure link at your earliest convenience. All
-          responses are confidential and secured.
-        </MutedText>
+        <Stack gap="10px">
+          <MutedText fontSize="12px">Hi {lead?.name ?? "there"},</MutedText>
+          <MutedText fontSize="12px">
+            {firmName ?? "Your attorney's office"} has sent you an intake
+            questionnaire for your {lead?.caseTypeName ?? "matter"} matter. Please
+            complete the questionnaire via the secure link at your earliest
+            convenience.
+          </MutedText>
+          <MutedText fontSize="12px">
+            The questionnaire covers the information and documents we need to begin
+            work on your matter. All responses are confidential and secured.
+          </MutedText>
+          <MutedText fontSize="12px">
+            If you have any questions, please contact your attorney directly.
+          </MutedText>
+        </Stack>
       </Box>
     </Stack>
   );
