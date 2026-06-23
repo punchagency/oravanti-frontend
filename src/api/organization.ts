@@ -39,6 +39,7 @@ export interface InviteStaffPayload {
   startDate?: string;
   maxCaseload?: number;
   practiceAreaIds?: string[];
+  teamIds?: string[];
 }
 
 export async function getStaffList(
@@ -116,6 +117,7 @@ export interface UpdateStaffPayload {
   firstName?: string;
   lastName?: string;
   practiceAreaIds?: string[];
+  teamIds?: string[];
 }
 
 export async function updateStaff(staffId: string, data: UpdateStaffPayload) {

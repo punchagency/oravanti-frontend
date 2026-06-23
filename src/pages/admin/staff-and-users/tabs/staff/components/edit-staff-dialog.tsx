@@ -1,5 +1,6 @@
-import { type UpdateStaffPayload } from "@/api/organization";
+import { type TeamListDTO, type UpdateStaffPayload } from "@/api/organization";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { useTeamsList } from "@/hooks/use-teams-list";
 import { useUpdateStaff } from "@/hooks/use-update-staff";
 import {
   Box,
@@ -13,13 +14,14 @@ import {
   Input,
   Portal,
   Select,
+  Stack,
   Text,
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDate, type DateValue } from "@internationalized/date";
 import { CalendarDays, Pencil, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import type { StaffMember } from "../../../data";
@@ -35,6 +37,7 @@ const formSchema = z.object({
   startDate: z.custom<DateValue | undefined>(),
   maxCaseload: z.string(),
   practiceAreaIds: z.array(z.string()),
+  teamIds: z.array(z.string()),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -78,6 +81,7 @@ function computeInitialValues(staff: StaffMember): FormValues {
     startDate,
     maxCaseload: String(staff.caseloadMax ?? 7),
     practiceAreaIds: staff.practiceAreas.map((pa) => pa.id),
+    teamIds: staff.teams.map((t) => t.id),
   };
 }
 
@@ -86,6 +90,8 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
 
   const practiceAreasQuery = usePublicPracticeAreas();
   const practiceAreas = practiceAreasQuery.data ?? [];
+  const teamsQuery = useTeamsList({ limit: 200 });
+  const teams = (teamsQuery.data?.data as TeamListDTO[] | undefined) ?? [];
 
   const {
     register,
@@ -115,6 +121,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
         formData.practiceAreaIds.length > 0
           ? formData.practiceAreaIds
           : undefined,
+      teamIds: formData.teamIds.length > 0 ? formData.teamIds : undefined,
     };
 
     const roleChanged = formData.role !== (staff.role ?? "");
@@ -498,6 +505,41 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                   </Field.Root>
                 </Grid>
 
+                <Field.Root w="full">
+                  <Field.Label>
+                    Assign Team(s)
+                    {staff.status === "active" && (
+                      <Text
+                        as="span"
+                        color="fg.subtle"
+                        fontSize="11px"
+                        fontWeight="400"
+                        ml={1}
+                      >
+                        (use team profile for assignment after acceptance)
+                      </Text>
+                    )}
+                  </Field.Label>
+                  <Controller
+                    name="teamIds"
+                    control={control}
+                    render={({ field }) => (
+                      <TeamMultiSelect
+                        teams={teams}
+                        selectedIds={field.value}
+                        onToggle={(id) => {
+                          if (staff.status === "active") return;
+                          const next = field.value.includes(id)
+                            ? field.value.filter((tid) => tid !== id)
+                            : [...field.value, id];
+                          field.onChange(next);
+                        }}
+                        disabled={staff.status === "active"}
+                      />
+                    )}
+                  />
+                </Field.Root>
+
                 <Field.Root invalid={!!errors.practiceAreaIds}>
                   <Field.Label>Practice areas</Field.Label>
                   <Controller
@@ -610,6 +652,151 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
         </Dialog.Positioner>
       </Portal>
     </Dialog.Root>
+  );
+}
+
+function TeamMultiSelect({
+  teams,
+  selectedIds,
+  onToggle,
+  disabled,
+}: {
+  teams: TeamListDTO[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  disabled?: boolean;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredTeams = useMemo(
+    () =>
+      teams.filter(
+        (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [teams, search],
+  );
+
+  const sortedTeams = useMemo(() => {
+    const selected = filteredTeams.filter((t) => selectedIds.includes(t.id));
+    const unselected = filteredTeams.filter((t) => !selectedIds.includes(t.id));
+    return [...selected, ...unselected];
+  }, [filteredTeams, selectedIds]);
+
+  return (
+    <Box w="full">
+      <Box position="relative">
+        <Input
+          placeholder="Search teams..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          h="36px"
+          px="12px"
+          border="1px solid"
+          borderColor="border"
+          borderRadius="7px"
+          bg="bg"
+          color="fg"
+          fontSize="13px"
+          _placeholder={{ color: "fg.muted" }}
+          _focus={{
+            borderColor: "brand.solid",
+            boxShadow: "0 0 0 1px var(--brand-cta)",
+          }}
+          disabled={disabled}
+          opacity={disabled ? 0.5 : 1}
+          cursor={disabled ? "not-allowed" : "text"}
+        />
+      </Box>
+
+      <Box
+        maxH="200px"
+        overflowY="auto"
+        mt={1}
+        border="1px solid"
+        borderColor="border"
+        borderRadius="7px"
+        bg="bg"
+      >
+        {sortedTeams.length > 0 ? (
+          <Stack gap="0">
+            {sortedTeams.map((team) => (
+              <Flex
+                key={team.id}
+                as={disabled ? "div" : "label"}
+                align="center"
+                gap="8px"
+                px="10px"
+                py="7px"
+                cursor={disabled ? "default" : "pointer"}
+                _hover={disabled ? undefined : { bg: "bg.muted" }}
+                borderBottom="1px solid"
+                borderColor="border"
+                _last={{ borderBottom: "none" }}
+                transition="background 0.1s"
+                bg={selectedIds.includes(team.id) ? "bg.subtle" : undefined}
+              >
+                <chakra.input
+                  type="checkbox"
+                  hidden
+                  checked={selectedIds.includes(team.id)}
+                  onChange={() => {
+                    if (disabled) return;
+                    onToggle(team.id);
+                  }}
+                />
+                <Box
+                  w="16px"
+                  h="16px"
+                  borderRadius="sm"
+                  border="1.5px solid"
+                  borderColor={
+                    selectedIds.includes(team.id) ? "brand.solid" : "border"
+                  }
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  flexShrink={0}
+                  bg={
+                    selectedIds.includes(team.id)
+                      ? "brand.solid"
+                      : "transparent"
+                  }
+                  transition="all 0.1s"
+                >
+                  {selectedIds.includes(team.id) && (
+                    <Text
+                      color="white"
+                      fontSize="11px"
+                      fontWeight="bold"
+                      lineHeight="1"
+                    >
+                      ✓
+                    </Text>
+                  )}
+                </Box>
+                <Box flex={1}>
+                  <Text fontSize="13px" fontWeight="500" color="fg">
+                    {team.name}
+                  </Text>
+                  {team.leadName && (
+                    <Text fontSize="11px" color="fg.muted">
+                      Lead: {team.leadName}
+                    </Text>
+                  )}
+                </Box>
+                <Text fontSize="11px" color="fg.subtle" whiteSpace="nowrap">
+                  {team.memberCount} members
+                </Text>
+              </Flex>
+            ))}
+          </Stack>
+        ) : (
+          <Text p="10px" fontSize="12px" color="fg.muted" textAlign="center">
+            {search ? `No teams matching "${search}"` : "No teams available"}
+          </Text>
+        )}
+      </Box>
+    </Box>
   );
 }
 

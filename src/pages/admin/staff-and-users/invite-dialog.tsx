@@ -1,7 +1,8 @@
-import type { InviteStaffPayload } from "@/api/organization";
+import type { InviteStaffPayload, TeamListDTO } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useInviteStaff } from "@/hooks/use-invite-staff";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { useTeamsList } from "@/hooks/use-teams-list";
 import {
   Box,
   chakra,
@@ -14,12 +15,13 @@ import {
   Input,
   Portal,
   Select,
+  Stack,
   Text,
   VStack,
 } from "@chakra-ui/react";
 import type { DateValue } from "@internationalized/date";
 import { CalendarDays, UserPlus, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,7 +33,7 @@ interface FormValues {
   orgEmail: string;
   phone: string;
   role: string;
-  team: string;
+  teamIds: string[];
   startDate: DateValue | undefined;
   maxCaseload: string;
   practiceAreaIds: string[];
@@ -43,14 +45,6 @@ const roleOptions = createListCollection({
     { value: "attorney", label: "Attorney" },
     { value: "admin", label: "Admin" },
     { value: "paralegal", label: "Paralegal" },
-  ],
-});
-
-const dummyTeamOptions = createListCollection({
-  items: [
-    { value: "", label: "Select team" },
-    { value: "Immigration Team A", label: "Immigration Team A" },
-    { value: "Family & Estate Team", label: "Family & Estate Team" },
   ],
 });
 
@@ -82,7 +76,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
       orgEmail: "samueladexx@gmail.com",
       phone: "+2347060405558",
       role: "admin",
-      team: "",
+      teamIds: [],
       startDate: undefined,
       maxCaseload: "7",
       practiceAreaIds: [],
@@ -92,6 +86,8 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
 
   const practiceAreasQuery = usePublicPracticeAreas();
   const practiceAreas = practiceAreasQuery.data ?? [];
+  const teamsQuery = useTeamsList({ limit: 200 });
+  const teams = (teamsQuery.data?.data as TeamListDTO[] | undefined) ?? [];
 
   const inviteMutation = useInviteStaff();
 
@@ -109,6 +105,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
         formData.practiceAreaIds.length > 0
           ? formData.practiceAreaIds
           : undefined,
+      teamIds: formData.teamIds.length > 0 ? formData.teamIds : undefined,
     };
 
     inviteMutation.mutate(payload, {
@@ -292,7 +289,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                 <Grid
                   templateColumns={{
                     base: "1fr",
-                    sm: "repeat(3, minmax(0, 1fr))",
+                    sm: "repeat(2, minmax(0, 1fr))",
                   }}
                   gap="10px"
                 >
@@ -353,56 +350,6 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                     )}
                   </Field.Root>
 
-                  <Field.Root>
-                    <Field.Label>Assign Team</Field.Label>
-                    <Controller
-                      name="team"
-                      control={control}
-                      render={({ field }) => (
-                        <Select.Root
-                          collection={dummyTeamOptions}
-                          size="sm"
-                          value={[field.value]}
-                          onValueChange={(e) =>
-                            field.onChange(e.value[0] ?? "")
-                          }
-                        >
-                          <Select.Control>
-                            <Select.Trigger
-                              h="36px"
-                              border="1px solid"
-                              borderColor="border"
-                              borderRadius="7px"
-                              bg="bg"
-                              _focus={{
-                                borderColor: "brand.solid",
-                                boxShadow: "0 0 0 1px var(--brand-cta)",
-                              }}
-                            >
-                              <Select.ValueText />
-                            </Select.Trigger>
-                            <Select.IndicatorGroup>
-                              <Select.Indicator />
-                            </Select.IndicatorGroup>
-                          </Select.Control>
-                          <Portal>
-                            <Select.Positioner>
-                              <Select.Content>
-                                {dummyTeamOptions.items.map((opt) => (
-                                  <Select.Item item={opt} key={opt.value}>
-                                    <Select.ItemText>
-                                      {opt.label}
-                                    </Select.ItemText>
-                                  </Select.Item>
-                                ))}
-                              </Select.Content>
-                            </Select.Positioner>
-                          </Portal>
-                        </Select.Root>
-                      )}
-                    />
-                  </Field.Root>
-
                   <Field.Root invalid={!!errors.maxCaseload}>
                     <Field.Label>
                       Max caseload
@@ -425,6 +372,26 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                     )}
                   </Field.Root>
                 </Grid>
+
+                <Field.Root w="full">
+                  <Field.Label>Assign Team(s)</Field.Label>
+                  <Controller
+                    name="teamIds"
+                    control={control}
+                    render={({ field }) => (
+                      <TeamMultiSelect
+                        teams={teams}
+                        selectedIds={field.value}
+                        onToggle={(id) => {
+                          const next = field.value.includes(id)
+                            ? field.value.filter((tid) => tid !== id)
+                            : [...field.value, id];
+                          field.onChange(next);
+                        }}
+                      />
+                    )}
+                  />
+                </Field.Root>
 
                 <Field.Root invalid={!!errors.startDate}>
                   <Field.Label>
@@ -606,6 +573,143 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
         </Dialog.Positioner>
       </Portal>
     </Dialog.Root>
+  );
+}
+
+function TeamMultiSelect({
+  teams,
+  selectedIds,
+  onToggle,
+}: {
+  teams: TeamListDTO[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredTeams = useMemo(
+    () =>
+      teams.filter(
+        (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [teams, search],
+  );
+
+  const sortedTeams = useMemo(() => {
+    const selected = filteredTeams.filter((t) => selectedIds.includes(t.id));
+    const unselected = filteredTeams.filter((t) => !selectedIds.includes(t.id));
+    return [...selected, ...unselected];
+  }, [filteredTeams, selectedIds]);
+
+  return (
+    <Box w="full">
+      <Box position="relative">
+        <Input
+          placeholder="Search teams..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          h="36px"
+          px="12px"
+          border="1px solid"
+          borderColor="border"
+          borderRadius="7px"
+          bg="bg"
+          color="fg"
+          fontSize="13px"
+          _placeholder={{ color: "fg.muted" }}
+          _focus={{
+            borderColor: "brand.solid",
+            boxShadow: "0 0 0 1px var(--brand-cta)",
+          }}
+        />
+      </Box>
+
+      <Box
+        maxH="200px"
+        overflowY="auto"
+        mt={1}
+        border="1px solid"
+        borderColor="border"
+        borderRadius="7px"
+        bg="bg"
+      >
+        {sortedTeams.length > 0 ? (
+          <Stack gap="0">
+            {sortedTeams.map((team) => (
+              <Flex
+                key={team.id}
+                as="label"
+                align="center"
+                gap="8px"
+                px="10px"
+                py="7px"
+                cursor="pointer"
+                _hover={{ bg: "bg.muted" }}
+                borderBottom="1px solid"
+                borderColor="border"
+                _last={{ borderBottom: "none" }}
+                transition="background 0.1s"
+                bg={selectedIds.includes(team.id) ? "bg.subtle" : undefined}
+              >
+                <chakra.input
+                  type="checkbox"
+                  hidden
+                  checked={selectedIds.includes(team.id)}
+                  onChange={() => onToggle(team.id)}
+                />
+                <Box
+                  w="16px"
+                  h="16px"
+                  borderRadius="sm"
+                  border="1.5px solid"
+                  borderColor={
+                    selectedIds.includes(team.id) ? "brand.solid" : "border"
+                  }
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  flexShrink={0}
+                  bg={
+                    selectedIds.includes(team.id)
+                      ? "brand.solid"
+                      : "transparent"
+                  }
+                  transition="all 0.1s"
+                >
+                  {selectedIds.includes(team.id) && (
+                    <Text
+                      color="white"
+                      fontSize="11px"
+                      fontWeight="bold"
+                      lineHeight="1"
+                    >
+                      ✓
+                    </Text>
+                  )}
+                </Box>
+                <Box flex={1}>
+                  <Text fontSize="13px" fontWeight="500" color="fg">
+                    {team.name}
+                  </Text>
+                  {team.leadName && (
+                    <Text fontSize="11px" color="fg.muted">
+                      Lead: {team.leadName}
+                    </Text>
+                  )}
+                </Box>
+                <Text fontSize="11px" color="fg.subtle" whiteSpace="nowrap">
+                  {team.memberCount} members
+                </Text>
+              </Flex>
+            ))}
+          </Stack>
+        ) : (
+          <Text p="10px" fontSize="12px" color="fg.muted" textAlign="center">
+            {search ? `No teams matching "${search}"` : "No teams available"}
+          </Text>
+        )}
+      </Box>
+    </Box>
   );
 }
 

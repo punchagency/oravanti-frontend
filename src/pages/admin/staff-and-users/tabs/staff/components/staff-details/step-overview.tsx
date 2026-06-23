@@ -97,7 +97,7 @@ export function StepOverview({ staff }: { staff: StaffMemberDTO }) {
       <FieldRow label="Phone" value={staff.phone ?? "N/A"} />
       <FieldRow label="Role" value={staff.role ?? "N/A"} />
       <FieldRow
-        label="Team"
+        label="Team(s)"
         value={
           staff.teams.length > 0
             ? staff.teams.map((t) => t.name).join(", ")
