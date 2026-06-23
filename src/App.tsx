@@ -30,6 +30,7 @@ import Step1ProfilePage from "./pages/onboarding/step-1-profile";
 import Step2FirmDetailsPage from "./pages/onboarding/step-2-firm-details";
 import Step3TosPage from "./pages/onboarding/step-3-tos";
 import ResetPassword from "./pages/reset-password";
+import { QuestionnairePortalPage } from "./pages/questionnaire-portal";
 import VerifyEmailNoticePage from "./pages/verify-email";
 
 const router = createBrowserRouter(
@@ -45,6 +46,12 @@ const router = createBrowserRouter(
         <Route path="verify-otp" element={<VerifyOtp />} />
       </Route>
       <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Public client-facing questionnaire portal (token-gated, no auth) */}
+      <Route
+        path="/questionnaire/:firmSlug/:token"
+        element={<QuestionnairePortalPage />}
+      />
 
       <Route element={<AuthGuard />}>
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
