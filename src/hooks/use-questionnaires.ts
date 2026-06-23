@@ -1,0 +1,106 @@
+import {
+  acceptResponse,
+  getCaseTypeQuestionnairePreview,
+  getEligibleLeads,
+  getLeadQuestionnaire,
+  getQuestionBank,
+  getResponseDetail,
+  sendQuestionnaire,
+  sendReminder,
+  type SendQuestionnaireConfig,
+} from "@/api/questionnaires";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import type { APIError } from "./types";
+
+export function useEligibleLeads(enabled = true) {
+  return useQuery({
+    queryKey: ["questionnaire-eligible-leads"],
+    queryFn: getEligibleLeads,
+    enabled,
+  });
+}
+
+export function useQuestionBank(enabled = true) {
+  return useQuery({
+    queryKey: ["questionnaire-question-bank"],
+    queryFn: getQuestionBank,
+    enabled,
+  });
+}
+
+export function useCaseTypeQuestionnairePreview(caseTypeId: string | null) {
+  return useQuery({
+    queryKey: ["questionnaire-preview", caseTypeId],
+    queryFn: () => getCaseTypeQuestionnairePreview(caseTypeId as string),
+    enabled: Boolean(caseTypeId),
+  });
+}
+
+export function useLeadQuestionnaire(leadId: string) {
+  return useQuery({
+    queryKey: ["lead-questionnaire", leadId],
+    queryFn: () => getLeadQuestionnaire(leadId),
+    enabled: Boolean(leadId),
+  });
+}
+
+export function useResponseDetail(responseId: string | null) {
+  return useQuery({
+    queryKey: ["questionnaire-response", responseId],
+    queryFn: () => getResponseDetail(responseId as string),
+    enabled: Boolean(responseId),
+  });
+}
+
+export function useSendQuestionnaireConfigured() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      config,
+    }: {
+      leadId: string;
+      config: SendQuestionnaireConfig;
+    }) => sendQuestionnaire(leadId, config),
+    onSuccess: () => {
+      toast.success("Questionnaire sent to lead");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+      qc.invalidateQueries({ queryKey: ["questionnaire-eligible-leads"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to send questionnaire",
+      );
+    },
+  });
+}
+
+export function useAcceptResponse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (responseId: string) => acceptResponse(responseId),
+    onSuccess: () => {
+      toast.success("Lead advanced to consultation");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ??
+          "Some required answers or documents are still missing",
+      );
+    },
+  });
+}
+
+export function useSendReminder() {
+  return useMutation({
+    mutationFn: (sendId: string) => sendReminder(sendId),
+    onSuccess: () => toast.success("Reminder sent to lead"),
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to send reminder");
+    },
+  });
+}

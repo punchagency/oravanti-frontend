@@ -1,19 +1,19 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useState } from "react";
 import { useLocation } from "react-router";
 import { CaseOpeningView } from "./components/case-opening-view";
 import { ConflictCheckView } from "./components/conflict-check-view";
 import { ConsultationView } from "./components/consultation-view";
-import { FeeAgreementView } from "./components/fee-agreement-view";
 import { LeadInboxView } from "./components/lead-inbox-view";
 import { PipelineFrame } from "./components/pipeline-frame";
 import { QuestionnaireView } from "./components/questionnaire-view";
+import { SendQuestionnaireButton } from "./components/send-questionnaire-dialog";
 
 type IntakeView =
   | "lead-inbox"
   | "conflict-check"
   | "questionnaire"
   | "consultation"
-  | "fee-agreement"
   | "case-opening";
 
 const viewTitles: Record<IntakeView, string> = {
@@ -21,7 +21,6 @@ const viewTitles: Record<IntakeView, string> = {
   "conflict-check": "Conflict check",
   questionnaire: "Questionnaire",
   consultation: "Consultation & notes",
-  "fee-agreement": "Fee agreement",
   "case-opening": "Case opening",
 };
 
@@ -29,21 +28,18 @@ function getIntakeView(pathname: string): IntakeView {
   if (pathname.endsWith("/conflict-check")) return "conflict-check";
   if (pathname.endsWith("/questionnaire")) return "questionnaire";
   if (pathname.endsWith("/consultation")) return "consultation";
-  if (pathname.endsWith("/fee-agreement")) return "fee-agreement";
   if (pathname.endsWith("/case-opening")) return "case-opening";
   return "lead-inbox";
 }
 
-function renderIntakeView(view: IntakeView) {
+function renderIntakeView(view: IntakeView, openWizard: () => void) {
   switch (view) {
     case "conflict-check":
       return <ConflictCheckView />;
     case "questionnaire":
-      return <QuestionnaireView />;
+      return <QuestionnaireView onSendQuestionnaire={openWizard} />;
     case "consultation":
       return <ConsultationView />;
-    case "fee-agreement":
-      return <FeeAgreementView />;
     case "case-opening":
       return <CaseOpeningView />;
     case "lead-inbox":
@@ -55,6 +51,7 @@ export function IntakePipelinePage() {
   const location = useLocation();
   const view = getIntakeView(location.pathname);
   const title = viewTitles[view];
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useDocumentTitle(
     view === "lead-inbox"
@@ -62,5 +59,18 @@ export function IntakePipelinePage() {
       : `${title} - Intake pipeline - Oravanti`,
   );
 
-  return <PipelineFrame>{renderIntakeView(view)}</PipelineFrame>;
+  return (
+    <PipelineFrame
+      headerActions={
+        view === "questionnaire" ? (
+          <SendQuestionnaireButton
+            open={wizardOpen}
+            onOpenChange={setWizardOpen}
+          />
+        ) : undefined
+      }
+    >
+      {renderIntakeView(view, () => setWizardOpen(true))}
+    </PipelineFrame>
+  );
 }

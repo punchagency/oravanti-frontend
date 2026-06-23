@@ -88,10 +88,6 @@ const router = createBrowserRouter(
             element={<IntakePipelinePage />}
           />
           <Route
-            path="intake/pipeline/fee-agreement"
-            element={<IntakePipelinePage />}
-          />
-          <Route
             path="intake/pipeline/case-opening"
             element={<IntakePipelinePage />}
           />

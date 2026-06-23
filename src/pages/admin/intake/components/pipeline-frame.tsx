@@ -8,7 +8,13 @@ import { BrandButton, OutlineButton } from "../../../../components/ui/intake-ui"
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { useLeadsStageCount } from "@/hooks/use-leads";
 
-export function PipelineFrame({ children }: { children: ReactNode }) {
+export function PipelineFrame({
+  children,
+  headerActions,
+}: {
+  children: ReactNode;
+  headerActions?: ReactNode;
+}) {
   const location = useLocation();
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const { data: stageCounts } = useLeadsStageCount();
@@ -41,6 +47,7 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
           </Text>
         </Box>
         <HStack gap="8px">
+          {headerActions}
           <BrandButton onClick={() => setAddLeadOpen(true)}>
             <Plus size={15} />
             Add lead
@@ -57,7 +64,7 @@ export function PipelineFrame({ children }: { children: ReactNode }) {
         display="grid"
         gridTemplateColumns={{
           base: "repeat(3, minmax(0, 1fr))",
-          xl: "repeat(6, minmax(0, 1fr))",
+          xl: "repeat(5, minmax(0, 1fr))",
         }}
         rowGap="18px"
         mt="34px"
