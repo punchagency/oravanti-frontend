@@ -1,15 +1,15 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download, UserPlus } from "lucide-react";
-import { InviteStaffDialog } from "../../invite-dialog";
 import { PaginationControls } from "../../components/pagination-controls";
-import { StaffDataProvider, useStaffData } from "./staff-data-context";
+import { InviteStaffDialog } from "../../invite-dialog";
 import { StaffFilters } from "./components/staff-filters";
 import { StaffMobileList } from "./components/staff-mobile-list";
 import { StaffMobileSkeleton } from "./components/staff-mobile-skeleton";
 import { StaffStatusSummary } from "./components/staff-status-summary";
 import { StaffTable } from "./components/staff-table";
 import { StaffTableSkeleton } from "./components/staff-table-skeleton";
+import { StaffDataProvider, useStaffData } from "./staff-data-context";
 
 function StaffContent() {
   const { isLoading, pagination, currentPage, pageLimit, setPagination } =
@@ -70,7 +70,7 @@ function StaffContent() {
           {pagination.total > 0 && (
             <PaginationControls
               total={pagination.total}
-              page={currentPage}
+              currentPage={currentPage}
               limit={pageLimit}
               onPageChange={(page) =>
                 setPagination({ currentPage: page, limit: pageLimit })

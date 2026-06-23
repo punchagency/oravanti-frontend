@@ -70,7 +70,7 @@ function TeamsContent() {
           {pagination.total > 0 && (
             <PaginationControls
               total={pagination.total}
-              page={currentPage}
+              currentPage={currentPage}
               limit={pageLimit}
               onPageChange={(page) =>
                 setPagination({ currentPage: page, limit: pageLimit })

@@ -1,9 +1,9 @@
+import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { useCancelInvitation } from "@/hooks/useCancelInvitation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useResendInvitation } from "@/hooks/useResendInvitation";
-import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import {
   Avatar,
   Badge,
@@ -20,15 +20,15 @@ import {
   Text,
   Tooltip,
 } from "@chakra-ui/react";
+import { useDebounce } from "@uidotdev/usehooks";
 import { Download, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useMemo } from "react";
-import { InviteStaffDialog } from "../../invite-dialog";
 import { PaginationControls } from "../../components/pagination-controls";
+import { InviteStaffDialog } from "../../invite-dialog";
 import { InvitationMobileList } from "./components/invitation-mobile-list";
-import { InvitationsSkeleton } from "./components/invitations-skeleton";
 import { InvitationStatusSummary } from "./components/invitation-status-summary";
-import { useDebounce } from "@uidotdev/usehooks";
+import { InvitationsSkeleton } from "./components/invitations-skeleton";
 
 const roleOptions = createListCollection({
   items: [
@@ -114,7 +114,11 @@ export default function Invitations() {
     "status",
     parseAsString.withDefault("all-statuses"),
   );
-  const { currentPage, limit: pageLimit, setPagination } = usePaginationQueryStates();
+  const {
+    currentPage,
+    limit: pageLimit,
+    setPagination,
+  } = usePaginationQueryStates();
   const { showConfirm } = useConfirmDialog();
 
   const params = useMemo(
@@ -126,14 +130,30 @@ export default function Invitations() {
       page: currentPage,
       limit: pageLimit,
     }),
-    [debouncedSearch, roleFilter, teamFilter, statusFilter, currentPage, pageLimit],
+    [
+      debouncedSearch,
+      roleFilter,
+      teamFilter,
+      statusFilter,
+      currentPage,
+      pageLimit,
+    ],
   );
 
-  const { data: invitations, counts, pagination, isLoading } = useInvitationsList(params);
+  const {
+    data: invitations,
+    counts,
+    pagination,
+    isLoading,
+  } = useInvitationsList(params);
   const cancelMutation = useCancelInvitation();
   const resendMutation = useResendInvitation();
 
-  const hasActiveFilters = searchQuery !== "" || roleFilter !== "all-roles" || teamFilter !== "all-teams" || statusFilter !== "all-statuses";
+  const hasActiveFilters =
+    searchQuery !== "" ||
+    roleFilter !== "all-roles" ||
+    teamFilter !== "all-teams" ||
+    statusFilter !== "all-statuses";
 
   function clearFilters() {
     setSearchQuery("");
@@ -256,7 +276,10 @@ export default function Invitations() {
               borderColor="border.input"
               borderRadius="md"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPagination({ currentPage: 1, limit: pageLimit }); }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPagination({ currentPage: 1, limit: pageLimit });
+              }}
             />
           </Box>
 
@@ -266,7 +289,10 @@ export default function Invitations() {
             w={{ base: "full", md: "auto" }}
             minW={{ md: "130px" }}
             value={[roleFilter]}
-            onValueChange={(e) => { setRoleFilter(e.value[0] ?? "all-roles"); setPagination({ currentPage: 1, limit: pageLimit }); }}
+            onValueChange={(e) => {
+              setRoleFilter(e.value[0] ?? "all-roles");
+              setPagination({ currentPage: 1, limit: pageLimit });
+            }}
           >
             <Select.Control>
               <Select.Trigger bg="bg.input" borderColor="border.input">
@@ -295,7 +321,10 @@ export default function Invitations() {
             w={{ base: "full", md: "auto" }}
             minW={{ md: "130px" }}
             value={[teamFilter]}
-            onValueChange={(e) => { setTeamFilter(e.value[0] ?? "all-teams"); setPagination({ currentPage: 1, limit: pageLimit }); }}
+            onValueChange={(e) => {
+              setTeamFilter(e.value[0] ?? "all-teams");
+              setPagination({ currentPage: 1, limit: pageLimit });
+            }}
           >
             <Select.Control>
               <Select.Trigger bg="bg.input" borderColor="border.input">
@@ -324,7 +353,10 @@ export default function Invitations() {
             w={{ base: "full", md: "auto" }}
             minW={{ md: "130px" }}
             value={[statusFilter]}
-            onValueChange={(e) => { setStatusFilter(e.value[0] ?? "all-statuses"); setPagination({ currentPage: 1, limit: pageLimit }); }}
+            onValueChange={(e) => {
+              setStatusFilter(e.value[0] ?? "all-statuses");
+              setPagination({ currentPage: 1, limit: pageLimit });
+            }}
           >
             <Select.Control>
               <Select.Trigger bg="bg.input" borderColor="border.input">
@@ -359,7 +391,9 @@ export default function Invitations() {
               <Text display={{ base: "inline", md: "none" }} ml={1}>
                 Clear
               </Text>
-              <Text display={{ base: "none", md: "inline" }}>Clear filters</Text>
+              <Text display={{ base: "none", md: "inline" }}>
+                Clear filters
+              </Text>
             </Button>
           )}
         </HStack>
@@ -476,7 +510,10 @@ export default function Invitations() {
 
                     <Table.Body>
                       {invitations.map((inv) => {
-                        const displayName = [inv.firstName, inv.lastName].filter(Boolean).join(" ") || inv.email;
+                        const displayName =
+                          [inv.firstName, inv.lastName]
+                            .filter(Boolean)
+                            .join(" ") || inv.email;
                         return (
                           <Table.Row
                             key={inv.id}
@@ -487,7 +524,11 @@ export default function Invitations() {
                           >
                             <Table.Cell py={4} whiteSpace="nowrap">
                               <HStack gap={3}>
-                                <Avatar.Root size="sm" width="32px" height="32px">
+                                <Avatar.Root
+                                  size="sm"
+                                  width="32px"
+                                  height="32px"
+                                >
                                   <Avatar.Fallback
                                     name={displayName}
                                     bg="bg.muted"
@@ -517,24 +558,28 @@ export default function Invitations() {
                                 <Text color="fg.subtle">—</Text>
                               ) : (
                                 <HStack gap={1.5} wrap="wrap">
-                                  {inv.practiceAreas.slice(0, 2).map((area, idx) => (
-                                    <Badge
-                                      key={idx}
-                                      size="sm"
-                                      borderRadius="full"
-                                      px={2.5}
-                                      py={0.5}
-                                      variant="subtle"
-                                      textTransform="none"
-                                      fontWeight="400"
-                                      bg="rgba(186, 117, 23, 0.12)"
-                                      color="#BA7517"
-                                    >
-                                      {area.name}
-                                    </Badge>
-                                  ))}
+                                  {inv.practiceAreas
+                                    .slice(0, 2)
+                                    .map((area, idx) => (
+                                      <Badge
+                                        key={idx}
+                                        size="sm"
+                                        borderRadius="full"
+                                        px={2.5}
+                                        py={0.5}
+                                        variant="subtle"
+                                        textTransform="none"
+                                        fontWeight="400"
+                                        bg="rgba(186, 117, 23, 0.12)"
+                                        color="#BA7517"
+                                      >
+                                        {area.name}
+                                      </Badge>
+                                    ))}
                                   {inv.practiceAreas.length > 2 && (
-                                    <Tooltip.Root positioning={{ placement: "top" }}>
+                                    <Tooltip.Root
+                                      positioning={{ placement: "top" }}
+                                    >
                                       <Tooltip.Trigger asChild>
                                         <Badge
                                           size="sm"
@@ -554,7 +599,9 @@ export default function Invitations() {
                                       <Portal>
                                         <Tooltip.Positioner>
                                           <Tooltip.Content>
-                                            {inv.practiceAreas.map((a) => a.name).join(", ")}
+                                            {inv.practiceAreas
+                                              .map((a) => a.name)
+                                              .join(", ")}
                                           </Tooltip.Content>
                                         </Tooltip.Positioner>
                                       </Portal>
@@ -564,7 +611,11 @@ export default function Invitations() {
                               )}
                             </Table.Cell>
 
-                            <Table.Cell py={4} color="fg.muted" whiteSpace="nowrap">
+                            <Table.Cell
+                              py={4}
+                              color="fg.muted"
+                              whiteSpace="nowrap"
+                            >
                               {inv.team || "—"}
                             </Table.Cell>
 
@@ -573,7 +624,9 @@ export default function Invitations() {
                             </Table.Cell>
 
                             <Table.Cell py={4} whiteSpace="nowrap">
-                              <Text color="fg.muted">{formatDate(inv.createdAt)}</Text>
+                              <Text color="fg.muted">
+                                {formatDate(inv.createdAt)}
+                              </Text>
                             </Table.Cell>
 
                             <Table.Cell py={4} whiteSpace="nowrap">
@@ -589,7 +642,11 @@ export default function Invitations() {
                               </Badge>
                             </Table.Cell>
 
-                            <Table.Cell py={4} textAlign="right" whiteSpace="nowrap">
+                            <Table.Cell
+                              py={4}
+                              textAlign="right"
+                              whiteSpace="nowrap"
+                            >
                               {inv.status === "pending" && (
                                 <HStack gap={2} justify="end">
                                   <Button
@@ -623,7 +680,8 @@ export default function Invitations() {
                                         description: `Are you sure you want to revoke the invitation for ${inv.email}? This will also remove their staff record and user account.`,
                                         confirmLabel: "Yes, revoke",
                                         cancelLabel: "Keep",
-                                        onConfirm: () => cancelMutation.mutateAsync(inv.id),
+                                        onConfirm: () =>
+                                          cancelMutation.mutateAsync(inv.id),
                                       })
                                     }
                                   >
@@ -658,9 +716,11 @@ export default function Invitations() {
       {pagination.total > 0 && (
         <PaginationControls
           total={pagination.total}
-          page={currentPage}
+          currentPage={currentPage}
           limit={pageLimit}
-          onPageChange={(page) => setPagination({ currentPage: page, limit: pageLimit })}
+          onPageChange={(page) =>
+            setPagination({ currentPage: page, limit: pageLimit })
+          }
           onLimitChange={(limit) => setPagination({ currentPage: 1, limit })}
         />
       )}
