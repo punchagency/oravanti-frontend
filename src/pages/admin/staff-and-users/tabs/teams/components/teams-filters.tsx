@@ -1,41 +1,40 @@
 import {
   Box,
   Button,
+  Combobox,
   createListCollection,
   Flex,
   Input,
   Portal,
-  Select,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTeamsData } from "../teams-data-context";
 
-const statusOptions = createListCollection({
-  items: [
-    { value: "all-statuses", label: "All statuses" },
-    { value: "available", label: "Available" },
-    { value: "full", label: "Full" },
-    { value: "overloaded", label: "Overloaded" },
-  ],
-});
+const statusItems = [
+  { value: "available", label: "Available" },
+  { value: "full", label: "Full" },
+  { value: "overloaded", label: "Overloaded" },
+];
 
 export function TeamsFilters() {
-  const {
-    teams,
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-  } = useTeamsData();
+  const { teams, searchQuery, setSearchQuery, statusFilter, setStatusFilter } =
+    useTeamsData();
 
-  const hasActiveFilters =
-    searchQuery !== "" || statusFilter !== "all-statuses";
+  const [statusSearch, setStatusSearch] = useState("");
+
+  const statusCollection = useMemo(
+    () => createListCollection({ items: statusItems }),
+    [],
+  );
+
+  const hasActiveFilters = searchQuery !== "" || !!statusFilter;
 
   function clearFilters() {
     setSearchQuery("");
-    setStatusFilter("all-statuses");
+    setStatusFilter("");
   }
 
   return (
@@ -71,34 +70,60 @@ export function TeamsFilters() {
           />
         </Box>
 
-        <Select.Root
-          collection={statusOptions}
+        <Combobox.Root
+          collection={statusCollection}
           size={{ base: "xs", md: "sm" }}
           w={{ base: "full", md: "auto" }}
           minW={{ md: "130px" }}
           value={[statusFilter]}
-          onValueChange={(e) => setStatusFilter(e.value[0] ?? "all-statuses")}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setStatusFilter(val);
+            if (!val) setStatusSearch("");
+          }}
+          onInputValueChange={(e) => setStatusSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
         >
-          <Select.Control>
-            <Select.Trigger bg="bg.input" borderColor="border.input">
-              <Select.ValueText />
-            </Select.Trigger>
-            <Select.IndicatorGroup>
-              <Select.Indicator />
-            </Select.IndicatorGroup>
-          </Select.Control>
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All statuses"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!statusFilter && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
           <Portal>
-            <Select.Positioner>
-              <Select.Content>
-                {statusOptions.items.map((opt) => (
-                  <Select.Item item={opt} key={opt.value}>
-                    <Select.ItemText>{opt.label}</Select.ItemText>
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Positioner>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = statusCollection.items.filter(
+                    (item) =>
+                      !statusSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(statusSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No statuses matching &ldquo;{statusSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
           </Portal>
-        </Select.Root>
+        </Combobox.Root>
 
         {hasActiveFilters && (
           <Button

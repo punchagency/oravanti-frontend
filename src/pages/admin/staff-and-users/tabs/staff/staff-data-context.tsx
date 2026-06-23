@@ -44,15 +44,15 @@ export function StaffDataProvider({ children }: { children: ReactNode }) {
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [roleFilter, setRoleFilter] = useQueryState(
     "role",
-    parseAsString.withDefault("all-roles"),
+    parseAsString.withDefault(""),
   );
   const [teamFilter, setTeamFilter] = useQueryState(
     "team",
-    parseAsString.withDefault("all-teams"),
+    parseAsString.withDefault(""),
   );
   const [statusFilter, setStatusFilter] = useQueryState(
     "status",
-    parseAsString.withDefault("all-statuses"),
+    parseAsString.withDefault(""),
   );
 
   const { currentPage, limit: pageLimit, setPagination } = usePaginationQueryStates();
@@ -77,9 +77,9 @@ export function StaffDataProvider({ children }: { children: ReactNode }) {
   const params = useMemo(
     () => ({
       search: debouncedSearch || undefined,
-      role: roleFilter !== "all-roles" ? roleFilter : undefined,
-      team: teamFilter !== "all-teams" ? teamFilter : undefined,
-      status: statusFilter !== "all-statuses" ? statusFilter : undefined,
+      role: roleFilter || undefined,
+      team: teamFilter || undefined,
+      status: statusFilter || undefined,
       page: currentPage,
       limit: pageLimit,
     }),

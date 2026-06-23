@@ -39,7 +39,7 @@ export function TeamsDataProvider({ children }: { children: ReactNode }) {
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useQueryState(
     "status",
-    parseAsString.withDefault("all-statuses"),
+    parseAsString.withDefault(""),
   );
 
   const { currentPage, limit: pageLimit, setPagination } = usePaginationQueryStates();
@@ -56,7 +56,7 @@ export function TeamsDataProvider({ children }: { children: ReactNode }) {
   const params = useMemo(
     () => ({
       search: debouncedSearch || undefined,
-      status: statusFilter !== "all-statuses" ? statusFilter : undefined,
+      status: statusFilter || undefined,
       page: currentPage,
       limit: pageLimit,
     }),

@@ -7,33 +7,26 @@ import {
   Flex,
   Input,
   Portal,
-  Select,
   Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useStaffData } from "../staff-data-context";
 
-const roleOptions = createListCollection({
-  items: [
-    { value: "all-roles", label: "All roles" },
-    { value: "attorney", label: "Attorney" },
-    { value: "paralegal", label: "Paralegal" },
-    { value: "admin", label: "Admin" },
-  ],
-});
+const roleItems = [
+  { value: "attorney", label: "Attorney" },
+  { value: "paralegal", label: "Paralegal" },
+  { value: "admin", label: "Admin" },
+];
 
-const statusOptions = createListCollection({
-  items: [
-    { value: "all-statuses", label: "All statuses" },
-    { value: "active", label: "Active" },
-    { value: "on_leave", label: "On leave" },
-    { value: "recertify_required", label: "Recertify required" },
-    { value: "pending_invitation", label: "Pending invitation" },
-  ],
-});
+const statusItems = [
+  { value: "active", label: "Active" },
+  { value: "on_leave", label: "On leave" },
+  { value: "recertify_required", label: "Recertify required" },
+  { value: "pending_invitation", label: "Pending invitation" },
+];
 
 export function StaffFilters() {
   const {
@@ -51,29 +44,35 @@ export function StaffFilters() {
   const { data: teamsData } = useTeamsList({ limit: 100 });
   const teams = teamsData?.data ?? [];
   const [teamSearch, setTeamSearch] = useState("");
+  const [roleSearch, setRoleSearch] = useState("");
+  const [statusSearch, setStatusSearch] = useState("");
 
   const teamCollection = useMemo(
     () =>
       createListCollection({
-        items: [
-          { label: "All teams", value: "all-teams" },
-          ...teams.map((t) => ({ label: t.name, value: t.name })),
-        ],
+        items: [...teams.map((t) => ({ label: t.name, value: t.name }))],
       }),
     [teams],
   );
 
+  const roleCollection = useMemo(
+    () => createListCollection({ items: roleItems }),
+    [],
+  );
+
+  const statusCollection = useMemo(
+    () => createListCollection({ items: statusItems }),
+    [],
+  );
+
   const hasActiveFilters =
-    searchQuery !== "" ||
-    roleFilter !== "all-roles" ||
-    teamFilter !== "all-teams" ||
-    statusFilter !== "all-statuses";
+    searchQuery !== "" || !!roleFilter || !!teamFilter || !!statusFilter;
 
   function clearFilters() {
     setSearchQuery("");
-    setRoleFilter("all-roles");
-    setTeamFilter("all-teams");
-    setStatusFilter("all-statuses");
+    setRoleFilter("");
+    setTeamFilter("");
+    setStatusFilter("");
   }
 
   return (
@@ -109,76 +108,47 @@ export function StaffFilters() {
           />
         </Box>
 
-        <Select.Root
-          collection={roleOptions}
+        <Combobox.Root
+          collection={roleCollection}
           size={{ base: "xs", md: "sm" }}
           w={{ base: "full", md: "auto" }}
           minW={{ md: "130px" }}
           value={[roleFilter]}
-          onValueChange={(e) => setRoleFilter(e.value[0] ?? "all-roles")}
-        >
-          <Select.Control>
-            <Select.Trigger bg="bg.input" borderColor="border.input">
-              <Select.ValueText />
-            </Select.Trigger>
-            <Select.IndicatorGroup>
-              <Select.Indicator />
-            </Select.IndicatorGroup>
-          </Select.Control>
-          <Portal>
-            <Select.Positioner>
-              <Select.Content>
-                {roleOptions.items.map((opt) => (
-                  <Select.Item item={opt} key={opt.value}>
-                    <Select.ItemText>{opt.label}</Select.ItemText>
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Positioner>
-          </Portal>
-        </Select.Root>
-
-        <Combobox.Root
-          collection={teamCollection}
-          size={{ base: "xs", md: "sm" }}
-          w={{ base: "full", md: "auto" }}
-          minW={{ md: "180px" }}
-          value={[teamFilter]}
-          onValueChange={(e) => setTeamFilter(e.value[0] ?? "all-teams")}
-          onInputValueChange={(e) => setTeamSearch(e.inputValue)}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setRoleFilter(val);
+            if (!val) setRoleSearch("");
+          }}
+          onInputValueChange={(e) => setRoleSearch(e.inputValue)}
           positioning={{ sameWidth: true }}
           openOnClick
         >
           <Combobox.Control>
             <Combobox.Input
-              placeholder="All teams"
+              placeholder="All roles"
               bg="bg.input"
               borderColor="border.input"
               borderRadius="md"
             />
             <Combobox.IndicatorGroup>
+              {!!roleFilter && <Combobox.ClearTrigger />}
               <Combobox.Trigger />
             </Combobox.IndicatorGroup>
           </Combobox.Control>
           <Portal>
             <Combobox.Positioner>
               <Combobox.Content>
-                {teams.length === 0 ? (
-                  <Flex p={3} gap={2} align="center" justify="center">
-                    <Spinner size="xs" />
-                    <Text fontSize="sm" color="fg.muted">
-                      Loading...
-                    </Text>
-                  </Flex>
-                ) : (() => {
-                  const filtered = teamCollection.items.filter(
+                {(() => {
+                  const filtered = roleCollection.items.filter(
                     (item) =>
-                      !teamSearch ||
-                      item.label.toLowerCase().includes(teamSearch.toLowerCase()),
+                      !roleSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(roleSearch.toLowerCase()),
                   );
                   return filtered.length === 0 ? (
                     <Text p={3} fontSize="sm" color="fg.muted">
-                      No teams matching &ldquo;{teamSearch}&rdquo;
+                      No roles matching &ldquo;{roleSearch}&rdquo;
                     </Text>
                   ) : (
                     filtered.map((item) => (
@@ -193,34 +163,124 @@ export function StaffFilters() {
           </Portal>
         </Combobox.Root>
 
-        <Select.Root
-          collection={statusOptions}
+        <Combobox.Root
+          collection={teamCollection}
           size={{ base: "xs", md: "sm" }}
           w={{ base: "full", md: "auto" }}
-          minW={{ md: "130px" }}
-          value={[statusFilter]}
-          onValueChange={(e) => setStatusFilter(e.value[0] ?? "all-statuses")}
+          minW={{ md: "180px" }}
+          value={[teamFilter]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setTeamFilter(val);
+            if (!val) setTeamSearch("");
+          }}
+          onInputValueChange={(e) => setTeamSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
         >
-          <Select.Control>
-            <Select.Trigger bg="bg.input" borderColor="border.input">
-              <Select.ValueText />
-            </Select.Trigger>
-            <Select.IndicatorGroup>
-              <Select.Indicator />
-            </Select.IndicatorGroup>
-          </Select.Control>
+          <Combobox.Control>
+            <Combobox.Input
+                placeholder="All teams"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!teamFilter && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
           <Portal>
-            <Select.Positioner>
-              <Select.Content>
-                {statusOptions.items.map((opt) => (
-                  <Select.Item item={opt} key={opt.value}>
-                    <Select.ItemText>{opt.label}</Select.ItemText>
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Positioner>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {teams.length === 0 ? (
+                  <Flex p={3} gap={2} align="center" justify="center">
+                    <Spinner size="xs" />
+                    <Text fontSize="sm" color="fg.muted">
+                      Loading...
+                    </Text>
+                  </Flex>
+                ) : (
+                  (() => {
+                    const filtered = teamCollection.items.filter(
+                      (item) =>
+                        !teamSearch ||
+                        item.label
+                          .toLowerCase()
+                          .includes(teamSearch.toLowerCase()),
+                    );
+                    return filtered.length === 0 ? (
+                      <Text p={3} fontSize="sm" color="fg.muted">
+                        No teams matching &ldquo;{teamSearch}&rdquo;
+                      </Text>
+                    ) : (
+                      filtered.map((item) => (
+                        <Combobox.Item key={item.value} item={item}>
+                          <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                        </Combobox.Item>
+                      ))
+                    );
+                  })()
+                )}
+              </Combobox.Content>
+            </Combobox.Positioner>
           </Portal>
-        </Select.Root>
+        </Combobox.Root>
+
+        <Combobox.Root
+          collection={statusCollection}
+          size={{ base: "xs", md: "sm" }}
+          w={{ base: "full", md: "auto" }}
+          minW={{ md: "160px" }}
+          value={[statusFilter]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setStatusFilter(val);
+            if (!val) setStatusSearch("");
+          }}
+          onInputValueChange={(e) => setStatusSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
+        >
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All statuses"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!statusFilter && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = statusCollection.items.filter(
+                    (item) =>
+                      !statusSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(statusSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No statuses matching &ldquo;{statusSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Root>
 
         {hasActiveFilters && (
           <Button
