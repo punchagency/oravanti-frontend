@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import axios from "axios";
 import { useAuthStore } from "@/store/auth-store";
+import axios from "axios";
 
 export const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -51,6 +51,8 @@ const shouldSkipRefresh = (url?: string) => {
   if (!url) return false;
 
   const excludedPaths = [
+    // "/auth/get-session",
+    "/organization/needs-setup",
     "/auth/refresh-session",
     "/auth/sign-in",
     "/auth/sign-up",

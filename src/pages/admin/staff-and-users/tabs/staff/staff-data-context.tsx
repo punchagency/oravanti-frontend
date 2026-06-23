@@ -6,8 +6,14 @@ import {
 } from "@/hooks/use-staff-list";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { parseAsString, useQueryState } from "nuqs";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { toStaffMember, type StaffMember } from "./data";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  type ReactNode,
+} from "react";
+import { toStaffMember, type StaffMember } from "../../data";
 
 interface StaffDataContextValue {
   staffData: StaffMember[];
@@ -51,6 +57,23 @@ export function StaffDataProvider({ children }: { children: ReactNode }) {
 
   const { currentPage, limit: pageLimit, setPagination } = usePaginationQueryStates();
 
+  const setSearchQueryAndResetPage = useCallback(
+    (q: string) => { setSearchQuery(q); setPagination({ currentPage: 1 }); },
+    [setSearchQuery, setPagination],
+  );
+  const setRoleFilterAndResetPage = useCallback(
+    (r: string) => { setRoleFilter(r); setPagination({ currentPage: 1 }); },
+    [setRoleFilter, setPagination],
+  );
+  const setTeamFilterAndResetPage = useCallback(
+    (t: string) => { setTeamFilter(t); setPagination({ currentPage: 1 }); },
+    [setTeamFilter, setPagination],
+  );
+  const setStatusFilterAndResetPage = useCallback(
+    (s: string) => { setStatusFilter(s); setPagination({ currentPage: 1 }); },
+    [setStatusFilter, setPagination],
+  );
+
   const params = useMemo(
     () => ({
       search: debouncedSearch || undefined,
@@ -90,13 +113,13 @@ export function StaffDataProvider({ children }: { children: ReactNode }) {
         counts,
         isLoading,
         searchQuery,
-        setSearchQuery,
+        setSearchQuery: setSearchQueryAndResetPage,
         roleFilter,
-        setRoleFilter,
+        setRoleFilter: setRoleFilterAndResetPage,
         teamFilter,
-        setTeamFilter,
+        setTeamFilter: setTeamFilterAndResetPage,
         statusFilter,
-        setStatusFilter,
+        setStatusFilter: setStatusFilterAndResetPage,
         currentPage,
         pageLimit,
         setPagination,

@@ -1,9 +1,14 @@
+import { useRemoveStaff } from "@/hooks/use-remove-staff";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useAuthStore } from "@/store/auth-store";
+import { useConfirmStore } from "@/store/confirm-store";
 import {
   Avatar,
   Badge,
   Box,
-  Button,
   HStack,
+  IconButton,
+  Menu,
   Portal,
   Progress,
   ScrollArea,
@@ -12,14 +17,81 @@ import {
   Tooltip,
   VStack,
 } from "@chakra-ui/react";
+import { Ellipsis, Eye, UserX } from "lucide-react";
+import { useState } from "react";
 import {
   getProgressColor,
   getStatusBadgeStyles,
   getStatusLabel,
-} from "../data";
+  type StaffMember,
+} from "../../../data";
 import { useStaffData } from "../staff-data-context";
-import { StaffDetailsDrawer } from "./staff-details-drawer";
-import { useAuthStore } from "@/store/auth-store";
+import { StaffDetailsDrawer } from "./staff-details/dialog";
+
+function TableActionMenu({ staff }: { staff: StaffMember }) {
+  const [open, setOpen] = useState(false);
+  const { showConfirm } = useConfirmDialog();
+  const removeStaff = useRemoveStaff();
+
+  const handleRemove = () => {
+    showConfirm({
+      title: "Remove staff member",
+      description: `Are you sure you want to remove ${staff.name}? This will revoke their access and remove all associated data.`,
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      onConfirm: async () => {
+        useConfirmStore.getState().setLoading(true);
+        try {
+          await removeStaff.mutateAsync(staff.id);
+          useConfirmStore.getState().close();
+        } catch {
+          useConfirmStore.getState().setLoading(false);
+          useConfirmStore.getState().close();
+        }
+      },
+    });
+  };
+
+  return (
+    <StaffDetailsDrawer
+      staff={staff}
+      open={open}
+      onOpenChange={({ open }) => setOpen(open)}
+    >
+      <Menu.Root>
+        <Menu.Trigger asChild>
+          <IconButton
+            variant="ghost"
+            size="xs"
+            color="fg.muted"
+            _hover={{ color: "fg", bg: "bg.muted" }}
+          >
+            <Ellipsis size={15} />
+          </IconButton>
+        </Menu.Trigger>
+        <Portal>
+          <Menu.Positioner>
+            <Menu.Content minW="150px">
+              <Menu.Item value="view" onClick={() => setOpen(true)}>
+                <Eye size={14} />
+                <Box flex="1">View details</Box>
+              </Menu.Item>
+              <Menu.Item
+                value="remove"
+                color="fg.error"
+                _hover={{ bg: "bg.error", color: "fg.error" }}
+                onClick={handleRemove}
+              >
+                <UserX size={14} />
+                <Box flex="1">Remove staff</Box>
+              </Menu.Item>
+            </Menu.Content>
+          </Menu.Positioner>
+        </Portal>
+      </Menu.Root>
+    </StaffDetailsDrawer>
+  );
+}
 
 export function StaffTable() {
   const { filteredStaff } = useStaffData();
@@ -76,7 +148,7 @@ export function StaffTable() {
                       pb={3}
                       whiteSpace="nowrap"
                     >
-                      TEAM
+                      TEAMS
                     </Table.ColumnHeader>
                     <Table.ColumnHeader
                       textStyle="body-sm"
@@ -113,7 +185,7 @@ export function StaffTable() {
                       textAlign="right"
                       whiteSpace="nowrap"
                     >
-                      ACTION
+                      ACTIONS
                     </Table.ColumnHeader>
                   </Table.Row>
                 </Table.Header>
@@ -169,8 +241,61 @@ export function StaffTable() {
                         <Text color="fg">{staff.role}</Text>
                       </Table.Cell>
 
-                      <Table.Cell py={4} color="fg.muted" whiteSpace="nowrap">
-                        {staff.team || "None"}
+                      <Table.Cell py={4} whiteSpace="nowrap">
+                        {staff.teams.length === 0 ? (
+                          <Text color="fg.subtle">None</Text>
+                        ) : (
+                          <HStack gap={1.5} wrap="wrap">
+                            {staff.teams.slice(0, 1).map((t) => (
+                              <Badge
+                                key={t.id}
+                                size="sm"
+                                borderRadius="full"
+                                px={2.5}
+                                py={0.5}
+                                variant="subtle"
+                                textTransform="none"
+                                fontWeight="400"
+                                bg="rgba(29, 158, 117, 0.12)"
+                                color="#1D9E75"
+                              >
+                                {t.name}
+                              </Badge>
+                            ))}
+                            {staff.teams.length > 1 && (
+                              <Tooltip.Root
+                                positioning={{ placement: "top" }}
+                              >
+                                <Tooltip.Trigger asChild>
+                                  <Badge
+                                    size="sm"
+                                    variant="subtle"
+                                    textTransform="none"
+                                    fontWeight="500"
+                                    borderRadius="full"
+                                    px={2.5}
+                                    py={0.5}
+                                    bg="rgba(180, 178, 169, 0.2)"
+                                    color="fg.muted"
+                                    cursor="pointer"
+                                  >
+                                    +{staff.teams.length - 1}
+                                  </Badge>
+                                </Tooltip.Trigger>
+                                <Portal>
+                                  <Tooltip.Positioner>
+                                    <Tooltip.Content>
+                                      {staff.teams
+                                        .slice(1)
+                                        .map((t) => t.name)
+                                        .join(", ")}
+                                    </Tooltip.Content>
+                                  </Tooltip.Positioner>
+                                </Portal>
+                              </Tooltip.Root>
+                            )}
+                          </HStack>
+                        )}
                       </Table.Cell>
 
                       <Table.Cell py={4} whiteSpace="nowrap">
@@ -226,13 +351,13 @@ export function StaffTable() {
                                       <Tooltip.Trigger asChild>
                                         <Badge
                                           size="sm"
-                                          borderRadius="full"
-                                          px={2.5}
-                                          py={0.5}
                                           variant="subtle"
                                           textTransform="none"
                                           fontWeight="500"
-                                          bg="bg.muted"
+                                          borderRadius="full"
+                                          px={2.5}
+                                          py={0.5}
+                                          bg="rgba(180, 178, 169, 0.2)"
                                           color="fg.muted"
                                           cursor="pointer"
                                         >
@@ -242,7 +367,9 @@ export function StaffTable() {
                                       <Portal>
                                         <Tooltip.Positioner>
                                           <Tooltip.Content>
-                                            {areas.map((a) => a.name).join(", ")}
+                                            {areas
+                                              .map((a) => a.name)
+                                              .join(", ")}
                                           </Tooltip.Content>
                                         </Tooltip.Positioner>
                                       </Portal>
@@ -301,18 +428,7 @@ export function StaffTable() {
                       </Table.Cell>
 
                       <Table.Cell py={4} textAlign="right" whiteSpace="nowrap">
-                        <StaffDetailsDrawer staff={staff}>
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            borderColor="border"
-                            color="fg"
-                            px={4}
-                            _hover={{ bg: "bg.muted" }}
-                          >
-                            View
-                          </Button>
-                        </StaffDetailsDrawer>
+                        <TableActionMenu staff={staff} />
                       </Table.Cell>
                     </Table.Row>
                   ))}

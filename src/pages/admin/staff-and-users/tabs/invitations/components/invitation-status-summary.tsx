@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { Check, Clock, ThumbsDown, XCircle } from "lucide-react";
 import type { InvitationCounts } from "@/api/organization";
-import { ThemeSkeleton } from "./theme-skeleton";
+import { ThemeSkeleton } from "../../../components/theme-skeleton";
 
 const cards = [
   {

@@ -3,6 +3,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useResendInvitation } from "@/hooks/useResendInvitation";
+import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import {
   Avatar,
   Badge,
@@ -19,13 +20,14 @@ import {
   Text,
   Tooltip,
 } from "@chakra-ui/react";
-import { RefreshCw, Search, X } from "lucide-react";
+import { Download, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useMemo } from "react";
-import { InvitationMobileList } from "../components/invitation-mobile-list";
-import { InvitationsSkeleton } from "../components/invitations-skeleton";
-import { InvitationStatusSummary } from "../components/invitation-status-summary";
-import { PaginationControls } from "../components/pagination-controls";
+import { InviteStaffDialog } from "../../invite-dialog";
+import { PaginationControls } from "../../components/pagination-controls";
+import { InvitationMobileList } from "./components/invitation-mobile-list";
+import { InvitationsSkeleton } from "./components/invitations-skeleton";
+import { InvitationStatusSummary } from "./components/invitation-status-summary";
 import { useDebounce } from "@uidotdev/usehooks";
 
 const roleOptions = createListCollection({
@@ -144,6 +146,42 @@ export default function Invitations() {
   if (isLoading) {
     return (
       <>
+        <Flex
+          as="header"
+          direction={{ base: "column", md: "row" }}
+          align={{ base: "stretch", md: "flex-start" }}
+          justify="space-between"
+          gap="16px"
+          pb="16px"
+        >
+          <Box>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="22px"
+              fontWeight="500"
+              lineHeight="1.2"
+            >
+              Invitations
+            </Text>
+            <Text m="6px 0 0" color="fg.muted" fontSize="13px">
+              Review and manage staff invitations
+            </Text>
+          </Box>
+          <HStack gap="8px" w={{ base: "full", md: "auto" }}>
+            <OutlineButton flex={{ base: 1, md: "initial" }}>
+              <Download size={14} />
+              Export
+            </OutlineButton>
+            <InviteStaffDialog>
+              <BrandButton flex={{ base: 1, md: "initial" }}>
+                <UserPlus size={15} />
+                Invite staff
+              </BrandButton>
+            </InviteStaffDialog>
+          </HStack>
+        </Flex>
         <InvitationStatusSummary counts={counts} isLoading={isLoading} />
         <InvitationsSkeleton />
       </>
@@ -152,6 +190,42 @@ export default function Invitations() {
 
   return (
     <>
+      <Flex
+        as="header"
+        direction={{ base: "column", md: "row" }}
+        align={{ base: "stretch", md: "flex-start" }}
+        justify="space-between"
+        gap="16px"
+        pb="16px"
+      >
+        <Box>
+          <Text
+            as="h1"
+            m="0"
+            color="fg"
+            fontSize="22px"
+            fontWeight="500"
+            lineHeight="1.2"
+          >
+            Invitations
+          </Text>
+          <Text m="6px 0 0" color="fg.muted" fontSize="13px">
+            Review and manage staff invitations
+          </Text>
+        </Box>
+        <HStack gap="8px" w={{ base: "full", md: "auto" }}>
+          <OutlineButton flex={{ base: 1, md: "initial" }}>
+            <Download size={14} />
+            Export
+          </OutlineButton>
+          <InviteStaffDialog>
+            <BrandButton flex={{ base: 1, md: "initial" }}>
+              <UserPlus size={15} />
+              Invite staff
+            </BrandButton>
+          </InviteStaffDialog>
+        </HStack>
+      </Flex>
       <InvitationStatusSummary counts={counts} isLoading={isLoading} />
 
       <Flex

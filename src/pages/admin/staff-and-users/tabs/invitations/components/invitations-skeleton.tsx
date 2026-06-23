@@ -7,7 +7,7 @@ import {
   Table,
   Text,
 } from "@chakra-ui/react";
-import { ThemeSkeleton } from "./theme-skeleton";
+import { ThemeSkeleton } from "../../../components/theme-skeleton";
 
 function InvitationTableSkeleton() {
   return (

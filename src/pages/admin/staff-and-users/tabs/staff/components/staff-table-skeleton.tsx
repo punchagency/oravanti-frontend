@@ -1,10 +1,5 @@
-import {
-  Box,
-  HStack,
-  ScrollArea,
-  Table,
-} from "@chakra-ui/react";
-import { ThemeSkeleton } from "./theme-skeleton";
+import { Box, HStack, ScrollArea, Table } from "@chakra-ui/react";
+import { ThemeSkeleton } from "../../../components/theme-skeleton";
 
 const ROWS = 5;
 
@@ -87,7 +82,7 @@ export function StaffTableSkeleton() {
                     textAlign="right"
                     whiteSpace="nowrap"
                   >
-                    ACTION
+                    ACTIONS
                   </Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
@@ -124,24 +119,44 @@ export function StaffTableSkeleton() {
 
                     <Table.Cell py={4} whiteSpace="nowrap">
                       <HStack gap={1.5}>
-                        <ThemeSkeleton height="20px" width="80px" borderRadius="full" />
-                        <ThemeSkeleton height="20px" width="70px" borderRadius="full" />
+                        <ThemeSkeleton
+                          height="20px"
+                          width="80px"
+                          borderRadius="full"
+                        />
+                        <ThemeSkeleton
+                          height="20px"
+                          width="70px"
+                          borderRadius="full"
+                        />
                       </HStack>
                     </Table.Cell>
 
                     <Table.Cell py={4} whiteSpace="nowrap">
                       <Box maxW="100px">
                         <ThemeSkeleton height="11px" width="50px" mb={1} />
-                        <ThemeSkeleton height="4px" width="100%" borderRadius="full" />
+                        <ThemeSkeleton
+                          height="4px"
+                          width="100%"
+                          borderRadius="full"
+                        />
                       </Box>
                     </Table.Cell>
 
                     <Table.Cell py={4} whiteSpace="nowrap">
-                      <ThemeSkeleton height="20px" width="70px" borderRadius="full" />
+                      <ThemeSkeleton
+                        height="20px"
+                        width="70px"
+                        borderRadius="full"
+                      />
                     </Table.Cell>
 
                     <Table.Cell py={4} textAlign="right" whiteSpace="nowrap">
-                      <ThemeSkeleton height="28px" width="60px" borderRadius="md" />
+                      <ThemeSkeleton
+                        height="28px"
+                        width="60px"
+                        borderRadius="md"
+                      />
                     </Table.Cell>
                   </Table.Row>
                 ))}

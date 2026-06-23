@@ -22,7 +22,7 @@ import { CalendarDays, Pencil, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import type { StaffMember } from "../data";
+import type { StaffMember } from "../../../data";
 
 const formSchema = z.object({
   firstName: z.string(),

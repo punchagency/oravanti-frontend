@@ -23,7 +23,7 @@ export interface StaffMemberDTO {
   startDate: string | null;
   maxCaseload: number | null;
   practiceAreas: { id: string; name: string }[];
-  team: string;
+  teams: { id: string; name: string }[];
   createdAt: string;
   updatedAt: string;
 }

@@ -5,7 +5,7 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { ThemeSkeleton } from "./theme-skeleton";
+import { ThemeSkeleton } from "../../../components/theme-skeleton";
 
 const ROWS = 5;
 
