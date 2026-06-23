@@ -159,8 +159,8 @@ export function StepOverview({ team }: { team: TeamDTO }) {
               </Stack>
             </Flex>
             <Box
-              bg="rgba(60, 52, 137, 0.1)"
-              color="#3C3489"
+              bg="rgba(83, 74, 183, 0.15)"
+              color="#8B83EC"
               px="8px"
               py="2px"
               borderRadius="md"

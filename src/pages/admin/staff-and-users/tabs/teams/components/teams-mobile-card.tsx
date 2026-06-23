@@ -1,4 +1,5 @@
 import { useDeleteTeam } from "@/hooks/use-delete-team";
+import type { TeamListDTO } from "@/hooks/use-teams-list";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useConfirmStore } from "@/store/confirm-store";
 import {
@@ -23,7 +24,6 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState } from "react";
-import type { TeamListDTO } from "@/hooks/use-teams-list";
 import { AddMemberDialog } from "./team-details/add-member-dialog";
 import { TeamDetailsDrawer } from "./team-details/dialog";
 import { EditTeamDialog } from "./team-details/edit-team-dialog";
@@ -186,17 +186,19 @@ export function TeamsMobileCard({ team }: TeamsMobileCardProps) {
         </Text>
       </Flex>
 
-      <Progress.Root
-        value={team.workloadPercentage}
-        size="xs"
-        mb={3}
-      >
+      <Progress.Root value={team.workloadPercentage} size="xs" mb={3}>
         <Progress.Track bg="border.muted">
           <Progress.Range bg="#BA7517" />
         </Progress.Track>
       </Progress.Root>
 
-      <Stack gap={2} textStyle="body-sm" pt={2} borderTop="1px solid" borderColor="border.muted">
+      <Stack
+        gap={2}
+        textStyle="body-sm"
+        pt={2}
+        borderTop="1px solid"
+        borderColor="border.muted"
+      >
         {team.leadName && (
           <Flex justify="space-between" align="center">
             <Text color="fg.subtle">Team lead:</Text>
@@ -208,6 +210,7 @@ export function TeamsMobileCard({ team }: TeamsMobileCardProps) {
                   color="#085041"
                   fontSize="9px"
                   fontWeight="500"
+                  p={0.5}
                 />
               </Avatar.Root>
               <Text color="fg" fontWeight="500">
@@ -229,19 +232,25 @@ export function TeamsMobileCard({ team }: TeamsMobileCardProps) {
         key="transfer"
         team={team}
         open={activeDialog === "transfer"}
-        onOpenChange={(open) => { if (!open) setActiveDialog(null); }}
+        onOpenChange={(open) => {
+          if (!open) setActiveDialog(null);
+        }}
       />
       <EditTeamDialog
         key="edit"
         team={team}
         open={activeDialog === "edit"}
-        onOpenChange={(open) => { if (!open) setActiveDialog(null); }}
+        onOpenChange={(open) => {
+          if (!open) setActiveDialog(null);
+        }}
       />
       <AddMemberDialog
         key="add"
         team={team}
         open={activeDialog === "add"}
-        onOpenChange={(open) => { if (!open) setActiveDialog(null); }}
+        onOpenChange={(open) => {
+          if (!open) setActiveDialog(null);
+        }}
       />
     </Box>
   );

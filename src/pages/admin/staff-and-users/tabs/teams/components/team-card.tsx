@@ -242,6 +242,7 @@ export function TeamCard({ team }: TeamCardProps) {
                 color="#085041"
                 fontSize="11px"
                 fontWeight="500"
+                p={1}
               />
             </Avatar.Root>
             <Text
@@ -268,8 +269,8 @@ export function TeamCard({ team }: TeamCardProps) {
               size="sm"
               variant="subtle"
               textTransform="none"
-              color="#3C3489"
-              bg="rgba(60, 52, 137, 0.1)"
+              bg="rgba(83, 74, 183, 0.15)"
+              color="#8B83EC"
               fontSize="10px"
               fontWeight="500"
             >
@@ -305,19 +306,25 @@ export function TeamCard({ team }: TeamCardProps) {
         key="transfer"
         team={team}
         open={activeDialog === "transfer"}
-        onOpenChange={(open) => { if (!open) setActiveDialog(null); }}
+        onOpenChange={(open) => {
+          if (!open) setActiveDialog(null);
+        }}
       />
       <EditTeamDialog
         key="edit"
         team={team}
         open={activeDialog === "edit"}
-        onOpenChange={(open) => { if (!open) setActiveDialog(null); }}
+        onOpenChange={(open) => {
+          if (!open) setActiveDialog(null);
+        }}
       />
       <AddMemberDialog
         key="add"
         team={team}
         open={activeDialog === "add"}
-        onOpenChange={(open) => { if (!open) setActiveDialog(null); }}
+        onOpenChange={(open) => {
+          if (!open) setActiveDialog(null);
+        }}
       />
     </Box>
   );
