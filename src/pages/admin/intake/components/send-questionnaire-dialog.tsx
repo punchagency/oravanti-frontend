@@ -8,8 +8,8 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { Info, Plus, Send, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Info, Lock, Plus, Send, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type {
   CustomDocumentInput,
@@ -47,30 +47,14 @@ const fieldStyles = {
 type DraftCustomQuestion = CustomQuestionInput & { label: string };
 type DraftCustomDoc = CustomDocumentInput & { label: string };
 
-export function SendQuestionnaireButton({
+export function SendQuestionnaireDialog({
   open,
   onOpenChange,
+  presetLeadId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <>
-      <OutlineButton onClick={() => onOpenChange(true)}>
-        <Send size={14} />
-        Send new questionnaire
-      </OutlineButton>
-      <SendQuestionnaireDialog open={open} onOpenChange={onOpenChange} />
-    </>
-  );
-}
-
-function SendQuestionnaireDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
   const [leadId, setLeadId] = useState("");
@@ -84,6 +68,11 @@ function SendQuestionnaireDialog({
   const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
   const selectedLead = leads.find((l) => l.id === leadId) ?? null;
   const send = useSendQuestionnaireConfigured();
+
+  // Pre-select the lead when the wizard is opened from a specific lead card.
+  useEffect(() => {
+    if (open && presetLeadId) setLeadId(presetLeadId);
+  }, [open, presetLeadId]);
 
   function reset() {
     setStep(1);
@@ -209,6 +198,7 @@ function SendQuestionnaireDialog({
                   leads={leads}
                   leadsLoading={leadsLoading}
                   leadId={leadId}
+                  matterType={selectedLead?.caseTypeName ?? null}
                   channels={channels}
                   reminder={reminder}
                   onLeadChange={setLeadId}
@@ -315,6 +305,7 @@ function RecipientStep({
   leads,
   leadsLoading,
   leadId,
+  matterType,
   channels,
   reminder,
   onLeadChange,
@@ -324,6 +315,7 @@ function RecipientStep({
   leads: { id: string; name: string; caseTypeName: string | null }[];
   leadsLoading: boolean;
   leadId: string;
+  matterType: string | null;
   channels: Channel[];
   reminder: ReminderOption;
   onLeadChange: (id: string) => void;
@@ -368,6 +360,19 @@ function RecipientStep({
           ))}
         </chakra.select>
       </Field>
+
+      {leadId ? (
+        <Field label="Matter type (auto-populated)">
+          <chakra.input
+            {...fieldStyles}
+            value={matterType ?? "—"}
+            readOnly
+            disabled
+            bg="bg.muted"
+            color="fg.muted"
+          />
+        </Field>
+      ) : null}
 
       <Field label="Send questionnaire in">
         <chakra.select {...fieldStyles} value="english" disabled>
@@ -436,12 +441,13 @@ function CustomizeStep({
   const [showBank, setShowBank] = useState(false);
   const { data: bank = [] } = useQuestionBank(showBank);
 
-  const standardCount = useMemo(
+  const [expandStandard, setExpandStandard] = useState(false);
+
+  const standardQuestions = useMemo(
     () =>
-      (preview?.sections ?? []).reduce(
-        (acc, s) => acc + s.questions.filter((q) => q.isLocked).length,
-        0,
-      ),
+      (preview?.sections ?? [])
+        .flatMap((s) => s.questions)
+        .filter((q) => q.isLocked && q.type !== "file_upload"),
     [preview],
   );
   const requiredDocs = useMemo(
@@ -452,61 +458,131 @@ function CustomizeStep({
     [preview],
   );
 
+  const COLLAPSE_AT = 3;
+  const visibleStandard = expandStandard
+    ? standardQuestions
+    : standardQuestions.slice(0, COLLAPSE_AT);
+  const hiddenCount = standardQuestions.length - visibleStandard.length;
+
   return (
-    <Stack gap="16px" pt="8px">
+    <Stack gap="18px" pt="8px">
       <HStack
         align="flex-start"
         gap="10px"
         p="12px"
         border="1px solid"
-        borderColor="#d18400"
+        borderColor="#1f9e75"
         borderRadius="7px"
-        bg="#fdf3e2"
-        color="#7a4d00"
+        bg="#e7f7f0"
+        color="#0c5d44"
         fontSize="11px"
         lineHeight="1.4"
       >
         <Info size={13} />
         <Box>
-          {standardCount} standard question{standardCount === 1 ? "" : "s"} are
-          pre-defined for this matter type and linked to court/USCIS forms. They
-          cannot be removed.
+          Standard questions below are pre-defined for this matter type and cannot
+          be removed. You may add custom questions at the bottom of each section.
         </Box>
       </HStack>
 
-      {requiredDocs.length ? (
-        <Box>
-          <Text fontSize="12px" fontWeight="600" color="fg" mb="6px">
-            Required documents ({requiredDocs.length})
-          </Text>
-          <Stack gap="4px">
-            {requiredDocs.map((d) => (
-              <Text key={d.id} fontSize="12px" color="fg.muted">
-                • {d.label}
-              </Text>
-            ))}
-          </Stack>
-        </Box>
-      ) : null}
-
+      {/* Standard (locked) questions */}
       <Box>
-        <HStack justify="space-between" mb="8px">
-          <Text fontSize="12px" fontWeight="600" color="fg">
-            Add custom questions
-          </Text>
-          <OutlineButton
-            h="30px"
-            px="10px"
+        <HStack gap="6px" mb="8px" color="fg" fontSize="12px" fontWeight="600">
+          <Lock size={12} />
+          <Text>Standard questions ({standardQuestions.length} — locked)</Text>
+        </HStack>
+        <Stack gap="2px">
+          {visibleStandard.map((q) => (
+            <HStack key={q.id} align="flex-start" gap="8px" py="6px">
+              <Box pt="2px" color="fg.muted">
+                <Lock size={11} />
+              </Box>
+              <Text fontSize="12px" color="fg.muted" lineHeight="1.4">
+                {q.label}
+              </Text>
+            </HStack>
+          ))}
+        </Stack>
+        {hiddenCount > 0 ? (
+          <chakra.button
+            type="button"
+            onClick={() => setExpandStandard(true)}
+            mt="4px"
+            fontSize="11px"
+            fontWeight="500"
+            color="brand.solid"
+            textAlign="left"
+          >
+            … and {hiddenCount} more standard question
+            {hiddenCount === 1 ? "" : "s"} (click to expand)
+          </chakra.button>
+        ) : standardQuestions.length > COLLAPSE_AT ? (
+          <chakra.button
+            type="button"
+            onClick={() => setExpandStandard(false)}
+            mt="4px"
+            fontSize="11px"
+            fontWeight="500"
+            color="fg.muted"
+            textAlign="left"
+          >
+            Show fewer
+          </chakra.button>
+        ) : null}
+      </Box>
+
+      {/* Add custom questions */}
+      <Box>
+        <Text fontSize="12px" fontWeight="600" color="fg" mb="8px">
+          Add custom questions
+        </Text>
+        <Stack gap="8px">
+          {customQuestions.map((q, i) => (
+            <DraftRow
+              key={i}
+              value={q.label}
+              placeholder="What is your question?"
+              saveToFirm={q.saveToFirm ?? false}
+              onChange={(label) =>
+                setCustomQuestions((prev) =>
+                  prev.map((x, idx) => (idx === i ? { ...x, label } : x)),
+                )
+              }
+              onToggleSave={() =>
+                setCustomQuestions((prev) =>
+                  prev.map((x, idx) =>
+                    idx === i ? { ...x, saveToFirm: !x.saveToFirm } : x,
+                  ),
+                )
+              }
+              onRemove={() =>
+                setCustomQuestions((prev) => prev.filter((_, idx) => idx !== i))
+              }
+            />
+          ))}
+          <DashedButton
+            onClick={() =>
+              setCustomQuestions((prev) => [
+                ...prev,
+                { label: "", saveToFirm: false },
+              ])
+            }
+          >
+            <Plus size={14} />
+            Add custom question
+          </DashedButton>
+          <DashedButton
+            milky
             onClick={() => setShowBank((v) => !v)}
           >
-            {showBank ? "Hide snippets" : "Browse question snippets"}
-          </OutlineButton>
-        </HStack>
+            {showBank ? "Hide question snippets" : "Browse question snippets"}
+          </DashedButton>
+        </Stack>
 
         {showBank ? (
           <Box
-            mb="10px"
-            maxH="160px"
+            mt="10px"
+            maxH="180px"
             overflowY="auto"
             border="1px solid"
             borderColor="border"
@@ -518,7 +594,12 @@ function CustomizeStep({
             ) : (
               bank.map((entry) => (
                 <Box key={entry.caseTypeId} mb="8px">
-                  <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase">
+                  <Text
+                    fontSize="10px"
+                    fontWeight="600"
+                    color="fg.muted"
+                    textTransform="uppercase"
+                  >
                     {entry.caseTypeName ?? "General"}
                   </Text>
                   {entry.questions.slice(0, 12).map((q, i) => (
@@ -549,50 +630,32 @@ function CustomizeStep({
             )}
           </Box>
         ) : null}
-
-        <Stack gap="8px">
-          {customQuestions.map((q, i) => (
-            <DraftRow
-              key={i}
-              value={q.label}
-              placeholder="What is your question?"
-              saveToFirm={q.saveToFirm ?? false}
-              onChange={(label) =>
-                setCustomQuestions((prev) =>
-                  prev.map((x, idx) => (idx === i ? { ...x, label } : x)),
-                )
-              }
-              onToggleSave={() =>
-                setCustomQuestions((prev) =>
-                  prev.map((x, idx) =>
-                    idx === i ? { ...x, saveToFirm: !x.saveToFirm } : x,
-                  ),
-                )
-              }
-              onRemove={() =>
-                setCustomQuestions((prev) => prev.filter((_, idx) => idx !== i))
-              }
-            />
-          ))}
-          <OutlineButton
-            h="34px"
-            onClick={() =>
-              setCustomQuestions((prev) => [
-                ...prev,
-                { label: "", saveToFirm: false },
-              ])
-            }
-          >
-            <Plus size={14} />
-            Add custom question
-          </OutlineButton>
-        </Stack>
       </Box>
 
+      {/* Required documents (pre-defined) */}
+      {requiredDocs.length ? (
+        <Box>
+          <HStack gap="6px" mb="8px" color="fg" fontSize="12px" fontWeight="600">
+            <Lock size={12} />
+            <Text>Required documents ({requiredDocs.length})</Text>
+          </HStack>
+          <Stack gap="2px">
+            {requiredDocs.map((d) => (
+              <HStack key={d.id} align="flex-start" gap="8px" py="6px">
+                <Box pt="2px" color="fg.muted">
+                  <Lock size={11} />
+                </Box>
+                <Text fontSize="12px" color="fg.muted" lineHeight="1.4">
+                  {d.label}
+                </Text>
+              </HStack>
+            ))}
+          </Stack>
+        </Box>
+      ) : null}
+
+      {/* Add custom document requests */}
       <Box>
-        <Text fontSize="12px" fontWeight="600" color="fg" mb="8px">
-          Add custom document requests
-        </Text>
         <Stack gap="8px">
           {customDocs.map((d, i) => (
             <DraftRow
@@ -617,18 +680,53 @@ function CustomizeStep({
               }
             />
           ))}
-          <OutlineButton
-            h="34px"
+          <DashedButton
             onClick={() =>
-              setCustomDocs((prev) => [...prev, { label: "", saveToFirm: false }])
+              setCustomDocs((prev) => [
+                ...prev,
+                { label: "", saveToFirm: false },
+              ])
             }
           >
             <Plus size={14} />
             Add custom document request
-          </OutlineButton>
+          </DashedButton>
         </Stack>
       </Box>
     </Stack>
+  );
+}
+
+function DashedButton({
+  children,
+  milky,
+  onClick,
+}: {
+  children: React.ReactNode;
+  milky?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <chakra.button
+      type="button"
+      onClick={onClick}
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      gap="6px"
+      w="full"
+      h="36px"
+      borderRadius="8px"
+      border="1px dashed"
+      borderColor="border"
+      bg={milky ? "bg.muted" : "bg"}
+      color="fg.muted"
+      fontSize="12px"
+      fontWeight="500"
+      _hover={{ borderColor: "brand.solid", color: "fg" }}
+    >
+      {children}
+    </chakra.button>
   );
 }
 

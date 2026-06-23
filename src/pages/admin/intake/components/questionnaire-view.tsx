@@ -15,16 +15,20 @@ import {
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
+import { SendQuestionnaireDialog } from "./send-questionnaire-dialog";
 
-export function QuestionnaireView({
-  onSendQuestionnaire,
-}: {
-  onSendQuestionnaire: () => void;
-}) {
+export function QuestionnaireView() {
   const { data, isLoading } = useLeads({ stage: "questionnaire" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
   const totalSent = leads.filter((l) => l.questionnaireSendId).length;
   const [openResponseId, setOpenResponseId] = useState<string | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
+
+  function openWizard(leadId: string | null) {
+    setPresetLeadId(leadId);
+    setWizardOpen(true);
+  }
 
   return (
     <Stack gap="16px" pt="24px" aria-label="Questionnaire queue">
@@ -34,6 +38,10 @@ export function QuestionnaireView({
             ? "Loading…"
             : `${totalSent} questionnaire${totalSent === 1 ? "" : "s"} sent`}
         </MutedText>
+        <OutlineButton onClick={() => openWizard(null)}>
+          <Send size={14} />
+          Send new questionnaire
+        </OutlineButton>
       </HStack>
 
       {isLoading ? null : leads.length === 0 ? (
@@ -44,7 +52,7 @@ export function QuestionnaireView({
             <QuestionnaireCard
               key={lead.id}
               lead={lead}
-              onSendQuestionnaire={onSendQuestionnaire}
+              onSendQuestionnaire={() => openWizard(lead.id)}
               onView={setOpenResponseId}
             />
           ))}
@@ -54,6 +62,11 @@ export function QuestionnaireView({
       <QuestionnaireResponseDialog
         responseId={openResponseId}
         onClose={() => setOpenResponseId(null)}
+      />
+      <SendQuestionnaireDialog
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        presetLeadId={presetLeadId}
       />
     </Stack>
   );

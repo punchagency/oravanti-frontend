@@ -1,5 +1,4 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { useState } from "react";
 import { useLocation } from "react-router";
 import { CaseOpeningView } from "./components/case-opening-view";
 import { ConflictCheckView } from "./components/conflict-check-view";
@@ -7,7 +6,6 @@ import { ConsultationView } from "./components/consultation-view";
 import { LeadInboxView } from "./components/lead-inbox-view";
 import { PipelineFrame } from "./components/pipeline-frame";
 import { QuestionnaireView } from "./components/questionnaire-view";
-import { SendQuestionnaireButton } from "./components/send-questionnaire-dialog";
 
 type IntakeView =
   | "lead-inbox"
@@ -32,12 +30,12 @@ function getIntakeView(pathname: string): IntakeView {
   return "lead-inbox";
 }
 
-function renderIntakeView(view: IntakeView, openWizard: () => void) {
+function renderIntakeView(view: IntakeView) {
   switch (view) {
     case "conflict-check":
       return <ConflictCheckView />;
     case "questionnaire":
-      return <QuestionnaireView onSendQuestionnaire={openWizard} />;
+      return <QuestionnaireView />;
     case "consultation":
       return <ConsultationView />;
     case "case-opening":
@@ -51,7 +49,6 @@ export function IntakePipelinePage() {
   const location = useLocation();
   const view = getIntakeView(location.pathname);
   const title = viewTitles[view];
-  const [wizardOpen, setWizardOpen] = useState(false);
 
   useDocumentTitle(
     view === "lead-inbox"
@@ -59,18 +56,5 @@ export function IntakePipelinePage() {
       : `${title} - Intake pipeline - Oravanti`,
   );
 
-  return (
-    <PipelineFrame
-      headerActions={
-        view === "questionnaire" ? (
-          <SendQuestionnaireButton
-            open={wizardOpen}
-            onOpenChange={setWizardOpen}
-          />
-        ) : undefined
-      }
-    >
-      {renderIntakeView(view, () => setWizardOpen(true))}
-    </PipelineFrame>
-  );
+  return <PipelineFrame>{renderIntakeView(view)}</PipelineFrame>;
 }
