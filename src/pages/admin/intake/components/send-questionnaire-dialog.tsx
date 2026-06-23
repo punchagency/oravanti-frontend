@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type {
   CustomDocumentInput,
@@ -67,7 +67,7 @@ export function SendQuestionnaireDialog({
   presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
-  const [leadId, setLeadId] = useState("");
+  const [leadId, setLeadId] = useState(() => presetLeadId ?? "");
   const [channels, setChannels] = useState<Channel[]>(["email", "sms"]);
   const [reminder, setReminder] = useState<ReminderOption>("3");
   const [customQuestions, setCustomQuestions] = useState<DraftCustomQuestion[]>(
@@ -79,10 +79,17 @@ export function SendQuestionnaireDialog({
   const selectedLead = leads.find((l) => l.id === leadId) ?? null;
   const send = useSendQuestionnaireConfigured();
 
-  // Pre-select the lead when the wizard is opened from a specific lead card.
-  useEffect(() => {
-    if (open && presetLeadId) setLeadId(presetLeadId);
-  }, [open, presetLeadId]);
+  // Cached/deduped with the same query in CustomizeStep — used for the review counts.
+  const { data: preview } = useCaseTypeQuestionnairePreview(
+    selectedLead?.caseTypeId ?? null,
+  );
+  const previewQuestions = (preview?.sections ?? []).flatMap((s) => s.questions);
+  const standardCount = previewQuestions.filter(
+    (q) => q.isLocked && q.type !== "file_upload",
+  ).length;
+  const requiredDocsCount = previewQuestions.filter(
+    (q) => q.type === "file_upload",
+  ).length;
 
   function reset() {
     setStep(1);
@@ -236,6 +243,8 @@ export function SendQuestionnaireDialog({
                   lead={selectedLead}
                   channels={channels}
                   reminder={reminder}
+                  standardCount={standardCount}
+                  requiredDocsCount={requiredDocsCount}
                   customQuestionCount={
                     customQuestions.filter((q) => q.label.trim()).length
                   }
@@ -646,7 +655,6 @@ function CustomizeStep({
                     <Box
                       key={entry.caseTypeId}
                       borderRadius="7px"
-                      bg="bg"
                       border="1px solid"
                       borderColor="border.subtle"
                     >
@@ -678,7 +686,6 @@ function CustomizeStep({
                             borderRadius="6px"
                             border="1px solid"
                             borderColor="border"
-                            bg="bg"
                             color="fg"
                             fontSize="11px"
                             fontWeight="500"
@@ -696,7 +703,6 @@ function CustomizeStep({
                             borderRadius="6px"
                             border="1px solid"
                             borderColor="border"
-                            bg="bg"
                             color="fg.muted"
                           >
                             <ChevronDown
@@ -937,12 +943,16 @@ function ReviewStep({
   lead,
   channels,
   reminder,
+  standardCount,
+  requiredDocsCount,
   customQuestionCount,
   customDocCount,
 }: {
   lead: { name: string; caseTypeName: string | null } | null;
   channels: Channel[];
   reminder: ReminderOption;
+  standardCount: number;
+  requiredDocsCount: number;
   customQuestionCount: number;
   customDocCount: number;
 }) {
@@ -950,6 +960,10 @@ function ReviewStep({
     ["Recipient", lead?.name ?? "—"],
     ["Matter type", lead?.caseTypeName ?? "—"],
     ["Language", "English"],
+    ["Standard questions", `${standardCount} (locked, pre-defined)`],
+    ["Custom questions added", String(customQuestionCount)],
+    ["Required documents", `${requiredDocsCount} (pre-defined)`],
+    ["Custom document requests", String(customDocCount)],
     [
       "Deliver via",
       channels.map((c) => (c === "sms" ? "SMS" : "Email")).join(", ") || "—",
@@ -958,27 +972,24 @@ function ReviewStep({
       "Auto-reminder",
       reminder === "never" ? "Never" : `After ${reminder} days`,
     ],
-    ["Custom questions added", String(customQuestionCount)],
-    ["Custom document requests", String(customDocCount)],
   ];
 
   return (
     <Stack gap="14px" pt="8px">
-      <Box border="1px solid" borderColor="border" borderRadius="9px" bg="bg.subtle" overflow="hidden">
+      <Box border="1px solid" borderColor="border" borderRadius="9px" bg="bg.subtle" padding="10px" overflow="hidden">
         {rows.map(([label, value], i) => (
           <Flex
             key={label}
-            justify="space-between"
-            gap="16px"
-            px="14px"
-            py="10px"
+            flexDirection="column"
+            px="7px"
+            py="5px"
             borderTop={i === 0 ? undefined : "1px solid"}
             borderColor="border.subtle"
           >
             <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase">
               {label}
             </Text>
-            <Text fontSize="12px" color="fg" textAlign="right">
+            <Text fontSize="12px" color="fg">
               {value}
             </Text>
           </Flex>
