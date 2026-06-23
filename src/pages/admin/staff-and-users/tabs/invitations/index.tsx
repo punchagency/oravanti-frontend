@@ -1,5 +1,6 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useInvitationsList } from "@/hooks/use-invitations-list";
+import { useTeamsList } from "@/hooks/use-teams-list";
 import { useCancelInvitation } from "@/hooks/useCancelInvitation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
@@ -9,6 +10,7 @@ import {
   Badge,
   Box,
   Button,
+  Combobox,
   createListCollection,
   Flex,
   HStack,
@@ -16,6 +18,7 @@ import {
   Portal,
   ScrollArea,
   Select,
+  Spinner,
   Table,
   Text,
   Tooltip,
@@ -23,7 +26,7 @@ import {
 import { useDebounce } from "@uidotdev/usehooks";
 import { Download, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PaginationControls } from "../../components/pagination-controls";
 import { InviteStaffDialog } from "../../invite-dialog";
 import { InvitationMobileList } from "./components/invitation-mobile-list";
@@ -36,14 +39,6 @@ const roleOptions = createListCollection({
     { value: "attorney", label: "Attorney" },
     { value: "paralegal", label: "Paralegal" },
     { value: "admin", label: "Admin" },
-  ],
-});
-
-const teamOptions = createListCollection({
-  items: [
-    { value: "all-teams", label: "All teams" },
-    { value: "Immigration Team A", label: "Immigration Team A" },
-    { value: "Family & Estate Team", label: "Family & Estate Team" },
   ],
 });
 
@@ -138,6 +133,21 @@ export default function Invitations() {
       currentPage,
       pageLimit,
     ],
+  );
+
+  const { data: teamsData } = useTeamsList({ limit: 100 });
+  const teams = teamsData?.data ?? [];
+  const [teamSearch, setTeamSearch] = useState("");
+
+  const teamCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "All teams", value: "all-teams" },
+          ...teams.map((t) => ({ label: t.name, value: t.name })),
+        ],
+      }),
+    [teams],
   );
 
   const {
@@ -315,37 +325,63 @@ export default function Invitations() {
             </Portal>
           </Select.Root>
 
-          <Select.Root
-            collection={teamOptions}
+          <Combobox.Root
+            collection={teamCollection}
             size={{ base: "xs", md: "sm" }}
             w={{ base: "full", md: "auto" }}
-            minW={{ md: "130px" }}
+            minW={{ md: "180px" }}
             value={[teamFilter]}
             onValueChange={(e) => {
               setTeamFilter(e.value[0] ?? "all-teams");
               setPagination({ currentPage: 1, limit: pageLimit });
             }}
+            onInputValueChange={(e) => setTeamSearch(e.inputValue)}
+            positioning={{ sameWidth: true }}
+            openOnClick
           >
-            <Select.Control>
-              <Select.Trigger bg="bg.input" borderColor="border.input">
-                <Select.ValueText />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
+            <Combobox.Control>
+              <Combobox.Input
+                placeholder="All teams"
+                bg="bg.input"
+                borderColor="border.input"
+                borderRadius="md"
+              />
+              <Combobox.IndicatorGroup>
+                <Combobox.Trigger />
+              </Combobox.IndicatorGroup>
+            </Combobox.Control>
             <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {teamOptions.items.map((opt) => (
-                    <Select.Item item={opt} key={opt.value}>
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
+              <Combobox.Positioner>
+                <Combobox.Content>
+                  {teams.length === 0 ? (
+                    <Flex p={3} gap={2} align="center" justify="center">
+                      <Spinner size="xs" />
+                      <Text fontSize="sm" color="fg.muted">
+                        Loading...
+                      </Text>
+                    </Flex>
+                  ) : (() => {
+                    const filtered = teamCollection.items.filter(
+                      (item) =>
+                        !teamSearch ||
+                        item.label.toLowerCase().includes(teamSearch.toLowerCase()),
+                    );
+                    return filtered.length === 0 ? (
+                      <Text p={3} fontSize="sm" color="fg.muted">
+                        No teams matching &ldquo;{teamSearch}&rdquo;
+                      </Text>
+                    ) : (
+                      filtered.map((item) => (
+                        <Combobox.Item key={item.value} item={item}>
+                          <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                        </Combobox.Item>
+                      ))
+                    );
+                  })()}
+                </Combobox.Content>
+              </Combobox.Positioner>
             </Portal>
-          </Select.Root>
+          </Combobox.Root>
 
           <Select.Root
             collection={statusOptions}
