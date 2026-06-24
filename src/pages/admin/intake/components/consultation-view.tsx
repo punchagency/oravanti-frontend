@@ -11,30 +11,43 @@ import {
   chakra,
 } from "@chakra-ui/react";
 import {
+  AlertTriangle,
   CalendarDays,
   Check,
+  Clock,
+  Download,
   ExternalLink,
+  Eye,
+  FileText,
   Info,
   Mail,
   MapPin,
   MessageSquare,
+  Phone,
   Send,
   Video,
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
+import { downloadResponseFile } from "@/api/questionnaires";
+import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
   useCreateConsultation,
+  useGenerateFeeAgreement,
   useLeadById,
   useLeads,
+  useNudgeClient,
   useUpdateConsultation,
 } from "@/hooks/use-leads";
-import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
+import {
+  useLeadQuestionnaire,
+  useRequestMissingDocuments,
+  useResponseDetail,
+} from "@/hooks/use-questionnaires";
 import { useStaffList, type StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   BrandButton,
@@ -44,6 +57,7 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
+import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
 
 type ScheduleStep = 1 | 2 | 3;
 type ConsultationMode = "video" | "in_person" | "phone_call";
@@ -86,6 +100,21 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
+function formatIsoTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function consultationModeIcon(mode: ConsultationMode | undefined) {
+  if (mode === "video") return <Video size={12} />;
+  if (mode === "phone_call") return <Phone size={12} />;
+  return <MapPin size={12} />;
+}
+
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const { data, isLoading } = useLeads({ stage: "consultation" });
@@ -126,45 +155,90 @@ export function ConsultationView() {
 }
 
 function ConsultationCard({ lead }: { lead: Lead }) {
-  const navigate = useNavigate();
   const { data: leadDetail } = useLeadById(lead.id);
+  const { data: questionnaire } = useLeadQuestionnaire(lead.id);
+  const responseId = questionnaire?.response?.id ?? null;
+  const { data: responseDetail } = useResponseDetail(responseId);
+  const canDownload = useCanDownloadDocuments();
+  const { data: staffData } = useStaffList({
+    role: "attorney",
+    status: "active",
+  });
+
   const saveNotesMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
+  const generateFee = useGenerateFeeAgreement();
+  const nudgeClient = useNudgeClient();
   const advanceStage = useAdvanceLeadStage();
+  const requestMissing = useRequestMissingDocuments();
 
   const consultation = leadDetail?.consultation;
+  const feeAgreement = leadDetail?.feeAgreement;
+  const send = questionnaire?.send;
+  const response = questionnaire?.response;
+
   const [notes, setNotes] = useState<string | null>(null);
-  const displayNotes = notes !== null ? notes : (consultation?.attorneyNotes ?? "");
+  const displayNotes =
+    notes !== null ? notes : (consultation?.attorneyNotes ?? "");
+  const [docDialog, setDocDialog] = useState<{
+    id: string;
+    tab: "responses" | "documents";
+  } | null>(null);
 
-  const modeLabel =
-    consultation?.mode === "video"
-      ? "Video call"
-      : consultation?.mode === "in_person"
-        ? "In-person"
-        : null;
+  const attorneys = staffData?.data ?? [];
+  const attorneyName = (() => {
+    if (!consultation?.leadAttorneyId) return "Unassigned";
+    const a = attorneys.find((s) => s.id === consultation.leadAttorneyId);
+    return a ? `${a.firstName} ${a.lastName}`.trim() : "Assigned attorney";
+  })();
 
-  const dateLabel = consultation?.scheduledAt
+  const modeLabel = consultation
+    ? consultationModeLabel(consultation.mode)
+    : null;
+  const consultationDate = consultation?.scheduledAt
     ? formatReceivedDate(consultation.scheduledAt)
-    : formatReceivedDate(lead.receivedAt);
+    : "—";
+  const consultationTime = consultation?.scheduledAt
+    ? formatIsoTime(consultation.scheduledAt)
+    : "—";
 
-  const statusLabel = consultation
-    ? ({
-        scheduled: "Scheduled",
-        in_progress: "In progress",
-        completed: "Completed",
-        cancelled: "Cancelled",
-        no_show: "No show",
-      } as const)[consultation.status]
-    : "Pending";
+  // ── Documents ──────────────────────────────────────────────────────────────
+  const sections = responseDetail?.send?.schemaSnapshot?.sections ?? [];
+  const fileQuestions = sections.flatMap((s) =>
+    (s.questions ?? []).filter((q) => q.type === "file_upload"),
+  );
+  const files = responseDetail?.files ?? [];
+  const uploadedQuestionIds = new Set(files.map((f) => f.questionId));
+  const totalDocs = fileQuestions.length;
+  const receivedCount = fileQuestions.filter((q) =>
+    uploadedQuestionIds.has(q.id),
+  ).length;
+  const pendingQuestions = fileQuestions.filter(
+    (q) => !uploadedQuestionIds.has(q.id),
+  );
+  const issueFiles = files.filter((f) => f.scanStatus === "issues_found");
+  const issueCount = issueFiles.reduce(
+    (n, f) => n + (f.scanResult?.length ?? 0),
+    0,
+  );
 
-  const statusTone =
-    consultation?.status === "completed"
-      ? "success"
-      : consultation?.status === "cancelled" || consultation?.status === "no_show"
-        ? "danger"
-        : consultation
-          ? "warning"
-          : "neutral";
+  // ── Questionnaire status ─────────────────────────────────────────────────────
+  const questionnaireComplete =
+    response?.status === "submitted" || send?.status === "submitted";
+  const submittedDate = response?.submittedAt
+    ? formatReceivedDate(response.submittedAt)
+    : null;
+
+  // ── Fee agreement tracker ────────────────────────────────────────────────────
+  const feeStageIndex = leadDetail?.convertedCaseId
+    ? 4
+    : feeAgreement?.status === "signed"
+      ? 3
+      : feeAgreement?.status === "pending_signature"
+        ? 2
+        : feeAgreement?.status === "draft"
+          ? 1
+          : 0;
 
   const alreadySettled =
     consultation?.outcome === "close_no_case" ||
@@ -176,100 +250,274 @@ function ConsultationCard({ lead }: { lead: Lead }) {
       { onSuccess: () => setNotes(null) },
     );
   }
-
-  function handleProceedToFeeAgreement() {
-    advanceStage.mutate(
-      { id: lead.id, stage: "fee_agreement" },
-      { onSuccess: () => navigate("/admin/intake/pipeline/fee-agreement") },
-    );
-  }
-
   function handleFollowUp() {
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
   }
-
   function handleCloseNoCase() {
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "close_no_case" } });
   }
-
   function handleReferElsewhere() {
-    outcomesMutation.mutate({ id: lead.id, data: { outcome: "refer_elsewhere" } });
+    outcomesMutation.mutate({
+      id: lead.id,
+      data: { outcome: "refer_elsewhere" },
+    });
   }
 
   return (
     <SurfaceCard>
-      <HStack align="center" justify="space-between" gap="16px" wrap="wrap">
-        <Box>
+      {/* 1. Lead + consultation details */}
+      <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
+        <Box minW="0">
           <CardTitle>{lead.name}</CardTitle>
-          {lead.situationSummary ? (
-            <MutedText>{lead.situationSummary}</MutedText>
-          ) : null}
+          <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
         </Box>
-        <HStack gap="8px" wrap="wrap" color="fg.muted" fontSize="12px" justify="flex-end">
-          <StatusPill tone={statusTone as "success" | "danger" | "warning" | "neutral"}>
-            {statusLabel}
-          </StatusPill>
-          {modeLabel ? (
-            <HStack
-              as="span"
-              gap="4px"
-              minH="18px"
-              px="8px"
-              py="2px"
-              borderRadius="999px"
-              bg="bg.subtle"
-              color="fg.muted"
-              fontSize="10px"
-              fontWeight="500"
-              lineHeight="1"
-            >
-              {consultation?.mode === "video" ? (
-                <Video size={11} />
-              ) : (
-                <MapPin size={11} />
-              )}
-              <Box as="span">{modeLabel}</Box>
-            </HStack>
-          ) : null}
-          <Box as="span">{dateLabel}</Box>
-        </HStack>
+        {consultation ? (
+          <HStack gap="8px" wrap="wrap" justify="flex-end">
+            <StatusPill tone="info" icon={consultationModeIcon(consultation.mode)}>
+              {modeLabel}
+            </StatusPill>
+            <StatusPill tone="neutral" icon={<CalendarDays size={11} />}>
+              {consultationDate}
+            </StatusPill>
+            <StatusPill tone="neutral" icon={<Clock size={11} />}>
+              {consultationTime} · {consultation.duration} min
+            </StatusPill>
+          </HStack>
+        ) : null}
       </HStack>
 
-      <Stack
-        gap="8px"
-        mt="16px"
-        pt="14px"
-        pb="16px"
-        borderTop="1px solid"
-        borderBottom="1px solid"
-        borderColor="border.subtle"
-      >
-        <Box>
-          <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-            Attorney notes
-          </Text>
-          <MutedText>Notes are internal and not visible to the client.</MutedText>
-        </Box>
-        <Textarea
-          aria-label={`${lead.name} attorney notes`}
-          value={displayNotes}
-          onChange={(e) => setNotes(e.currentTarget.value)}
-          minH="102px"
-          p="12px"
-          borderColor="border"
-          bg="bg"
-          resize="vertical"
-        />
-        <OutlineButton
-          alignSelf="flex-end"
-          loading={saveNotesMutation.isPending}
-          onClick={handleSaveNotes}
-        >
-          Save notes
-        </OutlineButton>
-      </Stack>
+      {/* 2. Questionnaire row */}
+      <SectionRow>
+        <HStack justify="space-between" gap="12px" wrap="wrap">
+          <HStack gap="10px" minW="0">
+            <StatusPill tone={questionnaireComplete ? "success" : "warning"}>
+              {questionnaireComplete
+                ? "Questionnaire completed"
+                : "Awaiting response"}
+            </StatusPill>
+            <MutedText>
+              {submittedDate ? `Submitted ${submittedDate} · ` : ""}
+              {send?.language ?? "English"}
+            </MutedText>
+          </HStack>
+          {responseId ? (
+            <OutlineButton
+              onClick={() => setDocDialog({ id: responseId, tab: "responses" })}
+            >
+              <Eye size={14} />
+              View response
+            </OutlineButton>
+          ) : null}
+        </HStack>
+      </SectionRow>
 
-      <HStack justify="flex-end" gap="8px" wrap="wrap" pt="16px">
+      {/* 3. Documents */}
+      <SectionRow>
+        <Stack gap="12px">
+          <HStack justify="space-between" gap="12px" wrap="wrap">
+            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+              Documents {receivedCount} of {totalDocs} received
+            </Text>
+            <OutlineButton
+              loading={requestMissing.isPending}
+              disabled={!send || pendingQuestions.length === 0}
+              onClick={() => send && requestMissing.mutate(send.id)}
+            >
+              <Send size={14} />
+              Request missing
+            </OutlineButton>
+          </HStack>
+
+          {files.length > 0 ? (
+            <Box>
+              <SubLabel>Uploaded by client</SubLabel>
+              <Stack gap="6px">
+                {files.map((file) => (
+                  <HStack
+                    key={file.id}
+                    justify="space-between"
+                    gap="10px"
+                    p="8px 10px"
+                    border="1px solid"
+                    borderColor="border.subtle"
+                    borderRadius="7px"
+                  >
+                    <HStack gap="8px" minW="0">
+                      <FileText size={14} color="var(--chakra-colors-fg-muted)" />
+                      <Text
+                        m="0"
+                        color="fg"
+                        fontSize="12px"
+                        truncate
+                        title={file.originalFilename}
+                      >
+                        {file.originalFilename}
+                      </Text>
+                      <StatusPill tone="success">Received</StatusPill>
+                    </HStack>
+                    {canDownload ? (
+                      <chakra.button
+                        type="button"
+                        aria-label={`Download ${file.originalFilename}`}
+                        display="grid"
+                        placeItems="center"
+                        flex="0 0 auto"
+                        w="28px"
+                        h="28px"
+                        border="1px solid"
+                        borderColor="border"
+                        borderRadius="6px"
+                        bg="bg"
+                        color="fg.muted"
+                        onClick={() =>
+                          void downloadResponseFile(
+                            file.id,
+                            file.originalFilename,
+                          )
+                        }
+                      >
+                        <Download size={14} />
+                      </chakra.button>
+                    ) : null}
+                  </HStack>
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
+
+          {pendingQuestions.length > 0 ? (
+            <Box>
+              <SubLabel>Pending receipt</SubLabel>
+              <Stack gap="6px">
+                {pendingQuestions.map((q) => (
+                  <HStack
+                    key={q.id}
+                    justify="space-between"
+                    gap="10px"
+                    p="8px 10px"
+                    border="1px solid"
+                    borderColor="border.subtle"
+                    borderRadius="7px"
+                  >
+                    <HStack gap="8px" minW="0">
+                      <FileText size={14} color="var(--chakra-colors-fg-muted)" />
+                      <Text m="0" color="fg" fontSize="12px" truncate title={q.label}>
+                        {q.label}
+                      </Text>
+                    </HStack>
+                    <StatusPill tone="warning">Missing</StatusPill>
+                  </HStack>
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
+
+          {issueFiles.length > 0 && responseId ? (
+            <HStack
+              justify="space-between"
+              gap="12px"
+              wrap="wrap"
+              p="10px 12px"
+              border="1px solid"
+              borderColor="#f3b9bf"
+              borderRadius="8px"
+              bg="#ffe2e4"
+            >
+              <HStack gap="8px" color="#b00020" minW="0">
+                <AlertTriangle size={15} />
+                <Text m="0" fontSize="12px" fontWeight="500">
+                  Document review — {issueCount} issue
+                  {issueCount === 1 ? "" : "s"} detected — review required
+                </Text>
+              </HStack>
+              <OutlineButton
+                onClick={() => setDocDialog({ id: responseId, tab: "documents" })}
+              >
+                <Eye size={14} />
+                View
+              </OutlineButton>
+            </HStack>
+          ) : null}
+
+          <Box>
+            <SubLabel>Attorney notes</SubLabel>
+            <Textarea
+              aria-label={`${lead.name} attorney notes`}
+              value={displayNotes}
+              onChange={(e) => setNotes(e.currentTarget.value)}
+              minH="90px"
+              p="12px"
+              borderColor="border"
+              bg="bg"
+              resize="vertical"
+              placeholder="Record consultation notes, client statements, key facts, and your preliminary assessment."
+            />
+            <OutlineButton
+              alignSelf="flex-end"
+              mt="8px"
+              loading={saveNotesMutation.isPending}
+              onClick={handleSaveNotes}
+            >
+              Save notes
+            </OutlineButton>
+          </Box>
+        </Stack>
+      </SectionRow>
+
+      {/* 4. Fee agreement */}
+      <SectionRow>
+        <Stack gap="12px">
+          <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+            Fee agreement
+          </Text>
+          <FeeAgreementTracker activeIndex={feeStageIndex} />
+          <HStack gap="8px" wrap="wrap">
+            {!feeAgreement ? (
+              <BrandButton
+                loading={generateFee.isPending}
+                onClick={() =>
+                  generateFee.mutate({
+                    id: lead.id,
+                    data: { agreementType: "retainer" },
+                  })
+                }
+              >
+                <Send size={14} />
+                Generate fee agreement
+              </BrandButton>
+            ) : null}
+            {feeAgreement?.status === "pending_signature" ? (
+              <OutlineButton
+                loading={nudgeClient.isPending}
+                onClick={() => nudgeClient.mutate(feeAgreement.id)}
+              >
+                <Mail size={14} />
+                Nudge client
+              </OutlineButton>
+            ) : null}
+            {feeAgreement?.status === "signed" && !leadDetail?.convertedCaseId ? (
+              <BrandButton
+                loading={advanceStage.isPending}
+                onClick={() =>
+                  advanceStage.mutate({ id: lead.id, stage: "case_opening" })
+                }
+              >
+                <ExternalLink size={14} />
+                Advance to case opening
+              </BrandButton>
+            ) : null}
+          </HStack>
+        </Stack>
+      </SectionRow>
+
+      {/* 5. Footer */}
+      <HStack justify="space-between" gap="12px" wrap="wrap" pt="16px">
+        <HStack gap="6px" color="fg.muted" fontSize="12px">
+          <Box as="span" fontWeight="500" color="fg">
+            {attorneyName}
+          </Box>
+          <Box as="span">· Lead attorney</Box>
+        </HStack>
         {alreadySettled ? (
           <MutedText fontSize="12px">
             {consultation?.outcome === "close_no_case"
@@ -277,14 +525,7 @@ function ConsultationCard({ lead }: { lead: Lead }) {
               : "Referred to outside counsel."}
           </MutedText>
         ) : (
-          <>
-            <BrandButton
-              loading={advanceStage.isPending}
-              onClick={handleProceedToFeeAgreement}
-            >
-              <Send size={14} />
-              Proceed to fee agreement
-            </BrandButton>
+          <HStack gap="8px" wrap="wrap" justify="flex-end">
             <OutlineButton
               loading={outcomesMutation.isPending}
               onClick={handleFollowUp}
@@ -306,10 +547,81 @@ function ConsultationCard({ lead }: { lead: Lead }) {
               <ExternalLink size={14} />
               Refer elsewhere
             </OutlineButton>
-          </>
+          </HStack>
         )}
       </HStack>
+
+      <QuestionnaireResponseDialog
+        responseId={docDialog?.id ?? null}
+        initialTab={docDialog?.tab ?? "responses"}
+        onClose={() => setDocDialog(null)}
+      />
     </SurfaceCard>
+  );
+}
+
+function SectionRow({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      mt="16px"
+      pt="14px"
+      borderTop="1px solid"
+      borderColor="border.subtle"
+    >
+      {children}
+    </Box>
+  );
+}
+
+function SubLabel({ children }: { children: ReactNode }) {
+  return (
+    <Text
+      m="0 0 8px"
+      color="fg.muted"
+      fontSize="10px"
+      fontWeight="600"
+      textTransform="uppercase"
+    >
+      {children}
+    </Text>
+  );
+}
+
+const FEE_STAGES = [
+  "Generate",
+  "Send",
+  "Awaiting signature",
+  "Received",
+  "Case opened",
+] as const;
+
+function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
+  return (
+    <HStack gap="6px" wrap="wrap">
+      {FEE_STAGES.map((label, index) => {
+        const done = index < activeIndex;
+        const current = index === activeIndex;
+        return (
+          <HStack
+            key={label}
+            as="span"
+            gap="6px"
+            minH="26px"
+            px="10px"
+            borderRadius="999px"
+            border="1px solid"
+            borderColor={current ? "brand.solid" : "border.subtle"}
+            bg={done ? "#d9f8ed" : current ? "brand.solid" : "bg.subtle"}
+            color={done ? "#00785a" : current ? "brand.fg" : "fg.muted"}
+            fontSize="11px"
+            fontWeight="500"
+          >
+            {done ? <Check size={11} /> : null}
+            <Box as="span">{label}</Box>
+          </HStack>
+        );
+      })}
+    </HStack>
   );
 }
 
