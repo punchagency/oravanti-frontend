@@ -110,9 +110,26 @@ export type QuestionnaireResponseDetail = {
 // NOTE: questionnaire endpoints return raw JSON (not {success,data} wrapped),
 // except sendQuestionnaire which lives on the leads resource and IS wrapped.
 
+export type LeadQuestionnaireSendStatus =
+  | "sent"
+  | "opened"
+  | "draft_response"
+  | "submitted"
+  | "expired"
+  | "revoked";
+
 export type LeadQuestionnaireState = {
-  send: { id: string } | null;
-  response: { id: string; status: "draft" | "submitted" } | null;
+  send: {
+    id: string;
+    status: LeadQuestionnaireSendStatus;
+    language: string;
+    submittedAt: string | null;
+  } | null;
+  response: {
+    id: string;
+    status: "draft" | "submitted";
+    submittedAt: string | null;
+  } | null;
 } | null;
 
 export const getLeadQuestionnaire = async (
