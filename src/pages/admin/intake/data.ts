@@ -24,12 +24,6 @@ export const intakeStages = [
     color: "#6a00c7",
   },
   {
-    label: "Fee agreement",
-    path: "/admin/intake/pipeline/fee-agreement",
-    stage: "fee_agreement" as const,
-    color: "#d18400",
-  },
-  {
     label: "Case opening",
     path: "/admin/intake/pipeline/case-opening",
     stage: "case_opening" as const,
@@ -42,7 +36,6 @@ export const intakeTabs = [
   ["Conflict check", "/admin/intake/pipeline/conflict-check"],
   ["Questionnaire", "/admin/intake/pipeline/questionnaire"],
   ["Consultation & notes", "/admin/intake/pipeline/consultation"],
-  ["Fee agreement", "/admin/intake/pipeline/fee-agreement"],
   ["Case opening", "/admin/intake/pipeline/case-opening"],
 ] as const;
 
