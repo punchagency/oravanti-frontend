@@ -6,6 +6,7 @@ import {
   getLeadQuestionnaire,
   getQuestionBank,
   getResponseDetail,
+  requestMissingDocuments,
   sendQuestionnaire,
   sendReminder,
   type SendQuestionnaireConfig,
@@ -112,6 +113,28 @@ export function useSendReminder() {
     onSuccess: () => toast.success("Reminder sent to lead"),
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to send reminder");
+    },
+  });
+}
+
+export function useRequestMissingDocuments() {
+  return useMutation({
+    mutationFn: (sendId: string) => requestMissingDocuments(sendId),
+    onSuccess: (data) => {
+      if (data.missing.length === 0) {
+        toast.success("All requested documents have been received");
+      } else {
+        toast.success(
+          `Requested ${data.missing.length} missing document${
+            data.missing.length === 1 ? "" : "s"
+          } from the lead`,
+        );
+      }
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to request missing documents",
+      );
     },
   });
 }

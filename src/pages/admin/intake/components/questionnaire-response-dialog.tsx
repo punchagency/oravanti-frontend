@@ -52,11 +52,20 @@ const renderValue = (value: unknown): string => {
 export function QuestionnaireResponseDialog({
   responseId,
   onClose,
+  initialTab = "responses",
 }: {
   responseId: string | null;
   onClose: () => void;
+  initialTab?: ResponseTab;
 }) {
-  const [activeTab, setActiveTab] = useState<ResponseTab>("responses");
+  const [activeTab, setActiveTab] = useState<ResponseTab>(initialTab);
+  // Reset to the requested tab each time a new response opens the dialog
+  // (render-phase pattern — no effect needed).
+  const [openedFor, setOpenedFor] = useState<string | null>(responseId);
+  if (responseId !== openedFor) {
+    setOpenedFor(responseId);
+    if (responseId) setActiveTab(initialTab);
+  }
   const { data: detail, isLoading } = useResponseDetail(responseId);
 
   return (

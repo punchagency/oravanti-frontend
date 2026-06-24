@@ -173,6 +173,15 @@ export const sendReminder = async (
   return res.data;
 };
 
+export const requestMissingDocuments = async (
+  sendId: string,
+): Promise<{ missing: string[] }> => {
+  const res = await API.post(
+    `/questionnaires/sends/${sendId}/request-documents`,
+  );
+  return res.data;
+};
+
 const triggerBlobDownload = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

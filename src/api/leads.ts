@@ -48,6 +48,7 @@ export type Lead = {
   convertedCaseId: string | null;
   convertedAt: string | null;
   assignedStaffId: string | null;
+  caseTypeName: string | null;
   receivedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -98,7 +99,7 @@ export type Consultation = {
   leadId: string;
   scheduledAt: string;
   duration: number;
-  mode: "video" | "in_person";
+  mode: "video" | "in_person" | "phone_call";
   leadAttorneyId: string | null;
   videoLink: string | null;
   status: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
@@ -247,10 +248,11 @@ export const createConsultation = async (
   data: {
     scheduledAt: string;
     duration: number;
-    mode: "video" | "in_person";
+    mode: "video" | "in_person" | "phone_call";
     leadAttorneyId?: string;
     videoLink?: string;
     preConsultationNotes?: string;
+    notifyChannels?: ("email" | "sms")[];
   },
 ): Promise<Consultation> => {
   const res = await API.post(`/leads/${id}/consultation`, data);
