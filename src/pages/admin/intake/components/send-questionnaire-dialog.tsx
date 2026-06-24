@@ -511,6 +511,15 @@ function CustomizeStep({
     [preview],
   );
 
+  // Labels already present as locked standard questions — snippets matching these
+  // can't be added (no duplicate questions in the questionnaire).
+  const standardLabels = useMemo(
+    () => new Set(standardQuestions.map((q) => q.label.trim().toLowerCase())),
+    [standardQuestions],
+  );
+  const isInStandard = (label: string) =>
+    standardLabels.has(label.trim().toLowerCase());
+
   const COLLAPSE_AT = 3;
   const visibleStandard = expandStandard
     ? standardQuestions
@@ -689,7 +698,10 @@ function CustomizeStep({
                             type="button"
                             onClick={() =>
                               entry.questions.forEach((q) => {
-                                if (!addedLabels.has(q.label.trim()))
+                                if (
+                                  !isInStandard(q.label) &&
+                                  !addedLabels.has(q.label.trim())
+                                )
                                   addSnippet(q.label);
                               })
                             }
@@ -735,6 +747,7 @@ function CustomizeStep({
                           borderColor="border.subtle"
                         >
                           {entry.questions.map((q, i) => {
+                            const inStandard = isInStandard(q.label);
                             const added = addedLabels.has(q.label.trim());
                             return (
                               <HStack
@@ -745,6 +758,7 @@ function CustomizeStep({
                                 py="7px"
                                 borderTop={i === 0 ? undefined : "1px solid"}
                                 borderColor="border.subtle"
+                                opacity={inStandard ? 0.55 : 1}
                               >
                                 <Text
                                   fontSize="12px"
@@ -753,31 +767,48 @@ function CustomizeStep({
                                 >
                                   {q.label}
                                 </Text>
-                                <chakra.button
-                                  type="button"
-                                  flex="0 0 auto"
-                                  onClick={() =>
-                                    added
-                                      ? removeSnippet(q.label)
-                                      : addSnippet(q.label)
-                                  }
-                                  display="grid"
-                                  placeItems="center"
-                                  w="24px"
-                                  h="24px"
-                                  borderRadius="6px"
-                                  border="1px solid"
-                                  borderColor={added ? "#e0796f" : "brand.solid"}
-                                  bg={added ? "#fdecea" : "bg"}
-                                  color={added ? "#c0392b" : "brand.solid"}
-                                  aria-label={added ? "Remove" : "Add"}
-                                >
-                                  {added ? (
-                                    <Minus size={13} />
-                                  ) : (
-                                    <Plus size={13} />
-                                  )}
-                                </chakra.button>
+                                {inStandard ? (
+                                  <HStack
+                                    flex="0 0 auto"
+                                    gap="4px"
+                                    color="fg.muted"
+                                    fontSize="10px"
+                                    fontWeight="500"
+                                  >
+                                    <Lock size={11} />
+                                    <Text whiteSpace="nowrap">
+                                      Already included
+                                    </Text>
+                                  </HStack>
+                                ) : (
+                                  <chakra.button
+                                    type="button"
+                                    flex="0 0 auto"
+                                    onClick={() =>
+                                      added
+                                        ? removeSnippet(q.label)
+                                        : addSnippet(q.label)
+                                    }
+                                    display="grid"
+                                    placeItems="center"
+                                    w="24px"
+                                    h="24px"
+                                    borderRadius="6px"
+                                    border="1px solid"
+                                    borderColor={
+                                      added ? "#e0796f" : "brand.solid"
+                                    }
+                                    bg={added ? "#fdecea" : "bg"}
+                                    color={added ? "#c0392b" : "brand.solid"}
+                                    aria-label={added ? "Remove" : "Add"}
+                                  >
+                                    {added ? (
+                                      <Minus size={13} />
+                                    ) : (
+                                      <Plus size={13} />
+                                    )}
+                                  </chakra.button>
+                                )}
                               </HStack>
                             );
                           })}
