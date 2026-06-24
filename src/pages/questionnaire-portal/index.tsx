@@ -38,6 +38,7 @@ export function QuestionnairePortalPage() {
   const qc = useQueryClient();
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["portal-questionnaire", token],
@@ -47,6 +48,24 @@ export function QuestionnairePortalPage() {
 
   const responseId = data?.response?.id ?? null;
   const sections = data?.questionnaire?.sections ?? [];
+
+  // Seed the form with previously-saved answers the first time the response loads
+  // (render-phase "adjust state on prop change" — keyed by response id so it runs
+  // once and never clobbers in-progress edits or the post-submit refetch).
+  if (data && responseId && hydratedFor !== responseId) {
+    setHydratedFor(responseId);
+    const seeded: Record<string, unknown> = {};
+    for (const a of data.response?.answers ?? []) seeded[a.questionId] = a.value;
+    setAnswers(seeded);
+  }
+
+  // Map of questionId -> filename for documents already uploaded, so resumed
+  // file fields show the upload instead of an empty picker.
+  const uploadedFiles = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const f of data?.response?.files ?? []) map[f.questionId] = f.originalFilename;
+    return map;
+  }, [data?.response?.files]);
 
   const flatAnswers = useMemo(
     () =>
@@ -106,7 +125,7 @@ export function QuestionnairePortalPage() {
   if (submitted || data.response?.status === "submitted") {
     return (
       <Center>
-        <Box color="#1f9e75">
+        <Box color="#1f9e75" display="flex" justifyContent="center" alignItems="center">
           <CheckCircle2 size={48} />
         </Box>
         <Heading size="md" mt="16px">
@@ -159,6 +178,7 @@ export function QuestionnairePortalPage() {
                     value={answers[q.id]}
                     token={token as string}
                     responseId={responseId}
+                    uploadedFilename={uploadedFiles[q.id] ?? null}
                     onChange={(v) => setAnswer(q.id, v)}
                   />
                 ))}
@@ -209,12 +229,14 @@ function QuestionField({
   value,
   token,
   responseId,
+  uploadedFilename,
   onChange,
 }: {
   question: PortalQuestion;
   value: unknown;
   token: string;
   responseId: string | null;
+  uploadedFilename: string | null;
   onChange: (value: unknown) => void;
 }) {
   const label = (
@@ -279,6 +301,7 @@ function QuestionField({
           token={token}
           responseId={responseId}
           questionId={question.id}
+          initialFilename={uploadedFilename}
         />
       </Box>
     );
@@ -312,12 +335,16 @@ function FileUploadField({
   token,
   responseId,
   questionId,
+  initialFilename,
 }: {
   token: string;
   responseId: string | null;
   questionId: string;
+  initialFilename: string | null;
 }) {
-  const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const [uploadedName, setUploadedName] = useState<string | null>(
+    initialFilename,
+  );
 
   const upload = useMutation({
     mutationFn: (file: File) => {

@@ -224,7 +224,12 @@ export type PortalSection = {
 export type PortalQuestionnaire = {
   send: { id: string; language: string };
   questionnaire: { title?: string; sections?: PortalSection[] } | null;
-  response: { id: string; status: string } | null;
+  response: {
+    id: string;
+    status: string;
+    answers?: { questionId: string; value: unknown }[];
+    files?: { questionId: string; originalFilename: string }[];
+  } | null;
 };
 
 export const getQuestionnaireByToken = async (
