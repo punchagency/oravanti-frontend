@@ -6,6 +6,7 @@ import { useLeads, useOpenCase } from "@/hooks/use-leads";
 import {
   BrandButton,
   CardTitle,
+  IntakeListSkeleton,
   MutedText,
   PracticePill,
   StatusPill,
@@ -27,7 +28,9 @@ export function CaseOpeningView() {
         <StatusPill>Retainers confirmed</StatusPill>
       </HStack>
 
-      {isLoading ? null : leads.length === 0 ? (
+      {isLoading ? (
+        <IntakeListSkeleton />
+      ) : leads.length === 0 ? (
         <MutedText>No cases ready to open.</MutedText>
       ) : (
         <Stack gap="14px">

@@ -12,6 +12,7 @@ import {
 } from "@chakra-ui/react";
 import {
   AlertTriangle,
+  CalendarClock,
   CalendarDays,
   Check,
   ClipboardCheck,
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, useState } from "react";
+import { toast } from "sonner";
 import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
@@ -52,12 +54,14 @@ import { useStaffList, type StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   BrandButton,
   CardTitle,
+  IntakeListSkeleton,
   MutedText,
   OutlineButton,
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
+import { NotifyChip } from "@/components/ui/notify-chip";
 
 type ScheduleStep = 1 | 2 | 3;
 type ConsultationMode = "video" | "in_person" | "phone_call";
@@ -79,6 +83,14 @@ function consultationModeLabel(mode: ConsultationMode): string {
 // time is a 24h "HH:MM" value from a native time input.
 function buildScheduledAt(date: string, time: string): string {
   return `${date}T${time || "09:00"}:00`;
+}
+
+// Local "YYYY-MM-DD" for today — used to block scheduling in the past.
+function getTodayDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
 }
 
 function formatTimeLabel(time: string): string {
@@ -117,31 +129,71 @@ function consultationModeIcon(mode: ConsultationMode | undefined) {
 
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
   const { data, isLoading } = useLeads({ stage: "consultation" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
 
+  const noConsultation = leads.filter((l) => !l.consultationId);
+  const scheduled = leads.filter((l) => l.consultationId);
+
+  function openWizard(leadId: string | null) {
+    setPresetLeadId(leadId);
+    setScheduleOpen(true);
+  }
+
   return (
     <>
-      <Stack gap="16px" pt="24px" aria-label="Consultation and notes">
+      <Stack gap="20px" pt="24px" aria-label="Consultation and notes">
         <HStack justify="space-between" gap="16px" wrap="wrap">
-          <MutedText fontSize="14px">
-            {isLoading
-              ? "Loading…"
-              : `${leads.length} consultation${leads.length === 1 ? "" : "s"} in progress`}
-          </MutedText>
-          <OutlineButton onClick={() => setScheduleOpen(true)}>
+          <MutedText fontSize="14px">Consultation &amp; notes</MutedText>
+          <OutlineButton onClick={() => openWizard(null)}>
             <CalendarDays size={14} />
             Schedule consultation
           </OutlineButton>
         </HStack>
 
-        {isLoading ? null : leads.length === 0 ? (
-          <MutedText>No consultations in progress.</MutedText>
+        {isLoading ? (
+          <IntakeListSkeleton />
+        ) : leads.length === 0 ? (
+          <MutedText>No leads in the consultation stage.</MutedText>
         ) : (
-          <Stack gap="16px">
-            {leads.map((lead) => (
-              <ConsultationCard key={lead.id} lead={lead} />
-            ))}
+          <Stack gap="20px">
+            {noConsultation.length > 0 ? (
+              <Stack gap="12px">
+                <MutedText fontSize="14px">
+                  {noConsultation.length} lead
+                  {noConsultation.length === 1 ? "" : "s"} with no consultation
+                  scheduled yet
+                </MutedText>
+                <Stack gap="12px">
+                  {noConsultation.map((lead) => (
+                    <NoConsultationCard
+                      key={lead.id}
+                      lead={lead}
+                      onSchedule={() => openWizard(lead.id)}
+                    />
+                  ))}
+                </Stack>
+              </Stack>
+            ) : null}
+
+            {noConsultation.length > 0 && scheduled.length > 0 ? (
+              <Box borderTop="1px solid" borderColor="border" />
+            ) : null}
+
+            {scheduled.length > 0 ? (
+              <Stack gap="12px">
+                <MutedText fontSize="14px">
+                  {scheduled.length} consultation
+                  {scheduled.length === 1 ? "" : "s"} in progress
+                </MutedText>
+                <Stack gap="16px">
+                  {scheduled.map((lead) => (
+                    <ConsultationCard key={lead.id} lead={lead} />
+                  ))}
+                </Stack>
+              </Stack>
+            ) : null}
           </Stack>
         )}
       </Stack>
@@ -149,8 +201,46 @@ export function ConsultationView() {
       <ScheduleConsultationDialog
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
+        presetLeadId={presetLeadId}
       />
     </>
+  );
+}
+
+function NoConsultationCard({
+  lead,
+  onSchedule,
+}: {
+  lead: Lead;
+  onSchedule: () => void;
+}) {
+  return (
+    <SurfaceCard>
+      <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Avatar name={lead.name} />
+          <Box minW="0">
+            <CardTitle>{lead.name}</CardTitle>
+            <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+          </Box>
+        </HStack>
+        <Stack gap="8px" align="flex-end">
+          <StatusPill tone="warning" icon={<CalendarClock size={11} />}>
+            No consultation scheduled
+          </StatusPill>
+          <BrandButton onClick={onSchedule}>
+            <CalendarDays size={14} />
+            Schedule consultation
+          </BrandButton>
+        </Stack>
+      </HStack>
+      <Box mt="14px" pt="14px" borderTop="1px solid" borderColor="border.subtle">
+        <MutedText>
+          This lead has cleared conflict check. Schedule a consultation to move
+          them forward.
+        </MutedText>
+      </Box>
+    </SurfaceCard>
   );
 }
 
@@ -877,9 +967,11 @@ function titleCase(value: string): string {
 function ScheduleConsultationDialog({
   open,
   onOpenChange,
+  presetLeadId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<ScheduleStep>(1);
   const [selectedLeadId, setSelectedLeadId] = useState("");
@@ -898,10 +990,21 @@ function ScheduleConsultationDialog({
     "client" | "date" | "duration" | "attorney" | null
   >(null);
 
-  const { data: leadsData } = useLeads({ stage: "questionnaire" });
-  const leads = Array.isArray(leadsData)
-    ? leadsData
-    : (leadsData?.leads ?? []);
+  // Eligible candidates have cleared conflict check — that's everyone in the
+  // questionnaire stage (regardless of completion) plus consultation-stage leads
+  // who don't yet have a consultation booked.
+  const { data: questionnaireData } = useLeads({ stage: "questionnaire" });
+  const { data: consultationData } = useLeads({ stage: "consultation" });
+  const questionnaireLeads = Array.isArray(questionnaireData)
+    ? questionnaireData
+    : (questionnaireData?.leads ?? []);
+  const consultationLeads = Array.isArray(consultationData)
+    ? consultationData
+    : (consultationData?.leads ?? []);
+  const leads = [
+    ...questionnaireLeads,
+    ...consultationLeads.filter((l) => !l.consultationId),
+  ];
 
   const { data: staffData } = useStaffList({
     role: "attorney",
@@ -910,6 +1013,14 @@ function ScheduleConsultationDialog({
   const attorneys = staffData?.data ?? [];
 
   const createConsultation = useCreateConsultation();
+
+  // Preselect the lead when the dialog is opened from a specific card.
+  // Done during render (adjust-state-on-prop-change) to avoid an extra effect.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setSelectedLeadId(presetLeadId ?? "");
+  }
 
   const selectedLead = leads.find((l) => l.id === selectedLeadId);
   const { data: questionnaire } = useLeadQuestionnaire(selectedLeadId);
@@ -971,6 +1082,11 @@ function ScheduleConsultationDialog({
         setTouchedField("date");
         return;
       }
+      if (date < getTodayDate()) {
+        setTouchedField("date");
+        toast.error("Consultation date cannot be in the past");
+        return;
+      }
       if (!resolvedDuration || resolvedDuration <= 0) {
         setTouchedField("duration");
         return;
@@ -986,6 +1102,12 @@ function ScheduleConsultationDialog({
 
   function handleConfirm() {
     if (!selectedLeadId || !resolvedDuration || resolvedDuration <= 0) return;
+    if (!date || date < getTodayDate()) {
+      setStep(2);
+      setTouchedField("date");
+      toast.error("Consultation date cannot be in the past");
+      return;
+    }
     createConsultation.mutate(
       {
         id: selectedLeadId,
@@ -1049,8 +1171,8 @@ function ScheduleConsultationDialog({
                     fontSize="12px"
                     lineHeight="1.45"
                   >
-                    Schedule a consultation with a lead who has passed conflict
-                    check and is in the questionnaire stage.
+                    Schedule a consultation with a lead who has cleared conflict
+                    check.
                   </Dialog.Description>
                 </Box>
                 <Dialog.CloseTrigger asChild>
@@ -1243,9 +1365,9 @@ function SelectClientStep({
       >
         <Info size={13} />
         <Box>
-          Only leads who have passed conflict check and are currently in the
-          questionnaire stage are shown. The consultation is the step between
-          questionnaire completion and fee agreement.
+          Leads who have cleared conflict check are shown — including those still
+          completing the questionnaire. A consultation can be booked before the
+          questionnaire is finished.
         </Box>
       </HStack>
 
@@ -1254,7 +1376,7 @@ function SelectClientStep({
           Select lead
         </Text>
         {leads.length === 0 ? (
-          <MutedText>No leads in questionnaire stage.</MutedText>
+          <MutedText>No leads are ready for a consultation.</MutedText>
         ) : (
           <Stack gap="7px">
             {leads.map((lead) => {
@@ -1309,7 +1431,7 @@ function SelectClientStep({
                       <MutedText>{lead.email}</MutedText>
                     </Box>
                   </HStack>
-                  <StatusPill tone="success">Cleared &amp; questionnaire</StatusPill>
+                  <StatusPill tone="success">Conflict cleared</StatusPill>
                 </chakra.button>
               );
             })}
@@ -1387,6 +1509,7 @@ function ScheduleDetailsStep({
           <Input
             type="date"
             value={date}
+            min={getTodayDate()}
             onChange={(event) => onDateChange(event.currentTarget.value)}
             {...fieldStyles}
             borderColor={touchedField === "date" ? invalidColor : "border"}
@@ -1641,39 +1764,6 @@ function ChoiceChip({
       onClick={onClick}
     >
       {children}
-    </chakra.button>
-  );
-}
-
-function NotifyChip({
-  active,
-  icon,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <chakra.button
-      type="button"
-      display="inline-flex"
-      alignItems="center"
-      gap="6px"
-      minH="28px"
-      px="10px"
-      border="1px solid"
-      borderColor={active ? "brand.solid" : "border"}
-      borderRadius="999px"
-      bg="bg"
-      color={active ? "fg" : "fg.muted"}
-      fontSize="12px"
-      onClick={onClick}
-    >
-      {icon}
-      <Box as="span">{children}</Box>
     </chakra.button>
   );
 }

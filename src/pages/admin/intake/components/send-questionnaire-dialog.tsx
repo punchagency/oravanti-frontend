@@ -13,6 +13,8 @@ import {
   ChevronDown,
   Info,
   Lock,
+  Mail,
+  MessageSquare,
   Minus,
   Plus,
   Send,
@@ -38,6 +40,7 @@ import {
   MutedText,
   OutlineButton,
 } from "../../../../components/ui/intake-ui";
+import { NotifyChip } from "@/components/ui/notify-chip";
 
 type WizardStep = 1 | 2 | 3;
 type Channel = "email" | "sms";
@@ -94,7 +97,9 @@ export function SendQuestionnaireDialog({
   const { data: preview } = useCaseTypeQuestionnairePreview(
     selectedLead?.caseTypeId ?? null,
   );
-  const previewQuestions = (preview?.sections ?? []).flatMap((s) => s.questions);
+  const previewQuestions = (preview?.sections ?? []).flatMap(
+    (s) => s.questions,
+  );
   const standardCount = previewQuestions.filter(
     (q) => q.isLocked && q.type !== "file_upload",
   ).length;
@@ -138,9 +143,7 @@ export function SendQuestionnaireDialog({
       deliveryChannels: channels,
       language: "english",
       autoReminderDays:
-        reminder === "never"
-          ? null
-          : (Number(reminder) as 2 | 3 | 5 | 7),
+        reminder === "never" ? null : (Number(reminder) as 2 | 3 | 5 | 7),
       customQuestions: customQuestions
         .filter((q) => q.label.trim())
         .map((q) => ({ label: q.label.trim(), saveToFirm: q.saveToFirm })),
@@ -369,8 +372,9 @@ function RecipientStep({
       >
         <Info size={13} />
         <Box>
-          Only leads who have passed conflict check (ABA 1.7/1.9) are eligible to
-          receive a questionnaire. Conflicted leads are excluded from this list.
+          Only leads who have passed conflict check (ABA 1.7/1.9) are eligible
+          to receive a questionnaire. Conflicted leads are excluded from this
+          list.
         </Box>
       </HStack>
 
@@ -413,26 +417,21 @@ function RecipientStep({
 
       <Field label="Deliver via">
         <HStack gap="8px">
-          {(["email", "sms"] as Channel[]).map((c) => {
-            const active = channels.includes(c);
+          {[
+            { type: "email", icon: Mail },
+            { type: "sms", icon: MessageSquare },
+          ].map((c) => {
+            const { type, icon: Icon } = c;
+            const active = channels.includes(type as Channel);
             return (
-              <chakra.button
-                key={c}
-                type="button"
-                onClick={() => onToggleChannel(c)}
-                px="8px"
-                h="24px"
-                borderRadius="999px"
-                border="1px solid"
-                borderColor={active ? "brand.solid" : "border"}
-                bg={active ? "brand.solid" : "bg"}
-                color={active ? "brand.fg" : "fg.muted"}
-                fontSize="12px"
-                fontWeight="500"
-                textTransform="capitalize"
+              <NotifyChip
+                key={c.type}
+                active={active}
+                onClick={() => onToggleChannel(type as Channel)}
+                icon={<Icon size={12} />}
               >
-                {c === "sms" ? "SMS" : "Email"}
-              </chakra.button>
+                {type === "sms" ? "SMS" : "Email"}
+              </NotifyChip>
             );
           })}
         </HStack>
@@ -465,7 +464,9 @@ function CustomizeStep({
   caseTypeId: string | null;
   customQuestions: DraftCustomQuestion[];
   customDocs: DraftCustomDoc[];
-  setCustomQuestions: React.Dispatch<React.SetStateAction<DraftCustomQuestion[]>>;
+  setCustomQuestions: React.Dispatch<
+    React.SetStateAction<DraftCustomQuestion[]>
+  >;
   setCustomDocs: React.Dispatch<React.SetStateAction<DraftCustomDoc[]>>;
 }) {
   const { data: preview } = useCaseTypeQuestionnairePreview(caseTypeId);
@@ -542,16 +543,28 @@ function CustomizeStep({
       >
         <Info size={13} />
         <Box>
-          Standard questions below are pre-defined for this matter type and cannot
-          be removed. You may add custom questions at the bottom of each section.
+          Standard questions below are pre-defined for this matter type and
+          cannot be removed. You may add custom questions at the bottom of each
+          section.
         </Box>
       </HStack>
 
       {/* Standard (locked) questions */}
       <Box>
-        <HStack gap="6px" mb="2px" color="fg" fontSize="12px" fontWeight="600" background="bg.muted" padding="1" paddingInline="2">
+        <HStack
+          gap="6px"
+          mb="2px"
+          color="fg"
+          fontSize="12px"
+          fontWeight="600"
+          background="bg.muted"
+          padding="1"
+          paddingInline="2"
+        >
           <Lock size={12} />
-          <Text color="fg.muted">Standard questions ({standardQuestions.length} — locked)</Text>
+          <Text color="fg.muted">
+            Standard questions ({standardQuestions.length} — locked)
+          </Text>
         </HStack>
         <Stack gap="2px">
           {visibleStandard.map((q) => (
@@ -633,10 +646,7 @@ function CustomizeStep({
             <Plus size={14} />
             Add custom question
           </DashedButton>
-          <DashedButton
-            milky
-            onClick={() => setShowBank((v) => !v)}
-          >
+          <DashedButton milky onClick={() => setShowBank((v) => !v)}>
             {showBank ? "Hide question snippets" : "Browse question snippets"}
           </DashedButton>
         </Stack>
@@ -732,7 +742,9 @@ function CustomizeStep({
                             <ChevronDown
                               size={14}
                               style={{
-                                transform: isOpen ? "rotate(180deg)" : undefined,
+                                transform: isOpen
+                                  ? "rotate(180deg)"
+                                  : undefined,
                                 transition: "transform 0.15s",
                               }}
                             />
@@ -826,7 +838,13 @@ function CustomizeStep({
       {/* Required documents (pre-defined) */}
       {requiredDocs.length ? (
         <Box>
-          <HStack gap="6px" mb="8px" color="fg" fontSize="12px" fontWeight="600">
+          <HStack
+            gap="6px"
+            mb="8px"
+            color="fg"
+            fontSize="12px"
+            fontWeight="600"
+          >
             <Lock size={12} />
             <Text>Required documents ({requiredDocs.length})</Text>
           </HStack>
@@ -1021,7 +1039,14 @@ function ReviewStep({
 
   return (
     <Stack gap="14px" pt="8px">
-      <Box border="1px solid" borderColor="border" borderRadius="9px" bg="bg.subtle" padding="10px" overflow="hidden">
+      <Box
+        border="1px solid"
+        borderColor="border"
+        borderRadius="9px"
+        bg="bg.subtle"
+        padding="10px"
+        overflow="hidden"
+      >
         {rows.map(([label, value], i) => (
           <Flex
             key={label}
@@ -1031,7 +1056,12 @@ function ReviewStep({
             borderTop={i === 0 ? undefined : "1px solid"}
             borderColor="border.subtle"
           >
-            <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase">
+            <Text
+              fontSize="10px"
+              fontWeight="600"
+              color="fg.muted"
+              textTransform="uppercase"
+            >
               {label}
             </Text>
             <Text fontSize="12px" color="fg">
@@ -1048,20 +1078,27 @@ function ReviewStep({
         borderColor="border.subtle"
         bg="bg"
       >
-        <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase" mb="8px">
+        <Text
+          fontSize="10px"
+          fontWeight="600"
+          color="fg.muted"
+          textTransform="uppercase"
+          mb="8px"
+        >
           Client notification preview
         </Text>
         <Stack gap="10px">
           <MutedText fontSize="12px">Hi {lead?.name ?? "there"},</MutedText>
           <MutedText fontSize="12px">
             {firmName ?? "Your attorney's office"} has sent you an intake
-            questionnaire for your {lead?.caseTypeName ?? "matter"} matter. Please
-            complete the questionnaire via the secure link at your earliest
-            convenience.
+            questionnaire for your {lead?.caseTypeName ?? "matter"} matter.
+            Please complete the questionnaire via the secure link at your
+            earliest convenience.
           </MutedText>
           <MutedText fontSize="12px">
-            The questionnaire covers the information and documents we need to begin
-            work on your matter. All responses are confidential and secured.
+            The questionnaire covers the information and documents we need to
+            begin work on your matter. All responses are confidential and
+            secured.
           </MutedText>
           <MutedText fontSize="12px">
             If you have any questions, please contact your attorney directly.

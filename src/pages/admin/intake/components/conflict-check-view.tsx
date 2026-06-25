@@ -17,6 +17,7 @@ import {
 import {
   BrandButton,
   CardTitle,
+  IntakeListSkeleton,
   MutedText,
   OutlineButton,
   PracticePill,
@@ -80,7 +81,7 @@ export function ConflictCheckView() {
       </HStack>
 
       {isLoading ? (
-        <MutedText>Loading…</MutedText>
+        <IntakeListSkeleton />
       ) : leads.length === 0 ? (
         <MutedText>No leads pending conflict check.</MutedText>
       ) : (
