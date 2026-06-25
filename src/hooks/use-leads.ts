@@ -6,7 +6,9 @@ import {
   getLeadById,
   getLeads,
   getLeadsStageCount,
+  markFeeAgreementReceived,
   nudgeClient,
+  sendFeeAgreement,
   openCase,
   resolveConflictCheck,
   runConflictCheck,
@@ -229,16 +231,50 @@ export function useGenerateFeeAgreement() {
       data,
     }: {
       id: string;
-      data: { agreementType: string };
+      data: Parameters<typeof generateFeeAgreement>[1];
     }) => generateFeeAgreement(id, data),
     onSuccess: (_, { id }) => {
-      toast.success("Fee agreement generated — signing link sent to lead");
+      toast.success("Fee agreement generated");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
     onError: (err: APIError) => {
       toast.error(
         err.response?.data?.message ?? "Failed to generate fee agreement",
+      );
+    },
+  });
+}
+
+export function useSendFeeAgreement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) => sendFeeAgreement(agreementId),
+    onSuccess: () => {
+      toast.success("Fee agreement sent — signing link emailed to the client");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to send fee agreement",
+      );
+    },
+  });
+}
+
+export function useMarkFeeAgreementReceived() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) => markFeeAgreementReceived(agreementId),
+    onSuccess: () => {
+      toast.success("Signed agreement received — lead advanced to case opening");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to mark agreement as received",
       );
     },
   });

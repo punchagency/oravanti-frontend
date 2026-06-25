@@ -286,9 +286,23 @@ export const updateConsultation = async (
 
 export const generateFeeAgreement = async (
   id: string,
-  data: { agreementType: string },
+  data: { agreementType: string; generatedFrom?: "manual" | "questionnaire_auto" },
 ): Promise<FeeAgreement> => {
   const res = await API.post(`/leads/${id}/generate-agreement`, data);
+  return res.data.data;
+};
+
+export const sendFeeAgreement = async (
+  agreementId: string,
+): Promise<FeeAgreement> => {
+  const res = await API.post(`/agreements/${agreementId}/send`);
+  return res.data.data;
+};
+
+export const markFeeAgreementReceived = async (
+  agreementId: string,
+): Promise<{ received: boolean; agreementId: string; leadId: string }> => {
+  const res = await API.post(`/agreements/${agreementId}/mark-received`);
   return res.data.data;
 };
 

@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   Download,
   ExternalLink,
+  FileText,
   Info,
   Lock,
   Mail,
@@ -43,7 +44,9 @@ import {
   useGenerateFeeAgreement,
   useLeadById,
   useLeads,
+  useMarkFeeAgreementReceived,
   useNudgeClient,
+  useSendFeeAgreement,
   useUpdateConsultation,
   useUpdateLead,
 } from "@/hooks/use-leads";
@@ -235,6 +238,8 @@ function ConsultationCard({
   const noShowMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
   const generateFee = useGenerateFeeAgreement();
+  const sendFee = useSendFeeAgreement();
+  const markReceived = useMarkFeeAgreementReceived();
   const nudgeClient = useNudgeClient();
   const advanceStage = useAdvanceLeadStage();
   const requestMissing = useRequestMissingDocuments();
@@ -371,16 +376,18 @@ function ConsultationCard({
         : feeAgreement?.status === "draft"
           ? 1
           : 0;
-  const feeStatus: { label: string; tone: "success" | "warning" | "neutral" } =
-    caseOpened
-      ? { label: "Signed & received", tone: "success" }
-      : feeAgreement?.status === "signed"
-        ? { label: "Signed", tone: "success" }
-        : feeAgreement?.status === "pending_signature"
-          ? { label: "Awaiting signature", tone: "warning" }
-          : feeAgreement?.status === "draft"
-            ? { label: "Draft", tone: "neutral" }
-            : { label: "Not started", tone: "neutral" };
+  const feeStatus: {
+    label: string;
+    tone: "success" | "warning" | "neutral" | "gold";
+  } = caseOpened
+    ? { label: "Signed & received", tone: "success" }
+    : feeAgreement?.status === "signed"
+      ? { label: "Signed", tone: "success" }
+      : feeAgreement?.status === "pending_signature"
+        ? { label: "Sent", tone: "warning" }
+        : feeAgreement?.status === "draft"
+          ? { label: "Generated", tone: "gold" }
+          : { label: "Not started", tone: "neutral" };
 
   const alreadySettled =
     consultation?.outcome === "close_no_case" ||
@@ -737,23 +744,50 @@ function ConsultationCard({
                   Signed &amp; received — case opened successfully
                 </Text>
               </HStack>
-            ) : (
+            ) : !feeAgreement ? (
               <HStack gap="8px" wrap="wrap">
-                {!feeAgreement ? (
+                <BrandButton
+                  loading={generateFee.isPending}
+                  onClick={() =>
+                    generateFee.mutate({
+                      id: lead.id,
+                      data: {
+                        agreementType: "retainer",
+                        generatedFrom: "manual",
+                      },
+                    })
+                  }
+                >
+                  <FileText size={14} />
+                  Generate fee agreement
+                </BrandButton>
+              </HStack>
+            ) : feeAgreement.status === "draft" ? (
+              <Stack gap="10px">
+                <MutedText>Agreement generated — ready to dispatch.</MutedText>
+                <HStack gap="8px" wrap="wrap">
                   <BrandButton
-                    loading={generateFee.isPending}
-                    onClick={() =>
-                      generateFee.mutate({
-                        id: lead.id,
-                        data: { agreementType: "retainer" },
-                      })
-                    }
+                    loading={sendFee.isPending}
+                    onClick={() => sendFee.mutate(feeAgreement.id)}
                   >
                     <Send size={14} />
-                    Generate the agreement
+                    Send to client
                   </BrandButton>
-                ) : null}
-                {feeAgreement?.status === "pending_signature" ? (
+                </HStack>
+              </Stack>
+            ) : feeAgreement.status === "pending_signature" ? (
+              <Stack gap="10px">
+                <MutedText>
+                  Signing link sent — awaiting client signature.
+                </MutedText>
+                <HStack gap="8px" wrap="wrap">
+                  <BrandButton
+                    loading={markReceived.isPending}
+                    onClick={() => markReceived.mutate(feeAgreement.id)}
+                  >
+                    <Check size={14} />
+                    Mark as received
+                  </BrandButton>
                   <OutlineButton
                     loading={nudgeClient.isPending}
                     onClick={() => nudgeClient.mutate(feeAgreement.id)}
@@ -761,8 +795,12 @@ function ConsultationCard({
                     <Mail size={14} />
                     Nudge client
                   </OutlineButton>
-                ) : null}
-                {feeAgreement?.status === "signed" ? (
+                </HStack>
+              </Stack>
+            ) : feeAgreement.status === "signed" ? (
+              <Stack gap="10px">
+                <MutedText>Signed document received.</MutedText>
+                <HStack gap="8px" wrap="wrap">
                   <BrandButton
                     loading={advanceStage.isPending}
                     onClick={() =>
@@ -775,9 +813,9 @@ function ConsultationCard({
                     <ExternalLink size={14} />
                     Advance to case opening
                   </BrandButton>
-                ) : null}
-              </HStack>
-            )}
+                </HStack>
+              </Stack>
+            ) : null}
           </Stack>
         </SectionRow>
       ) : (
@@ -1027,7 +1065,8 @@ function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
   return (
     <HStack gap="0" w="full" align="flex-start">
       {FEE_STAGES.map((label, index) => {
-        const filled = index <= activeIndex;
+        const done = index < activeIndex;
+        const active = index === activeIndex;
         return (
           <Fragment key={label}>
             {index > 0 ? (
@@ -1046,18 +1085,20 @@ function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
                 h="24px"
                 borderRadius="full"
                 border="1px solid"
-                borderColor={filled ? "brand.solid" : "border.subtle"}
-                bg={filled ? "brand.solid" : "bg.subtle"}
-                color={filled ? "brand.fg" : "fg.muted"}
+                borderColor={done || active ? "brand.solid" : "border.subtle"}
+                bg={done ? "brand.solid" : "bg"}
+                color={done ? "brand.fg" : active ? "brand.solid" : "fg.muted"}
+                fontSize="11px"
+                fontWeight="600"
               >
-                {filled ? <Check size={13} /> : null}
+                {done ? <Check size={13} /> : index + 1}
               </Box>
               <Text
                 m="0"
                 fontSize="10px"
                 textAlign="center"
                 lineHeight="1.2"
-                color={filled ? "fg" : "fg.muted"}
+                color={done || active ? "fg" : "fg.muted"}
               >
                 {label}
               </Text>
