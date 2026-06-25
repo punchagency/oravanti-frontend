@@ -3,7 +3,6 @@ import { useLocation } from "react-router";
 import { CaseOpeningView } from "./components/case-opening-view";
 import { ConflictCheckView } from "./components/conflict-check-view";
 import { ConsultationView } from "./components/consultation-view";
-import { FeeAgreementView } from "./components/fee-agreement-view";
 import { LeadInboxView } from "./components/lead-inbox-view";
 import { PipelineFrame } from "./components/pipeline-frame";
 import { QuestionnaireView } from "./components/questionnaire-view";
@@ -13,7 +12,6 @@ type IntakeView =
   | "conflict-check"
   | "questionnaire"
   | "consultation"
-  | "fee-agreement"
   | "case-opening";
 
 const viewTitles: Record<IntakeView, string> = {
@@ -21,7 +19,6 @@ const viewTitles: Record<IntakeView, string> = {
   "conflict-check": "Conflict check",
   questionnaire: "Questionnaire",
   consultation: "Consultation & notes",
-  "fee-agreement": "Fee agreement",
   "case-opening": "Case opening",
 };
 
@@ -29,7 +26,6 @@ function getIntakeView(pathname: string): IntakeView {
   if (pathname.endsWith("/conflict-check")) return "conflict-check";
   if (pathname.endsWith("/questionnaire")) return "questionnaire";
   if (pathname.endsWith("/consultation")) return "consultation";
-  if (pathname.endsWith("/fee-agreement")) return "fee-agreement";
   if (pathname.endsWith("/case-opening")) return "case-opening";
   return "lead-inbox";
 }
@@ -42,8 +38,6 @@ function renderIntakeView(view: IntakeView) {
       return <QuestionnaireView />;
     case "consultation":
       return <ConsultationView />;
-    case "fee-agreement":
-      return <FeeAgreementView />;
     case "case-opening":
       return <CaseOpeningView />;
     case "lead-inbox":

@@ -138,11 +138,6 @@ export const contextNavigation: Record<
               icon: "file",
             },
             {
-              label: "Fee agreement",
-              path: "/admin/intake/pipeline/fee-agreement",
-              icon: "signature",
-            },
-            {
               label: "Case opening",
               path: "/admin/intake/pipeline/case-opening",
               icon: "folder",
