@@ -165,9 +165,9 @@ export function ConsultationView() {
                   {noConsultation.length === 1 ? "" : "s"} with no consultation
                   scheduled yet
                 </MutedText>
-                <Stack gap="12px">
+                <Stack gap="16px">
                   {noConsultation.map((lead) => (
-                    <NoConsultationCard
+                    <ConsultationCard
                       key={lead.id}
                       lead={lead}
                       onSchedule={() => openWizard(lead.id)}
@@ -207,44 +207,13 @@ export function ConsultationView() {
   );
 }
 
-function NoConsultationCard({
+function ConsultationCard({
   lead,
   onSchedule,
 }: {
   lead: Lead;
-  onSchedule: () => void;
+  onSchedule?: () => void;
 }) {
-  return (
-    <SurfaceCard>
-      <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
-        <HStack gap="12px" minW="0" align="flex-start">
-          <Avatar name={lead.name} />
-          <Box minW="0">
-            <CardTitle>{lead.name}</CardTitle>
-            <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
-          </Box>
-        </HStack>
-        <Stack gap="8px" align="flex-end">
-          <StatusPill tone="warning" icon={<CalendarClock size={11} />}>
-            No consultation scheduled
-          </StatusPill>
-          <BrandButton onClick={onSchedule}>
-            <CalendarDays size={14} />
-            Schedule consultation
-          </BrandButton>
-        </Stack>
-      </HStack>
-      <Box mt="14px" pt="14px" borderTop="1px solid" borderColor="border.subtle">
-        <MutedText>
-          This lead has cleared conflict check. Schedule a consultation to move
-          them forward.
-        </MutedText>
-      </Box>
-    </SurfaceCard>
-  );
-}
-
-function ConsultationCard({ lead }: { lead: Lead }) {
   const { data: leadDetail } = useLeadById(lead.id);
   const { data: questionnaire } = useLeadQuestionnaire(lead.id);
   const responseId = questionnaire?.response?.id ?? null;
@@ -263,6 +232,7 @@ function ConsultationCard({ lead }: { lead: Lead }) {
   const requestMissing = useRequestMissingDocuments();
 
   const consultation = leadDetail?.consultation;
+  const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
   const send = questionnaire?.send;
   const response = questionnaire?.response;
@@ -420,7 +390,19 @@ function ConsultationCard({ lead }: { lead: Lead }) {
               min
             </MutedText>
           </HStack>
-        ) : null}
+        ) : (
+          <HStack gap="8px" align="center">
+            <StatusPill tone="warning" icon={<CalendarClock size={11} />}>
+              No consultation scheduled
+            </StatusPill>
+            {onSchedule ? (
+              <BrandButton onClick={onSchedule}>
+                <CalendarDays size={14} />
+                Schedule consultation
+              </BrandButton>
+            ) : null}
+          </HStack>
+        )}
       </HStack>
 
       {/* 2. Questionnaire row */}
@@ -636,11 +618,16 @@ function ConsultationCard({ lead }: { lead: Lead }) {
             <Text m="0" color="fg" fontSize="13px" fontWeight="500">
               Attorney notes
             </Text>
-            <MutedText>Notes are internal and not visible to the client.</MutedText>
+            <MutedText>
+              {hasConsultation
+                ? "Notes are internal and not visible to the client."
+                : "Notes can be saved once a consultation is scheduled."}
+            </MutedText>
             <Textarea
               aria-label={`${lead.name} attorney notes`}
               value={displayNotes}
               onChange={(e) => setNotes(e.currentTarget.value)}
+              disabled={!hasConsultation}
               mt="8px"
               minH="96px"
               p="12px"
@@ -652,6 +639,7 @@ function ConsultationCard({ lead }: { lead: Lead }) {
             <Flex justify="flex-end" mt="8px">
               <OutlineButton
                 loading={saveNotesMutation.isPending}
+                disabled={!hasConsultation}
                 onClick={handleSaveNotes}
               >
                 Save notes
@@ -661,7 +649,8 @@ function ConsultationCard({ lead }: { lead: Lead }) {
         </Stack>
       </SectionRow>
 
-      {/* 4. Fee agreement */}
+      {/* 4. Fee agreement — only once a consultation exists */}
+      {hasConsultation ? (
       <SectionRow>
         <Stack gap="14px">
           <HStack justify="space-between" gap="12px" wrap="wrap">
@@ -718,56 +707,59 @@ function ConsultationCard({ lead }: { lead: Lead }) {
           )}
         </Stack>
       </SectionRow>
+      ) : null}
 
-      {/* 5. Footer */}
-      <HStack
-        justify="space-between"
-        gap="12px"
-        wrap="wrap"
-        mt="16px"
-        pt="14px"
-        borderTop="1px solid"
-        borderColor="border.subtle"
-      >
-        <HStack gap="8px" color="fg.muted" fontSize="12px">
-          <Avatar name={attorneyName} size={28} />
-          <Box as="span" fontWeight="500" color="fg">
-            {attorneyName}
-          </Box>
-          <Box as="span">(Assigned)</Box>
-        </HStack>
-        {alreadySettled ? (
-          <MutedText fontSize="12px">
-            {consultation?.outcome === "close_no_case"
-              ? "Closed — no case opened."
-              : "Referred to outside counsel."}
-          </MutedText>
-        ) : (
-          <HStack gap="8px" wrap="wrap" justify="flex-end">
-            <OutlineButton
-              loading={outcomesMutation.isPending}
-              onClick={handleFollowUp}
-            >
-              <CalendarDays size={14} />
-              Schedule follow-up
-            </OutlineButton>
-            <OutlineButton
-              loading={outcomesMutation.isPending}
-              onClick={handleCloseNoCase}
-            >
-              <X size={14} />
-              Close — no case
-            </OutlineButton>
-            <OutlineButton
-              loading={outcomesMutation.isPending}
-              onClick={handleReferElsewhere}
-            >
-              <ExternalLink size={14} />
-              Refer elsewhere
-            </OutlineButton>
+      {/* 5. Footer — outcomes are recorded against a consultation */}
+      {hasConsultation ? (
+        <HStack
+          justify="space-between"
+          gap="12px"
+          wrap="wrap"
+          mt="16px"
+          pt="14px"
+          borderTop="1px solid"
+          borderColor="border.subtle"
+        >
+          <HStack gap="8px" color="fg.muted" fontSize="12px">
+            <Avatar name={attorneyName} size={28} />
+            <Box as="span" fontWeight="500" color="fg">
+              {attorneyName}
+            </Box>
+            <Box as="span">(Assigned)</Box>
           </HStack>
-        )}
-      </HStack>
+          {alreadySettled ? (
+            <MutedText fontSize="12px">
+              {consultation?.outcome === "close_no_case"
+                ? "Closed — no case opened."
+                : "Referred to outside counsel."}
+            </MutedText>
+          ) : (
+            <HStack gap="8px" wrap="wrap" justify="flex-end">
+              <OutlineButton
+                loading={outcomesMutation.isPending}
+                onClick={handleFollowUp}
+              >
+                <CalendarDays size={14} />
+                Schedule follow-up
+              </OutlineButton>
+              <OutlineButton
+                loading={outcomesMutation.isPending}
+                onClick={handleCloseNoCase}
+              >
+                <X size={14} />
+                Close — no case
+              </OutlineButton>
+              <OutlineButton
+                loading={outcomesMutation.isPending}
+                onClick={handleReferElsewhere}
+              >
+                <ExternalLink size={14} />
+                Refer elsewhere
+              </OutlineButton>
+            </HStack>
+          )}
+        </HStack>
+      ) : null}
 
       <QuestionnaireResponseDialog
         responseId={docDialog?.id ?? null}
@@ -1014,12 +1006,16 @@ function ScheduleConsultationDialog({
 
   const createConsultation = useCreateConsultation();
 
-  // Preselect the lead when the dialog is opened from a specific card.
-  // Done during render (adjust-state-on-prop-change) to avoid an extra effect.
+  // Preselect the lead when the dialog is opened from a specific card, and skip
+  // straight to step 2 since the lead is already chosen. Done during render
+  // (adjust-state-on-prop-change) to avoid an extra effect.
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setSelectedLeadId(presetLeadId ?? "");
+    if (open) {
+      setSelectedLeadId(presetLeadId ?? "");
+      setStep(presetLeadId ? 2 : 1);
+    }
   }
 
   const selectedLead = leads.find((l) => l.id === selectedLeadId);
