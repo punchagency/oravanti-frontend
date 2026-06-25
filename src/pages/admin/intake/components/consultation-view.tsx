@@ -33,10 +33,13 @@ import {
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
@@ -80,6 +83,7 @@ const CONSULTATION_TYPE_OPTIONS: { value: ConsultationMode; label: string }[] =
   ];
 
 const DURATION_PRESETS = [30, 45, 60, 90] as const;
+type DurationChoice = (typeof DURATION_PRESETS)[number] | "custom";
 
 function consultationModeLabel(mode: ConsultationMode): string {
   return (
@@ -1121,6 +1125,63 @@ function titleCase(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
+const scheduleSchema = z
+  .object({
+    selectedLeadId: z.string().min(1, "Select a lead"),
+    date: z.string().min(1, "Pick a date"),
+    startTime: z.string().min(1),
+    durationChoice: z.union([
+      z.literal(30),
+      z.literal(45),
+      z.literal(60),
+      z.literal(90),
+      z.literal("custom"),
+    ]),
+    customDuration: z.string(),
+    consultationType: z.enum(["video", "in_person", "phone_call"]),
+    attorneyId: z.string().min(1, "Select an attorney"),
+    videoLink: z.string(),
+    notes: z.string(),
+    notifyEmail: z.boolean(),
+    notifySms: z.boolean(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.date && val.date < getTodayDate()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["date"],
+        message: "Consultation date cannot be in the past",
+      });
+    }
+    const dur =
+      val.durationChoice === "custom"
+        ? parseInt(val.customDuration, 10)
+        : val.durationChoice;
+    if (!dur || dur <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customDuration"],
+        message: "Enter a duration in minutes",
+      });
+    }
+  });
+
+type ScheduleForm = z.infer<typeof scheduleSchema>;
+
+const SCHEDULE_DEFAULTS: ScheduleForm = {
+  selectedLeadId: "",
+  date: "",
+  startTime: "09:00",
+  durationChoice: 60,
+  customDuration: "",
+  consultationType: "video",
+  attorneyId: "",
+  videoLink: "",
+  notes: "",
+  notifyEmail: true,
+  notifySms: false,
+};
+
 function ScheduleConsultationDialog({
   open,
   onOpenChange,
@@ -1131,21 +1192,24 @@ function ScheduleConsultationDialog({
   presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<ScheduleStep>(1);
-  const [selectedLeadId, setSelectedLeadId] = useState("");
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("09:00");
-  const [durationChoice, setDurationChoice] = useState<number | "custom">(60);
-  const [customDuration, setCustomDuration] = useState("");
-  const [consultationType, setConsultationType] =
-    useState<ConsultationMode>("video");
-  const [attorneyId, setAttorneyId] = useState("");
-  const [videoLink, setVideoLink] = useState("");
-  const [notes, setNotes] = useState("");
-  const [notifyEmail, setNotifyEmail] = useState(true);
-  const [notifySms, setNotifySms] = useState(false);
-  const [touchedField, setTouchedField] = useState<
-    "client" | "date" | "duration" | "attorney" | null
-  >(null);
+  const {
+    watch,
+    setValue,
+    reset,
+    trigger,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ScheduleForm>({
+    resolver: zodResolver(scheduleSchema),
+    defaultValues: SCHEDULE_DEFAULTS,
+    mode: "onChange",
+  });
+  const values = watch();
+  const selectedLeadId = values.selectedLeadId;
+  const setField = <K extends keyof ScheduleForm>(
+    key: K,
+    value: ScheduleForm[K],
+  ) => setValue(key, value as never, { shouldValidate: true });
 
   // Eligible candidates have cleared conflict check — that's everyone in the
   // questionnaire stage (regardless of completion) plus consultation-stage leads
@@ -1178,7 +1242,7 @@ function ScheduleConsultationDialog({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      setSelectedLeadId(presetLeadId ?? "");
+      reset({ ...SCHEDULE_DEFAULTS, selectedLeadId: presetLeadId ?? "" });
       setStep(presetLeadId ? 2 : 1);
     }
   }
@@ -1188,101 +1252,70 @@ function ScheduleConsultationDialog({
   const language = questionnaire?.send?.language ?? "English";
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
 
-  const resolvedDuration =
-    durationChoice === "custom" ? parseInt(customDuration, 10) : durationChoice;
   const durationLabel =
-    durationChoice === "custom"
-      ? customDuration
-        ? `${customDuration} minutes`
+    values.durationChoice === "custom"
+      ? values.customDuration
+        ? `${values.customDuration} minutes`
         : "—"
-      : `${durationChoice} minutes`;
+      : `${values.durationChoice} minutes`;
   const attorneyName = (() => {
-    const a = attorneys.find((s) => s.id === attorneyId);
+    const a = attorneys.find((s) => s.id === values.attorneyId);
     return a ? `${a.firstName} ${a.lastName}`.trim() : "Not assigned";
   })();
   const notifyChannels: ("email" | "sms")[] = [
-    ...(notifyEmail ? (["email"] as const) : []),
-    ...(notifySms ? (["sms"] as const) : []),
+    ...(values.notifyEmail ? (["email"] as const) : []),
+    ...(values.notifySms ? (["sms"] as const) : []),
   ];
-
-  function resetDialog() {
-    setStep(1);
-    setSelectedLeadId("");
-    setDate("");
-    setStartTime("09:00");
-    setDurationChoice(60);
-    setCustomDuration("");
-    setConsultationType("video");
-    setAttorneyId("");
-    setVideoLink("");
-    setNotes("");
-    setNotifyEmail(true);
-    setNotifySms(false);
-    setTouchedField(null);
-  }
 
   function closeDialog() {
     onOpenChange(false);
-    resetDialog();
+    reset(SCHEDULE_DEFAULTS);
+    setStep(1);
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (step === 1) {
-      if (!selectedLeadId) {
-        setTouchedField("client");
-        return;
-      }
-      setTouchedField(null);
-      setStep(2);
+      if (await trigger(["selectedLeadId"])) setStep(2);
       return;
     }
     if (step === 2) {
-      if (!date) {
-        setTouchedField("date");
-        return;
-      }
-      if (date < getTodayDate()) {
-        setTouchedField("date");
-        toast.error("Consultation date cannot be in the past");
-        return;
-      }
-      if (!resolvedDuration || resolvedDuration <= 0) {
-        setTouchedField("duration");
-        return;
-      }
-      if (!attorneyId) {
-        setTouchedField("attorney");
-        return;
-      }
-      setTouchedField(null);
-      setStep(3);
+      if (await trigger(["date", "customDuration", "attorneyId"])) setStep(3);
     }
   }
 
-  function handleConfirm() {
-    if (!selectedLeadId || !resolvedDuration || resolvedDuration <= 0) return;
-    if (!date || date < getTodayDate()) {
-      setStep(2);
-      setTouchedField("date");
-      toast.error("Consultation date cannot be in the past");
-      return;
-    }
+  const onValid = (data: ScheduleForm) => {
+    const duration =
+      data.durationChoice === "custom"
+        ? parseInt(data.customDuration, 10)
+        : data.durationChoice;
     createConsultation.mutate(
       {
-        id: selectedLeadId,
+        id: data.selectedLeadId,
         data: {
-          scheduledAt: buildScheduledAt(date, startTime),
-          duration: resolvedDuration,
-          mode: consultationType,
-          leadAttorneyId: attorneyId || undefined,
-          videoLink: videoLink || undefined,
-          preConsultationNotes: notes || undefined,
-          notifyChannels,
+          scheduledAt: buildScheduledAt(data.date, data.startTime),
+          duration,
+          mode: data.consultationType,
+          leadAttorneyId: data.attorneyId || undefined,
+          videoLink: data.videoLink || undefined,
+          preConsultationNotes: data.notes || undefined,
+          notifyChannels: [
+            ...(data.notifyEmail ? (["email"] as const) : []),
+            ...(data.notifySms ? (["sms"] as const) : []),
+          ],
         },
       },
       { onSuccess: () => closeDialog() },
     );
-  }
+  };
+
+  const onInvalid = () => {
+    // Jump back to the step that holds the first error.
+    if (errors.selectedLeadId) setStep(1);
+    else if (errors.date || errors.customDuration || errors.attorneyId)
+      setStep(2);
+  };
+
+  const handleConfirm = handleSubmit(onValid, onInvalid);
 
   return (
     <Dialog.Root
@@ -1364,49 +1397,48 @@ function ScheduleConsultationDialog({
                   selectedLeadId={selectedLeadId}
                   matterType={matterType}
                   language={language}
-                  touched={touchedField === "client"}
-                  onSelect={(leadId) => {
-                    setSelectedLeadId(leadId);
-                    setTouchedField(null);
-                  }}
+                  touched={Boolean(errors.selectedLeadId)}
+                  onSelect={(leadId) => setField("selectedLeadId", leadId)}
                 />
               ) : null}
               {step === 2 ? (
                 <ScheduleDetailsStep
-                  date={date}
-                  startTime={startTime}
-                  durationChoice={durationChoice}
-                  customDuration={customDuration}
-                  consultationType={consultationType}
-                  attorneyId={attorneyId}
+                  date={values.date}
+                  startTime={values.startTime}
+                  durationChoice={values.durationChoice}
+                  customDuration={values.customDuration}
+                  consultationType={values.consultationType}
+                  attorneyId={values.attorneyId}
                   attorneys={attorneys}
-                  videoLink={videoLink}
-                  notes={notes}
-                  notifyEmail={notifyEmail}
-                  notifySms={notifySms}
-                  touchedField={touchedField}
-                  onDateChange={(value) => {
-                    setDate(value);
-                    if (value) setTouchedField(null);
-                  }}
-                  onStartTimeChange={setStartTime}
-                  onDurationChoiceChange={(value) => {
-                    setDurationChoice(value);
-                    setTouchedField(null);
-                  }}
-                  onCustomDurationChange={(value) => {
-                    setCustomDuration(value);
-                    if (value) setTouchedField(null);
-                  }}
-                  onConsultationTypeChange={setConsultationType}
-                  onAttorneyChange={(value) => {
-                    setAttorneyId(value);
-                    if (value) setTouchedField(null);
-                  }}
-                  onVideoLinkChange={setVideoLink}
-                  onNotesChange={setNotes}
-                  onNotifyEmailChange={setNotifyEmail}
-                  onNotifySmsChange={setNotifySms}
+                  videoLink={values.videoLink}
+                  notes={values.notes}
+                  notifyEmail={values.notifyEmail}
+                  notifySms={values.notifySms}
+                  touchedField={
+                    errors.date
+                      ? "date"
+                      : errors.customDuration
+                        ? "duration"
+                        : errors.attorneyId
+                          ? "attorney"
+                          : null
+                  }
+                  onDateChange={(value) => setField("date", value)}
+                  onStartTimeChange={(value) => setField("startTime", value)}
+                  onDurationChoiceChange={(value) =>
+                    setField("durationChoice", value)
+                  }
+                  onCustomDurationChange={(value) =>
+                    setField("customDuration", value)
+                  }
+                  onConsultationTypeChange={(value) =>
+                    setField("consultationType", value)
+                  }
+                  onAttorneyChange={(value) => setField("attorneyId", value)}
+                  onVideoLinkChange={(value) => setField("videoLink", value)}
+                  onNotesChange={(value) => setField("notes", value)}
+                  onNotifyEmailChange={(value) => setField("notifyEmail", value)}
+                  onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
               {step === 3 && selectedLead ? (
@@ -1414,14 +1446,16 @@ function ScheduleConsultationDialog({
                   lead={selectedLead}
                   matterType={matterType}
                   language={language}
-                  date={date || "—"}
-                  startTime={formatTimeLabel(startTime)}
+                  date={values.date || "—"}
+                  startTime={formatTimeLabel(values.startTime)}
                   duration={durationLabel}
-                  consultationType={consultationModeLabel(consultationType)}
+                  consultationType={consultationModeLabel(
+                    values.consultationType,
+                  )}
                   attorney={attorneyName}
                   notifyChannels={notifyChannels}
-                  videoLink={videoLink}
-                  notes={notes}
+                  videoLink={values.videoLink}
+                  notes={values.notes}
                 />
               ) : null}
             </Box>
@@ -1537,64 +1571,20 @@ function SelectClientStep({
         {leads.length === 0 ? (
           <MutedText>No leads are ready for a consultation.</MutedText>
         ) : (
-          <Stack gap="7px">
-            {leads.map((lead) => {
-              const selected = selectedLeadId === lead.id;
-              const initials = getInitials(lead.name);
-              const isBlue = lead.id.charCodeAt(0) % 2 === 0;
-              const caseTypeName = lead.caseTypeName ?? "General";
-
-              return (
-                <chakra.button
-                  key={lead.id}
-                  type="button"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  gap="12px"
-                  w="full"
-                  minH="58px"
-                  p="10px 12px"
-                  border="1px solid"
-                  borderColor={
-                    selected ? "brand.solid" : touched ? invalidColor : "border"
-                  }
-                  borderRadius="8px"
-                  bg="bg"
-                  textAlign="left"
-                  onClick={() => onSelect(lead.id)}
-                >
-                  <HStack gap="12px" minW="0">
-                    <SelectionDot selected={selected} />
-                    <Box
-                      display="grid"
-                      placeItems="center"
-                      flex="0 0 auto"
-                      w="36px"
-                      h="36px"
-                      borderRadius="full"
-                      bg={isBlue ? "#e5efff" : "#d9f8ed"}
-                      color={isBlue ? "#1c55b8" : "#00785a"}
-                      fontSize="11px"
-                      fontWeight="500"
-                    >
-                      {initials}
-                    </Box>
-                    <Box minW="0">
-                      <HStack gap="7px" wrap="wrap">
-                        <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                          {lead.name}
-                        </Text>
-                        <StatusPill tone="neutral">{caseTypeName}</StatusPill>
-                      </HStack>
-                      <MutedText>{lead.email}</MutedText>
-                    </Box>
-                  </HStack>
-                  <StatusPill tone="success">Conflict cleared</StatusPill>
-                </chakra.button>
-              );
-            })}
-          </Stack>
+          <SearchableSelect
+            ariaLabel="Select lead"
+            value={selectedLeadId}
+            onChange={onSelect}
+            invalid={touched}
+            placeholder="— Select a conflict-cleared lead —"
+            searchPlaceholder="Search by name or email…"
+            emptyText="No leads match your search"
+            options={leads.map((lead) => ({
+              value: lead.id,
+              label: lead.name,
+              sublabel: lead.email,
+            }))}
+          />
         )}
       </Box>
 
@@ -1637,7 +1627,7 @@ function ScheduleDetailsStep({
 }: {
   date: string;
   startTime: string;
-  durationChoice: number | "custom";
+  durationChoice: DurationChoice;
   customDuration: string;
   consultationType: ConsultationMode;
   attorneyId: string;
@@ -1649,7 +1639,7 @@ function ScheduleDetailsStep({
   touchedField: "client" | "date" | "duration" | "attorney" | null;
   onDateChange: (value: string) => void;
   onStartTimeChange: (value: string) => void;
-  onDurationChoiceChange: (value: number | "custom") => void;
+  onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
   onAttorneyChange: (value: string) => void;
@@ -1993,25 +1983,6 @@ function SummaryItem({
       <Text m="0" color="fg" fontSize="13px" lineHeight="1.2">
         {children}
       </Text>
-    </Box>
-  );
-}
-
-function SelectionDot({ selected }: { selected: boolean }) {
-  return (
-    <Box
-      display="grid"
-      placeItems="center"
-      flex="0 0 auto"
-      w="16px"
-      h="16px"
-      border="1px solid"
-      borderColor={selected ? "brand.solid" : "border"}
-      borderRadius="full"
-      bg={selected ? "brand.solid" : "bg"}
-      color="brand.fg"
-    >
-      {selected ? <Check size={10} /> : null}
     </Box>
   );
 }
