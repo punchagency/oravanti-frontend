@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
@@ -44,6 +44,7 @@ import {
   useLeads,
   useNudgeClient,
   useUpdateConsultation,
+  useUpdateLead,
 } from "@/hooks/use-leads";
 import {
   useLeadQuestionnaire,
@@ -225,6 +226,8 @@ function ConsultationCard({
   });
 
   const saveNotesMutation = useUpdateConsultation();
+  const saveLeadNotes = useUpdateLead();
+  const completeMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
   const generateFee = useGenerateFeeAgreement();
   const nudgeClient = useNudgeClient();
@@ -238,8 +241,10 @@ function ConsultationCard({
   const response = questionnaire?.response;
 
   const [notes, setNotes] = useState<string | null>(null);
-  const displayNotes =
-    notes !== null ? notes : (consultation?.attorneyNotes ?? "");
+  const baseNotes = hasConsultation
+    ? (consultation?.attorneyNotes ?? "")
+    : (leadDetail?.notes ?? "");
+  const displayNotes = notes !== null ? notes : baseNotes;
   const [docDialog, setDocDialog] = useState<{
     id: string;
     tab: "responses" | "documents";
@@ -278,6 +283,38 @@ function ConsultationCard({
       : consultation?.status === "scheduled"
         ? "info"
         : "success";
+
+  // A consultation can be marked complete once it exists, hasn't already been
+  // completed/cancelled, and its scheduled start time has passed.
+  const consultationCompleted = consultation?.status === "completed";
+  const isCompletable =
+    consultation?.status === "scheduled" ||
+    consultation?.status === "in_progress";
+  const scheduledAt = consultation?.scheduledAt;
+  // Whether the scheduled start time has passed. Evaluated in an effect (not in
+  // render) since reading the clock is impure; re-checked on an interval while
+  // the start time is still in the future.
+  const [startTimeReached, setStartTimeReached] = useState(false);
+  useEffect(() => {
+    if (!scheduledAt) {
+      setStartTimeReached(false);
+      return;
+    }
+    const target = new Date(scheduledAt).getTime();
+    if (Date.now() >= target) {
+      setStartTimeReached(true);
+      return;
+    }
+    setStartTimeReached(false);
+    const id = setInterval(() => {
+      if (Date.now() >= target) {
+        setStartTimeReached(true);
+        clearInterval(id);
+      }
+    }, 30000);
+    return () => clearInterval(id);
+  }, [scheduledAt]);
+  const canComplete = isCompletable && startTimeReached;
 
   // ── Documents ──────────────────────────────────────────────────────────────
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
@@ -345,10 +382,20 @@ function ConsultationCard({
     consultation?.outcome === "refer_elsewhere";
 
   function handleSaveNotes() {
-    saveNotesMutation.mutate(
-      { id: lead.id, data: { attorneyNotes: displayNotes } },
-      { onSuccess: () => setNotes(null) },
-    );
+    if (hasConsultation) {
+      saveNotesMutation.mutate(
+        { id: lead.id, data: { attorneyNotes: displayNotes } },
+        { onSuccess: () => setNotes(null) },
+      );
+    } else {
+      saveLeadNotes.mutate(
+        { id: lead.id, data: { notes: displayNotes } },
+        { onSuccess: () => setNotes(null) },
+      );
+    }
+  }
+  function handleCompleteConsultation() {
+    completeMutation.mutate({ id: lead.id, data: { status: "completed" } });
   }
   function handleFollowUp() {
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
@@ -621,13 +668,12 @@ function ConsultationCard({
             <MutedText>
               {hasConsultation
                 ? "Notes are internal and not visible to the client."
-                : "Notes can be saved once a consultation is scheduled."}
+                : "Capture observations before the consultation — saved to the lead and internal only."}
             </MutedText>
             <Textarea
               aria-label={`${lead.name} attorney notes`}
               value={displayNotes}
               onChange={(e) => setNotes(e.currentTarget.value)}
-              disabled={!hasConsultation}
               mt="8px"
               minH="96px"
               p="12px"
@@ -638,8 +684,7 @@ function ConsultationCard({
             />
             <Flex justify="flex-end" mt="8px">
               <OutlineButton
-                loading={saveNotesMutation.isPending}
-                disabled={!hasConsultation}
+                loading={saveNotesMutation.isPending || saveLeadNotes.isPending}
                 onClick={handleSaveNotes}
               >
                 Save notes
@@ -649,8 +694,8 @@ function ConsultationCard({
         </Stack>
       </SectionRow>
 
-      {/* 4. Fee agreement — only once a consultation exists */}
-      {hasConsultation ? (
+      {/* 4. Fee agreement — unlocks once the consultation is completed */}
+      {consultationCompleted ? (
       <SectionRow>
         <Stack gap="14px">
           <HStack justify="space-between" gap="12px" wrap="wrap">
@@ -707,7 +752,48 @@ function ConsultationCard({
           )}
         </Stack>
       </SectionRow>
-      ) : null}
+      ) : (
+      <SectionRow>
+        <Stack gap="12px">
+          <HStack justify="space-between" gap="12px" wrap="wrap">
+            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+              Fee agreement
+            </Text>
+            <StatusPill tone="neutral" icon={<Lock size={11} />}>
+              Locked
+            </StatusPill>
+          </HStack>
+          <HStack gap="6px" color="fg.muted" align="flex-start">
+            <Info size={12} />
+            <MutedText>
+              {hasConsultation
+                ? "The fee agreement unlocks once the consultation has been completed."
+                : "The fee agreement unlocks once a consultation has been scheduled and completed."}
+            </MutedText>
+          </HStack>
+          {isCompletable ? (
+            <Box>
+              <BrandButton
+                disabled={!canComplete}
+                loading={completeMutation.isPending}
+                onClick={handleCompleteConsultation}
+              >
+                <Check size={14} />
+                Mark consultation completed
+              </BrandButton>
+              {!canComplete ? (
+                <Box mt="6px">
+                  <MutedText>
+                    Available after the scheduled start time ({consultationDate} ·{" "}
+                    {consultationTime}).
+                  </MutedText>
+                </Box>
+              ) : null}
+            </Box>
+          ) : null}
+        </Stack>
+      </SectionRow>
+      )}
 
       {/* 5. Footer — outcomes are recorded against a consultation */}
       {hasConsultation ? (

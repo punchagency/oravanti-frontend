@@ -210,6 +210,14 @@ export const updateLeadStatus = async (id: string, status: string): Promise<Lead
   return res.data.data
 }
 
+export const updateLead = async (
+  id: string,
+  data: { notes?: string },
+): Promise<Lead> => {
+  const res = await API.patch(`/leads/${id}`, data);
+  return res.data.data;
+};
+
 export const advanceLeadStage = async (
   id: string,
   stage: PipelineStage,

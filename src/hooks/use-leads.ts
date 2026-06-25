@@ -12,6 +12,7 @@ import {
   runConflictCheck,
   sendQuestionnaire,
   updateConsultation,
+  updateLead,
   updateLeadStatus,
   type GetLeadsParams,
   type PipelineStage,
@@ -70,6 +71,27 @@ export function useUpdateLeadStatus() {
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to archive lead");
+    },
+  });
+}
+
+export function useUpdateLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof updateLead>[1];
+    }) => updateLead(id, data),
+    onSuccess: (_, { id }) => {
+      toast.success("Notes saved");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to save notes");
     },
   });
 }
