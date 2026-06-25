@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Bell,
+  Check,
   Download,
   FileText,
   Flag,
@@ -28,6 +29,7 @@ import {
   type ResponseFile,
 } from "@/api/questionnaires";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
+import { useLeadById } from "@/hooks/use-leads";
 import {
   useAcceptResponse,
   useResponseDetail,
@@ -126,6 +128,17 @@ function ResponseContent({
   const acceptResponse = useAcceptResponse();
   const sendReminder = useSendReminder();
   const [downloading, setDownloading] = useState(false);
+
+  // State-aware footer: once the lead has been marked complete and moved past
+  // the questionnaire, the accept action is shown as done; reminders are pointless
+  // (and rejected by the backend) once the questionnaire has been submitted.
+  const { data: lead } = useLeadById(detail.response.leadId ?? "");
+  const alreadyAccepted = lead
+    ? ["consultation", "fee_agreement", "case_opening"].includes(
+        lead.pipelineStage,
+      )
+    : false;
+  const questionnaireSubmitted = detail.response.status === "submitted";
 
   const answerMap = useMemo(
     () => new Map(detail.answers.map((a) => [a.questionId, a.value])),
@@ -330,18 +343,29 @@ function ResponseContent({
           Download PDF
         </OutlineButton>
         <HStack gap="8px">
-          <OutlineButton loading={sendReminder.isPending} onClick={handleReminder}>
+          <OutlineButton
+            loading={sendReminder.isPending}
+            disabled={questionnaireSubmitted}
+            onClick={handleReminder}
+          >
             <Bell size={14} />
             Send reminder
           </OutlineButton>
-          <BrandButton
-            minW="198px"
-            loading={acceptResponse.isPending}
-            onClick={handleAccept}
-          >
-            <ArrowRight size={14} />
-            Mark complete &amp; proceed
-          </BrandButton>
+          {alreadyAccepted ? (
+            <BrandButton minW="198px" disabled>
+              <Check size={14} />
+              Marked complete
+            </BrandButton>
+          ) : (
+            <BrandButton
+              minW="198px"
+              loading={acceptResponse.isPending}
+              onClick={handleAccept}
+            >
+              <ArrowRight size={14} />
+              Mark complete &amp; proceed
+            </BrandButton>
+          )}
         </HStack>
       </Flex>
     </>

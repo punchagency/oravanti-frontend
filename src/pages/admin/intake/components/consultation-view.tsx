@@ -26,6 +26,7 @@ import {
   Phone,
   Scale,
   Send,
+  UserX,
   Video,
   X,
 } from "lucide-react";
@@ -230,6 +231,7 @@ function ConsultationCard({
   const saveNotesMutation = useUpdateConsultation();
   const saveLeadNotes = useUpdateLead();
   const completeMutation = useUpdateConsultation();
+  const noShowMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
   const generateFee = useGenerateFeeAgreement();
   const nudgeClient = useNudgeClient();
@@ -386,6 +388,9 @@ function ConsultationCard({
   }
   function handleCompleteConsultation() {
     completeMutation.mutate({ id: lead.id, data: { status: "completed" } });
+  }
+  function handleNoShow() {
+    noShowMutation.mutate({ id: lead.id, data: { status: "no_show" } });
   }
   function handleFollowUp() {
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
@@ -771,14 +776,24 @@ function ConsultationCard({
             </HStack>
             {isCompletable ? (
               <Box>
-                <BrandButton
-                  disabled={!canComplete}
-                  loading={completeMutation.isPending}
-                  onClick={handleCompleteConsultation}
-                >
-                  <Check size={14} />
-                  Mark consultation completed
-                </BrandButton>
+                <HStack gap="8px" wrap="wrap">
+                  <BrandButton
+                    disabled={!canComplete}
+                    loading={completeMutation.isPending}
+                    onClick={handleCompleteConsultation}
+                  >
+                    <Check size={14} />
+                    Mark consultation completed
+                  </BrandButton>
+                  <OutlineButton
+                    disabled={!canComplete}
+                    loading={noShowMutation.isPending}
+                    onClick={handleNoShow}
+                  >
+                    <UserX size={14} />
+                    Mark no-show
+                  </OutlineButton>
+                </HStack>
                 {!canComplete ? (
                   <Box mt="6px">
                     <MutedText>
