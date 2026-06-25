@@ -501,6 +501,9 @@ function ConsultationCard({
           onChange={handleFileChange}
         />
         <Stack gap="12px">
+          {/* Documents only exist once the lead has a questionnaire response. */}
+          {responseId ? (
+            <>
           <HStack justify="space-between" gap="12px" wrap="wrap">
             <HStack gap="8px">
               <Text m="0" color="fg" fontSize="13px" fontWeight="500">
@@ -679,6 +682,8 @@ function ConsultationCard({
                 View details
               </OutlineButton>
             </HStack>
+          ) : null}
+            </>
           ) : null}
 
           <Box>
