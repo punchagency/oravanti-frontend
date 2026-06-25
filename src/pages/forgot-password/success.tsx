@@ -1,4 +1,3 @@
-import useResendPasswordResetEmail from "@/hooks/useResendPasswordResetEmail";
 import {
   Box,
   Button,
@@ -8,8 +7,9 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { BiCheckCircle } from "react-icons/bi";
+import { CheckCircle } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router";
+import useResendPasswordResetEmail from "@/hooks/useResendPasswordResetEmail";
 import logo from "../../assets/images/oravanti_logo.png";
 
 const ForgotPasswordSuccess = () => {
@@ -50,7 +50,7 @@ const ForgotPasswordSuccess = () => {
         >
           <Stack gap={4} align="center" textAlign="center">
             <Box fontSize="48px">
-              <BiCheckCircle />
+              <CheckCircle />
             </Box>
             <Heading size="md">Check your email</Heading>
             <Text color="fg.muted" fontSize="sm">
@@ -75,7 +75,7 @@ const ForgotPasswordSuccess = () => {
             <Button
               variant={"subtle"}
               size={"xs"}
-              onClick={resend}
+              onClick={() => resend()}
               disabled={isResending || resendTimer > 0}
               loading={isResending}
             >

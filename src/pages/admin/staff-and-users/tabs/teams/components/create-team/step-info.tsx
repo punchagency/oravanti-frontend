@@ -206,7 +206,6 @@ export function StepInfo({
   errors,
   practiceAreasList,
   attorneys,
-  leadName,
   setLeadName,
 }: {
   register: UseFormRegister<CreateTeamFormValues>;
@@ -214,7 +213,6 @@ export function StepInfo({
   errors: FieldErrors<CreateTeamFormValues>;
   practiceAreasList: PublicPracticeArea[];
   attorneys: StaffMemberDTO[];
-  leadName: string | null;
   setLeadName: (name: string | null) => void;
 }) {
   return (

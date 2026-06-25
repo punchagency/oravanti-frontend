@@ -14,10 +14,9 @@ import {
   getProgressColor,
   getStatusBadgeStyles,
   getStatusLabel,
+  type StaffMember,
 } from "../../../../data";
 import { EditStaffDialog } from "../edit-staff-dialog";
-import { useAuthStore } from "@/store/auth-store";
-
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (
     <Box borderBottom="1px solid" borderColor="border.muted" py={2}>
@@ -56,8 +55,6 @@ function SectionLabel({ children }: { children: string }) {
 export function StepOverview({ staff }: { staff: StaffMemberDTO }) {
   const caseloadCurrent = 0;
   const caseloadMax = staff.maxCaseload ?? 7;
-  const currentUserId = useAuthStore((s) => s.user?.id);
-
   return (
     <VStack gap={0} align="stretch" px={5} pb={5}>
       <HStack gap={0} wrap="wrap">
@@ -201,7 +198,7 @@ export function StepOverview({ staff }: { staff: StaffMemberDTO }) {
 
       <SectionLabel>Quick actions</SectionLabel>
       <VStack gap={1.5} w="full">
-        <EditStaffDialog staff={staff}>
+        <EditStaffDialog staff={staff as StaffMember}>
           <Button
             variant="outline"
             size="sm"

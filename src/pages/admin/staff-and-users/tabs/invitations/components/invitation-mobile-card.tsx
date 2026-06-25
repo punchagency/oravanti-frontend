@@ -66,7 +66,7 @@ export function InvitationMobileCard({
   onResend,
   onCancel,
   isResending,
-  isCanceling,
+  isCanceling: _isCanceling,
 }: InvitationMobileCardProps) {
   const { showConfirm } = useConfirmDialog();
   const displayName = [inv.firstName, inv.lastName]

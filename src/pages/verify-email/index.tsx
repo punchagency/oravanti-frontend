@@ -1,13 +1,9 @@
 import { useColorMode } from "@/hooks/use-color-mode";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { useAuthRefresh } from "@/hooks/useAuthRefresh";
-import { useAuthStore } from "@/store/auth-store";
 import { Box, Center, IconButton, Image, Text, VStack } from "@chakra-ui/react";
 
 export default function VerifyEmailNoticePage() {
   const { colorMode, toggleColorMode } = useColorMode();
-  const { refetch } = useAuthStore();
-  const { isLoading } = useAuthRefresh();
 
   useDocumentTitle("Verify your email - Oravanti");
 
