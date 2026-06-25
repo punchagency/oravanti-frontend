@@ -22,12 +22,16 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import type {
   CustomDocumentInput,
   CustomQuestionInput,
   SendQuestionnaireConfig,
 } from "@/api/questionnaires";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   useCaseTypeQuestionnairePreview,
   useEligibleLeads,
@@ -61,6 +65,22 @@ const fieldStyles = {
 type DraftCustomQuestion = CustomQuestionInput & { label: string };
 type DraftCustomDoc = CustomDocumentInput & { label: string };
 
+const recipientSchema = z.object({
+  leadId: z.string().min(1, "Select a lead"),
+  channels: z
+    .array(z.enum(["email", "sms"]))
+    .min(1, "Choose at least one delivery channel"),
+  reminder: z.enum(["2", "3", "5", "7", "never"]),
+});
+
+type RecipientForm = z.infer<typeof recipientSchema>;
+
+const RECIPIENT_DEFAULTS: RecipientForm = {
+  leadId: "",
+  channels: ["email", "sms"],
+  reminder: "3",
+};
+
 export function SendQuestionnaireDialog({
   open,
   onOpenChange,
@@ -71,9 +91,18 @@ export function SendQuestionnaireDialog({
   presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
-  const [leadId, setLeadId] = useState("");
-  const [channels, setChannels] = useState<Channel[]>(["email", "sms"]);
-  const [reminder, setReminder] = useState<ReminderOption>("3");
+  const {
+    watch,
+    setValue,
+    reset: resetForm,
+    trigger,
+    handleSubmit,
+  } = useForm<RecipientForm>({
+    resolver: zodResolver(recipientSchema),
+    defaultValues: RECIPIENT_DEFAULTS,
+    mode: "onChange",
+  });
+  const { leadId, channels, reminder } = watch();
   const [customQuestions, setCustomQuestions] = useState<DraftCustomQuestion[]>(
     [],
   );
@@ -85,7 +114,8 @@ export function SendQuestionnaireDialog({
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setLeadId(presetLeadId ?? "");
+    if (open)
+      resetForm({ ...RECIPIENT_DEFAULTS, leadId: presetLeadId ?? "" });
   }
 
   const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
@@ -109,9 +139,7 @@ export function SendQuestionnaireDialog({
 
   function reset() {
     setStep(1);
-    setLeadId("");
-    setChannels(["email", "sms"]);
-    setReminder("3");
+    resetForm(RECIPIENT_DEFAULTS);
     setCustomQuestions([]);
     setCustomDocs([]);
   }
@@ -122,14 +150,13 @@ export function SendQuestionnaireDialog({
     setTimeout(reset, 200);
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (step === 1) {
-      if (!leadId) {
-        toast.error("Select a lead to continue");
-        return;
-      }
-      if (channels.length === 0) {
-        toast.error("Choose at least one delivery channel");
+      const ok = await trigger(["leadId", "channels"]);
+      if (!ok) {
+        if (!leadId) toast.error("Select a lead to continue");
+        else if (channels.length === 0)
+          toast.error("Choose at least one delivery channel");
         return;
       }
       setStep(2);
@@ -138,12 +165,14 @@ export function SendQuestionnaireDialog({
     if (step === 2) setStep(3);
   }
 
-  function handleSend() {
+  const handleSend = handleSubmit((data) => {
     const config: SendQuestionnaireConfig = {
-      deliveryChannels: channels,
+      deliveryChannels: data.channels,
       language: "english",
       autoReminderDays:
-        reminder === "never" ? null : (Number(reminder) as 2 | 3 | 5 | 7),
+        data.reminder === "never"
+          ? null
+          : (Number(data.reminder) as 2 | 3 | 5 | 7),
       customQuestions: customQuestions
         .filter((q) => q.label.trim())
         .map((q) => ({ label: q.label.trim(), saveToFirm: q.saveToFirm })),
@@ -151,8 +180,8 @@ export function SendQuestionnaireDialog({
         .filter((d) => d.label.trim())
         .map((d) => ({ label: d.label.trim(), saveToFirm: d.saveToFirm })),
     };
-    send.mutate({ leadId, config }, { onSuccess: close });
-  }
+    send.mutate({ leadId: data.leadId, config }, { onSuccess: close });
+  });
 
   return (
     <Dialog.Root
@@ -232,15 +261,21 @@ export function SendQuestionnaireDialog({
                   matterType={selectedLead?.caseTypeName ?? null}
                   channels={channels}
                   reminder={reminder}
-                  onLeadChange={setLeadId}
+                  onLeadChange={(id) =>
+                    setValue("leadId", id, { shouldValidate: true })
+                  }
                   onToggleChannel={(c) =>
-                    setChannels((prev) =>
-                      prev.includes(c)
-                        ? prev.filter((x) => x !== c)
-                        : [...prev, c],
+                    setValue(
+                      "channels",
+                      channels.includes(c)
+                        ? channels.filter((x) => x !== c)
+                        : [...channels, c],
+                      { shouldValidate: true },
                     )
                   }
-                  onReminderChange={setReminder}
+                  onReminderChange={(r) =>
+                    setValue("reminder", r, { shouldValidate: true })
+                  }
                 />
               ) : null}
               {step === 2 ? (
@@ -346,7 +381,12 @@ function RecipientStep({
   onToggleChannel,
   onReminderChange,
 }: {
-  leads: { id: string; name: string; caseTypeName: string | null }[];
+  leads: {
+    id: string;
+    name: string;
+    email: string;
+    caseTypeName: string | null;
+  }[];
   leadsLoading: boolean;
   leadId: string;
   matterType: string | null;
@@ -379,21 +419,21 @@ function RecipientStep({
       </HStack>
 
       <Field label="Send to (conflict-cleared leads only)">
-        <chakra.select
-          {...fieldStyles}
+        <SearchableSelect
+          ariaLabel="Send questionnaire to lead"
           value={leadId}
-          onChange={(e) => onLeadChange(e.target.value)}
-        >
-          <option value="">
-            {leadsLoading ? "Loading…" : "— Select a cleared lead —"}
-          </option>
-          {leads.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-              {l.caseTypeName ? ` — ${l.caseTypeName}` : ""}
-            </option>
-          ))}
-        </chakra.select>
+          onChange={onLeadChange}
+          placeholder={
+            leadsLoading ? "Loading…" : "— Select a cleared lead —"
+          }
+          searchPlaceholder="Search by name or email…"
+          emptyText="No leads match your search"
+          options={leads.map((l) => ({
+            value: l.id,
+            label: l.caseTypeName ? `${l.name} — ${l.caseTypeName}` : l.name,
+            sublabel: l.email,
+          }))}
+        />
       </Field>
 
       {leadId ? (
