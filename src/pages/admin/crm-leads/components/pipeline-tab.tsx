@@ -88,7 +88,7 @@ export function PipelineTab() {
   );
 
   const leads = data?.leads ?? [];
-  const total = data?.total ?? 0;
+  const total = data?.pagination.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function resetPage() {

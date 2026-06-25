@@ -56,7 +56,7 @@ export function EmailAccountConnectFlow({
   }
 
   function handleOAuthConnectClassified() {
-    if (!provider) return;
+    if (!provider || provider === "custom") return;
     handleOAuthConnect(provider);
   }
 

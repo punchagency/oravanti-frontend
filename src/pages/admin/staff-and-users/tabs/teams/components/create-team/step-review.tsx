@@ -1,5 +1,5 @@
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
-import type { PublicPracticeArea } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import {
   Flex,
   HStack,

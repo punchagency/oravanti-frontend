@@ -5,13 +5,6 @@ import { caseStatuses } from "../data";
 import { OpenMatterButton } from "./open-matter-dialog";
 
 export function CasesPageHeader() {
-  const statusColors: Record<string, string> = {
-    green: "green",
-    orange: "orange",
-    blue: "blue",
-    gray: "gray",
-  };
-
   return (
     <>
       <Flex

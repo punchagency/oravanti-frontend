@@ -241,7 +241,7 @@ const actionButtonMap: Record<string, { label: string; variant: string }> = {
   Pending: { label: "Prepare", variant: "solid" },
 };
 
-export function CasesTable({ cases = mockCases, isLoading = false }: CasesTableProps) {
+export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }: CasesTableProps) {
   return (
     <Box
       w="full"

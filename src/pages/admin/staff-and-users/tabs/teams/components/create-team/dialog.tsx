@@ -236,7 +236,6 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
                   errors={errors}
                   practiceAreasList={practiceAreasList}
                   attorneys={attorneys}
-                  leadName={leadName}
                   setLeadName={setLeadName}
                 />
               )}

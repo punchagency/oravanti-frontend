@@ -1,5 +1,4 @@
 import { useAuthRefresh } from "@/hooks/useAuthRefresh";
-import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
 import { Center, Spinner, Text, VStack } from "@chakra-ui/react";
 import { Navigate, Outlet, useLocation } from "react-router";
@@ -14,8 +13,6 @@ export function AuthGuard() {
     needsAcceptInvitation,
     needsPasswordChange,
   } = useAuthStore();
-
-  const { mutateAsync: logOut } = useSignOut();
 
   const isLoading = queryLoading || storeLoading;
 
