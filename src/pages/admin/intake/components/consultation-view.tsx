@@ -14,22 +14,22 @@ import {
   AlertTriangle,
   CalendarDays,
   Check,
-  Clock,
+  ClipboardCheck,
   Download,
   ExternalLink,
-  Eye,
-  FileText,
   Info,
+  Lock,
   Mail,
   MapPin,
   MessageSquare,
   Phone,
+  Scale,
   Send,
   Video,
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
@@ -201,21 +201,50 @@ function ConsultationCard({ lead }: { lead: Lead }) {
   const consultationTime = consultation?.scheduledAt
     ? formatIsoTime(consultation.scheduledAt)
     : "—";
+  const consultStatusLabel = consultation
+    ? (
+        {
+          scheduled: "Scheduled",
+          in_progress: "In progress",
+          completed: "Completed",
+          cancelled: "Cancelled",
+          no_show: "No show",
+        } as const
+      )[consultation.status]
+    : null;
+  const consultStatusTone: "info" | "success" | "danger" =
+    consultation?.status === "cancelled" || consultation?.status === "no_show"
+      ? "danger"
+      : consultation?.status === "scheduled"
+        ? "info"
+        : "success";
 
   // ── Documents ──────────────────────────────────────────────────────────────
+  const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
+  function toggleConfirmed(id: string) {
+    setConfirmed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const sections = responseDetail?.send?.schemaSnapshot?.sections ?? [];
   const fileQuestions = sections.flatMap((s) =>
     (s.questions ?? []).filter((q) => q.type === "file_upload"),
   );
+  const labelByQuestionId = new Map(fileQuestions.map((q) => [q.id, q.label]));
   const files = responseDetail?.files ?? [];
   const uploadedQuestionIds = new Set(files.map((f) => f.questionId));
   const totalDocs = fileQuestions.length;
-  const receivedCount = fileQuestions.filter((q) =>
-    uploadedQuestionIds.has(q.id),
+  const receivedCount = fileQuestions.filter(
+    (q) => uploadedQuestionIds.has(q.id) || confirmed.has(q.id),
   ).length;
   const pendingQuestions = fileQuestions.filter(
     (q) => !uploadedQuestionIds.has(q.id),
   );
+  const trulyMissing = pendingQuestions.filter((q) => !confirmed.has(q.id));
   const issueFiles = files.filter((f) => f.scanStatus === "issues_found");
   const issueCount = issueFiles.reduce(
     (n, f) => n + (f.scanResult?.length ?? 0),
@@ -230,7 +259,8 @@ function ConsultationCard({ lead }: { lead: Lead }) {
     : null;
 
   // ── Fee agreement tracker ────────────────────────────────────────────────────
-  const feeStageIndex = leadDetail?.convertedCaseId
+  const caseOpened = Boolean(leadDetail?.convertedCaseId);
+  const feeStageIndex = caseOpened
     ? 4
     : feeAgreement?.status === "signed"
       ? 3
@@ -239,6 +269,16 @@ function ConsultationCard({ lead }: { lead: Lead }) {
         : feeAgreement?.status === "draft"
           ? 1
           : 0;
+  const feeStatus: { label: string; tone: "success" | "warning" | "neutral" } =
+    caseOpened
+      ? { label: "Signed & received", tone: "success" }
+      : feeAgreement?.status === "signed"
+        ? { label: "Signed", tone: "success" }
+        : feeAgreement?.status === "pending_signature"
+          ? { label: "Awaiting signature", tone: "warning" }
+          : feeAgreement?.status === "draft"
+            ? { label: "Draft", tone: "neutral" }
+            : { label: "Not started", tone: "neutral" };
 
   const alreadySettled =
     consultation?.outcome === "close_no_case" ||
@@ -267,21 +307,28 @@ function ConsultationCard({ lead }: { lead: Lead }) {
     <SurfaceCard>
       {/* 1. Lead + consultation details */}
       <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
-        <Box minW="0">
-          <CardTitle>{lead.name}</CardTitle>
-          <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
-        </Box>
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Avatar name={lead.name} />
+          <Box minW="0">
+            <CardTitle>{lead.name}</CardTitle>
+            <MutedText>
+              {lead.caseTypeName ?? "Matter type not set"}
+            </MutedText>
+          </Box>
+        </HStack>
         {consultation ? (
-          <HStack gap="8px" wrap="wrap" justify="flex-end">
-            <StatusPill tone="info" icon={consultationModeIcon(consultation.mode)}>
+          <HStack gap="10px" wrap="wrap" justify="flex-end" align="center">
+            <StatusPill tone={consultStatusTone}>{consultStatusLabel}</StatusPill>
+            <StatusPill
+              tone="neutral"
+              icon={consultationModeIcon(consultation.mode)}
+            >
               {modeLabel}
             </StatusPill>
-            <StatusPill tone="neutral" icon={<CalendarDays size={11} />}>
-              {consultationDate}
-            </StatusPill>
-            <StatusPill tone="neutral" icon={<Clock size={11} />}>
-              {consultationTime} · {consultation.duration} min
-            </StatusPill>
+            <MutedText>
+              {consultationDate} · {consultationTime} · {consultation.duration}{" "}
+              min
+            </MutedText>
           </HStack>
         ) : null}
       </HStack>
@@ -289,24 +336,28 @@ function ConsultationCard({ lead }: { lead: Lead }) {
       {/* 2. Questionnaire row */}
       <SectionRow>
         <HStack justify="space-between" gap="12px" wrap="wrap">
-          <HStack gap="10px" minW="0">
-            <StatusPill tone={questionnaireComplete ? "success" : "warning"}>
-              {questionnaireComplete
-                ? "Questionnaire completed"
-                : "Awaiting response"}
-            </StatusPill>
-            <MutedText>
-              {submittedDate ? `Submitted ${submittedDate} · ` : ""}
-              {send?.language ?? "English"}
-            </MutedText>
+          <HStack gap="12px" minW="0" align="flex-start">
+            <IconSquare>
+              <ClipboardCheck size={17} />
+            </IconSquare>
+            <Box minW="0">
+              <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                {questionnaireComplete
+                  ? "Questionnaire completed"
+                  : "Awaiting response"}
+              </Text>
+              <MutedText>
+                {submittedDate ? `Submitted ${submittedDate} · ` : ""}
+                {titleCase(send?.language ?? "English")}
+              </MutedText>
+            </Box>
           </HStack>
           {responseId ? (
-            <OutlineButton
+            <TextLink
               onClick={() => setDocDialog({ id: responseId, tab: "responses" })}
             >
-              <Eye size={14} />
-              View response
-            </OutlineButton>
+              View responses
+            </TextLink>
           ) : null}
         </HStack>
       </SectionRow>
@@ -315,70 +366,81 @@ function ConsultationCard({ lead }: { lead: Lead }) {
       <SectionRow>
         <Stack gap="12px">
           <HStack justify="space-between" gap="12px" wrap="wrap">
-            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-              Documents {receivedCount} of {totalDocs} received
-            </Text>
-            <OutlineButton
+            <HStack gap="8px">
+              <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                Documents
+              </Text>
+              <MutedText>
+                {receivedCount} of {totalDocs} received
+              </MutedText>
+            </HStack>
+            <TextLink
               loading={requestMissing.isPending}
-              disabled={!send || pendingQuestions.length === 0}
+              disabled={!send || trulyMissing.length === 0}
               onClick={() => send && requestMissing.mutate(send.id)}
             >
-              <Send size={14} />
               Request missing
-            </OutlineButton>
+            </TextLink>
           </HStack>
 
           {files.length > 0 ? (
             <Box>
               <SubLabel>Uploaded by client</SubLabel>
-              <Stack gap="6px">
+              <Stack gap="0">
                 {files.map((file) => (
                   <HStack
                     key={file.id}
                     justify="space-between"
                     gap="10px"
-                    p="8px 10px"
-                    border="1px solid"
+                    py="10px"
+                    borderBottom="1px solid"
                     borderColor="border.subtle"
-                    borderRadius="7px"
+                    _last={{ borderBottom: 0 }}
                   >
-                    <HStack gap="8px" minW="0">
-                      <FileText size={14} color="var(--chakra-colors-fg-muted)" />
-                      <Text
-                        m="0"
-                        color="fg"
-                        fontSize="12px"
-                        truncate
-                        title={file.originalFilename}
-                      >
-                        {file.originalFilename}
-                      </Text>
-                      <StatusPill tone="success">Received</StatusPill>
+                    <HStack gap="10px" minW="0">
+                      <CheckMarker checked tone="green" />
+                      <Box minW="0">
+                        <Text
+                          m="0"
+                          color="fg"
+                          fontSize="13px"
+                          fontWeight="500"
+                          truncate
+                          title={
+                            labelByQuestionId.get(file.questionId) ??
+                            file.originalFilename
+                          }
+                        >
+                          {labelByQuestionId.get(file.questionId) ??
+                            file.originalFilename}
+                        </Text>
+                        <MutedText>
+                          {file.originalFilename} · {formatBytes(file.fileSize)}
+                        </MutedText>
+                      </Box>
                     </HStack>
-                    {canDownload ? (
-                      <chakra.button
-                        type="button"
-                        aria-label={`Download ${file.originalFilename}`}
-                        display="grid"
-                        placeItems="center"
-                        flex="0 0 auto"
-                        w="28px"
-                        h="28px"
-                        border="1px solid"
-                        borderColor="border"
-                        borderRadius="6px"
-                        bg="bg"
-                        color="fg.muted"
-                        onClick={() =>
-                          void downloadResponseFile(
-                            file.id,
-                            file.originalFilename,
-                          )
-                        }
-                      >
-                        <Download size={14} />
-                      </chakra.button>
-                    ) : null}
+                    <HStack gap="8px" flex="0 0 auto">
+                      <StatusPill tone="success">Received</StatusPill>
+                      {canDownload ? (
+                        <chakra.button
+                          type="button"
+                          aria-label={`Download ${file.originalFilename}`}
+                          display="grid"
+                          placeItems="center"
+                          w="26px"
+                          h="26px"
+                          color="fg.muted"
+                          onClick={() =>
+                            void downloadResponseFile(
+                              file.id,
+                              file.originalFilename,
+                            )
+                          }
+                        >
+                          <Download size={15} />
+                        </chakra.button>
+                      ) : null}
+                    </HStack>
                   </HStack>
                 ))}
               </Stack>
@@ -387,28 +449,59 @@ function ConsultationCard({ lead }: { lead: Lead }) {
 
           {pendingQuestions.length > 0 ? (
             <Box>
-              <SubLabel>Pending receipt</SubLabel>
-              <Stack gap="6px">
-                {pendingQuestions.map((q) => (
-                  <HStack
-                    key={q.id}
-                    justify="space-between"
-                    gap="10px"
-                    p="8px 10px"
-                    border="1px solid"
-                    borderColor="border.subtle"
-                    borderRadius="7px"
-                  >
-                    <HStack gap="8px" minW="0">
-                      <FileText size={14} color="var(--chakra-colors-fg-muted)" />
-                      <Text m="0" color="fg" fontSize="12px" truncate title={q.label}>
-                        {q.label}
-                      </Text>
+              <SubLabel>Required — pending receipt</SubLabel>
+              <Stack gap="0">
+                {pendingQuestions.map((q) => {
+                  const isConfirmed = confirmed.has(q.id);
+                  return (
+                    <HStack
+                      key={q.id}
+                      justify="space-between"
+                      gap="10px"
+                      py="10px"
+                      borderBottom="1px solid"
+                      borderColor="border.subtle"
+                      _last={{ borderBottom: 0 }}
+                    >
+                      <HStack gap="10px" minW="0">
+                        <CheckMarker
+                          checked={isConfirmed}
+                          tone="gold"
+                          onClick={() => toggleConfirmed(q.id)}
+                          label={`Confirm receipt of ${q.label}`}
+                        />
+                        <Box minW="0">
+                          <Text
+                            m="0"
+                            color="fg"
+                            fontSize="13px"
+                            fontWeight="500"
+                            truncate
+                            title={q.label}
+                          >
+                            {q.label}
+                          </Text>
+                          <HStack gap="4px" color="fg.muted">
+                            <MutedText>Required</MutedText>
+                            <Lock size={10} />
+                          </HStack>
+                        </Box>
+                      </HStack>
+                      <StatusPill tone={isConfirmed ? "success" : "warning"}>
+                        {isConfirmed ? "Received" : "Pending"}
+                      </StatusPill>
                     </HStack>
-                    <StatusPill tone="warning">Missing</StatusPill>
-                  </HStack>
-                ))}
+                  );
+                })}
               </Stack>
+              <HStack gap="6px" mt="8px" color="fg.muted">
+                <Info size={12} />
+                <MutedText>
+                  Check the box to manually confirm receipt of documents provided
+                  outside the client portal (e.g. in-person, by email, or via
+                  scan).
+                </MutedText>
+              </HStack>
             </Box>
           ) : null}
 
@@ -417,106 +510,141 @@ function ConsultationCard({ lead }: { lead: Lead }) {
               justify="space-between"
               gap="12px"
               wrap="wrap"
-              p="10px 12px"
-              border="1px solid"
-              borderColor="#f3b9bf"
+              p="10px 14px"
               borderRadius="8px"
               bg="#ffe2e4"
             >
-              <HStack gap="8px" color="#b00020" minW="0">
-                <AlertTriangle size={15} />
-                <Text m="0" fontSize="12px" fontWeight="500">
-                  Document review — {issueCount} issue
-                  {issueCount === 1 ? "" : "s"} detected — review required
-                </Text>
+              <HStack gap="10px" minW="0" wrap="wrap">
+                <HStack gap="6px" color="fg.muted">
+                  <Scale size={14} />
+                  <Text
+                    m="0"
+                    fontSize="10px"
+                    fontWeight="600"
+                    textTransform="uppercase"
+                  >
+                    Document review
+                  </Text>
+                </HStack>
+                <HStack gap="6px" color="#b00020">
+                  <AlertTriangle size={14} />
+                  <Text m="0" fontSize="12px" fontWeight="500">
+                    {issueCount} issue{issueCount === 1 ? "" : "s"} detected —
+                    review required
+                  </Text>
+                </HStack>
               </HStack>
               <OutlineButton
                 onClick={() => setDocDialog({ id: responseId, tab: "documents" })}
               >
-                <Eye size={14} />
-                View
+                View details
               </OutlineButton>
             </HStack>
           ) : null}
 
           <Box>
-            <SubLabel>Attorney notes</SubLabel>
+            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+              Attorney notes
+            </Text>
+            <MutedText>Notes are internal and not visible to the client.</MutedText>
             <Textarea
               aria-label={`${lead.name} attorney notes`}
               value={displayNotes}
               onChange={(e) => setNotes(e.currentTarget.value)}
-              minH="90px"
+              mt="8px"
+              minH="96px"
               p="12px"
               borderColor="border"
               bg="bg"
               resize="vertical"
-              placeholder="Record consultation notes, client statements, key facts, and your preliminary assessment."
+              placeholder="Record consultation notes, client statements, key facts, and your preliminary assessment here. These notes are saved to the matter record and referenced in the fee agreement stage."
             />
-            <OutlineButton
-              alignSelf="flex-end"
-              mt="8px"
-              loading={saveNotesMutation.isPending}
-              onClick={handleSaveNotes}
-            >
-              Save notes
-            </OutlineButton>
+            <Flex justify="flex-end" mt="8px">
+              <OutlineButton
+                loading={saveNotesMutation.isPending}
+                onClick={handleSaveNotes}
+              >
+                Save notes
+              </OutlineButton>
+            </Flex>
           </Box>
         </Stack>
       </SectionRow>
 
       {/* 4. Fee agreement */}
       <SectionRow>
-        <Stack gap="12px">
-          <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-            Fee agreement
-          </Text>
-          <FeeAgreementTracker activeIndex={feeStageIndex} />
-          <HStack gap="8px" wrap="wrap">
-            {!feeAgreement ? (
-              <BrandButton
-                loading={generateFee.isPending}
-                onClick={() =>
-                  generateFee.mutate({
-                    id: lead.id,
-                    data: { agreementType: "retainer" },
-                  })
-                }
-              >
-                <Send size={14} />
-                Generate fee agreement
-              </BrandButton>
-            ) : null}
-            {feeAgreement?.status === "pending_signature" ? (
-              <OutlineButton
-                loading={nudgeClient.isPending}
-                onClick={() => nudgeClient.mutate(feeAgreement.id)}
-              >
-                <Mail size={14} />
-                Nudge client
-              </OutlineButton>
-            ) : null}
-            {feeAgreement?.status === "signed" && !leadDetail?.convertedCaseId ? (
-              <BrandButton
-                loading={advanceStage.isPending}
-                onClick={() =>
-                  advanceStage.mutate({ id: lead.id, stage: "case_opening" })
-                }
-              >
-                <ExternalLink size={14} />
-                Advance to case opening
-              </BrandButton>
-            ) : null}
+        <Stack gap="14px">
+          <HStack justify="space-between" gap="12px" wrap="wrap">
+            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+              Fee agreement
+            </Text>
+            <StatusPill tone={feeStatus.tone}>{feeStatus.label}</StatusPill>
           </HStack>
+          <FeeAgreementTracker activeIndex={feeStageIndex} />
+          {caseOpened ? (
+            <HStack gap="6px" color="#00785a">
+              <Check size={14} />
+              <Text m="0" fontSize="12px" fontWeight="500">
+                Signed &amp; received — case opened successfully
+              </Text>
+            </HStack>
+          ) : (
+            <HStack gap="8px" wrap="wrap">
+              {!feeAgreement ? (
+                <BrandButton
+                  loading={generateFee.isPending}
+                  onClick={() =>
+                    generateFee.mutate({
+                      id: lead.id,
+                      data: { agreementType: "retainer" },
+                    })
+                  }
+                >
+                  <Send size={14} />
+                  Generate the agreement
+                </BrandButton>
+              ) : null}
+              {feeAgreement?.status === "pending_signature" ? (
+                <OutlineButton
+                  loading={nudgeClient.isPending}
+                  onClick={() => nudgeClient.mutate(feeAgreement.id)}
+                >
+                  <Mail size={14} />
+                  Nudge client
+                </OutlineButton>
+              ) : null}
+              {feeAgreement?.status === "signed" ? (
+                <BrandButton
+                  loading={advanceStage.isPending}
+                  onClick={() =>
+                    advanceStage.mutate({ id: lead.id, stage: "case_opening" })
+                  }
+                >
+                  <ExternalLink size={14} />
+                  Advance to case opening
+                </BrandButton>
+              ) : null}
+            </HStack>
+          )}
         </Stack>
       </SectionRow>
 
       {/* 5. Footer */}
-      <HStack justify="space-between" gap="12px" wrap="wrap" pt="16px">
-        <HStack gap="6px" color="fg.muted" fontSize="12px">
+      <HStack
+        justify="space-between"
+        gap="12px"
+        wrap="wrap"
+        mt="16px"
+        pt="14px"
+        borderTop="1px solid"
+        borderColor="border.subtle"
+      >
+        <HStack gap="8px" color="fg.muted" fontSize="12px">
+          <Avatar name={attorneyName} size={28} />
           <Box as="span" fontWeight="500" color="fg">
             {attorneyName}
           </Box>
-          <Box as="span">· Lead attorney</Box>
+          <Box as="span">(Assigned)</Box>
         </HStack>
         {alreadySettled ? (
           <MutedText fontSize="12px">
@@ -562,12 +690,7 @@ function ConsultationCard({ lead }: { lead: Lead }) {
 
 function SectionRow({ children }: { children: ReactNode }) {
   return (
-    <Box
-      mt="16px"
-      pt="14px"
-      borderTop="1px solid"
-      borderColor="border.subtle"
-    >
+    <Box mt="16px" pt="14px" borderTop="1px solid" borderColor="border.subtle">
       {children}
     </Box>
   );
@@ -576,7 +699,7 @@ function SectionRow({ children }: { children: ReactNode }) {
 function SubLabel({ children }: { children: ReactNode }) {
   return (
     <Text
-      m="0 0 8px"
+      m="0 0 6px"
       color="fg.muted"
       fontSize="10px"
       fontWeight="600"
@@ -587,42 +710,168 @@ function SubLabel({ children }: { children: ReactNode }) {
   );
 }
 
+function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  const blue = name.charCodeAt(0) % 2 === 0;
+  return (
+    <Box
+      display="grid"
+      placeItems="center"
+      flex="0 0 auto"
+      w={`${size}px`}
+      h={`${size}px`}
+      borderRadius="full"
+      bg={blue ? "#e5efff" : "#d9f8ed"}
+      color={blue ? "#1c55b8" : "#00785a"}
+      fontSize={size >= 36 ? "12px" : "10px"}
+      fontWeight="600"
+    >
+      {getInitials(name)}
+    </Box>
+  );
+}
+
+function IconSquare({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      display="grid"
+      placeItems="center"
+      flex="0 0 auto"
+      w="34px"
+      h="34px"
+      borderRadius="9px"
+      bg="#d9f8ed"
+      color="#00785a"
+    >
+      {children}
+    </Box>
+  );
+}
+
+function CheckMarker({
+  checked,
+  tone,
+  onClick,
+  label,
+}: {
+  checked: boolean;
+  tone: "green" | "gold";
+  onClick?: () => void;
+  label?: string;
+}) {
+  const fill = tone === "green" ? "#13b176" : "#e6a52e";
+  return (
+    <chakra.button
+      type="button"
+      aria-label={label}
+      aria-pressed={onClick ? checked : undefined}
+      disabled={!onClick}
+      display="grid"
+      placeItems="center"
+      flex="0 0 auto"
+      w="18px"
+      h="18px"
+      borderRadius="5px"
+      border="1px solid"
+      borderColor={checked ? fill : "border"}
+      bg={checked ? fill : "bg"}
+      color="white"
+      cursor={onClick ? "pointer" : "default"}
+    >
+      {checked ? <Check size={12} /> : null}
+    </chakra.button>
+  );
+}
+
+function TextLink({
+  children,
+  onClick,
+  disabled,
+  loading,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  return (
+    <chakra.button
+      type="button"
+      disabled={disabled || loading}
+      color="brand.700"
+      fontSize="12px"
+      fontWeight="500"
+      _hover={{ textDecoration: "underline" }}
+      _disabled={{ opacity: 0.4, cursor: "default", textDecoration: "none" }}
+      onClick={onClick}
+    >
+      {children}
+    </chakra.button>
+  );
+}
+
 const FEE_STAGES = [
   "Generate",
   "Send",
   "Awaiting signature",
-  "Received",
+  "Receive",
   "Case opened",
 ] as const;
 
 function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
   return (
-    <HStack gap="6px" wrap="wrap">
+    <HStack gap="0" w="full" align="flex-start">
       {FEE_STAGES.map((label, index) => {
-        const done = index < activeIndex;
-        const current = index === activeIndex;
+        const filled = index <= activeIndex;
         return (
-          <HStack
-            key={label}
-            as="span"
-            gap="6px"
-            minH="26px"
-            px="10px"
-            borderRadius="999px"
-            border="1px solid"
-            borderColor={current ? "brand.solid" : "border.subtle"}
-            bg={done ? "#d9f8ed" : current ? "brand.solid" : "bg.subtle"}
-            color={done ? "#00785a" : current ? "brand.fg" : "fg.muted"}
-            fontSize="11px"
-            fontWeight="500"
-          >
-            {done ? <Check size={11} /> : null}
-            <Box as="span">{label}</Box>
-          </HStack>
+          <Fragment key={label}>
+            {index > 0 ? (
+              <Box
+                flex="1"
+                h="2px"
+                mt="11px"
+                bg={index <= activeIndex ? "brand.solid" : "border.subtle"}
+              />
+            ) : null}
+            <Stack gap="6px" align="center" flex="0 0 auto" w="72px">
+              <Box
+                display="grid"
+                placeItems="center"
+                w="24px"
+                h="24px"
+                borderRadius="full"
+                border="1px solid"
+                borderColor={filled ? "brand.solid" : "border.subtle"}
+                bg={filled ? "brand.solid" : "bg.subtle"}
+                color={filled ? "brand.fg" : "fg.muted"}
+              >
+                {filled ? <Check size={13} /> : null}
+              </Box>
+              <Text
+                m="0"
+                fontSize="10px"
+                textAlign="center"
+                lineHeight="1.2"
+                color={filled ? "fg" : "fg.muted"}
+              >
+                {label}
+              </Text>
+            </Stack>
+          </Fragment>
         );
       })}
     </HStack>
   );
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return "0 KB";
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function titleCase(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
 function ScheduleConsultationDialog({
