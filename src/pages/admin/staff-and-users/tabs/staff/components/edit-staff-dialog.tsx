@@ -1,8 +1,7 @@
-import type { InviteStaffPayload, TeamListDTO } from "@/api/organization";
-import { BrandButton } from "@/components/ui/intake-ui";
-import { useInviteStaff } from "@/hooks/use-invite-staff";
+import { type TeamListDTO, type UpdateStaffPayload } from "@/api/organization";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
 import { useTeamsList } from "@/hooks/use-teams-list";
+import { useUpdateStaff } from "@/hooks/use-update-staff";
 import {
   Box,
   chakra,
@@ -19,48 +18,80 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import type { DateValue } from "@internationalized/date";
-import { CalendarDays, UserPlus, X } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CalendarDate, type DateValue } from "@internationalized/date";
+import { CalendarDays, Pencil, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
+import type { StaffMember } from "../../../data";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const formSchema = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  role: z.string().min(1, "Role is required"),
+  phone: z.string(),
+  jobTitle: z.string(),
+  personalEmail: z.string().email("Invalid email format"),
+  orgEmail: z.string().email("Invalid email format").or(z.literal("")),
+  startDate: z.custom<DateValue | undefined>(),
+  maxCaseload: z.string(),
+  practiceAreaIds: z.array(z.string()),
+  teamIds: z.array(z.string()),
+});
 
-interface FormValues {
-  firstName: string;
-  lastName: string;
-  email: string;
-  orgEmail: string;
-  phone: string;
-  role: string;
-  teamIds: string[];
-  startDate: DateValue | undefined;
-  maxCaseload: string;
-  practiceAreaIds: string[];
+type FormValues = z.infer<typeof formSchema>;
+
+interface EditStaffDialogProps {
+  staff: StaffMember;
+  children: ReactNode;
 }
 
 const roleOptions = createListCollection({
   items: [
-    { value: "", label: "Select role" },
-    { value: "attorney", label: "Attorney" },
-    { value: "admin", label: "Admin" },
-    { value: "paralegal", label: "Paralegal" },
+    { label: "Admin", value: "admin" },
+    { label: "Attorney", value: "attorney" },
+    { label: "Paralegal", value: "paralegal" },
   ],
 });
 
-export function InviteStaffButton() {
-  return (
-    <InviteStaffDialog>
-      <BrandButton>
-        <UserPlus size={15} />
-        Invite staff
-      </BrandButton>
-    </InviteStaffDialog>
-  );
+function computeInitialValues(staff: StaffMember): FormValues {
+  let startDate: DateValue | undefined;
+  if (staff.startDate) {
+    try {
+      const date = new Date(staff.startDate);
+      if (!isNaN(date.getTime())) {
+        startDate = new CalendarDate(
+          date.getFullYear(),
+          date.getMonth() + 1,
+          date.getDate(),
+        );
+      }
+    } catch {}
+  }
+
+  return {
+    firstName: staff.firstName ?? "",
+    lastName: staff.lastName ?? "",
+    role: staff.role ?? "",
+    phone: staff.phone ?? "",
+    jobTitle: staff.jobTitle ?? "",
+    personalEmail: staff.email ?? "",
+    orgEmail: staff.orgEmail ?? "",
+    startDate,
+    maxCaseload: String(staff.caseloadMax ?? 7),
+    practiceAreaIds: staff.practiceAreas.map((pa) => pa.id),
+    teamIds: staff.teams.map((t) => t.id),
+  };
 }
 
-export function InviteStaffDialog({ children }: { children: ReactNode }) {
+export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
   const [open, setOpen] = useState(false);
+
+  const practiceAreasQuery = usePublicPracticeAreas();
+  const practiceAreas = practiceAreasQuery.data ?? [];
+  const teamsQuery = useTeamsList({ limit: 200 });
+  const teams = (teamsQuery.data?.data as TeamListDTO[] | undefined) ?? [];
 
   const {
     register,
@@ -69,36 +100,21 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: {
-      firstName: "Samuel",
-      lastName: "Adekoya",
-      email: "samueladexx@gmail.com",
-      orgEmail: "samueladexx@gmail.com",
-      phone: "+2347060405558",
-      role: "admin",
-      teamIds: [],
-      startDate: undefined,
-      maxCaseload: "7",
-      practiceAreaIds: [],
-    },
+    resolver: zodResolver(formSchema),
+    defaultValues: computeInitialValues(staff),
     mode: "onBlur",
   });
 
-  const practiceAreasQuery = usePublicPracticeAreas();
-  const practiceAreas = practiceAreasQuery.data ?? [];
-  const teamsQuery = useTeamsList({ limit: 200 });
-  const teams = (teamsQuery.data?.data as TeamListDTO[] | undefined) ?? [];
-
-  const inviteMutation = useInviteStaff();
+  const updateMutation = useUpdateStaff();
 
   const onSubmit = (formData: FormValues) => {
-    const payload: InviteStaffPayload = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      email: formData.email.trim(),
-      orgEmail: formData.orgEmail.trim() || undefined,
+    const payload: UpdateStaffPayload = {
+      firstName: formData.firstName.trim() || undefined,
+      lastName: formData.lastName.trim() || undefined,
       phone: formData.phone.trim() || undefined,
-      role: formData.role,
+      jobTitle: formData.jobTitle.trim() || undefined,
+      email: formData.personalEmail.trim() || undefined,
+      orgEmail: formData.orgEmail.trim() || undefined,
       startDate: formData.startDate?.toString(),
       maxCaseload: Number(formData.maxCaseload) || undefined,
       practiceAreaIds:
@@ -108,12 +124,15 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
       teamIds: formData.teamIds.length > 0 ? formData.teamIds : undefined,
     };
 
-    inviteMutation.mutate(payload, {
-      onSuccess: () => {
-        reset();
-        setOpen(false);
+    const roleChanged = formData.role !== (staff.role ?? "");
+    updateMutation.mutate(
+      {
+        staffId: staff.id,
+        data: payload,
+        newRole: roleChanged ? formData.role : undefined,
       },
-    });
+      { onSuccess: () => setOpen(false) },
+    );
   };
 
   return (
@@ -121,7 +140,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
       open={open}
       onOpenChange={(details) => {
         setOpen(details.open);
-        if (!details.open) reset();
+        if (!details.open) reset(computeInitialValues(staff));
       }}
       placement="center"
     >
@@ -142,7 +161,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
             <Dialog.CloseTrigger asChild>
               <chakra.button
                 type="button"
-                aria-label="Close invite staff dialog"
+                aria-label="Close edit staff dialog"
                 position="absolute"
                 top="22px"
                 right="22px"
@@ -167,7 +186,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                 fontWeight="600"
                 lineHeight="1.2"
               >
-                Invite staff
+                Edit staff details
               </Dialog.Title>
               <Dialog.Description
                 mt="10px"
@@ -175,7 +194,11 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                 fontSize="13px"
                 lineHeight="1.35"
               >
-                Send an invitation to join your organization.
+                Updating details for{" "}
+                <Text as="span" fontWeight="600" color="fg">
+                  {staff.name}
+                </Text>
+                .
               </Dialog.Description>
 
               <VStack align="stretch" gap="12px" mt="18px">
@@ -187,15 +210,10 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                   gap="10px"
                 >
                   <Field.Root invalid={!!errors.firstName}>
-                    <Field.Label>
-                      First name
-                      <Field.RequiredIndicator />
-                    </Field.Label>
+                    <Field.Label>First name</Field.Label>
                     <Input
                       placeholder="e.g. Sarah"
-                      {...register("firstName", {
-                        required: "First name is required",
-                      })}
+                      {...register("firstName")}
                       {...inputStyles}
                     />
                     {errors.firstName && (
@@ -204,16 +222,12 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                       </Field.ErrorText>
                     )}
                   </Field.Root>
+
                   <Field.Root invalid={!!errors.lastName}>
-                    <Field.Label>
-                      Last name
-                      <Field.RequiredIndicator />
-                    </Field.Label>
+                    <Field.Label>Last name</Field.Label>
                     <Input
-                      placeholder="e.g. Mensah"
-                      {...register("lastName", {
-                        required: "Last name is required",
-                      })}
+                      placeholder="e.g. Johnson"
+                      {...register("lastName")}
                       {...inputStyles}
                     />
                     {errors.lastName && (
@@ -224,68 +238,6 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                   </Field.Root>
                 </Grid>
 
-                <Field.Root invalid={!!errors.email}>
-                  <Field.Label>
-                    Email (invite)
-                    <Field.RequiredIndicator />
-                  </Field.Label>
-                  <Input
-                    type="email"
-                    placeholder="e.g. sarah@example.com"
-                    {...register("email", {
-                      required: "Email is required",
-                      pattern: {
-                        value: EMAIL_PATTERN,
-                        message: "Invalid email format",
-                      },
-                    })}
-                    {...inputStyles}
-                  />
-                  {errors.email && (
-                    <Field.ErrorText>{errors.email.message}</Field.ErrorText>
-                  )}
-                </Field.Root>
-
-                <Field.Root invalid={!!errors.orgEmail}>
-                  <Field.Label>
-                    Organization email
-                    <Field.RequiredIndicator />
-                  </Field.Label>
-                  <Input
-                    type="email"
-                    placeholder="e.g. sarah@firm.com"
-                    {...register("orgEmail", {
-                      required: "Organization email is required",
-                      pattern: {
-                        value: EMAIL_PATTERN,
-                        message: "Invalid email format",
-                      },
-                    })}
-                    {...inputStyles}
-                  />
-                  {errors.orgEmail && (
-                    <Field.ErrorText>{errors.orgEmail.message}</Field.ErrorText>
-                  )}
-                </Field.Root>
-
-                <Field.Root invalid={!!errors.phone}>
-                  <Field.Label>
-                    Phone
-                    <Field.RequiredIndicator />
-                  </Field.Label>
-                  <Input
-                    type="tel"
-                    placeholder="+1 (555) 012-3456"
-                    {...register("phone", {
-                      required: "Phone is required",
-                    })}
-                    {...inputStyles}
-                  />
-                  {errors.phone && (
-                    <Field.ErrorText>{errors.phone.message}</Field.ErrorText>
-                  )}
-                </Field.Root>
-
                 <Grid
                   templateColumns={{
                     base: "1fr",
@@ -293,23 +245,48 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                   }}
                   gap="10px"
                 >
+                  <Field.Root invalid={!!errors.jobTitle}>
+                    <Field.Label>Job title</Field.Label>
+                    <Input
+                      placeholder="e.g. Senior Attorney"
+                      {...register("jobTitle")}
+                      {...inputStyles}
+                    />
+                    {errors.jobTitle && (
+                      <Field.ErrorText>
+                        {errors.jobTitle.message}
+                      </Field.ErrorText>
+                    )}
+                  </Field.Root>
+
                   <Field.Root invalid={!!errors.role}>
                     <Field.Label>
                       Role
-                      <Field.RequiredIndicator />
+                      {!staff.memberId && (
+                        <Text
+                          as="span"
+                          color="fg.subtle"
+                          fontSize="11px"
+                          fontWeight="400"
+                          ml={1}
+                        >
+                          (not editable until invitation is accepted)
+                        </Text>
+                      )}
                     </Field.Label>
                     <Controller
                       name="role"
                       control={control}
-                      rules={{ required: "Role is required" }}
                       render={({ field }) => (
                         <Select.Root
                           collection={roleOptions}
                           size="sm"
                           value={[field.value]}
-                          onValueChange={(e) =>
-                            field.onChange(e.value[0] ?? "")
-                          }
+                          onValueChange={(e) => {
+                            if (!staff.memberId) return;
+                            field.onChange(e.value[0] ?? "");
+                          }}
+                          disabled={!staff.memberId}
                         >
                           <Select.Control>
                             <Select.Trigger
@@ -318,6 +295,10 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                               borderColor="border"
                               borderRadius="7px"
                               bg="bg"
+                              opacity={staff.memberId ? 1 : 0.5}
+                              cursor={
+                                staff.memberId ? "pointer" : "not-allowed"
+                              }
                               _focus={{
                                 borderColor: "brand.solid",
                                 boxShadow: "0 0 0 1px var(--brand-cta)",
@@ -349,18 +330,66 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                       <Field.ErrorText>{errors.role.message}</Field.ErrorText>
                     )}
                   </Field.Root>
+                </Grid>
 
+                <Field.Root invalid={!!errors.personalEmail}>
+                  <Field.Label>
+                    Personal email
+                    <Field.RequiredIndicator />
+                  </Field.Label>
+                  <Input
+                    type="email"
+                    placeholder="e.g. sarah@gmail.com"
+                    {...register("personalEmail")}
+                    {...inputStyles}
+                  />
+                  {errors.personalEmail && (
+                    <Field.ErrorText>
+                      {errors.personalEmail.message}
+                    </Field.ErrorText>
+                  )}
+                </Field.Root>
+
+                <Field.Root invalid={!!errors.orgEmail}>
+                  <Field.Label>Organization email</Field.Label>
+                  <Input
+                    type="email"
+                    placeholder="e.g. sarah@firm.com"
+                    {...register("orgEmail")}
+                    {...inputStyles}
+                  />
+                  {errors.orgEmail && (
+                    <Field.ErrorText>{errors.orgEmail.message}</Field.ErrorText>
+                  )}
+                </Field.Root>
+
+                <Field.Root invalid={!!errors.phone}>
+                  <Field.Label>Phone</Field.Label>
+                  <Input
+                    type="tel"
+                    placeholder="+1 (555) 012-3456"
+                    {...register("phone")}
+                    {...inputStyles}
+                  />
+                  {errors.phone && (
+                    <Field.ErrorText>{errors.phone.message}</Field.ErrorText>
+                  )}
+                </Field.Root>
+
+                <Grid
+                  templateColumns={{
+                    base: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                  }}
+                  gap="10px"
+                >
                   <Field.Root invalid={!!errors.maxCaseload}>
-                    <Field.Label>
-                      Max caseload
-                      <Field.RequiredIndicator />
-                    </Field.Label>
+                    <Field.Label>Max caseload</Field.Label>
                     <Input
                       type="number"
                       min="1"
                       placeholder="7"
                       {...register("maxCaseload", {
-                        required: "Max caseload is required",
                         min: { value: 1, message: "Minimum is 1" },
                       })}
                       {...inputStyles}
@@ -371,10 +400,126 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                       </Field.ErrorText>
                     )}
                   </Field.Root>
+
+                  <Field.Root invalid={!!errors.startDate}>
+                    <Field.Label>
+                      Start date
+                      {staff.status === "active" && (
+                        <Text
+                          as="span"
+                          color="fg.subtle"
+                          fontSize="11px"
+                          fontWeight="400"
+                          ml={1}
+                        >
+                          (locked for active staff)
+                        </Text>
+                      )}
+                    </Field.Label>
+                    <Controller
+                      name="startDate"
+                      control={control}
+                      render={({ field }) => (
+                        <DatePicker.Root
+                          value={field.value ? [field.value] : []}
+                          onValueChange={(e) => {
+                            if (staff.status === "active") return;
+                            field.onChange(e.value[0] ?? undefined);
+                          }}
+                          disabled={staff.status === "active"}
+                        >
+                          <DatePicker.Control>
+                            <DatePicker.Input
+                              h="36px"
+                              px="12px"
+                              border="1px solid"
+                              borderColor="border"
+                              borderRadius="7px"
+                              bg="bg"
+                              color="fg"
+                              fontSize="13px"
+                              _placeholder={{ color: "fg.muted" }}
+                              _focus={{
+                                borderColor: "brand.solid",
+                                boxShadow: "0 0 0 1px var(--brand-cta)",
+                              }}
+                              disabled={staff.status === "active"}
+                              opacity={staff.status === "active" ? 0.5 : 1}
+                              cursor={
+                                staff.status === "active"
+                                  ? "not-allowed"
+                                  : "text"
+                              }
+                            />
+                            <DatePicker.IndicatorGroup>
+                              <DatePicker.Trigger
+                                asChild
+                                border="none"
+                                bg="transparent"
+                                color={
+                                  staff.status === "active"
+                                    ? "fg.subtle"
+                                    : "fg.muted"
+                                }
+                                cursor={
+                                  staff.status === "active"
+                                    ? "not-allowed"
+                                    : "pointer"
+                                }
+                                disabled={staff.status === "active"}
+                              >
+                                <chakra.button type="button">
+                                  <CalendarDays size={16} />
+                                </chakra.button>
+                              </DatePicker.Trigger>
+                            </DatePicker.IndicatorGroup>
+                          </DatePicker.Control>
+                          {staff.status !== "active" && (
+                            <Portal>
+                              <DatePicker.Positioner>
+                                <DatePicker.Content>
+                                  <DatePicker.View view="day">
+                                    <DatePicker.Header />
+                                    <DatePicker.DayTable />
+                                  </DatePicker.View>
+                                  <DatePicker.View view="month">
+                                    <DatePicker.Header />
+                                    <DatePicker.MonthTable />
+                                  </DatePicker.View>
+                                  <DatePicker.View view="year">
+                                    <DatePicker.Header />
+                                    <DatePicker.YearTable />
+                                  </DatePicker.View>
+                                </DatePicker.Content>
+                              </DatePicker.Positioner>
+                            </Portal>
+                          )}
+                        </DatePicker.Root>
+                      )}
+                    />
+                    {errors.startDate && (
+                      <Field.ErrorText>
+                        {errors.startDate.message}
+                      </Field.ErrorText>
+                    )}
+                  </Field.Root>
                 </Grid>
 
                 <Field.Root w="full">
-                  <Field.Label>Assign Team(s)</Field.Label>
+                  <Field.Label>
+                    Assign Team(s)
+                    {staff.status === "active" && (
+                      <Text
+                        as="span"
+                        color="fg.subtle"
+                        fontSize="11px"
+                        fontWeight="400"
+                        ml={1}
+                      >
+                        (use team profile for assignment after acceptance)
+                      </Text>
+                    )}
+                  </Field.Label>
                   <Controller
                     name="teamIds"
                     control={control}
@@ -383,102 +528,23 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                         teams={teams}
                         selectedIds={field.value}
                         onToggle={(id) => {
+                          if (staff.status === "active") return;
                           const next = field.value.includes(id)
                             ? field.value.filter((tid) => tid !== id)
                             : [...field.value, id];
                           field.onChange(next);
                         }}
+                        disabled={staff.status === "active"}
                       />
                     )}
                   />
                 </Field.Root>
 
-                <Field.Root invalid={!!errors.startDate}>
-                  <Field.Label>
-                    Start date
-                    <Field.RequiredIndicator />
-                  </Field.Label>
-                  <Controller
-                    name="startDate"
-                    control={control}
-                    rules={{ required: "Start date is required" }}
-                    render={({ field }) => (
-                      <DatePicker.Root
-                        value={field.value ? [field.value] : []}
-                        onValueChange={(e) =>
-                          field.onChange(e.value[0] ?? undefined)
-                        }
-                      >
-                        <DatePicker.Control>
-                          <DatePicker.Input
-                            h="36px"
-                            px="12px"
-                            border="1px solid"
-                            borderColor="border"
-                            borderRadius="7px"
-                            bg="bg"
-                            color="fg"
-                            fontSize="13px"
-                            _placeholder={{ color: "fg.muted" }}
-                            _focus={{
-                              borderColor: "brand.solid",
-                              boxShadow: "0 0 0 1px var(--brand-cta)",
-                            }}
-                          />
-                          <DatePicker.IndicatorGroup>
-                            <DatePicker.Trigger
-                              asChild
-                              border="none"
-                              bg="transparent"
-                              color="fg.muted"
-                              cursor="pointer"
-                            >
-                              <chakra.button type="button">
-                                <CalendarDays size={16} />
-                              </chakra.button>
-                            </DatePicker.Trigger>
-                          </DatePicker.IndicatorGroup>
-                        </DatePicker.Control>
-                        <Portal>
-                          <DatePicker.Positioner>
-                            <DatePicker.Content>
-                              <DatePicker.View view="day">
-                                <DatePicker.Header />
-                                <DatePicker.DayTable />
-                              </DatePicker.View>
-                              <DatePicker.View view="month">
-                                <DatePicker.Header />
-                                <DatePicker.MonthTable />
-                              </DatePicker.View>
-                              <DatePicker.View view="year">
-                                <DatePicker.Header />
-                                <DatePicker.YearTable />
-                              </DatePicker.View>
-                            </DatePicker.Content>
-                          </DatePicker.Positioner>
-                        </Portal>
-                      </DatePicker.Root>
-                    )}
-                  />
-                  {errors.startDate && (
-                    <Field.ErrorText>
-                      {errors.startDate.message}
-                    </Field.ErrorText>
-                  )}
-                </Field.Root>
-
                 <Field.Root invalid={!!errors.practiceAreaIds}>
-                  <Field.Label>
-                    Practice areas (staff can handle)
-                    <Field.RequiredIndicator />
-                  </Field.Label>
+                  <Field.Label>Practice areas</Field.Label>
                   <Controller
                     name="practiceAreaIds"
                     control={control}
-                    rules={{
-                      validate: (val) =>
-                        val.length > 0 || "Select at least one practice area",
-                    }}
                     render={({ field }) => (
                       <>
                         <Flex wrap="wrap" gap={2}>
@@ -559,14 +625,27 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
               </VStack>
 
               <Flex justify="flex-end" gap="12px" mt="18px">
-                <BrandButton
+                <chakra.button
                   type="submit"
-                  loading={inviteMutation.isPending}
-                  minW="152px"
+                  disabled={updateMutation.isPending}
+                  h="36px"
+                  px="20px"
+                  borderRadius="8px"
+                  bg="brand.solid"
+                  color="white"
+                  fontSize="13px"
+                  fontWeight="500"
+                  border="none"
+                  cursor="pointer"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={1.5}
+                  opacity={updateMutation.isPending ? 0.6 : 1}
+                  _hover={{ opacity: 0.9 }}
                 >
-                  <UserPlus size={15} />
-                  Send invitation
-                </BrandButton>
+                  <Pencil size={14} />
+                  {updateMutation.isPending ? "Saving..." : "Save changes"}
+                </chakra.button>
               </Flex>
             </Box>
           </Dialog.Content>
@@ -580,10 +659,12 @@ function TeamMultiSelect({
   teams,
   selectedIds,
   onToggle,
+  disabled,
 }: {
   teams: TeamListDTO[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  disabled?: boolean;
 }) {
   const [search, setSearch] = useState("");
 
@@ -621,6 +702,9 @@ function TeamMultiSelect({
             borderColor: "brand.solid",
             boxShadow: "0 0 0 1px var(--brand-cta)",
           }}
+          disabled={disabled}
+          opacity={disabled ? 0.5 : 1}
+          cursor={disabled ? "not-allowed" : "text"}
         />
       </Box>
 
@@ -638,13 +722,13 @@ function TeamMultiSelect({
             {sortedTeams.map((team) => (
               <Flex
                 key={team.id}
-                as="label"
+                as={disabled ? "div" : "label"}
                 align="center"
                 gap="8px"
                 px="10px"
                 py="7px"
-                cursor="pointer"
-                _hover={{ bg: "bg.muted" }}
+                cursor={disabled ? "default" : "pointer"}
+                _hover={disabled ? undefined : { bg: "bg.muted" }}
                 borderBottom="1px solid"
                 borderColor="border"
                 _last={{ borderBottom: "none" }}
@@ -655,7 +739,10 @@ function TeamMultiSelect({
                   type="checkbox"
                   hidden
                   checked={selectedIds.includes(team.id)}
-                  onChange={() => onToggle(team.id)}
+                  onChange={() => {
+                    if (disabled) return;
+                    onToggle(team.id);
+                  }}
                 />
                 <Box
                   w="16px"

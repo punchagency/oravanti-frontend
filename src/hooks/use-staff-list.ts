@@ -17,12 +17,13 @@ export interface StaffMemberDTO {
   orgEmail: string | null;
   phone: string | null;
   role: string | null;
+  memberId: string | null;
   status: string;
   jobTitle: string | null;
   startDate: string | null;
   maxCaseload: number | null;
-  practiceAreas: string[];
-  team: string;
+  practiceAreas: { id: string; name: string }[];
+  teams: { id: string; name: string }[];
   createdAt: string;
   updatedAt: string;
 }
