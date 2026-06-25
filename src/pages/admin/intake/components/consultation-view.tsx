@@ -67,17 +67,19 @@ import { NotifyChip } from "@/components/ui/notify-chip";
 type ScheduleStep = 1 | 2 | 3;
 type ConsultationMode = "video" | "in_person" | "phone_call";
 
-const CONSULTATION_TYPE_OPTIONS: { value: ConsultationMode; label: string }[] = [
-  { value: "video", label: "Video call" },
-  { value: "phone_call", label: "Phone call" },
-  { value: "in_person", label: "In person" },
-];
+const CONSULTATION_TYPE_OPTIONS: { value: ConsultationMode; label: string }[] =
+  [
+    { value: "video", label: "Video call" },
+    { value: "phone_call", label: "Phone call" },
+    { value: "in_person", label: "In person" },
+  ];
 
 const DURATION_PRESETS = [30, 45, 60, 90] as const;
 
 function consultationModeLabel(mode: ConsultationMode): string {
   return (
-    CONSULTATION_TYPE_OPTIONS.find((o) => o.value === mode)?.label ?? "Video call"
+    CONSULTATION_TYPE_OPTIONS.find((o) => o.value === mode)?.label ??
+    "Video call"
   );
 }
 
@@ -241,6 +243,7 @@ function ConsultationCard({
   const response = questionnaire?.response;
 
   const [notes, setNotes] = useState<string | null>(null);
+  const [now, setTime] = useState(() => Date.now());
   const baseNotes = hasConsultation
     ? (consultation?.attorneyNotes ?? "")
     : (leadDetail?.notes ?? "");
@@ -249,6 +252,13 @@ function ConsultationCard({
     id: string;
     tab: "responses" | "documents";
   } | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const attorneys = staffData?.data ?? [];
   const attorneyName = (() => {
@@ -291,29 +301,9 @@ function ConsultationCard({
     consultation?.status === "scheduled" ||
     consultation?.status === "in_progress";
   const scheduledAt = consultation?.scheduledAt;
-  // Whether the scheduled start time has passed. Evaluated in an effect (not in
-  // render) since reading the clock is impure; re-checked on an interval while
-  // the start time is still in the future.
-  const [startTimeReached, setStartTimeReached] = useState(false);
-  useEffect(() => {
-    if (!scheduledAt) {
-      setStartTimeReached(false);
-      return;
-    }
-    const target = new Date(scheduledAt).getTime();
-    if (Date.now() >= target) {
-      setStartTimeReached(true);
-      return;
-    }
-    setStartTimeReached(false);
-    const id = setInterval(() => {
-      if (Date.now() >= target) {
-        setStartTimeReached(true);
-        clearInterval(id);
-      }
-    }, 30000);
-    return () => clearInterval(id);
-  }, [scheduledAt]);
+  const startTimeReached = scheduledAt
+    ? now >= new Date(scheduledAt).getTime()
+    : false;
   const canComplete = isCompletable && startTimeReached;
 
   // ── Documents ──────────────────────────────────────────────────────────────
@@ -401,7 +391,10 @@ function ConsultationCard({
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
   }
   function handleCloseNoCase() {
-    outcomesMutation.mutate({ id: lead.id, data: { outcome: "close_no_case" } });
+    outcomesMutation.mutate({
+      id: lead.id,
+      data: { outcome: "close_no_case" },
+    });
   }
   function handleReferElsewhere() {
     outcomesMutation.mutate({
@@ -418,14 +411,14 @@ function ConsultationCard({
           <Avatar name={lead.name} />
           <Box minW="0">
             <CardTitle>{lead.name}</CardTitle>
-            <MutedText>
-              {lead.caseTypeName ?? "Matter type not set"}
-            </MutedText>
+            <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
           </Box>
         </HStack>
         {consultation ? (
           <HStack gap="10px" wrap="wrap" justify="flex-end" align="center">
-            <StatusPill tone={consultStatusTone}>{consultStatusLabel}</StatusPill>
+            <StatusPill tone={consultStatusTone}>
+              {consultStatusLabel}
+            </StatusPill>
             <StatusPill
               tone="neutral"
               icon={consultationModeIcon(consultation.mode)}
@@ -616,9 +609,9 @@ function ConsultationCard({
               <HStack gap="6px" mt="8px" color="fg.muted">
                 <Info size={12} />
                 <MutedText>
-                  Check the box to manually confirm receipt of documents provided
-                  outside the client portal (e.g. in-person, by email, or via
-                  scan).
+                  Check the box to manually confirm receipt of documents
+                  provided outside the client portal (e.g. in-person, by email,
+                  or via scan).
                 </MutedText>
               </HStack>
             </Box>
@@ -654,7 +647,9 @@ function ConsultationCard({
                 </HStack>
               </HStack>
               <OutlineButton
-                onClick={() => setDocDialog({ id: responseId, tab: "documents" })}
+                onClick={() =>
+                  setDocDialog({ id: responseId, tab: "documents" })
+                }
               >
                 View details
               </OutlineButton>
@@ -696,103 +691,106 @@ function ConsultationCard({
 
       {/* 4. Fee agreement — unlocks once the consultation is completed */}
       {consultationCompleted ? (
-      <SectionRow>
-        <Stack gap="14px">
-          <HStack justify="space-between" gap="12px" wrap="wrap">
-            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-              Fee agreement
-            </Text>
-            <StatusPill tone={feeStatus.tone}>{feeStatus.label}</StatusPill>
-          </HStack>
-          <FeeAgreementTracker activeIndex={feeStageIndex} />
-          {caseOpened ? (
-            <HStack gap="6px" color="#00785a">
-              <Check size={14} />
-              <Text m="0" fontSize="12px" fontWeight="500">
-                Signed &amp; received — case opened successfully
+        <SectionRow>
+          <Stack gap="14px">
+            <HStack justify="space-between" gap="12px" wrap="wrap">
+              <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                Fee agreement
               </Text>
+              <StatusPill tone={feeStatus.tone}>{feeStatus.label}</StatusPill>
             </HStack>
-          ) : (
-            <HStack gap="8px" wrap="wrap">
-              {!feeAgreement ? (
-                <BrandButton
-                  loading={generateFee.isPending}
-                  onClick={() =>
-                    generateFee.mutate({
-                      id: lead.id,
-                      data: { agreementType: "retainer" },
-                    })
-                  }
-                >
-                  <Send size={14} />
-                  Generate the agreement
-                </BrandButton>
-              ) : null}
-              {feeAgreement?.status === "pending_signature" ? (
-                <OutlineButton
-                  loading={nudgeClient.isPending}
-                  onClick={() => nudgeClient.mutate(feeAgreement.id)}
-                >
-                  <Mail size={14} />
-                  Nudge client
-                </OutlineButton>
-              ) : null}
-              {feeAgreement?.status === "signed" ? (
-                <BrandButton
-                  loading={advanceStage.isPending}
-                  onClick={() =>
-                    advanceStage.mutate({ id: lead.id, stage: "case_opening" })
-                  }
-                >
-                  <ExternalLink size={14} />
-                  Advance to case opening
-                </BrandButton>
-              ) : null}
-            </HStack>
-          )}
-        </Stack>
-      </SectionRow>
-      ) : (
-      <SectionRow>
-        <Stack gap="12px">
-          <HStack justify="space-between" gap="12px" wrap="wrap">
-            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-              Fee agreement
-            </Text>
-            <StatusPill tone="neutral" icon={<Lock size={11} />}>
-              Locked
-            </StatusPill>
-          </HStack>
-          <HStack gap="6px" color="fg.muted" align="flex-start">
-            <Info size={12} />
-            <MutedText>
-              {hasConsultation
-                ? "The fee agreement unlocks once the consultation has been completed."
-                : "The fee agreement unlocks once a consultation has been scheduled and completed."}
-            </MutedText>
-          </HStack>
-          {isCompletable ? (
-            <Box>
-              <BrandButton
-                disabled={!canComplete}
-                loading={completeMutation.isPending}
-                onClick={handleCompleteConsultation}
-              >
+            <FeeAgreementTracker activeIndex={feeStageIndex} />
+            {caseOpened ? (
+              <HStack gap="6px" color="#00785a">
                 <Check size={14} />
-                Mark consultation completed
-              </BrandButton>
-              {!canComplete ? (
-                <Box mt="6px">
-                  <MutedText>
-                    Available after the scheduled start time ({consultationDate} ·{" "}
-                    {consultationTime}).
-                  </MutedText>
-                </Box>
-              ) : null}
-            </Box>
-          ) : null}
-        </Stack>
-      </SectionRow>
+                <Text m="0" fontSize="12px" fontWeight="500">
+                  Signed &amp; received — case opened successfully
+                </Text>
+              </HStack>
+            ) : (
+              <HStack gap="8px" wrap="wrap">
+                {!feeAgreement ? (
+                  <BrandButton
+                    loading={generateFee.isPending}
+                    onClick={() =>
+                      generateFee.mutate({
+                        id: lead.id,
+                        data: { agreementType: "retainer" },
+                      })
+                    }
+                  >
+                    <Send size={14} />
+                    Generate the agreement
+                  </BrandButton>
+                ) : null}
+                {feeAgreement?.status === "pending_signature" ? (
+                  <OutlineButton
+                    loading={nudgeClient.isPending}
+                    onClick={() => nudgeClient.mutate(feeAgreement.id)}
+                  >
+                    <Mail size={14} />
+                    Nudge client
+                  </OutlineButton>
+                ) : null}
+                {feeAgreement?.status === "signed" ? (
+                  <BrandButton
+                    loading={advanceStage.isPending}
+                    onClick={() =>
+                      advanceStage.mutate({
+                        id: lead.id,
+                        stage: "case_opening",
+                      })
+                    }
+                  >
+                    <ExternalLink size={14} />
+                    Advance to case opening
+                  </BrandButton>
+                ) : null}
+              </HStack>
+            )}
+          </Stack>
+        </SectionRow>
+      ) : (
+        <SectionRow>
+          <Stack gap="12px">
+            <HStack justify="space-between" gap="12px" wrap="wrap">
+              <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                Fee agreement
+              </Text>
+              <StatusPill tone="neutral" icon={<Lock size={11} />}>
+                Locked
+              </StatusPill>
+            </HStack>
+            <HStack gap="6px" color="fg.muted" align="flex-start">
+              <Info size={12} />
+              <MutedText>
+                {hasConsultation
+                  ? "The fee agreement unlocks once the consultation has been completed."
+                  : "The fee agreement unlocks once a consultation has been scheduled and completed."}
+              </MutedText>
+            </HStack>
+            {isCompletable ? (
+              <Box>
+                <BrandButton
+                  disabled={!canComplete}
+                  loading={completeMutation.isPending}
+                  onClick={handleCompleteConsultation}
+                >
+                  <Check size={14} />
+                  Mark consultation completed
+                </BrandButton>
+                {!canComplete ? (
+                  <Box mt="6px">
+                    <MutedText>
+                      Available after the scheduled start time (
+                      {consultationDate} · {consultationTime}).
+                    </MutedText>
+                  </Box>
+                ) : null}
+              </Box>
+            ) : null}
+          </Stack>
+        </SectionRow>
       )}
 
       {/* 5. Footer — outcomes are recorded against a consultation */}
@@ -1110,9 +1108,7 @@ function ScheduleConsultationDialog({
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
 
   const resolvedDuration =
-    durationChoice === "custom"
-      ? parseInt(customDuration, 10)
-      : durationChoice;
+    durationChoice === "custom" ? parseInt(customDuration, 10) : durationChoice;
   const durationLabel =
     durationChoice === "custom"
       ? customDuration
@@ -1447,9 +1443,9 @@ function SelectClientStep({
       >
         <Info size={13} />
         <Box>
-          Leads who have cleared conflict check are shown — including those still
-          completing the questionnaire. A consultation can be booked before the
-          questionnaire is finished.
+          Leads who have cleared conflict check are shown — including those
+          still completing the questionnaire. A consultation can be booked
+          before the questionnaire is finished.
         </Box>
       </HStack>
 
@@ -1630,7 +1626,9 @@ function ScheduleDetailsStep({
             type="number"
             min={1}
             value={customDuration}
-            onChange={(event) => onCustomDurationChange(event.currentTarget.value)}
+            onChange={(event) =>
+              onCustomDurationChange(event.currentTarget.value)
+            }
             placeholder="Minutes"
             mt="8px"
             {...fieldStyles}
@@ -1754,9 +1752,7 @@ function ReviewStep({
   const notifyLabel =
     notifyChannels.length === 0
       ? "No notification"
-      : notifyChannels
-          .map((c) => (c === "email" ? "Email" : "SMS"))
-          .join(", ");
+      : notifyChannels.map((c) => (c === "email" ? "Email" : "SMS")).join(", ");
   return (
     <Stack gap="14px" pt="10px">
       <Box p="14px 16px" borderRadius="8px" bg="bg.subtle">
@@ -1811,7 +1807,13 @@ function ReviewStep({
   );
 }
 
-function FormField({ label, children }: { label: string; children: ReactNode }) {
+function FormField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <Box>
       <Text m="0 0 6px" color="fg" fontSize="12px" fontWeight="500">
@@ -1850,7 +1852,13 @@ function ChoiceChip({
   );
 }
 
-function ReadOnlyField({ label, children }: { label: string; children: ReactNode }) {
+function ReadOnlyField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <Box>
       <Text
@@ -1878,7 +1886,13 @@ function ReadOnlyField({ label, children }: { label: string; children: ReactNode
   );
 }
 
-function SummaryItem({ label, children }: { label: string; children: ReactNode }) {
+function SummaryItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <Box
       py="7px"
