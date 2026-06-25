@@ -199,6 +199,21 @@ export const requestMissingDocuments = async (
   return res.data;
 };
 
+export const uploadResponseFileByStaff = async (
+  responseId: string,
+  questionId: string,
+  file: File,
+): Promise<ResponseFile> => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("questionId", questionId);
+  const res = await API.post(
+    `/questionnaires/responses/${responseId}/files`,
+    form,
+  );
+  return res.data;
+};
+
 const triggerBlobDownload = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

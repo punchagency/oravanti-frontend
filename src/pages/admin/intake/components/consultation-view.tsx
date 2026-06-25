@@ -30,8 +30,8 @@ import {
   Video,
   X,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { Fragment, useEffect, useState } from "react";
+import type { ChangeEvent, ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
@@ -51,6 +51,7 @@ import {
   useLeadQuestionnaire,
   useRequestMissingDocuments,
   useResponseDetail,
+  useUploadResponseFile,
 } from "@/hooks/use-questionnaires";
 import { useStaffList, type StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
@@ -309,14 +310,27 @@ function ConsultationCard({
   const canComplete = isCompletable && startTimeReached;
 
   // ── Documents ──────────────────────────────────────────────────────────────
-  const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
-  function toggleConfirmed(id: string) {
-    setConfirmed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Staff can manually attach a document received outside the client portal.
+  const uploadFile = useUploadResponseFile();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingQidRef = useRef<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  function handlePickDocument(questionId: string) {
+    pendingQidRef.current = questionId;
+    fileInputRef.current?.click();
+  }
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.currentTarget.files?.[0];
+    const questionId = pendingQidRef.current;
+    e.currentTarget.value = "";
+    pendingQidRef.current = null;
+    if (!file || !questionId || !responseId) return;
+    setUploadingId(questionId);
+    uploadFile.mutate(
+      { responseId, questionId, file },
+      { onSettled: () => setUploadingId(null) },
+    );
   }
 
   const sections = responseDetail?.send?.schemaSnapshot?.sections ?? [];
@@ -327,13 +341,12 @@ function ConsultationCard({
   const files = responseDetail?.files ?? [];
   const uploadedQuestionIds = new Set(files.map((f) => f.questionId));
   const totalDocs = fileQuestions.length;
-  const receivedCount = fileQuestions.filter(
-    (q) => uploadedQuestionIds.has(q.id) || confirmed.has(q.id),
+  const receivedCount = fileQuestions.filter((q) =>
+    uploadedQuestionIds.has(q.id),
   ).length;
   const pendingQuestions = fileQuestions.filter(
     (q) => !uploadedQuestionIds.has(q.id),
   );
-  const trulyMissing = pendingQuestions.filter((q) => !confirmed.has(q.id));
   const issueFiles = files.filter((f) => f.scanStatus === "issues_found");
   const issueCount = issueFiles.reduce(
     (n, f) => n + (f.scanResult?.length ?? 0),
@@ -481,6 +494,12 @@ function ConsultationCard({
 
       {/* 3. Documents */}
       <SectionRow>
+        <input
+          ref={fileInputRef}
+          type="file"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
         <Stack gap="12px">
           <HStack justify="space-between" gap="12px" wrap="wrap">
             <HStack gap="8px">
@@ -493,7 +512,7 @@ function ConsultationCard({
             </HStack>
             <TextLink
               loading={requestMissing.isPending}
-              disabled={!send || trulyMissing.length === 0}
+              disabled={!send || pendingQuestions.length === 0}
               onClick={() => send && requestMissing.mutate(send.id)}
             >
               Request missing
@@ -569,7 +588,7 @@ function ConsultationCard({
               <SubLabel>Required — pending receipt</SubLabel>
               <Stack gap="0">
                 {pendingQuestions.map((q) => {
-                  const isConfirmed = confirmed.has(q.id);
+                  const isUploading = uploadingId === q.id;
                   return (
                     <HStack
                       key={q.id}
@@ -582,10 +601,12 @@ function ConsultationCard({
                     >
                       <HStack gap="10px" minW="0">
                         <CheckMarker
-                          checked={isConfirmed}
+                          checked={false}
                           tone="gold"
-                          onClick={() => toggleConfirmed(q.id)}
-                          label={`Confirm receipt of ${q.label}`}
+                          onClick={
+                            isUploading ? undefined : () => handlePickDocument(q.id)
+                          }
+                          label={`Upload ${q.label} received outside the portal`}
                         />
                         <Box minW="0">
                           <Text
@@ -604,8 +625,8 @@ function ConsultationCard({
                           </HStack>
                         </Box>
                       </HStack>
-                      <StatusPill tone={isConfirmed ? "success" : "warning"}>
-                        {isConfirmed ? "Received" : "Pending"}
+                      <StatusPill tone={isUploading ? "neutral" : "warning"}>
+                        {isUploading ? "Uploading…" : "Pending"}
                       </StatusPill>
                     </HStack>
                   );
@@ -614,9 +635,8 @@ function ConsultationCard({
               <HStack gap="6px" mt="8px" color="fg.muted">
                 <Info size={12} />
                 <MutedText>
-                  Check the box to manually confirm receipt of documents
-                  provided outside the client portal (e.g. in-person, by email,
-                  or via scan).
+                  Click the box next to a document to upload one received outside
+                  the client portal (e.g. in-person, by email, or via scan).
                 </MutedText>
               </HStack>
             </Box>

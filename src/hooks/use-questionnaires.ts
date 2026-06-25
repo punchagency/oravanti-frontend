@@ -9,6 +9,7 @@ import {
   requestMissingDocuments,
   sendQuestionnaire,
   sendReminder,
+  uploadResponseFileByStaff,
   type SendQuestionnaireConfig,
 } from "@/api/questionnaires";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -113,6 +114,30 @@ export function useSendReminder() {
     onSuccess: () => toast.success("Reminder sent to lead"),
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to send reminder");
+    },
+  });
+}
+
+export function useUploadResponseFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      responseId,
+      questionId,
+      file,
+    }: {
+      responseId: string;
+      questionId: string;
+      file: File;
+    }) => uploadResponseFileByStaff(responseId, questionId, file),
+    onSuccess: (_, { responseId }) => {
+      toast.success("Document uploaded");
+      qc.invalidateQueries({ queryKey: ["questionnaire-response", responseId] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to upload document");
     },
   });
 }
