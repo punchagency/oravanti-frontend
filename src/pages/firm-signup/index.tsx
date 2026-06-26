@@ -14,6 +14,7 @@ import {
   Image,
   Input,
   Link,
+  SimpleGrid,
   Text,
   VStack,
 } from "@chakra-ui/react";
@@ -24,6 +25,8 @@ import { Link as RouterLink } from "react-router";
 import { z } from "zod";
 
 const signupSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z
     .string()
     .min(1, "Work email is required")
@@ -46,7 +49,7 @@ export const FirmSignupFlow = () => {
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { firstName: "", lastName: "", email: "", password: "" },
   });
 
   useDocumentTitle("Sign up - Oravanti");
@@ -142,11 +145,45 @@ export const FirmSignupFlow = () => {
             Create your firm account
           </Text>
           <Text textStyle="subheadline" color="fg.muted" mb="8">
-            Enter your work email to get started.
+            Enter your details to get started.
           </Text>
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <VStack gap="5" align="stretch">
+              <SimpleGrid columns={{ base: 1, sm: 2 }} gap="4">
+                <Field.Root invalid={!!errors.firstName} textAlign="left">
+                  <Field.Label textStyle="label" color="fg.muted">
+                    First name
+                  </Field.Label>
+                  <Input
+                    id="firstName"
+                    bg="bg.input"
+                    borderColor="border.input"
+                    focusRingColor="brand.focusRing"
+                    placeholder="e.g. Jane"
+                    size="lg"
+                    {...register("firstName")}
+                  />
+                  <Field.ErrorText>{errors.firstName?.message}</Field.ErrorText>
+                </Field.Root>
+
+                <Field.Root invalid={!!errors.lastName} textAlign="left">
+                  <Field.Label textStyle="label" color="fg.muted">
+                    Last name
+                  </Field.Label>
+                  <Input
+                    id="lastName"
+                    bg="bg.input"
+                    borderColor="border.input"
+                    focusRingColor="brand.focusRing"
+                    placeholder="e.g. Smith"
+                    size="lg"
+                    {...register("lastName")}
+                  />
+                  <Field.ErrorText>{errors.lastName?.message}</Field.ErrorText>
+                </Field.Root>
+              </SimpleGrid>
+
               <Field.Root invalid={!!errors.email} textAlign="left">
                 <Field.Label textStyle="label" color="fg.muted">
                   Work email
