@@ -20,6 +20,7 @@ import {
   uploadFileByToken,
   type PortalQuestion,
 } from "@/api/questionnaires";
+import { DateField } from "@/components/ui/date-field";
 
 const fieldStyles = {
   w: "full",
@@ -307,16 +308,27 @@ function QuestionField({
     );
   }
 
+  if (question.type === "date") {
+    return (
+      <Box>
+        {label}
+        <DateField
+          ariaLabel={question.label}
+          value={(value as string) ?? ""}
+          onChange={(next) => onChange(next)}
+        />
+      </Box>
+    );
+  }
+
   const inputType =
-    question.type === "date"
-      ? "date"
-      : question.type === "email"
-        ? "email"
-        : question.type === "phone"
-          ? "tel"
-          : question.type === "number"
-            ? "number"
-            : "text";
+    question.type === "email"
+      ? "email"
+      : question.type === "phone"
+        ? "tel"
+        : question.type === "number"
+          ? "number"
+          : "text";
 
   return (
     <Box>

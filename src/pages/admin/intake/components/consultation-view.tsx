@@ -41,6 +41,8 @@ import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
+import { DateField } from "@/components/ui/date-field";
+import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
@@ -1671,21 +1673,19 @@ function ScheduleDetailsStep({
         gap="10px"
       >
         <FormField label="Date">
-          <Input
-            type="date"
+          <DateField
+            ariaLabel="Date"
             value={date}
             min={getTodayDate()}
-            onChange={(event) => onDateChange(event.currentTarget.value)}
-            {...fieldStyles}
-            borderColor={touchedField === "date" ? invalidColor : "border"}
+            invalid={touchedField === "date"}
+            onChange={onDateChange}
           />
         </FormField>
         <FormField label="Start time">
-          <Input
-            type="time"
+          <TimeField
+            ariaLabel="Start time"
             value={startTime}
-            onChange={(event) => onStartTimeChange(event.currentTarget.value)}
-            {...fieldStyles}
+            onChange={onStartTimeChange}
           />
         </FormField>
       </Grid>
