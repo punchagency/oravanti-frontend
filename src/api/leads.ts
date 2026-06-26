@@ -48,6 +48,7 @@ export type Lead = {
   convertedCaseId: string | null;
   convertedAt: string | null;
   assignedStaffId: string | null;
+  caseTypeName: string | null;
   receivedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -98,7 +99,7 @@ export type Consultation = {
   leadId: string;
   scheduledAt: string;
   duration: number;
-  mode: "video" | "in_person";
+  mode: "video" | "in_person" | "phone_call";
   leadAttorneyId: string | null;
   videoLink: string | null;
   status: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
@@ -209,6 +210,14 @@ export const updateLeadStatus = async (id: string, status: string): Promise<Lead
   return res.data.data
 }
 
+export const updateLead = async (
+  id: string,
+  data: { notes?: string },
+): Promise<Lead> => {
+  const res = await API.patch(`/leads/${id}`, data);
+  return res.data.data;
+};
+
 export const advanceLeadStage = async (
   id: string,
   stage: PipelineStage,
@@ -247,10 +256,11 @@ export const createConsultation = async (
   data: {
     scheduledAt: string;
     duration: number;
-    mode: "video" | "in_person";
+    mode: "video" | "in_person" | "phone_call";
     leadAttorneyId?: string;
     videoLink?: string;
     preConsultationNotes?: string;
+    notifyChannels?: ("email" | "sms")[];
   },
 ): Promise<Consultation> => {
   const res = await API.post(`/leads/${id}/consultation`, data);
@@ -276,9 +286,23 @@ export const updateConsultation = async (
 
 export const generateFeeAgreement = async (
   id: string,
-  data: { agreementType: string },
+  data: { agreementType: string; generatedFrom?: "manual" | "questionnaire_auto" },
 ): Promise<FeeAgreement> => {
   const res = await API.post(`/leads/${id}/generate-agreement`, data);
+  return res.data.data;
+};
+
+export const sendFeeAgreement = async (
+  agreementId: string,
+): Promise<FeeAgreement> => {
+  const res = await API.post(`/agreements/${agreementId}/send`);
+  return res.data.data;
+};
+
+export const markFeeAgreementReceived = async (
+  agreementId: string,
+): Promise<{ received: boolean; agreementId: string; leadId: string }> => {
+  const res = await API.post(`/agreements/${agreementId}/mark-received`);
   return res.data.data;
 };
 

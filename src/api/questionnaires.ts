@@ -110,9 +110,26 @@ export type QuestionnaireResponseDetail = {
 // NOTE: questionnaire endpoints return raw JSON (not {success,data} wrapped),
 // except sendQuestionnaire which lives on the leads resource and IS wrapped.
 
+export type LeadQuestionnaireSendStatus =
+  | "sent"
+  | "opened"
+  | "draft_response"
+  | "submitted"
+  | "expired"
+  | "revoked";
+
 export type LeadQuestionnaireState = {
-  send: { id: string } | null;
-  response: { id: string; status: "draft" | "submitted" } | null;
+  send: {
+    id: string;
+    status: LeadQuestionnaireSendStatus;
+    language: string;
+    submittedAt: string | null;
+  } | null;
+  response: {
+    id: string;
+    status: "draft" | "submitted";
+    submittedAt: string | null;
+  } | null;
 } | null;
 
 export const getLeadQuestionnaire = async (
@@ -170,6 +187,30 @@ export const sendReminder = async (
   sendId: string,
 ): Promise<{ reminderSentAt: string }> => {
   const res = await API.post(`/questionnaires/sends/${sendId}/remind`);
+  return res.data;
+};
+
+export const requestMissingDocuments = async (
+  sendId: string,
+): Promise<{ missing: string[] }> => {
+  const res = await API.post(
+    `/questionnaires/sends/${sendId}/request-documents`,
+  );
+  return res.data;
+};
+
+export const uploadResponseFileByStaff = async (
+  responseId: string,
+  questionId: string,
+  file: File,
+): Promise<ResponseFile> => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("questionId", questionId);
+  const res = await API.post(
+    `/questionnaires/responses/${responseId}/files`,
+    form,
+  );
   return res.data;
 };
 

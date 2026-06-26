@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
 import type { ButtonProps } from "@chakra-ui/react";
 import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
@@ -47,6 +47,28 @@ export function SurfaceCard({ children }: { children: ReactNode }) {
     >
       {children}
     </Box>
+  );
+}
+
+export function IntakeListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <Stack gap="16px" aria-label="Loading" aria-busy="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <SurfaceCard key={i}>
+          <HStack justifyContent="space-between" gap="16px">
+            <HStack gap="12px">
+              <Skeleton w="36px" h="36px" borderRadius="full" />
+              <Stack gap="6px">
+                <Skeleton h="14px" w="160px" borderRadius="4px" />
+                <Skeleton h="11px" w="100px" borderRadius="4px" />
+              </Stack>
+            </HStack>
+            <Skeleton h="20px" w="96px" borderRadius="99px" />
+          </HStack>
+          <Skeleton mt="16px" h="58px" w="100%" borderRadius="8px" />
+        </SurfaceCard>
+      ))}
+    </Stack>
   );
 }
 

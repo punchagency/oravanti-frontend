@@ -1,4 +1,5 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { FormSelect } from "@/components/ui/form-select";
 import { leadSources } from "@/pages/admin/intake/data";
 import { sourceValues, type LeadSource } from "@/api/leads";
 import { useCreateLead } from "@/hooks/use-leads";
@@ -16,7 +17,10 @@ import {
   chakra,
 } from "@chakra-ui/react";
 import { UserPlus, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 function getCaseTypes(
   practiceAreaId: string,
@@ -27,6 +31,37 @@ function getCaseTypes(
   return area ? area.subcategories.flatMap((s) => s.caseTypes) : [];
 }
 
+const leadSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required"),
+  lastName: z.string().trim().min(1, "Last name is required"),
+  email: z.string().trim().email("Enter a valid email address"),
+  phone: z.string(),
+  practiceAreaId: z.string(),
+  caseTypeId: z.string(),
+  source: z.string(),
+  situationSummary: z.string(),
+  adversePartyName: z.string(),
+  adversePartyEmail: z.union([
+    z.literal(""),
+    z.string().email("Enter a valid email address"),
+  ]),
+});
+
+type LeadForm = z.infer<typeof leadSchema>;
+
+const LEAD_DEFAULTS: LeadForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  practiceAreaId: "",
+  caseTypeId: "",
+  source: "Direct",
+  situationSummary: "",
+  adversePartyName: "",
+  adversePartyEmail: "",
+};
+
 export function AddLeadDialog({
   open,
   onOpenChange,
@@ -34,58 +69,50 @@ export function AddLeadDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [practiceAreaId, setPracticeAreaId] = useState("");
-  const [caseTypeId, setCaseTypeId] = useState("");
-  const [source, setSource] = useState("Direct");
-  const [situationSummary, setSituationSummary] = useState("");
-  const [adversePartyName, setAdversePartyName] = useState("");
-  const [adversePartyEmail, setAdversePartyEmail] = useState("");
-
   const { data: practiceAreas } = usePublicPracticeAreas();
   const createLead = useCreateLead();
 
-  const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<LeadForm>({
+    resolver: zodResolver(leadSchema),
+    defaultValues: LEAD_DEFAULTS,
+    mode: "onTouched",
+  });
 
-  function resetForm() {
-    setFirstName("");
-    setLastName("");
-    setEmail("");
-    setPhone("");
-    setPracticeAreaId("");
-    setCaseTypeId("");
-    setSource("Direct");
-    setSituationSummary("");
-    setAdversePartyName("");
-    setAdversePartyEmail("");
-  }
+  const practiceAreaId = watch("practiceAreaId");
+  const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
 
   function handleClose() {
     onOpenChange(false);
-    resetForm();
+    reset(LEAD_DEFAULTS);
   }
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+  const onSubmit = handleSubmit((data) => {
+    const name = [data.firstName.trim(), data.lastName.trim()]
+      .filter(Boolean)
+      .join(" ");
     createLead.mutate(
       {
         name,
-        email,
-        phone: phone || undefined,
-        practiceAreaId: practiceAreaId || undefined,
-        caseTypeId: caseTypeId || undefined,
-        source: (sourceValues[source] ?? "direct") as LeadSource,
-        situationSummary: situationSummary || undefined,
-        intakeAdversePartyName: adversePartyName.trim() || undefined,
-        intakeAdversePartyEmail: adversePartyEmail.trim() || undefined,
+        email: data.email.trim(),
+        phone: data.phone || undefined,
+        practiceAreaId: data.practiceAreaId || undefined,
+        caseTypeId: data.caseTypeId || undefined,
+        source: (sourceValues[data.source] ?? "direct") as LeadSource,
+        situationSummary: data.situationSummary || undefined,
+        intakeAdversePartyName: data.adversePartyName.trim() || undefined,
+        intakeAdversePartyEmail: data.adversePartyEmail.trim() || undefined,
       },
       { onSuccess: () => handleClose() },
     );
-  }
+  });
 
   return (
     <Dialog.Root
@@ -128,7 +155,7 @@ export function AddLeadDialog({
             <X size={16} />
           </chakra.button>
 
-          <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit}>
+          <Box as="form" p="32px 24px 24px" onSubmit={onSubmit}>
             <Dialog.Title
               color="fg"
               fontSize="17px"
@@ -155,32 +182,26 @@ export function AddLeadDialog({
                 }}
                 gap="10px"
               >
-                <FormField label="First name">
+                <FormField label="First name" error={errors.firstName?.message}>
                   <Input
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.currentTarget.value)}
+                    {...register("firstName")}
                     placeholder="e.g. Sandra"
                     {...fieldStyles}
                   />
                 </FormField>
-                <FormField label="Last name">
+                <FormField label="Last name" error={errors.lastName?.message}>
                   <Input
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.currentTarget.value)}
+                    {...register("lastName")}
                     placeholder="e.g. Osei"
                     {...fieldStyles}
                   />
                 </FormField>
               </Grid>
 
-              <FormField label="Email address">
+              <FormField label="Email address" error={errors.email?.message}>
                 <Input
                   type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.currentTarget.value)}
+                  {...register("email")}
                   placeholder="e.g. sandra@example.com"
                   {...fieldStyles}
                 />
@@ -189,69 +210,76 @@ export function AddLeadDialog({
               <FormField label="Phone number">
                 <Input
                   type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.currentTarget.value)}
+                  {...register("phone")}
                   placeholder="e.g. +1 (555) 012-3456"
                   {...fieldStyles}
                 />
               </FormField>
 
               <FormField label="Practice area interest">
-                <chakra.select
-                  value={practiceAreaId}
-                  onChange={(event) => {
-                    setPracticeAreaId(event.currentTarget.value);
-                    setCaseTypeId("");
-                  }}
-                  {...selectStyles}
-                >
-                  <option value="">Select practice area</option>
-                  {(practiceAreas ?? []).map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
-                </chakra.select>
+                <Controller
+                  control={control}
+                  name="practiceAreaId"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Practice area interest"
+                      placeholder="Select practice area"
+                      value={field.value}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        setValue("caseTypeId", "");
+                      }}
+                      options={(practiceAreas ?? []).map((area) => ({
+                        value: area.id,
+                        label: area.name,
+                      }))}
+                    />
+                  )}
+                />
               </FormField>
 
               <FormField label="Case type">
-                <chakra.select
-                  {...selectStyles}
-                  value={caseTypeId}
-                  onChange={(event) => setCaseTypeId(event.currentTarget.value)}
-                  disabled={!practiceAreaId}
-                  opacity={practiceAreaId ? 1 : 0.62}
-                  cursor={practiceAreaId ? "pointer" : "not-allowed"}
-                >
-                  <option value="">
-                    {practiceAreaId
-                      ? "Select case type"
-                      : "Select practice area first"}
-                  </option>
-                  {caseTypeOptions.map((ct) => (
-                    <option key={ct.id} value={ct.id}>
-                      {ct.name}
-                    </option>
-                  ))}
-                </chakra.select>
+                <Controller
+                  control={control}
+                  name="caseTypeId"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Case type"
+                      placeholder={
+                        practiceAreaId
+                          ? "Select case type"
+                          : "Select practice area first"
+                      }
+                      disabled={!practiceAreaId}
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={caseTypeOptions.map((ct) => ({
+                        value: ct.id,
+                        label: ct.name,
+                      }))}
+                    />
+                  )}
+                />
               </FormField>
 
               <FormField label="Source">
-                <chakra.select
-                  value={source}
-                  onChange={(e) => setSource(e.currentTarget.value)}
-                  {...selectStyles}
-                >
-                  {leadSources.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </chakra.select>
+                <Controller
+                  control={control}
+                  name="source"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Source"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={leadSources.map((s) => ({ value: s, label: s }))}
+                    />
+                  )}
+                />
               </FormField>
 
               <FormField label="Situation summary">
                 <Textarea
-                  value={situationSummary}
-                  onChange={(e) => setSituationSummary(e.currentTarget.value)}
+                  {...register("situationSummary")}
                   minH="70px"
                   resize="vertical"
                   placeholder="Brief description of client's situation..."
@@ -264,26 +292,25 @@ export function AddLeadDialog({
                   Known opposing party (optional)
                 </Text>
                 <Text fontSize="12px" color="fg.muted" mb="10px" lineHeight="1.4">
-                  Recording the opposing party now lets the conflict check flag issues before the intake proceeds.
+                  Recording the opposing party now lets the conflict check flag
+                  issues before the intake proceeds.
                 </Text>
-                <Grid
-                  templateColumns={{ base: "1fr" }}
-                  gap="10px"
-                >
+                <Grid templateColumns={{ base: "1fr" }} gap="10px">
                   <FormField label="Opposing party name">
                     <Input
                       type="text"
-                      value={adversePartyName}
-                      onChange={(e) => setAdversePartyName(e.currentTarget.value)}
+                      {...register("adversePartyName")}
                       placeholder="e.g. Acme Corp"
                       {...fieldStyles}
                     />
                   </FormField>
-                  <FormField label="Opposing party email">
+                  <FormField
+                    label="Opposing party email"
+                    error={errors.adversePartyEmail?.message}
+                  >
                     <Input
                       type="email"
-                      value={adversePartyEmail}
-                      onChange={(e) => setAdversePartyEmail(e.currentTarget.value)}
+                      {...register("adversePartyEmail")}
                       placeholder="e.g. legal@acme.com"
                       {...fieldStyles}
                     />
@@ -296,7 +323,11 @@ export function AddLeadDialog({
               <OutlineButton type="button" onClick={handleClose}>
                 Cancel
               </OutlineButton>
-              <BrandButton type="submit" minW="152px" loading={createLead.isPending}>
+              <BrandButton
+                type="submit"
+                minW="152px"
+                loading={createLead.isPending}
+              >
                 <UserPlus size={15} />
                 Add to lead inbox
               </BrandButton>
@@ -310,9 +341,11 @@ export function AddLeadDialog({
 
 function FormField({
   label,
+  error,
   children,
 }: {
   label: string;
+  error?: string;
   children: ReactNode;
 }) {
   return (
@@ -328,6 +361,11 @@ function FormField({
         {label}
       </Text>
       {children}
+      {error ? (
+        <Text mt="4px" color="#c0392b" fontSize="11px">
+          {error}
+        </Text>
+      ) : null}
     </Box>
   );
 }
@@ -342,23 +380,6 @@ const fieldStyles = {
   color: "fg",
   fontSize: "13px",
   _placeholder: { color: "fg.muted" },
-  _focus: {
-    borderColor: "brand.solid",
-    boxShadow: "0 0 0 1px var(--brand-cta)",
-  },
-};
-
-const selectStyles = {
-  w: "full",
-  h: "36px",
-  px: "12px",
-  border: "1px solid",
-  borderColor: "border",
-  borderRadius: "7px",
-  bg: "bg",
-  color: "fg",
-  fontSize: "13px",
-  cursor: "pointer",
   _focus: {
     borderColor: "brand.solid",
     boxShadow: "0 0 0 1px var(--brand-cta)",

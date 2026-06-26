@@ -8,6 +8,7 @@ import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
 import {
   BrandButton,
   CardTitle,
+  IntakeListSkeleton,
   MutedText,
   OutlineButton,
   PracticePill,
@@ -44,7 +45,9 @@ export function QuestionnaireView() {
         </OutlineButton>
       </HStack>
 
-      {isLoading ? null : leads.length === 0 ? (
+      {isLoading ? (
+        <IntakeListSkeleton />
+      ) : leads.length === 0 ? (
         <MutedText>No leads in questionnaire stage.</MutedText>
       ) : (
         <Stack gap="14px">

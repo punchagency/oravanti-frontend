@@ -26,7 +26,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Download, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
-import { PaginationControls } from "../../components/pagination-controls";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { InviteStaffDialog } from "../../invite-dialog";
 import { InvitationMobileList } from "./components/invitation-mobile-list";
 import { InvitationStatusSummary } from "./components/invitation-status-summary";

@@ -6,6 +6,7 @@ import { useLeads, useLeadById, useNudgeClient, useGenerateFeeAgreement, useAdva
 import {
   BrandButton,
   CardTitle,
+  IntakeListSkeleton,
   MutedText,
   OutlineButton,
   PracticePill,
@@ -32,7 +33,9 @@ export function FeeAgreementView() {
         </OutlineButton>
       </HStack>
 
-      {isLoading ? null : leads.length === 0 ? (
+      {isLoading ? (
+        <IntakeListSkeleton />
+      ) : leads.length === 0 ? (
         <MutedText>No fee agreements pending.</MutedText>
       ) : (
         <Stack gap="14px">

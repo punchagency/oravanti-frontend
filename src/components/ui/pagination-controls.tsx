@@ -10,13 +10,9 @@ import {
   createListCollection,
 } from "@chakra-ui/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
 
-const itemCounts = createListCollection({
-  items: [
-    { label: "5", value: "5" },
-    { label: "10", value: "10" },
-  ],
-});
+const DEFAULT_PAGE_SIZE_OPTIONS = [5, 10];
 
 interface PaginationControlsProps {
   total: number;
@@ -24,6 +20,7 @@ interface PaginationControlsProps {
   limit: number;
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
+  pageSizeOptions?: number[];
 }
 
 export function PaginationControls({
@@ -32,7 +29,19 @@ export function PaginationControls({
   limit,
   onPageChange,
   onLimitChange,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: PaginationControlsProps) {
+  const itemCounts = useMemo(
+    () =>
+      createListCollection({
+        items: pageSizeOptions.map((value) => ({
+          label: value.toString(),
+          value: value.toString(),
+        })),
+      }),
+    [pageSizeOptions],
+  );
+
   return (
     <>
       <Pagination.Root
