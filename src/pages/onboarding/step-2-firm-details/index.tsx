@@ -9,6 +9,7 @@ import {
   Box,
   Button,
   Center,
+  Combobox,
   createListCollection,
   Field,
   HStack,
@@ -16,13 +17,14 @@ import {
   Image,
   Input,
   Portal,
-  Select,
   Steps,
   Text,
+  useFilter,
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router";
 
@@ -209,6 +211,31 @@ export default function Step2FirmDetailsPage() {
 
   useDocumentTitle("Firm details - Oravanti");
 
+  const { contains } = useFilter({ sensitivity: "base" });
+
+  const [cityInput, setCityInput] = useState("");
+  const [stateInput, setStateInput] = useState("");
+
+  const filteredCityCollection = useMemo(
+    () =>
+      createListCollection({
+        items: cityCollection.items.filter((item) =>
+          contains(item.label, cityInput),
+        ),
+      }),
+    [cityInput],
+  );
+
+  const filteredStateCollection = useMemo(
+    () =>
+      createListCollection({
+        items: stateCollection.items.filter((item) =>
+          contains(item.label, stateInput),
+        ),
+      }),
+    [stateInput],
+  );
+
   const onSubmit: SubmitHandler<FirmInformationInput> = (data) => {
     setFirmDetails({
       firmName: data.firmName,
@@ -301,16 +328,16 @@ export default function Step2FirmDetailsPage() {
               color="brand.fg"
               letterSpacing="0.05em"
             >
-              STEP 2 OF 3 &bull; ONBOARDING
+              STEP 3 OF 4 &bull; ONBOARDING
             </Box>
           </Box>
 
-          <Steps.Root step={1} count={3} variant="subtle" mb="8">
+          <Steps.Root step={2} count={4} variant="subtle" mb="8">
             <Steps.List>
-              {[0, 1, 2].map((i) => (
+              {[0, 1, 2, 3].map((i) => (
                 <Steps.Item key={i} index={i} title="">
                   <Steps.Separator
-                    bg={1 >= i ? "brand.solid" : "border.muted"}
+                    bg={2 >= i ? "brand.solid" : "border.muted"}
                   />
                 </Steps.Item>
               ))}
@@ -422,42 +449,50 @@ export default function Step2FirmDetailsPage() {
                     control={control}
                     name="city"
                     render={({ field }) => (
-                      <Select.Root
+                      <Combobox.Root
                         name={field.name}
                         value={field.value ? [field.value] : []}
                         onValueChange={({ value }) =>
                           field.onChange(value[0] ?? "")
                         }
                         onInteractOutside={() => field.onBlur()}
-                        collection={cityCollection}
+                        collection={filteredCityCollection}
                         size="lg"
+                        openOnClick
+                        inputBehavior="autohighlight"
+                        onInputValueChange={(details) =>
+                          setCityInput(details.inputValue)
+                        }
                       >
-                        <Select.HiddenSelect />
-                        <Select.Control>
-                          <Select.Trigger
+                        <Combobox.Control>
+                          <Combobox.Input
                             bg="bg.input"
                             borderColor="border.input"
-                            _focus={{ borderColor: "brand.focusRing" }}
-                          >
-                            <Select.ValueText placeholder="Select a city" />
-                          </Select.Trigger>
-                          <Select.IndicatorGroup>
-                            <Select.Indicator />
-                          </Select.IndicatorGroup>
-                        </Select.Control>
+                            focusRingColor="brand.focusRing"
+                            placeholder="Select a city"
+                          />
+                          <Combobox.IndicatorGroup>
+                            <Combobox.Trigger />
+                          </Combobox.IndicatorGroup>
+                        </Combobox.Control>
                         <Portal>
-                          <Select.Positioner>
-                            <Select.Content>
+                          <Combobox.Positioner>
+                            <Combobox.Content>
                               {cityCollection.items.map((item) => (
-                                <Select.Item item={item} key={item.value}>
-                                  {item.label}
-                                  <Select.ItemIndicator />
-                                </Select.Item>
+                                <Combobox.Item
+                                  item={item}
+                                  key={item.value}
+                                >
+                                  <Combobox.ItemText>
+                                    {item.label}
+                                  </Combobox.ItemText>
+                                  <Combobox.ItemIndicator />
+                                </Combobox.Item>
                               ))}
-                            </Select.Content>
-                          </Select.Positioner>
+                            </Combobox.Content>
+                          </Combobox.Positioner>
                         </Portal>
-                      </Select.Root>
+                      </Combobox.Root>
                     )}
                   />
                   <Field.ErrorText>{errors.city?.message}</Field.ErrorText>
@@ -471,42 +506,50 @@ export default function Step2FirmDetailsPage() {
                     control={control}
                     name="state"
                     render={({ field }) => (
-                      <Select.Root
+                      <Combobox.Root
                         name={field.name}
                         value={field.value ? [field.value] : []}
                         onValueChange={({ value }) =>
                           field.onChange(value[0] ?? "")
                         }
                         onInteractOutside={() => field.onBlur()}
-                        collection={stateCollection}
+                        collection={filteredStateCollection}
                         size="lg"
+                        openOnClick
+                        inputBehavior="autohighlight"
+                        onInputValueChange={(details) =>
+                          setStateInput(details.inputValue)
+                        }
                       >
-                        <Select.HiddenSelect />
-                        <Select.Control>
-                          <Select.Trigger
+                        <Combobox.Control>
+                          <Combobox.Input
                             bg="bg.input"
                             borderColor="border.input"
-                            _focus={{ borderColor: "brand.focusRing" }}
-                          >
-                            <Select.ValueText placeholder="Select a state" />
-                          </Select.Trigger>
-                          <Select.IndicatorGroup>
-                            <Select.Indicator />
-                          </Select.IndicatorGroup>
-                        </Select.Control>
+                            focusRingColor="brand.focusRing"
+                            placeholder="Select a state"
+                          />
+                          <Combobox.IndicatorGroup>
+                            <Combobox.Trigger />
+                          </Combobox.IndicatorGroup>
+                        </Combobox.Control>
                         <Portal>
-                          <Select.Positioner>
-                            <Select.Content>
+                          <Combobox.Positioner>
+                            <Combobox.Content>
                               {stateCollection.items.map((item) => (
-                                <Select.Item item={item} key={item.value}>
-                                  {item.label}
-                                  <Select.ItemIndicator />
-                                </Select.Item>
+                                <Combobox.Item
+                                  item={item}
+                                  key={item.value}
+                                >
+                                  <Combobox.ItemText>
+                                    {item.label}
+                                  </Combobox.ItemText>
+                                  <Combobox.ItemIndicator />
+                                </Combobox.Item>
                               ))}
-                            </Select.Content>
-                          </Select.Positioner>
+                            </Combobox.Content>
+                          </Combobox.Positioner>
                         </Portal>
-                      </Select.Root>
+                      </Combobox.Root>
                     )}
                   />
                   <Field.ErrorText>{errors.state?.message}</Field.ErrorText>

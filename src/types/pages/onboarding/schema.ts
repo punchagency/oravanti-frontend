@@ -9,6 +9,13 @@ export const personalDetailsSchema = z.object({
 
 export type PersonalDetailsInput = z.infer<typeof personalDetailsSchema>;
 
+export const referralSourceSchema = z.object({
+  referralSource: z.string().min(1, "Please select an option"),
+  otherSource: z.string().optional(),
+});
+
+export type ReferralSourceInput = z.infer<typeof referralSourceSchema>;
+
 export const firmInformationSchema = z.object({
   firmName: z.string().min(1, "Firm name is required"),
   firmEmail: z.string().email("Must be a valid email address"),
@@ -22,3 +29,11 @@ export const firmInformationSchema = z.object({
 });
 
 export type FirmInformationInput = z.infer<typeof firmInformationSchema>;
+
+export const tosAcceptanceSchema = z.object({
+  accepted: z.literal(true, {
+    errorMap: () => ({ message: "You must accept the terms to continue" }),
+  }),
+});
+
+export type TosAcceptanceInput = z.infer<typeof tosAcceptanceSchema>;

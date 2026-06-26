@@ -26,6 +26,7 @@ export function useSubmitOnboardingData() {
   return useMutation({
     mutationFn: (data: {
       accountType: "firm_admin";
+      referralSource?: string;
       profile: {
         firstName: string;
         lastName: string;

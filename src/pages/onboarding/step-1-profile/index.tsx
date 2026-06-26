@@ -11,6 +11,7 @@ import {
   Button,
   Center,
   Field,
+  HStack,
   IconButton,
   Image,
   Input,
@@ -19,12 +20,15 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft } from "lucide-react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router";
 
 export default function Step1ProfilePage() {
   const { colorMode, toggleColorMode } = useColorMode();
   const userEmail = useAuthStore((s) => s.user?.email ?? "");
+  const fullName = useAuthStore((s) => s.user?.name ?? "");
+  const [firstName, lastName] = fullName.split(" ");
   const savedProfile = useOnboardingStore((s) => s.profile);
   const setProfile = useOnboardingStore((s) => s.setProfile);
 
@@ -37,8 +41,8 @@ export default function Step1ProfilePage() {
   } = useForm<PersonalDetailsInput>({
     resolver: zodResolver(personalDetailsSchema),
     defaultValues: {
-      firstName: savedProfile?.firstName ?? "",
-      lastName: savedProfile?.lastName ?? "",
+      firstName: savedProfile?.firstName ?? firstName ?? "",
+      lastName: savedProfile?.lastName ?? lastName ?? "",
       phone: savedProfile?.phone ?? "",
       jobTitle: savedProfile?.jobTitle ?? "",
     },
@@ -134,16 +138,16 @@ export default function Step1ProfilePage() {
               color="brand.fg"
               letterSpacing="0.05em"
             >
-              STEP 1 OF 3 &bull; ONBOARDING
+              STEP 2 OF 4 &bull; ONBOARDING
             </Box>
           </Box>
 
-          <Steps.Root step={0} count={3} variant="subtle" mb="8">
+          <Steps.Root step={1} count={4} variant="subtle" mb="8">
             <Steps.List>
-              {[0, 1, 2].map((i) => (
+              {[0, 1, 2, 3].map((i) => (
                 <Steps.Item key={i} index={i} title="">
                   <Steps.Separator
-                    bg={0 >= i ? "brand.solid" : "border.muted"}
+                    bg={1 >= i ? "brand.solid" : "border.muted"}
                   />
                 </Steps.Item>
               ))}
@@ -153,7 +157,12 @@ export default function Step1ProfilePage() {
           <Text textStyle="heading" color="fg" mb="1" textAlign="left">
             Set up your profile
           </Text>
-          <Text textStyle="subheadline" color="fg.muted" mb="8" textAlign="left">
+          <Text
+            textStyle="subheadline"
+            color="fg.muted"
+            mb="8"
+            textAlign="left"
+          >
             Tell us about yourself.
           </Text>
 
@@ -240,16 +249,30 @@ export default function Step1ProfilePage() {
                 <Field.ErrorText>{errors.jobTitle?.message}</Field.ErrorText>
               </Field.Root>
 
-              <Button
-                type="submit"
-                layerStyle="brand-button"
-                size="lg"
-                w="full"
-                h="12"
-                mt="2"
-              >
-                Continue
-              </Button>
+              <HStack gap="4" mt="2" w="full">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  h="12"
+                  flex="1"
+                  color="fg"
+                  borderColor="border"
+                  _hover={{ bg: "bg.muted" }}
+                  onClick={() => navigate("/onboarding/step-0-source")}
+                >
+                  <ArrowLeft size={16} />
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  layerStyle="brand-button"
+                  size="lg"
+                  h="12"
+                  flex="1"
+                >
+                  Continue
+                </Button>
+              </HStack>
             </VStack>
           </form>
         </Box>
