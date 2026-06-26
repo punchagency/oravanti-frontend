@@ -1,4 +1,5 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { FormSelect } from "@/components/ui/form-select";
 import { leadSources } from "@/pages/admin/intake/data";
 import { sourceValues, type LeadSource } from "@/api/leads";
 import { useCreateLead } from "@/hooks/use-leads";
@@ -17,7 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { UserPlus, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -73,6 +74,7 @@ export function AddLeadDialog({
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     watch,
@@ -86,7 +88,6 @@ export function AddLeadDialog({
 
   const practiceAreaId = watch("practiceAreaId");
   const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
-  const practiceAreaField = register("practiceAreaId");
 
   function handleClose() {
     onOpenChange(false);
@@ -216,50 +217,64 @@ export function AddLeadDialog({
               </FormField>
 
               <FormField label="Practice area interest">
-                <chakra.select
-                  {...practiceAreaField}
-                  onChange={(event) => {
-                    practiceAreaField.onChange(event);
-                    setValue("caseTypeId", "");
-                  }}
-                  {...selectStyles}
-                >
-                  <option value="">Select practice area</option>
-                  {(practiceAreas ?? []).map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
-                </chakra.select>
+                <Controller
+                  control={control}
+                  name="practiceAreaId"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Practice area interest"
+                      placeholder="Select practice area"
+                      value={field.value}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        setValue("caseTypeId", "");
+                      }}
+                      options={(practiceAreas ?? []).map((area) => ({
+                        value: area.id,
+                        label: area.name,
+                      }))}
+                    />
+                  )}
+                />
               </FormField>
 
               <FormField label="Case type">
-                <chakra.select
-                  {...register("caseTypeId")}
-                  {...selectStyles}
-                  disabled={!practiceAreaId}
-                  opacity={practiceAreaId ? 1 : 0.62}
-                  cursor={practiceAreaId ? "pointer" : "not-allowed"}
-                >
-                  <option value="">
-                    {practiceAreaId
-                      ? "Select case type"
-                      : "Select practice area first"}
-                  </option>
-                  {caseTypeOptions.map((ct) => (
-                    <option key={ct.id} value={ct.id}>
-                      {ct.name}
-                    </option>
-                  ))}
-                </chakra.select>
+                <Controller
+                  control={control}
+                  name="caseTypeId"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Case type"
+                      placeholder={
+                        practiceAreaId
+                          ? "Select case type"
+                          : "Select practice area first"
+                      }
+                      disabled={!practiceAreaId}
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={caseTypeOptions.map((ct) => ({
+                        value: ct.id,
+                        label: ct.name,
+                      }))}
+                    />
+                  )}
+                />
               </FormField>
 
               <FormField label="Source">
-                <chakra.select {...register("source")} {...selectStyles}>
-                  {leadSources.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </chakra.select>
+                <Controller
+                  control={control}
+                  name="source"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Source"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={leadSources.map((s) => ({ value: s, label: s }))}
+                    />
+                  )}
+                />
               </FormField>
 
               <FormField label="Situation summary">
@@ -365,23 +380,6 @@ const fieldStyles = {
   color: "fg",
   fontSize: "13px",
   _placeholder: { color: "fg.muted" },
-  _focus: {
-    borderColor: "brand.solid",
-    boxShadow: "0 0 0 1px var(--brand-cta)",
-  },
-};
-
-const selectStyles = {
-  w: "full",
-  h: "36px",
-  px: "12px",
-  border: "1px solid",
-  borderColor: "border",
-  borderRadius: "7px",
-  bg: "bg",
-  color: "fg",
-  fontSize: "13px",
-  cursor: "pointer",
   _focus: {
     borderColor: "brand.solid",
     boxShadow: "0 0 0 1px var(--brand-cta)",

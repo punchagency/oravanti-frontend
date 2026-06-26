@@ -40,6 +40,7 @@ import type { Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { FormSelect } from "@/components/ui/form-select";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
@@ -1724,40 +1725,31 @@ function ScheduleDetailsStep({
       </FormField>
 
       <FormField label="Consultation type">
-        <chakra.select
+        <FormSelect
+          ariaLabel="Consultation type"
           value={consultationType}
-          onChange={(event) =>
-            onConsultationTypeChange(
-              event.currentTarget.value as ConsultationMode,
-            )
+          onChange={(value) =>
+            onConsultationTypeChange(value as ConsultationMode)
           }
-          {...fieldStyles}
-          borderColor="border"
-          cursor="pointer"
-        >
-          {CONSULTATION_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </chakra.select>
+          options={CONSULTATION_TYPE_OPTIONS.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
+        />
       </FormField>
 
       <FormField label="Lead attorney conducting consultation">
-        <chakra.select
+        <FormSelect
+          ariaLabel="Lead attorney conducting consultation"
           value={attorneyId}
-          onChange={(event) => onAttorneyChange(event.currentTarget.value)}
-          {...fieldStyles}
-          borderColor={touchedField === "attorney" ? invalidColor : "border"}
-          cursor="pointer"
-        >
-          <option value="">— Select attorney —</option>
-          {attorneys.map((attorney) => (
-            <option key={attorney.id} value={attorney.id}>
-              {attorney.firstName} {attorney.lastName}
-            </option>
-          ))}
-        </chakra.select>
+          onChange={onAttorneyChange}
+          invalid={touchedField === "attorney"}
+          placeholder="— Select attorney —"
+          options={attorneys.map((attorney) => ({
+            value: attorney.id,
+            label: `${attorney.firstName} ${attorney.lastName}`.trim(),
+          }))}
+        />
       </FormField>
 
       <FormField label="Video call link (optional)">

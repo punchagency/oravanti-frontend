@@ -32,6 +32,7 @@ import type {
   SendQuestionnaireConfig,
 } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { FormSelect } from "@/components/ui/form-select";
 import {
   useCaseTypeQuestionnairePreview,
   useEligibleLeads,
@@ -450,9 +451,13 @@ function RecipientStep({
       ) : null}
 
       <Field label="Send questionnaire in">
-        <chakra.select {...fieldStyles} value="english" disabled>
-          <option value="english">English</option>
-        </chakra.select>
+        <FormSelect
+          ariaLabel="Send questionnaire in"
+          value="english"
+          onChange={() => {}}
+          disabled
+          options={[{ value: "english", label: "English" }]}
+        />
       </Field>
 
       <Field label="Deliver via">
@@ -478,17 +483,18 @@ function RecipientStep({
       </Field>
 
       <Field label="Auto-reminder if not completed">
-        <chakra.select
-          {...fieldStyles}
+        <FormSelect
+          ariaLabel="Auto-reminder if not completed"
           value={reminder}
-          onChange={(e) => onReminderChange(e.target.value as ReminderOption)}
-        >
-          <option value="2">After 2 days</option>
-          <option value="3">After 3 days</option>
-          <option value="5">After 5 days</option>
-          <option value="7">After 7 days</option>
-          <option value="never">Never</option>
-        </chakra.select>
+          onChange={(value) => onReminderChange(value as ReminderOption)}
+          options={[
+            { value: "2", label: "After 2 days" },
+            { value: "3", label: "After 3 days" },
+            { value: "5", label: "After 5 days" },
+            { value: "7", label: "After 7 days" },
+            { value: "never", label: "Never" },
+          ]}
+        />
       </Field>
     </Stack>
   );

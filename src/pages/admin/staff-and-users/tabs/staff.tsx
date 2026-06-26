@@ -1,4 +1,4 @@
-import { PaginationControls } from "../components/pagination-controls";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { StaffFilters } from "../components/staff-filters";
 import { StaffMobileSkeleton } from "../components/staff-mobile-skeleton";
 import { StaffStatusSummary } from "../components/staff-status-summary";

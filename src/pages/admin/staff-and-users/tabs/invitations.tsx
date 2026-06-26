@@ -25,7 +25,7 @@ import { useMemo } from "react";
 import { InvitationMobileList } from "../components/invitation-mobile-list";
 import { InvitationsSkeleton } from "../components/invitations-skeleton";
 import { InvitationStatusSummary } from "../components/invitation-status-summary";
-import { PaginationControls } from "../components/pagination-controls";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useDebounce } from "@uidotdev/usehooks";
 
 const roleOptions = createListCollection({
