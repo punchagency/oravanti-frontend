@@ -276,7 +276,7 @@ const config = defineConfig({
         value: {
           bg: "brand.solid",
           color: "brand.fg",
-          borderRadius: "md",
+          borderRadius: "sm",
           fontWeight: "500",
           _hover: { bg: "{colors.brand.500}" },
           _active: { bg: "{colors.brand.600}" },

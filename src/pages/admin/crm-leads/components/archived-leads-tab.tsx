@@ -6,7 +6,6 @@ import {
   Input,
   Table,
   Text,
-  chakra,
 } from "@chakra-ui/react";
 import { Info, Search } from "lucide-react";
 import { useMemo, useState } from "react";

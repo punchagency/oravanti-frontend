@@ -8,11 +8,15 @@ type AuthState = {
   isAuthenticated: boolean;
   isLoading: boolean;
   refetch: () => void;
+  needsAcceptInvitation: boolean;
+  needsPasswordChange: boolean;
 };
 
 type AuthActions = {
   setAuth: (auth: AuthState) => void;
   clearAuth: () => void;
+  setNeedsAcceptInvitation: (v: boolean) => void;
+  setNeedsPasswordChange: (v: boolean) => void;
 };
 
 export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
@@ -22,6 +26,8 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
   isAuthenticated: false,
   isLoading: true,
   refetch: () => {},
+  needsAcceptInvitation: false,
+  needsPasswordChange: false,
   setAuth: (auth) =>
     set({
       user: auth.user,
@@ -30,6 +36,8 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       isAuthenticated: auth.isAuthenticated,
       isLoading: auth.isLoading,
       refetch: auth.refetch,
+      needsAcceptInvitation: auth.needsAcceptInvitation,
+      needsPasswordChange: auth.needsPasswordChange,
     }),
   clearAuth: () =>
     set({
@@ -39,5 +47,9 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       isAuthenticated: false,
       isLoading: false,
       refetch: () => {},
+      needsAcceptInvitation: false,
+      needsPasswordChange: false,
     }),
+  setNeedsAcceptInvitation: (v) => set({ needsAcceptInvitation: v }),
+  setNeedsPasswordChange: (v) => set({ needsPasswordChange: v }),
 }));

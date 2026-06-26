@@ -1,14 +1,18 @@
 import { useAuthRefresh } from "@/hooks/useAuthRefresh";
-import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
-import { Box, Button, Center, Spinner, Text, VStack } from "@chakra-ui/react";
+import { Center, Spinner, Text, VStack } from "@chakra-ui/react";
 import { Navigate, Outlet, useLocation } from "react-router";
 
 export function AuthGuard() {
   const location = useLocation();
   const { isLoading: queryLoading } = useAuthRefresh();
-  const { user, isAuthenticated, isLoading: storeLoading } = useAuthStore();
-  const { mutateAsync: logOut } = useSignOut();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: storeLoading,
+    needsAcceptInvitation,
+    needsPasswordChange,
+  } = useAuthStore();
 
   const isLoading = queryLoading || storeLoading;
 
@@ -36,15 +40,24 @@ export function AuthGuard() {
     return <Outlet />;
   }
 
-  // if user is not an admin, show a page with the logout button
-  if (!user.accountType || user.accountType !== "firm_admin") {
-    return (
-      <Box>
-        <p>Dashboard not ready</p>
-        <Button onClick={() => logOut()}>log out</Button>
-      </Box>
-    );
+  if (needsAcceptInvitation && location.pathname !== "/accept-invitation") {
+    return <Navigate to="/accept-invitation" replace />;
   }
+
+  if (needsPasswordChange && location.pathname !== "/set-password") {
+    if (location.pathname === "/accept-invitation") return <Outlet />;
+    return <Navigate to="/set-password" replace />;
+  }
+
+  // // if user is not an admin, show a page with the logout button
+  // if (!user.accountType || user.accountType !== "firm_admin") {
+  //   return (
+  //     <Box>
+  //       <p>Dashboard not ready</p>
+  //       <Button onClick={() => logOut()}>log out</Button>
+  //     </Box>
+  //   );
+  // }
 
   const isOnboarding = location.pathname.startsWith("/onboarding");
   const isAdmin = location.pathname.startsWith("/admin");

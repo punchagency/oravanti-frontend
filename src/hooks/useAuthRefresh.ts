@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // hooks/useAuthRefresh.ts
 import { getSession } from "@/api/auth";
+import { getNeedsSetup } from "@/api/organization";
 import { useAuthStore } from "@/store/auth-store";
 import type { AuthSession, MemberRole, SessionUser } from "@/types/auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +15,10 @@ export function useAuthRefresh() {
     queryKey: ["session"],
     queryFn: async () => {
       try {
-        const res = await getSession();
+        const [res, needsSetup] = await Promise.all([
+          getSession(),
+          getNeedsSetup().catch(() => null),
+        ]);
 
         const sessionData = res.data as {
           user: SessionUser;
@@ -22,6 +26,7 @@ export function useAuthRefresh() {
           memberRole?: MemberRole | null;
         };
 
+        const state = useAuthStore.getState();
         setAuth({
           user: sessionData.user,
           session: sessionData.session,
@@ -29,6 +34,14 @@ export function useAuthRefresh() {
           isAuthenticated: !!sessionData.user,
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
+          needsAcceptInvitation:
+            needsSetup !== null
+              ? needsSetup.needsAcceptInvitation
+              : state.needsAcceptInvitation,
+          needsPasswordChange:
+            needsSetup !== null
+              ? needsSetup.needsPasswordChange
+              : state.needsPasswordChange,
         });
 
         return sessionData;

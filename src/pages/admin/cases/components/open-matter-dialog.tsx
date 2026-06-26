@@ -6,11 +6,9 @@ import {
   createListCollection,
   Dialog,
   Field,
-  Grid,
   Input,
   Portal,
   Select,
-  Text,
   VStack,
 } from "@chakra-ui/react";
 import { X } from "lucide-react";

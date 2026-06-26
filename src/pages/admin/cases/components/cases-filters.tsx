@@ -57,7 +57,7 @@ interface CasesFiltersProps {
 
 export function CasesFilters({
   casesCount = 0,
-  sortDirection = "asc",
+  sortDirection: _sortDirection = "asc",
   onSortToggle,
   onSearchChange,
   onPracticeAreaChange,

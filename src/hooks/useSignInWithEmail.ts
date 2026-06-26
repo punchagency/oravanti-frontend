@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSession, signInWithEmail } from "@/api/auth";
+import { getNeedsSetup } from "@/api/organization";
 import { useAuthStore } from "@/store/auth-store";
 import type { AuthSession, MemberRole, SessionUser } from "@/types/auth";
 import { getErrorMessage } from "@/utils/getErrorMessage";
@@ -40,6 +41,8 @@ export const useSignInWithEmail = () => {
           },
         });
 
+        const needsSetup = await getNeedsSetup();
+
         useAuthStore.getState().setAuth({
           user: sessionData?.user ?? null,
           session: sessionData?.session ?? null,
@@ -47,8 +50,15 @@ export const useSignInWithEmail = () => {
           isAuthenticated: !!sessionData?.session,
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
+          needsAcceptInvitation: needsSetup.needsAcceptInvitation,
+          needsPasswordChange: needsSetup.needsPasswordChange,
         });
-        navigate("/admin", { replace: true });
+
+        if (needsSetup.needsAcceptInvitation) {
+          navigate("/accept-invitation", { replace: true });
+        } else {
+          navigate("/admin", { replace: true });
+        }
       }
     },
     onError: (error: APIError) => {
