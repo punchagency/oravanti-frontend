@@ -10,9 +10,9 @@ import {
 } from "@chakra-ui/react";
 import { ArrowLeftRight, Edit3, UserPlus } from "lucide-react";
 import { useState } from "react";
-import { AddMemberDialog } from "./add-member-dialog";
-import { EditTeamDialog } from "./edit-team-dialog";
-import { TransferLeadDialog } from "./transfer-lead-dialog";
+import { AddMemberDialog } from "../add-member-dialog";
+import { EditTeamDialog } from "../edit-team-dialog";
+import { TransferLeadDialog } from "../transfer-lead-dialog";
 
 function MetricCard({
   label,
@@ -54,7 +54,7 @@ function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-export function StepOverview({ team }: { team: TeamDTO }) {
+export function Overview({ team }: { team: TeamDTO }) {
   const [transferOpen, setTransferOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);

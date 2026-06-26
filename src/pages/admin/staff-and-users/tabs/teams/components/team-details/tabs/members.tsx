@@ -3,6 +3,10 @@ import { BrandButton } from "@/components/ui/intake-ui";
 import { useRemoveTeamMember } from "@/hooks/use-remove-team-member";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import {
+  getStatusBadgeStyles,
+  getStatusLabel,
+} from "@/pages/admin/staff-and-users/data";
 import { useConfirmStore } from "@/store/confirm-store";
 import {
   Box,
@@ -16,9 +20,8 @@ import {
 } from "@chakra-ui/react";
 import { Ellipsis, Eye, UserPlus, UserX } from "lucide-react";
 import { useState } from "react";
-import { getStatusBadgeStyles, getStatusLabel } from "../../../../data";
-import { StaffDetailsDrawer } from "../../../staff/components/staff-details/dialog";
-import { AddMemberDialog } from "./add-member-dialog";
+import { StaffDetailsDrawer } from "../../../../staff/components/staff-details/drawer";
+import { AddMemberDialog } from "../add-member-dialog";
 
 function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -32,7 +35,6 @@ function MemberRow({
   status,
   isLead,
   isLast,
-  staffMember,
   teamId,
   memberId,
 }: {
@@ -43,7 +45,6 @@ function MemberRow({
   status: string;
   isLead?: boolean;
   isLast: boolean;
-  staffMember?: StaffMemberDTO | null;
   teamId: string;
   memberId: string;
 }) {
@@ -133,7 +134,7 @@ function MemberRow({
           </Stack>
 
           <StaffDetailsDrawer
-            staff={staffMember!}
+            staffId={memberId}
             open={drawerOpen}
             onOpenChange={({ open }) => setDrawerOpen(open)}
           >
@@ -181,7 +182,7 @@ interface StepMembersProps {
   staffData: StaffMemberDTO[];
 }
 
-export function StepMembers({ team, staffData }: StepMembersProps) {
+export function Members({ team, staffData }: StepMembersProps) {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const lead = team.members.find((m) => m.id === team.leadId);
   const nonLeadMembers = team.members.filter((m) => m.id !== team.leadId);
@@ -212,7 +213,6 @@ export function StepMembers({ team, staffData }: StepMembersProps) {
           workload={memberCaseload(lead.id)}
           status={lead.status}
           isLead
-          staffMember={staffData.find((s) => s.id === lead.id) ?? null}
           teamId={team.id}
           memberId={lead.id}
           isLast={nonLeadMembers.length === 0}
@@ -227,7 +227,6 @@ export function StepMembers({ team, staffData }: StepMembersProps) {
             role={member.role ?? "—"}
             workload={memberCaseload(member.id)}
             status={member.status}
-            staffMember={staffData.find((s) => s.id === member.id) ?? null}
             teamId={team.id}
             memberId={member.id}
             isLast={idx === nonLeadMembers.length - 1}

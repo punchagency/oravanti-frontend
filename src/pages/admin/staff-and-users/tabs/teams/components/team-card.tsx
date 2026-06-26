@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { AddMemberDialog } from "./team-details/add-member-dialog";
-import { TeamDetailsDrawer } from "./team-details/dialog";
+import { TeamDetailsDrawer } from "./team-details/drawer";
 import { EditTeamDialog } from "./team-details/edit-team-dialog";
 import { TransferLeadDialog } from "./team-details/transfer-lead-dialog";
 
