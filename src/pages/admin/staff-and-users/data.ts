@@ -31,6 +31,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-1", name: "Immigration Team A" }],
     createdAt: "2024-01-15T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-2",
@@ -56,6 +58,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-1", name: "Immigration Team A" }],
     createdAt: "2024-03-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-3",
@@ -78,6 +82,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2023-06-01T00:00:00Z",
     updatedAt: "2024-05-15T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-4",
@@ -103,6 +109,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-2", name: "Family & Estate Team" }],
     createdAt: "2024-02-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-5",
@@ -125,6 +133,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2024-06-10T00:00:00Z",
     updatedAt: "2024-06-10T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-6",
@@ -147,6 +157,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-1", name: "Immigration Team A" }],
     createdAt: "2023-09-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-7",
@@ -173,6 +185,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2022-01-10T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-8",
@@ -198,6 +212,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-2", name: "Family & Estate Team" }],
     createdAt: "2024-04-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-9",
@@ -223,6 +239,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2024-05-15T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-10",
@@ -245,6 +263,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2023-03-20T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-11",
@@ -270,6 +290,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-1", name: "Immigration Team A" }],
     createdAt: "2021-08-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-12",
@@ -292,6 +314,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-2", name: "Family & Estate Team" }],
     createdAt: "2024-01-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-13",
@@ -314,6 +338,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2024-06-12T00:00:00Z",
     updatedAt: "2024-06-12T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-14",
@@ -340,6 +366,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [],
     createdAt: "2023-11-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
   {
     id: "dummy-15",
@@ -365,6 +393,8 @@ export const dummyStaffMembers: StaffMember[] = [
     teams: [{ id: "team-2", name: "Family & Estate Team" }],
     createdAt: "2024-06-01T00:00:00Z",
     updatedAt: "2024-06-01T00:00:00Z",
+    subcategories: [],
+    caseTypes: [],
   },
 ];
 
@@ -424,3 +454,4 @@ export const tabsConfig = [
   { value: "leave", label: "Leave" },
   { value: "invitations", label: "Invitations" },
 ];
+

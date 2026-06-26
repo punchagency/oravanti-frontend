@@ -1,5 +1,7 @@
-import { type TeamListDTO, type UpdateStaffPayload } from "@/api/organization";
-import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PracticeAreaTreeNode } from "@/api/auth";
+import type { UpdateStaffPayload } from "@/api/organization";
+import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
+import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useUpdateStaff } from "@/hooks/use-update-staff";
 import {
@@ -14,17 +16,19 @@ import {
   Input,
   Portal,
   Select,
-  Stack,
+  SimpleGrid,
   Text,
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDate, type DateValue } from "@internationalized/date";
 import { CalendarDays, Pencil, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import type { StaffMember } from "../../../data";
+import type { StaffMember } from "../../../../data";
+import { inputStyles } from "./input-styles";
+import { TeamMultiSelect } from "./team-multi-select";
 
 const formSchema = z.object({
   firstName: z.string(),
@@ -36,8 +40,10 @@ const formSchema = z.object({
   orgEmail: z.string().email("Invalid email format").or(z.literal("")),
   startDate: z.custom<DateValue | undefined>(),
   maxCaseload: z.string(),
-  practiceAreaIds: z.array(z.string()),
   teamIds: z.array(z.string()),
+  practiceAreas: z
+    .array(z.string())
+    .min(1, "Select at least one practice area"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -80,18 +86,35 @@ function computeInitialValues(staff: StaffMember): FormValues {
     orgEmail: staff.orgEmail ?? "",
     startDate,
     maxCaseload: String(staff.caseloadMax ?? 7),
-    practiceAreaIds: staff.practiceAreas.map((pa) => pa.id),
     teamIds: staff.teams.map((t) => t.id),
+    practiceAreas: staff.practiceAreas.map((pa) => pa.id),
   };
 }
 
 export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
   const [open, setOpen] = useState(false);
 
-  const practiceAreasQuery = usePublicPracticeAreas();
-  const practiceAreas = practiceAreasQuery.data ?? [];
+  const treeDataQuery = usePracticeAreaTreeData();
+  const treeData = treeDataQuery.data;
+  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
   const teamsQuery = useTeamsList({ limit: 200 });
-  const teams = (teamsQuery.data?.data as TeamListDTO[] | undefined) ?? [];
+  const teams = (teamsQuery.data?.data) ?? [];
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => [
+    ...(staff.caseTypes ?? []).map((ct) => ct.id),
+  ]);
+
+  const collectLeafIds = (nodes: PracticeAreaTreeNode[]): string[] => {
+    const ids: string[] = [];
+    for (const n of nodes) {
+      if (!n.children || n.children.length === 0) {
+        ids.push(n.id);
+      } else {
+        ids.push(...collectLeafIds(n.children));
+      }
+    }
+    return ids;
+  };
 
   const {
     register,
@@ -117,10 +140,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
       orgEmail: formData.orgEmail.trim() || undefined,
       startDate: formData.startDate?.toString(),
       maxCaseload: Number(formData.maxCaseload) || undefined,
-      practiceAreaIds:
-        formData.practiceAreaIds.length > 0
-          ? formData.practiceAreaIds
-          : undefined,
+      caseTypeIds: selectedIds.length > 0 ? selectedIds : undefined,
       teamIds: formData.teamIds.length > 0 ? formData.teamIds : undefined,
     };
 
@@ -140,7 +160,12 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
       open={open}
       onOpenChange={(details) => {
         setOpen(details.open);
-        if (!details.open) reset(computeInitialValues(staff));
+        if (!details.open) {
+          reset(computeInitialValues(staff));
+          setSelectedIds([
+            ...(staff.caseTypes ?? []).map((ct) => ct.id),
+          ]);
+        }
       }}
       placement="center"
     >
@@ -540,88 +565,129 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                   />
                 </Field.Root>
 
-                <Field.Root invalid={!!errors.practiceAreaIds}>
-                  <Field.Label>Practice areas</Field.Label>
-                  <Controller
-                    name="practiceAreaIds"
-                    control={control}
-                    render={({ field }) => (
-                      <>
-                        <Flex wrap="wrap" gap={2}>
-                          {practiceAreas.map((pa) => {
-                            const isSelected = field.value.includes(pa.id);
+                <Controller
+                  name="practiceAreas"
+                  control={control}
+                  render={({ field }) => (
+                    <>
+                      <Field.Root>
+                        <Field.Label>Practice areas</Field.Label>
+                        <SimpleGrid
+                          columns={{ base: 1, sm: 2 }}
+                          w="full"
+                          gap="8px"
+                        >
+                          {practiceAreaTreeNodes.map((practiceArea) => {
+                            const isSelected = field.value?.includes(
+                              practiceArea.id,
+                            );
                             return (
-                              <chakra.label
-                                key={pa.id}
-                                display="inline-flex"
-                                alignItems="center"
-                                gap={2}
-                                px={3}
-                                py={1.5}
-                                borderRadius="full"
+                              <Flex
+                                key={practiceArea.id}
+                                align="center"
+                                justify="space-between"
+                                gap={3}
+                                px={4}
+                                py={3}
+                                borderRadius="md"
                                 border="1px solid"
                                 borderColor={
-                                  isSelected ? "brand.solid" : "border"
+                                  isSelected ? "brand.solid" : "border.muted"
                                 }
                                 cursor="pointer"
-                                transition="all 0.15s"
-                                _hover={{ borderColor: "brand.solid" }}
-                              >
-                                <chakra.input
-                                  type="checkbox"
-                                  hidden
-                                  checked={isSelected}
-                                  onChange={() => {
-                                    const next = isSelected
-                                      ? field.value.filter((id) => id !== pa.id)
-                                      : [...field.value, pa.id];
+                                _hover={{
+                                  borderColor: "brand.solid",
+                                }}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    const next = field.value.filter(
+                                      (id) => id !== practiceArea.id,
+                                    );
                                     field.onChange(next);
-                                  }}
-                                />
+                                    const leafIds = collectLeafIds(
+                                      practiceArea.children ?? [],
+                                    );
+                                    setSelectedIds((prev) =>
+                                      prev.filter((id) => !leafIds.includes(id)),
+                                    );
+                                  } else {
+                                    field.onChange([
+                                      ...(field.value || []),
+                                      practiceArea.id,
+                                    ]);
+                                  }
+                                }}
+                                transition="all 0.15s"
+                              >
+                                <Text
+                                  fontSize="13px"
+                                  fontWeight="600"
+                                  color="fg.default"
+                                >
+                                  {practiceArea.name}
+                                </Text>
                                 <Box
-                                  w="14px"
-                                  h="14px"
+                                  w="4"
+                                  h="4"
                                   borderRadius="sm"
-                                  border="1.5px solid"
+                                  borderWidth="1px"
                                   borderColor={
-                                    isSelected ? "brand.solid" : "border"
+                                    isSelected
+                                      ? "brand.solid"
+                                      : "border.emphasized"
+                                  }
+                                  bg={
+                                    isSelected ? "brand.solid" : "transparent"
                                   }
                                   display="flex"
                                   alignItems="center"
                                   justifyContent="center"
-                                  flexShrink={0}
                                 >
                                   {isSelected && (
-                                    <Text
-                                      color="brand.solid"
-                                      fontSize="10px"
-                                      fontWeight="bold"
-                                      lineHeight="1"
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke={isSelected ? "black" : "none"}
+                                      strokeWidth="4"
+                                      width="10px"
+                                      height="10px"
                                     >
-                                      ✓
-                                    </Text>
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
                                   )}
                                 </Box>
-                                <Text
-                                  fontSize="13px"
-                                  color="fg"
-                                  userSelect="none"
-                                >
-                                  {pa.name}
-                                </Text>
-                              </chakra.label>
+                              </Flex>
                             );
                           })}
-                        </Flex>
-                        {errors.practiceAreaIds && (
-                          <Field.ErrorText>
-                            {errors.practiceAreaIds.message}
-                          </Field.ErrorText>
-                        )}
-                      </>
-                    )}
-                  />
-                </Field.Root>
+                        </SimpleGrid>
+                      </Field.Root>
+                      {field.value.length > 0 && (
+                        <PracticeAreaTreeView
+                          practiceAreaTreeNodes={practiceAreaTreeNodes}
+                          selectedPracticeAreaIds={field.value}
+                          selectedIds={selectedIds}
+                          onSelectionChange={setSelectedIds}
+                          onRemovePracticeArea={(id) => {
+                            field.onChange(
+                              field.value.filter((paId) => paId !== id),
+                            );
+                            const pa = practiceAreaTreeNodes.find(
+                              (n) => n.id === id,
+                            );
+                            if (pa) {
+                              const leafIds = collectLeafIds(
+                                pa.children ?? [],
+                              );
+                              setSelectedIds((prev) =>
+                                prev.filter((sid) => !leafIds.includes(sid)),
+                              );
+                            }
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
+                />
               </VStack>
 
               <Flex justify="flex-end" gap="12px" mt="18px">
@@ -654,164 +720,3 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
     </Dialog.Root>
   );
 }
-
-function TeamMultiSelect({
-  teams,
-  selectedIds,
-  onToggle,
-  disabled,
-}: {
-  teams: TeamListDTO[];
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-  disabled?: boolean;
-}) {
-  const [search, setSearch] = useState("");
-
-  const filteredTeams = useMemo(
-    () =>
-      teams.filter(
-        (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [teams, search],
-  );
-
-  const sortedTeams = useMemo(() => {
-    const selected = filteredTeams.filter((t) => selectedIds.includes(t.id));
-    const unselected = filteredTeams.filter((t) => !selectedIds.includes(t.id));
-    return [...selected, ...unselected];
-  }, [filteredTeams, selectedIds]);
-
-  return (
-    <Box w="full">
-      <Box position="relative">
-        <Input
-          placeholder="Search teams..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          h="36px"
-          px="12px"
-          border="1px solid"
-          borderColor="border"
-          borderRadius="7px"
-          bg="bg"
-          color="fg"
-          fontSize="13px"
-          _placeholder={{ color: "fg.muted" }}
-          _focus={{
-            borderColor: "brand.solid",
-            boxShadow: "0 0 0 1px var(--brand-cta)",
-          }}
-          disabled={disabled}
-          opacity={disabled ? 0.5 : 1}
-          cursor={disabled ? "not-allowed" : "text"}
-        />
-      </Box>
-
-      <Box
-        maxH="200px"
-        overflowY="auto"
-        mt={1}
-        border="1px solid"
-        borderColor="border"
-        borderRadius="7px"
-        bg="bg"
-      >
-        {sortedTeams.length > 0 ? (
-          <Stack gap="0">
-            {sortedTeams.map((team) => (
-              <Flex
-                key={team.id}
-                as={disabled ? "div" : "label"}
-                align="center"
-                gap="8px"
-                px="10px"
-                py="7px"
-                cursor={disabled ? "default" : "pointer"}
-                _hover={disabled ? undefined : { bg: "bg.muted" }}
-                borderBottom="1px solid"
-                borderColor="border"
-                _last={{ borderBottom: "none" }}
-                transition="background 0.1s"
-                bg={selectedIds.includes(team.id) ? "bg.subtle" : undefined}
-              >
-                <chakra.input
-                  type="checkbox"
-                  hidden
-                  checked={selectedIds.includes(team.id)}
-                  onChange={() => {
-                    if (disabled) return;
-                    onToggle(team.id);
-                  }}
-                />
-                <Box
-                  w="16px"
-                  h="16px"
-                  borderRadius="sm"
-                  border="1.5px solid"
-                  borderColor={
-                    selectedIds.includes(team.id) ? "brand.solid" : "border"
-                  }
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  flexShrink={0}
-                  bg={
-                    selectedIds.includes(team.id)
-                      ? "brand.solid"
-                      : "transparent"
-                  }
-                  transition="all 0.1s"
-                >
-                  {selectedIds.includes(team.id) && (
-                    <Text
-                      color="white"
-                      fontSize="11px"
-                      fontWeight="bold"
-                      lineHeight="1"
-                    >
-                      ✓
-                    </Text>
-                  )}
-                </Box>
-                <Box flex={1}>
-                  <Text fontSize="13px" fontWeight="500" color="fg">
-                    {team.name}
-                  </Text>
-                  {team.leadName && (
-                    <Text fontSize="11px" color="fg.muted">
-                      Lead: {team.leadName}
-                    </Text>
-                  )}
-                </Box>
-                <Text fontSize="11px" color="fg.subtle" whiteSpace="nowrap">
-                  {team.memberCount} members
-                </Text>
-              </Flex>
-            ))}
-          </Stack>
-        ) : (
-          <Text p="10px" fontSize="12px" color="fg.muted" textAlign="center">
-            {search ? `No teams matching "${search}"` : "No teams available"}
-          </Text>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-const inputStyles = {
-  h: "36px",
-  px: "12px",
-  border: "1px solid",
-  borderColor: "border",
-  borderRadius: "7px",
-  bg: "bg",
-  color: "fg",
-  fontSize: "13px",
-  _placeholder: { color: "fg.muted" },
-  _focus: {
-    borderColor: "brand.solid",
-    boxShadow: "0 0 0 1px var(--brand-cta)",
-  },
-};

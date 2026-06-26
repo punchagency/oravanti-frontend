@@ -15,6 +15,7 @@ export function useInviteStaff() {
         description: `${variables.firstName} ${variables.lastName} has been invited to join your organization.`,
       });
       queryClient.invalidateQueries({ queryKey: ["staff"] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
     },
     onError: (error) => {

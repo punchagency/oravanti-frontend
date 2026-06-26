@@ -38,7 +38,7 @@ export interface InviteStaffPayload {
   role: string;
   startDate?: string;
   maxCaseload?: number;
-  practiceAreaIds?: string[];
+  caseTypeIds?: string[];
   teamIds?: string[];
 }
 
@@ -67,6 +67,8 @@ export interface InvitationDTO {
   invitedBy: string | null;
   invitedByEmail: string | null;
   practiceAreas: { id: string; name: string }[];
+  subcategories: { id: string; name: string }[];
+  caseTypes: { id: string; name: string }[];
   team: string;
 }
 
@@ -116,7 +118,7 @@ export interface UpdateStaffPayload {
   orgEmail?: string;
   firstName?: string;
   lastName?: string;
-  practiceAreaIds?: string[];
+  caseTypeIds?: string[];
   teamIds?: string[];
 }
 
@@ -187,6 +189,8 @@ export interface TeamListDTO {
 
 export interface TeamDTO extends TeamListDTO {
   practiceAreas: { id: string; name: string }[];
+  subcategories: { id: string; name: string }[];
+  caseTypes: { id: string; name: string }[];
   members: {
     id: string;
     firstName: string;
@@ -235,7 +239,7 @@ export interface CreateTeamPayload {
   description?: string;
   leadId?: string;
   maxCaseload?: number;
-  practiceAreaIds?: string[];
+  caseTypeIds?: string[];
   memberStaffIds?: string[];
 }
 
@@ -259,7 +263,7 @@ export interface UpdateTeamPayload {
   description?: string;
   maxCaseload?: number;
   leadId?: string | null;
-  practiceAreaIds?: string[];
+  caseTypeIds?: string[];
 }
 
 export async function updateTeam(
@@ -289,5 +293,14 @@ export async function getTeamDetails(
   teamId: string,
 ): Promise<TeamDetailsDTO> {
   const response = await API.get(`/organization/teams/${teamId}`);
+  return response.data;
+}
+
+export type StaffDetailsDTO = StaffMemberDTO;
+
+export async function getStaffDetails(
+  staffId: string,
+): Promise<StaffDetailsDTO> {
+  const response = await API.get(`/organization/staff/${staffId}`);
   return response.data;
 }
