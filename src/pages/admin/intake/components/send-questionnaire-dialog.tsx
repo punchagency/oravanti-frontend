@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -92,7 +92,7 @@ export function SendQuestionnaireDialog({
 }) {
   const [step, setStep] = useState<WizardStep>(1);
   const {
-    watch,
+    control,
     setValue,
     reset: resetForm,
     trigger,
@@ -102,7 +102,10 @@ export function SendQuestionnaireDialog({
     defaultValues: RECIPIENT_DEFAULTS,
     mode: "onChange",
   });
-  const { leadId, channels, reminder } = watch();
+  // const { leadId, channels, reminder } = useWatch({ control,  });
+  const leadId = useWatch({ control, name: "leadId" });
+  const channels = useWatch({ control, name: "channels" });
+  const reminder = useWatch({ control, name: "reminder" });
   const [customQuestions, setCustomQuestions] = useState<DraftCustomQuestion[]>(
     [],
   );
@@ -114,8 +117,7 @@ export function SendQuestionnaireDialog({
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open)
-      resetForm({ ...RECIPIENT_DEFAULTS, leadId: presetLeadId ?? "" });
+    if (open) resetForm({ ...RECIPIENT_DEFAULTS, leadId: presetLeadId ?? "" });
   }
 
   const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
@@ -252,7 +254,7 @@ export function SendQuestionnaireDialog({
               <StepProgress step={step} />
             </Box>
 
-            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="20px">
+            <Box flex="1" minH="0" px="24px" pb="20px">
               {step === 1 ? (
                 <RecipientStep
                   leads={leads}
@@ -423,9 +425,7 @@ function RecipientStep({
           ariaLabel="Send questionnaire to lead"
           value={leadId}
           onChange={onLeadChange}
-          placeholder={
-            leadsLoading ? "Loading…" : "— Select a cleared lead —"
-          }
+          placeholder={leadsLoading ? "Loading…" : "— Select a cleared lead —"}
           searchPlaceholder="Search by name or email…"
           emptyText="No leads match your search"
           options={leads.map((l) => ({

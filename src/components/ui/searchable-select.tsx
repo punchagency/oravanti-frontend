@@ -43,16 +43,13 @@ export function SearchableSelect({
   const selected = options.find((o) => o.value === value) ?? null;
 
   useEffect(() => {
-    if (!open) {
-      setQuery("");
-      return;
-    }
     function onDown(e: MouseEvent) {
       if (
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
       ) {
         setOpen(false);
+        setQuery("");
       }
     }
     document.addEventListener("mousedown", onDown);
@@ -76,7 +73,14 @@ export function SearchableSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((v) => {
+            if (!v) {
+              setQuery("");
+            }
+            return !v;
+          })
+        }
         display="flex"
         alignItems="center"
         justifyContent="space-between"
@@ -165,6 +169,7 @@ export function SearchableSelect({
                     onClick={() => {
                       onChange(o.value);
                       setOpen(false);
+                      setQuery("")
                     }}
                   >
                     <Box minW="0">

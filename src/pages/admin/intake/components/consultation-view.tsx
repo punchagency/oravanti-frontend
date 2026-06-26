@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { Lead } from "@/api/leads";
@@ -515,185 +515,191 @@ function ConsultationCard({
           {/* Documents only exist once the lead has a questionnaire response. */}
           {responseId ? (
             <>
-          <HStack justify="space-between" gap="12px" wrap="wrap">
-            <HStack gap="8px">
-              <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                Documents
-              </Text>
-              <MutedText>
-                {receivedCount} of {totalDocs} received
-              </MutedText>
-            </HStack>
-            <TextLink
-              loading={requestMissing.isPending}
-              disabled={!send || pendingQuestions.length === 0}
-              onClick={() => send && requestMissing.mutate(send.id)}
-            >
-              Request missing
-            </TextLink>
-          </HStack>
+              <HStack justify="space-between" gap="12px" wrap="wrap">
+                <HStack gap="8px">
+                  <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                    Documents
+                  </Text>
+                  <MutedText>
+                    {receivedCount} of {totalDocs} received
+                  </MutedText>
+                </HStack>
+                <TextLink
+                  loading={requestMissing.isPending}
+                  disabled={!send || pendingQuestions.length === 0}
+                  onClick={() => send && requestMissing.mutate(send.id)}
+                >
+                  Request missing
+                </TextLink>
+              </HStack>
 
-          {files.length > 0 ? (
-            <Box>
-              <SubLabel>Uploaded by client</SubLabel>
-              <Stack gap="0">
-                {files.map((file) => (
-                  <HStack
-                    key={file.id}
-                    justify="space-between"
-                    gap="10px"
-                    py="10px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                    _last={{ borderBottom: 0 }}
-                  >
-                    <HStack gap="10px" minW="0">
-                      <CheckMarker checked tone="green" />
-                      <Box minW="0">
-                        <Text
-                          m="0"
-                          color="fg"
-                          fontSize="13px"
-                          fontWeight="500"
-                          truncate
-                          title={
-                            labelByQuestionId.get(file.questionId) ??
-                            file.originalFilename
-                          }
+              {files.length > 0 ? (
+                <Box>
+                  <SubLabel>Uploaded by client</SubLabel>
+                  <Stack gap="0">
+                    {files.map((file) => (
+                      <HStack
+                        key={file.id}
+                        justify="space-between"
+                        gap="10px"
+                        py="10px"
+                        borderBottom="1px solid"
+                        borderColor="border.subtle"
+                        _last={{ borderBottom: 0 }}
+                      >
+                        <HStack gap="10px" minW="0">
+                          <CheckMarker checked tone="green" />
+                          <Box minW="0">
+                            <Text
+                              m="0"
+                              color="fg"
+                              fontSize="13px"
+                              fontWeight="500"
+                              truncate
+                              title={
+                                labelByQuestionId.get(file.questionId) ??
+                                file.originalFilename
+                              }
+                            >
+                              {labelByQuestionId.get(file.questionId) ??
+                                file.originalFilename}
+                            </Text>
+                            <MutedText>
+                              {file.originalFilename} ·{" "}
+                              {formatBytes(file.fileSize)}
+                            </MutedText>
+                          </Box>
+                        </HStack>
+                        <HStack gap="8px" flex="0 0 auto">
+                          <StatusPill tone="success">Received</StatusPill>
+                          {canDownload ? (
+                            <chakra.button
+                              type="button"
+                              aria-label={`Download ${file.originalFilename}`}
+                              display="grid"
+                              placeItems="center"
+                              w="26px"
+                              h="26px"
+                              color="fg.muted"
+                              onClick={() =>
+                                void downloadResponseFile(
+                                  file.id,
+                                  file.originalFilename,
+                                )
+                              }
+                            >
+                              <Download size={15} />
+                            </chakra.button>
+                          ) : null}
+                        </HStack>
+                      </HStack>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
+
+              {pendingQuestions.length > 0 ? (
+                <Box>
+                  <SubLabel>Required — pending receipt</SubLabel>
+                  <Stack gap="0">
+                    {pendingQuestions.map((q) => {
+                      const isUploading = uploadingId === q.id;
+                      return (
+                        <HStack
+                          key={q.id}
+                          justify="space-between"
+                          gap="10px"
+                          py="10px"
+                          borderBottom="1px solid"
+                          borderColor="border.subtle"
+                          _last={{ borderBottom: 0 }}
                         >
-                          {labelByQuestionId.get(file.questionId) ??
-                            file.originalFilename}
-                        </Text>
-                        <MutedText>
-                          {file.originalFilename} · {formatBytes(file.fileSize)}
-                        </MutedText>
-                      </Box>
+                          <HStack gap="10px" minW="0">
+                            <CheckMarker
+                              checked={false}
+                              tone="gold"
+                              onClick={
+                                isUploading
+                                  ? undefined
+                                  : () => handlePickDocument(q.id)
+                              }
+                              label={`Upload ${q.label} received outside the portal`}
+                            />
+                            <Box minW="0">
+                              <Text
+                                m="0"
+                                color="fg"
+                                fontSize="13px"
+                                fontWeight="500"
+                                truncate
+                                title={q.label}
+                              >
+                                {q.label}
+                              </Text>
+                              <HStack gap="4px" color="fg.muted">
+                                <MutedText>Required</MutedText>
+                                <Lock size={10} />
+                              </HStack>
+                            </Box>
+                          </HStack>
+                          <StatusPill
+                            tone={isUploading ? "neutral" : "warning"}
+                          >
+                            {isUploading ? "Uploading…" : "Pending"}
+                          </StatusPill>
+                        </HStack>
+                      );
+                    })}
+                  </Stack>
+                  <HStack gap="6px" mt="8px" color="fg.muted">
+                    <Info size={12} />
+                    <MutedText>
+                      Click the box next to a document to upload one received
+                      outside the client portal (e.g. in-person, by email, or
+                      via scan).
+                    </MutedText>
+                  </HStack>
+                </Box>
+              ) : null}
+
+              {issueFiles.length > 0 && responseId ? (
+                <HStack
+                  justify="space-between"
+                  gap="12px"
+                  wrap="wrap"
+                  p="10px 14px"
+                  borderRadius="8px"
+                  bg="#ffe2e4"
+                >
+                  <HStack gap="10px" minW="0" wrap="wrap">
+                    <HStack gap="6px" color="fg.muted">
+                      <Scale size={14} />
+                      <Text
+                        m="0"
+                        fontSize="10px"
+                        fontWeight="600"
+                        textTransform="uppercase"
+                      >
+                        Document review
+                      </Text>
                     </HStack>
-                    <HStack gap="8px" flex="0 0 auto">
-                      <StatusPill tone="success">Received</StatusPill>
-                      {canDownload ? (
-                        <chakra.button
-                          type="button"
-                          aria-label={`Download ${file.originalFilename}`}
-                          display="grid"
-                          placeItems="center"
-                          w="26px"
-                          h="26px"
-                          color="fg.muted"
-                          onClick={() =>
-                            void downloadResponseFile(
-                              file.id,
-                              file.originalFilename,
-                            )
-                          }
-                        >
-                          <Download size={15} />
-                        </chakra.button>
-                      ) : null}
+                    <HStack gap="6px" color="#b00020">
+                      <AlertTriangle size={14} />
+                      <Text m="0" fontSize="12px" fontWeight="500">
+                        {issueCount} issue{issueCount === 1 ? "" : "s"} detected
+                        — review required
+                      </Text>
                     </HStack>
                   </HStack>
-                ))}
-              </Stack>
-            </Box>
-          ) : null}
-
-          {pendingQuestions.length > 0 ? (
-            <Box>
-              <SubLabel>Required — pending receipt</SubLabel>
-              <Stack gap="0">
-                {pendingQuestions.map((q) => {
-                  const isUploading = uploadingId === q.id;
-                  return (
-                    <HStack
-                      key={q.id}
-                      justify="space-between"
-                      gap="10px"
-                      py="10px"
-                      borderBottom="1px solid"
-                      borderColor="border.subtle"
-                      _last={{ borderBottom: 0 }}
-                    >
-                      <HStack gap="10px" minW="0">
-                        <CheckMarker
-                          checked={false}
-                          tone="gold"
-                          onClick={
-                            isUploading ? undefined : () => handlePickDocument(q.id)
-                          }
-                          label={`Upload ${q.label} received outside the portal`}
-                        />
-                        <Box minW="0">
-                          <Text
-                            m="0"
-                            color="fg"
-                            fontSize="13px"
-                            fontWeight="500"
-                            truncate
-                            title={q.label}
-                          >
-                            {q.label}
-                          </Text>
-                          <HStack gap="4px" color="fg.muted">
-                            <MutedText>Required</MutedText>
-                            <Lock size={10} />
-                          </HStack>
-                        </Box>
-                      </HStack>
-                      <StatusPill tone={isUploading ? "neutral" : "warning"}>
-                        {isUploading ? "Uploading…" : "Pending"}
-                      </StatusPill>
-                    </HStack>
-                  );
-                })}
-              </Stack>
-              <HStack gap="6px" mt="8px" color="fg.muted">
-                <Info size={12} />
-                <MutedText>
-                  Click the box next to a document to upload one received outside
-                  the client portal (e.g. in-person, by email, or via scan).
-                </MutedText>
-              </HStack>
-            </Box>
-          ) : null}
-
-          {issueFiles.length > 0 && responseId ? (
-            <HStack
-              justify="space-between"
-              gap="12px"
-              wrap="wrap"
-              p="10px 14px"
-              borderRadius="8px"
-              bg="#ffe2e4"
-            >
-              <HStack gap="10px" minW="0" wrap="wrap">
-                <HStack gap="6px" color="fg.muted">
-                  <Scale size={14} />
-                  <Text
-                    m="0"
-                    fontSize="10px"
-                    fontWeight="600"
-                    textTransform="uppercase"
+                  <OutlineButton
+                    onClick={() =>
+                      setDocDialog({ id: responseId, tab: "documents" })
+                    }
                   >
-                    Document review
-                  </Text>
+                    View details
+                  </OutlineButton>
                 </HStack>
-                <HStack gap="6px" color="#b00020">
-                  <AlertTriangle size={14} />
-                  <Text m="0" fontSize="12px" fontWeight="500">
-                    {issueCount} issue{issueCount === 1 ? "" : "s"} detected —
-                    review required
-                  </Text>
-                </HStack>
-              </HStack>
-              <OutlineButton
-                onClick={() =>
-                  setDocDialog({ id: responseId, tab: "documents" })
-                }
-              >
-                View details
-              </OutlineButton>
-            </HStack>
-          ) : null}
+              ) : null}
             </>
           ) : null}
 
@@ -1193,7 +1199,7 @@ function ScheduleConsultationDialog({
 }) {
   const [step, setStep] = useState<ScheduleStep>(1);
   const {
-    watch,
+    control,
     setValue,
     reset,
     trigger,
@@ -1204,8 +1210,17 @@ function ScheduleConsultationDialog({
     defaultValues: SCHEDULE_DEFAULTS,
     mode: "onChange",
   });
-  const values = watch();
-  const selectedLeadId = values.selectedLeadId;
+  const date = useWatch({ control, name: "date" });
+  const attorneyId = useWatch({ control, name: "attorneyId" });
+  const selectedLeadId = useWatch({ control, name: "selectedLeadId" });
+  const customDuration = useWatch({ control, name: "customDuration" });
+  const durationChoice = useWatch({ control, name: "durationChoice" });
+  const consultationType = useWatch({ control, name: "consultationType" });
+  const notes = useWatch({ control, name: "notes" });
+  const startTime = useWatch({ control, name: "startTime" });
+  const notifyEmail = useWatch({ control, name: "notifyEmail" });
+  const notifySms = useWatch({ control, name: "notifySms" });
+  const videoLink = useWatch({ control, name: "videoLink" });
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -1253,18 +1268,18 @@ function ScheduleConsultationDialog({
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
 
   const durationLabel =
-    values.durationChoice === "custom"
-      ? values.customDuration
-        ? `${values.customDuration} minutes`
+    durationChoice === "custom"
+      ? customDuration
+        ? `${customDuration} minutes`
         : "—"
-      : `${values.durationChoice} minutes`;
+      : `${durationChoice} minutes`;
   const attorneyName = (() => {
-    const a = attorneys.find((s) => s.id === values.attorneyId);
+    const a = attorneys.find((s) => s.id === attorneyId);
     return a ? `${a.firstName} ${a.lastName}`.trim() : "Not assigned";
   })();
   const notifyChannels: ("email" | "sms")[] = [
-    ...(values.notifyEmail ? (["email"] as const) : []),
-    ...(values.notifySms ? (["sms"] as const) : []),
+    ...(notifyEmail ? (["email"] as const) : []),
+    ...(notifySms ? (["sms"] as const) : []),
   ];
 
   function closeDialog() {
@@ -1342,7 +1357,6 @@ function ScheduleConsultationDialog({
           borderRadius="14px"
           bg="bg"
           p="0"
-          overflow="hidden"
           boxShadow="0 24px 70px rgba(0, 0, 0, 0.26)"
         >
           <Flex direction="column" maxH="calc(100vh - 72px)">
@@ -1390,7 +1404,7 @@ function ScheduleConsultationDialog({
               <StepProgress step={step} />
             </Box>
 
-            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="20px">
+            <Box flex="1" minH="0" px="24px" pb="20px">
               {step === 1 ? (
                 <SelectClientStep
                   leads={leads}
@@ -1403,17 +1417,17 @@ function ScheduleConsultationDialog({
               ) : null}
               {step === 2 ? (
                 <ScheduleDetailsStep
-                  date={values.date}
-                  startTime={values.startTime}
-                  durationChoice={values.durationChoice}
-                  customDuration={values.customDuration}
-                  consultationType={values.consultationType}
-                  attorneyId={values.attorneyId}
+                  date={date}
+                  startTime={startTime}
+                  durationChoice={durationChoice}
+                  customDuration={customDuration}
+                  consultationType={consultationType}
+                  attorneyId={attorneyId}
                   attorneys={attorneys}
-                  videoLink={values.videoLink}
-                  notes={values.notes}
-                  notifyEmail={values.notifyEmail}
-                  notifySms={values.notifySms}
+                  videoLink={videoLink}
+                  notes={notes}
+                  notifyEmail={notifyEmail}
+                  notifySms={notifySms}
                   touchedField={
                     errors.date
                       ? "date"
@@ -1437,7 +1451,9 @@ function ScheduleConsultationDialog({
                   onAttorneyChange={(value) => setField("attorneyId", value)}
                   onVideoLinkChange={(value) => setField("videoLink", value)}
                   onNotesChange={(value) => setField("notes", value)}
-                  onNotifyEmailChange={(value) => setField("notifyEmail", value)}
+                  onNotifyEmailChange={(value) =>
+                    setField("notifyEmail", value)
+                  }
                   onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
@@ -1446,16 +1462,14 @@ function ScheduleConsultationDialog({
                   lead={selectedLead}
                   matterType={matterType}
                   language={language}
-                  date={values.date || "—"}
-                  startTime={formatTimeLabel(values.startTime)}
+                  date={date || "—"}
+                  startTime={formatTimeLabel(startTime)}
                   duration={durationLabel}
-                  consultationType={consultationModeLabel(
-                    values.consultationType,
-                  )}
+                  consultationType={consultationModeLabel(consultationType)}
                   attorney={attorneyName}
                   notifyChannels={notifyChannels}
-                  videoLink={values.videoLink}
-                  notes={values.notes}
+                  videoLink={videoLink}
+                  notes={notes}
                 />
               ) : null}
             </Box>
@@ -1467,6 +1481,7 @@ function ScheduleConsultationDialog({
               p="14px 24px"
               borderTop="1px solid"
               borderColor="border.subtle"
+              borderBottomRadius="14px"
               bg="bg"
             >
               {step > 1 ? (
