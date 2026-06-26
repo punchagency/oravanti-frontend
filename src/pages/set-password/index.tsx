@@ -1,6 +1,5 @@
-import { setPassword } from "@/api/organization";
+import { useSetPassword } from "@/hooks/use-set-password";
 import { useAuthStore } from "@/store/auth-store";
-import { getErrorMessage } from "@/utils/getErrorMessage";
 import {
   Box,
   Button,
@@ -11,19 +10,46 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router";
+import { z } from "zod";
+
+const setPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters")
+      .max(128, "New password cannot exceed 128 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+type SetPasswordFormData = z.infer<typeof setPasswordSchema>;
 
 export default function SetPasswordPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const needsPasswordChange = useAuthStore((s) => s.needsPasswordChange);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [formError, setFormError] = useState("");
+  const setPasswordMutation = useSetPassword();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SetPasswordFormData>({
+    resolver: zodResolver(setPasswordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
 
   useEffect(() => {
     if (!needsPasswordChange) {
@@ -31,38 +57,11 @@ export default function SetPasswordPage() {
     }
   }, [needsPasswordChange, navigate]);
 
-  const mutation = useMutation({
-    mutationFn: () => setPassword({ currentPassword, newPassword }),
-    onSuccess: () => {
-      useAuthStore.getState().setNeedsPasswordChange(false);
-      queryClient.invalidateQueries({ queryKey: ["session"] });
-      navigate("/admin", { replace: true });
-    },
-    onError: (err) => {
-      setFormError(getErrorMessage(err, "Failed to set password"));
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setFormError("All fields are required");
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setFormError("New password must be at least 8 characters");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setFormError("Passwords do not match");
-      return;
-    }
-
-    mutation.mutate();
+  const onSubmit: SubmitHandler<SetPasswordFormData> = (data) => {
+    setPasswordMutation.mutate({
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    });
   };
 
   return (
@@ -81,12 +80,7 @@ export default function SetPasswordPage() {
           mb={6}
         />
 
-        <Text
-          textStyle="heading"
-          color="fg"
-          textAlign="center"
-          mb={1}
-        >
+        <Text textStyle="heading" color="fg" textAlign="center" mb={1}>
           Set your password
         </Text>
         <Text
@@ -95,21 +89,17 @@ export default function SetPasswordPage() {
           textAlign="center"
           mb={6}
         >
-          {user?.name
-            ? `Welcome, ${user.name}. `
-            : ""}
+          {user?.name ? `Welcome, ${user.name}. ` : ""}
           Choose a permanent password for your account.
         </Text>
 
-        <Box as="form" onSubmit={handleSubmit}>
+        <Box as="form" onSubmit={handleSubmit(onSubmit)}>
           <VStack gap={4} align="stretch">
-            <Field.Root invalid={!!formError}>
+            <Field.Root invalid={!!errors.currentPassword}>
               <Field.Label>Current password</Field.Label>
               <Input
                 type="password"
                 placeholder="Enter your temporary password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
                 h="44px"
                 px="14px"
                 border="1px solid"
@@ -123,16 +113,18 @@ export default function SetPasswordPage() {
                   borderColor: "brand.solid",
                   boxShadow: "0 0 0 1px var(--brand-cta)",
                 }}
+                {...register("currentPassword")}
               />
+              <Field.ErrorText>
+                {errors.currentPassword?.message}
+              </Field.ErrorText>
             </Field.Root>
 
-            <Field.Root invalid={!!formError}>
+            <Field.Root invalid={!!errors.newPassword}>
               <Field.Label>New password</Field.Label>
               <Input
                 type="password"
                 placeholder="At least 8 characters"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
                 h="44px"
                 px="14px"
                 border="1px solid"
@@ -146,16 +138,18 @@ export default function SetPasswordPage() {
                   borderColor: "brand.solid",
                   boxShadow: "0 0 0 1px var(--brand-cta)",
                 }}
+                {...register("newPassword")}
               />
+              <Field.ErrorText>
+                {errors.newPassword?.message}
+              </Field.ErrorText>
             </Field.Root>
 
-            <Field.Root invalid={!!formError}>
+            <Field.Root invalid={!!errors.confirmPassword}>
               <Field.Label>Confirm new password</Field.Label>
               <Input
                 type="password"
                 placeholder="Re-enter your new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
                 h="44px"
                 px="14px"
                 border="1px solid"
@@ -169,25 +163,23 @@ export default function SetPasswordPage() {
                   borderColor: "brand.solid",
                   boxShadow: "0 0 0 1px var(--brand-cta)",
                 }}
+                {...register("confirmPassword")}
               />
+              <Field.ErrorText>
+                {errors.confirmPassword?.message}
+              </Field.ErrorText>
             </Field.Root>
-
-            {formError && (
-              <Text color="red.500" fontSize="13px">
-                {formError}
-              </Text>
-            )}
 
             <Button
               type="submit"
-              loading={mutation.isPending}
+              loading={setPasswordMutation.isPending}
               layerStyle="brand-button"
               size="lg"
               w="full"
               h="12"
               mt={2}
             >
-              {mutation.isPending ? "Saving..." : "Set password"}
+              {setPasswordMutation.isPending ? "Saving..." : "Set password"}
             </Button>
           </VStack>
         </Box>

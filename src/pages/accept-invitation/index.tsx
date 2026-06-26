@@ -1,4 +1,5 @@
 import { acceptInvitation, getMyPendingInvitation } from "@/api/organization";
+import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import {
@@ -6,15 +7,15 @@ import {
   Box,
   Button,
   Center,
+  HStack,
   Image,
+  Separator,
+  Spinner,
   Text,
   VStack,
-  Spinner,
-  HStack,
-  Separator,
 } from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, User, ShieldCheck } from "lucide-react";
+import { CalendarDays, ShieldCheck, User } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
@@ -30,7 +31,7 @@ function formatDate(dateStr: string | null) {
 export default function AcceptInvitationPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const { mutate: signOut, isPending: isSigningOut } = useSignOut();
   const needsAcceptInvitation = useAuthStore((s) => s.needsAcceptInvitation);
   const needsPasswordChange = useAuthStore((s) => s.needsPasswordChange);
 
@@ -42,10 +43,7 @@ export default function AcceptInvitationPage() {
     }
   }, [needsAcceptInvitation, needsPasswordChange, navigate]);
 
-  const {
-    data: result,
-    isLoading,
-  } = useQuery({
+  const { data: result, isLoading } = useQuery({
     queryKey: ["my-pending-invitation"],
     queryFn: getMyPendingInvitation,
     retry: false,
@@ -142,12 +140,7 @@ export default function AcceptInvitationPage() {
         <Text textStyle="heading" color="fg" mb={1}>
           You're invited to join
         </Text>
-        <Text
-          textStyle="heading"
-          color="brand.solid"
-          fontSize="22px"
-          mb={6}
-        >
+        <Text textStyle="heading" color="brand.solid" fontSize="22px" mb={6}>
           {invitation.organizationName}
         </Text>
 
@@ -178,10 +171,7 @@ export default function AcceptInvitationPage() {
             <Separator borderColor="border" />
 
             <HStack gap={3}>
-              <ShieldCheck
-                size={16}
-                color="var(--chakra-colors-fg-muted)"
-              />
+              <ShieldCheck size={16} color="var(--chakra-colors-fg-muted)" />
               <Box>
                 <Text fontSize="11px" color="fg.subtle" fontWeight="500">
                   Role
@@ -195,10 +185,7 @@ export default function AcceptInvitationPage() {
             <Separator borderColor="border" />
 
             <HStack gap={3}>
-              <CalendarDays
-                size={16}
-                color="var(--chakra-colors-fg-muted)"
-              />
+              <CalendarDays size={16} color="var(--chakra-colors-fg-muted)" />
               <Box>
                 <Text fontSize="11px" color="fg.subtle" fontWeight="500">
                   Invitation sent
@@ -218,11 +205,7 @@ export default function AcceptInvitationPage() {
                     color="var(--chakra-colors-fg-muted)"
                   />
                   <Box>
-                    <Text
-                      fontSize="11px"
-                      color="fg.subtle"
-                      fontWeight="500"
-                    >
+                    <Text fontSize="11px" color="fg.subtle" fontWeight="500">
                       Expires
                     </Text>
                     <Text fontSize="13px" color="fg">
@@ -253,12 +236,13 @@ export default function AcceptInvitationPage() {
             w="full"
             borderColor="border"
             color="fg.muted"
+            disabled={isSigningOut}
             onClick={() => {
-              clearAuth();
-              navigate("/login", { replace: true });
+              signOut();
             }}
           >
-            Sign out
+            {isSigningOut ? "Signing out..." : "Sign out"}
+            {isSigningOut && <Spinner size="xs" ml={2} />}
           </Button>
         </VStack>
       </Box>
