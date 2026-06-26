@@ -15,8 +15,8 @@ import {
   getStatusBadgeStyles,
   getStatusLabel,
   type StaffMember,
-} from "../../../../data";
-import { EditStaffDialog } from "../edit-staff-dialog";
+} from "../../../../../data";
+import { EditStaffDialog } from "../../edit-staff/dialog";
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (
     <Box borderBottom="1px solid" borderColor="border.muted" py={2}>
@@ -52,7 +52,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function StepOverview({ staff }: { staff: StaffMemberDTO }) {
+export function Overview({ staff }: { staff: StaffMemberDTO }) {
   const caseloadCurrent = 0;
   const caseloadMax = staff.maxCaseload ?? 7;
   return (
@@ -198,7 +198,7 @@ export function StepOverview({ staff }: { staff: StaffMemberDTO }) {
 
       <SectionLabel>Quick actions</SectionLabel>
       <VStack gap={1.5} w="full">
-        <EditStaffDialog staff={staff as StaffMember}>
+        <EditStaffDialog staff={staff as unknown as StaffMember}>
           <Button
             variant="outline"
             size="sm"

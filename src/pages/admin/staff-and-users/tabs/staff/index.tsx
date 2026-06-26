@@ -2,7 +2,7 @@ import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download, UserPlus } from "lucide-react";
 import { PaginationControls } from "../../components/pagination-controls";
-import { InviteStaffDialog } from "../../invite-dialog";
+import { InviteStaffDialog } from "../../invite-staff/dialog";
 import { StaffFilters } from "./components/staff-filters";
 import { StaffMobileList } from "./components/staff-mobile-list";
 import { StaffMobileSkeleton } from "./components/staff-mobile-skeleton";

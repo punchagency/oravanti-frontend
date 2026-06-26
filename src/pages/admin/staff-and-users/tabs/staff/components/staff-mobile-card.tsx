@@ -19,7 +19,7 @@ import {
   getStatusLabel,
   type StaffMember,
 } from "../../../data";
-import { StaffDetailsDrawer } from "./staff-details/dialog";
+import { StaffDetailsDrawer } from "./staff-details/drawer";
 import { useAuthStore } from "@/store/auth-store";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useConfirmStore } from "@/store/confirm-store";
@@ -113,7 +113,7 @@ export function StaffMobileCard({ staff }: StaffMobileCardProps) {
           >
             {getStatusLabel(staff.status)}
           </Badge>
-          <StaffDetailsDrawer staff={staff} open={open} onOpenChange={({ open }) => setOpen(open)}>
+          <StaffDetailsDrawer staffId={staff.id} open={open} onOpenChange={({ open }) => setOpen(open)}>
             <Menu.Root>
               <Menu.Trigger asChild>
                 <IconButton
