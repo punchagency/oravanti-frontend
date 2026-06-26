@@ -1,7 +1,9 @@
 import type { TeamListDTO, UpdateTeamPayload } from "@/api/organization";
+import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
+import type { PracticeAreaTreeNode } from "@/api/auth";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useTeamDetails } from "@/hooks/use-team-details";
-import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
 import { useStaffList } from "@/hooks/use-staff-list";
 import { useUpdateTeam } from "@/hooks/use-update-team";
 import {
@@ -13,10 +15,10 @@ import {
   Dialog,
   Field,
   Flex,
-  Grid,
   HStack,
   Input,
   Portal,
+  SimpleGrid,
   Spinner,
   Text,
   Textarea,
@@ -32,7 +34,7 @@ interface EditTeamForm {
   description: string;
   maxCaseload: string;
   leadId: string;
-  practiceAreaIds: string[];
+  practiceAreas: string[];
 }
 
 interface EditTeamDialogProps {
@@ -44,10 +46,23 @@ interface EditTeamDialogProps {
 export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps) {
   const updateTeam = useUpdateTeam();
   const { data: fullTeam, isLoading } = useTeamDetails(open ? team.id : null);
-  const { data: practiceAreas } = usePublicPracticeAreas();
+  const treeDataQuery = usePracticeAreaTreeData();
+  const treeData = treeDataQuery.data;
+  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
   const { data: allStaffData } = useStaffList({ limit: 200 });
 
-  const practiceAreasList = useMemo(() => practiceAreas ?? [], [practiceAreas]);
+  const collectLeafIds = (nodes: PracticeAreaTreeNode[]): string[] => {
+    const ids: string[] = [];
+    for (const n of nodes) {
+      if (!n.children || n.children.length === 0) {
+        ids.push(n.id);
+      } else {
+        ids.push(...collectLeafIds(n.children));
+      }
+    }
+    return ids;
+  };
+
   const attorneys = useMemo(
     () =>
       (allStaffData?.data ?? []).filter(
@@ -55,6 +70,8 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
       ),
     [allStaffData],
   );
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const {
     register,
@@ -68,19 +85,21 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
       description: "",
       maxCaseload: "",
       leadId: "",
-      practiceAreaIds: [],
     },
     mode: "onChange",
   });
 
   useEffect(() => {
     if (open && fullTeam) {
+      setSelectedIds([
+        ...(fullTeam.caseTypes ?? []).map((ct) => ct.id),
+      ]);
       reset({
         name: fullTeam.name,
         description: fullTeam.description ?? "",
         maxCaseload: String(fullTeam.maxCaseload),
         leadId: fullTeam.leadId ?? "",
-        practiceAreaIds: fullTeam.practiceAreas.map((p) => p.id),
+        practiceAreas: fullTeam.practiceAreas.map((p) => p.id),
       });
     }
   }, [open, fullTeam, reset]);
@@ -93,7 +112,7 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
         ? parseInt(data.maxCaseload, 10)
         : undefined,
       leadId: data.leadId || null,
-      practiceAreaIds: data.practiceAreaIds,
+      caseTypeIds: selectedIds.length > 0 ? selectedIds : undefined,
     };
 
     await updateTeam.mutateAsync({ teamId: team.id, data: payload });
@@ -103,7 +122,19 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={(details) => onOpenChange(details.open)}
+      onOpenChange={(details) => {
+        if (!details.open) {
+          reset({
+            name: "",
+            description: "",
+            maxCaseload: "",
+            leadId: "",
+            practiceAreas: [],
+          });
+          setSelectedIds([]);
+        }
+        onOpenChange(details.open);
+      }}
       placement="center"
     >
       <Portal>
@@ -194,57 +225,144 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
                   />
                 </Field.Root>
 
-                <Field.Root>
-                  <Field.Label fontSize="11px" fontWeight="700" color="fg.muted">
-                    PRACTICE AREAS
-                  </Field.Label>
-                  <Text fontSize="12px" color="fg.subtle" mb={2}>
-                    Select the practice areas this team will handle.
-                  </Text>
-                  <Controller
-                    name="practiceAreaIds"
-                    control={control}
-                    render={({ field }) => (
-                      <Grid
-                        templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-                        w="full"
-                        gap="8px"
-                        maxH="220px"
-                        overflowY="auto"
-                        pr={1}
-                      >
-                        {practiceAreasList.map((practiceArea) => {
-                          const isSelected = field.value?.includes(practiceArea.id);
-                          return (
-                            <Flex
-                              key={practiceArea.id}
-                              align="center"
-                              gap={3}
-                              px={4}
-                              py={3}
-                              borderRadius="md"
-                              border="1px solid"
-                              borderColor={isSelected ? "brand.solid" : "border.muted"}
-                              cursor="pointer"
-                              _hover={{ borderColor: isSelected ? "brand.solid" : "border" }}
-                              onClick={() => {
-                                const next = isSelected
-                                  ? field.value.filter((id) => id !== practiceArea.id)
-                                  : [...(field.value || []), practiceArea.id];
-                                field.onChange(next);
-                              }}
-                              transition="all 0.15s"
-                            >
-                              <Text fontSize="13px" fontWeight="600" color="fg.default">
-                                {practiceArea.name}
-                              </Text>
-                            </Flex>
-                          );
-                        })}
-                      </Grid>
-                    )}
-                  />
-                </Field.Root>
+                <Controller
+                  name="practiceAreas"
+                  control={control}
+                  render={({ field }) => (
+                    <>
+                      <Field.Root>
+                        <Field.Label
+                          fontSize="11px"
+                          fontWeight="700"
+                          color="fg.muted"
+                        >
+                          PRACTICE AREAS
+                        </Field.Label>
+                        <Text fontSize="12px" color="fg.subtle" mb={2}>
+                          Select the practice areas this team will handle.
+                        </Text>
+                        <SimpleGrid
+                          columns={{ base: 1, sm: 2 }}
+                          w="full"
+                          gap="8px"
+                        >
+                          {practiceAreaTreeNodes.map((practiceArea) => {
+                            const isSelected = field.value?.includes(
+                              practiceArea.id,
+                            );
+                            return (
+                              <Flex
+                                key={practiceArea.id}
+                                align="center"
+                                justify="space-between"
+                                gap={3}
+                                px={4}
+                                py={3}
+                                borderRadius="md"
+                                border="1px solid"
+                                borderColor={
+                                  isSelected
+                                    ? "brand.solid"
+                                    : "border.muted"
+                                }
+                                cursor="pointer"
+                                _hover={{
+                                  borderColor: "brand.solid",
+                                }}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    const next = field.value.filter(
+                                      (id) => id !== practiceArea.id,
+                                    );
+                                    field.onChange(next);
+                                    const leafIds = collectLeafIds(
+                                      practiceArea.children ?? [],
+                                    );
+                                    setSelectedIds((prev) =>
+                                      prev.filter((id) => !leafIds.includes(id)),
+                                    );
+                                  } else {
+                                    field.onChange([
+                                      ...(field.value || []),
+                                      practiceArea.id,
+                                    ]);
+                                  }
+                                }}
+                                transition="all 0.15s"
+                              >
+                                <Text
+                                  fontSize="13px"
+                                  fontWeight="600"
+                                  color="fg.default"
+                                >
+                                  {practiceArea.name}
+                                </Text>
+                                <Box
+                                  w="4"
+                                  h="4"
+                                  borderRadius="sm"
+                                  borderWidth="1px"
+                                  borderColor={
+                                    isSelected
+                                      ? "brand.solid"
+                                      : "border.emphasized"
+                                  }
+                                  bg={
+                                    isSelected
+                                      ? "brand.solid"
+                                      : "transparent"
+                                  }
+                                  display="flex"
+                                  alignItems="center"
+                                  justifyContent="center"
+                                >
+                                  {isSelected && (
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke={
+                                        isSelected ? "black" : "none"
+                                      }
+                                      strokeWidth="4"
+                                      width="10px"
+                                      height="10px"
+                                    >
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                  )}
+                                </Box>
+                              </Flex>
+                            );
+                          })}
+                        </SimpleGrid>
+                      </Field.Root>
+                      {field.value.length > 0 && (
+                        <PracticeAreaTreeView
+                          practiceAreaTreeNodes={practiceAreaTreeNodes}
+                          selectedPracticeAreaIds={field.value}
+                          selectedIds={selectedIds}
+                          onSelectionChange={setSelectedIds}
+                          onRemovePracticeArea={(id) => {
+                            field.onChange(
+                              field.value.filter((paId) => paId !== id),
+                            );
+                            const pa = practiceAreaTreeNodes.find(
+                              (n) => n.id === id,
+                            );
+                            if (pa) {
+                              const leafIds = collectLeafIds(
+                                pa.children ?? [],
+                              );
+                              setSelectedIds((prev) =>
+                                prev.filter((sid) => !leafIds.includes(sid)),
+                              );
+                            }
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
+                />
 
                 <Field.Root>
                   <Field.Label fontSize="11px" fontWeight="700" color="fg.muted">

@@ -1,27 +1,93 @@
+import type { PracticeAreaTreeNode } from "@/api/auth";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
-import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import {
+  Box,
+  createTreeCollection,
   Flex,
   HStack,
+  ScrollArea,
   Separator,
   Stack,
   Tag,
   Text,
+  TreeView,
   VStack,
 } from "@chakra-ui/react";
+import { ChevronRight, FileText, FolderOpen } from "lucide-react";
+import { useMemo } from "react";
 import type { CreateTeamFormValues } from "./types";
+
+function collectLeafIds(nodes: PracticeAreaTreeNode[]): string[] {
+  const ids: string[] = [];
+  for (const node of nodes) {
+    if (!node.children || node.children.length === 0) {
+      ids.push(node.id);
+    } else {
+      ids.push(...collectLeafIds(node.children));
+    }
+  }
+  return ids;
+}
+
+function getPracticeAreasFromCaseTypeIds(
+  nodes: PracticeAreaTreeNode[],
+  selectedIds: Set<string>,
+): PracticeAreaTreeNode[] {
+  const result: PracticeAreaTreeNode[] = [];
+  for (const pa of nodes) {
+    const leafIds = collectLeafIds(pa.children ?? []);
+    if (!leafIds.some((id) => selectedIds.has(id))) continue;
+    const filteredChildren = filterChildren(pa.children ?? [], selectedIds);
+    result.push({
+      ...pa,
+      children: filteredChildren.length > 0 ? filteredChildren : [],
+    });
+  }
+  return result;
+}
+
+function filterChildren(
+  nodes: PracticeAreaTreeNode[],
+  selectedIds: Set<string>,
+): PracticeAreaTreeNode[] {
+  const result: PracticeAreaTreeNode[] = [];
+  for (const node of nodes) {
+    if (!node.children || node.children.length === 0) {
+      if (selectedIds.has(node.id)) {
+        result.push(node);
+      }
+    } else {
+      const filtered = filterChildren(node.children, selectedIds);
+      if (filtered.length > 0) {
+        result.push({ ...node, children: filtered });
+      }
+    }
+  }
+  return result;
+}
 
 export function StepReview({
   formValues,
-  practiceAreasList,
+  practiceAreaNameLookup,
+  practiceAreaTreeNodes,
   allStaff,
   leadName,
+  selectedIds,
 }: {
   formValues: CreateTeamFormValues;
-  practiceAreasList: PublicPracticeArea[];
+  practiceAreaNameLookup: Record<string, string>;
+  practiceAreaTreeNodes: PracticeAreaTreeNode[];
   allStaff: StaffMemberDTO[];
   leadName: string | null;
+  selectedIds: string[];
 }) {
+  const idSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const selectedPracticeAreas = useMemo(
+    () => getPracticeAreasFromCaseTypeIds(practiceAreaTreeNodes, idSet),
+    [practiceAreaTreeNodes, idSet],
+  );
+
   return (
     <VStack align="stretch" gap="20px">
       <Stack
@@ -47,7 +113,7 @@ export function StepReview({
             TEAM NAME
           </Text>
           <Text fontSize="14px" fontWeight="700" color="fg.default">
-            {formValues.teamName || "—"}
+            {formValues.teamName || "\u2014"}
           </Text>
         </Flex>
 
@@ -86,36 +152,60 @@ export function StepReview({
           >
             PRACTICE AREAS
           </Text>
-          <HStack
-            gap="6px"
-            flexWrap="wrap"
-            justifyContent="flex-end"
-          >
-            {formValues.practiceAreas?.length > 0 ? (
-              formValues.practiceAreas.map((practiceAreaId) => {
-                const practiceArea = practiceAreasList.find(
-                  (area) => area.id === practiceAreaId,
-                );
-                return (
-                  <Tag.Root
-                    key={practiceAreaId}
-                    colorPalette="brand"
-                    variant="subtle"
-                    size="sm"
-                  >
-                    <Tag.Label>
-                      {practiceArea?.name || practiceAreaId}
-                    </Tag.Label>
-                  </Tag.Root>
-                );
-              })
+          <HStack gap="6px" flexWrap="wrap" justifyContent="flex-end">
+            {selectedPracticeAreas.length > 0 ? (
+              selectedPracticeAreas.map((pa) => (
+                <Tag.Root
+                  key={pa.id}
+                  colorPalette="brand"
+                  variant="subtle"
+                  size="sm"
+                >
+                  <Tag.Label>{pa.name}</Tag.Label>
+                </Tag.Root>
+              ))
             ) : (
               <Text fontSize="14px" color="fg.subtle">
-                —
+                \u2014
               </Text>
             )}
           </HStack>
         </Flex>
+
+        {selectedPracticeAreas.length > 0 && (
+          <>
+            <Separator borderColor="border.muted" />
+            <Stack py="14px" gap="12px">
+              <Text
+                fontSize="11px"
+                fontWeight="700"
+                color="fg.subtle"
+                letterSpacing="0.05em"
+              >
+                SELECTED PRACTICE AREAS
+              </Text>
+              <ScrollArea.Root maxHeight="240px">
+                <ScrollArea.Viewport>
+                  <ScrollArea.Content>
+                    <Stack gap="8px">
+                      {selectedPracticeAreas.map((pa) => (
+                        <PracticeAreaTreeViewer
+                          key={pa.id}
+                          practiceArea={pa}
+                          nameLookup={practiceAreaNameLookup}
+                        />
+                      ))}
+                    </Stack>
+                  </ScrollArea.Content>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar>
+                  <ScrollArea.Thumb />
+                </ScrollArea.Scrollbar>
+                <ScrollArea.Corner />
+              </ScrollArea.Root>
+            </Stack>
+          </>
+        )}
 
         <Separator borderColor="border.muted" />
 
@@ -180,13 +270,74 @@ export function StepReview({
 
       <HStack gap="8px" align="start" px="4px">
         <Text fontSize="13px" color="fg.subtle" mt="1px">
-          ⓘ
+          \u24d8
         </Text>
         <Text fontSize="12px" color="fg.subtle" lineHeight="1.5">
-          The team lead will be notified. Each member's individual
-          caseload cap still applies.
+          The team lead will be notified. Each member's individual caseload cap
+          still applies.
         </Text>
       </HStack>
     </VStack>
+  );
+}
+
+function PracticeAreaTreeViewer({
+  practiceArea: pa,
+  nameLookup,
+}: {
+  practiceArea: PracticeAreaTreeNode;
+  nameLookup: Record<string, string>;
+}) {
+  const collection = useMemo(
+    () =>
+      createTreeCollection<PracticeAreaTreeNode>({
+        nodeToValue: (n) => n.id,
+        nodeToString: (n) => nameLookup[n.id] ?? n.name,
+        nodeToChildren: (n) => n.children ?? [],
+        rootNode: pa,
+      }),
+    [pa, nameLookup],
+  );
+
+  return (
+    <Box>
+      <Text fontSize="13px" fontWeight="600" color="fg.default" mb="6px">
+        {pa.name}
+      </Text>
+      <Box
+        borderWidth="1px"
+        borderColor="border.muted"
+        borderRadius="md"
+        p={3}
+      >
+        <TreeView.Root collection={collection} defaultExpandedValue={[pa.id]}>
+          <TreeView.Tree p="6px">
+            <TreeView.Node
+              indentGuide={<TreeView.BranchIndentGuide />}
+              render={({ nodeState, node }) =>
+                nodeState.isBranch ? (
+                    <TreeView.BranchControl role="none">
+                      <TreeView.BranchIndicator>
+                        <ChevronRight />
+                      </TreeView.BranchIndicator>
+                      <FolderOpen size={14} />
+                      <TreeView.BranchText fontSize="sm" ml={1}>
+                        {node.name}
+                      </TreeView.BranchText>
+                    </TreeView.BranchControl>
+                  ) : (
+                    <TreeView.Item>
+                      <FileText size={14} />
+                      <TreeView.ItemText fontSize="sm" ml={2}>
+                        {node.name}
+                      </TreeView.ItemText>
+                    </TreeView.Item>
+                )
+              }
+            />
+          </TreeView.Tree>
+        </TreeView.Root>
+      </Box>
+    </Box>
   );
 }
