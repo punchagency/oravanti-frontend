@@ -182,7 +182,6 @@ export default function Step0SourcePage() {
                     <Box
                       key={platform.id}
                       as="button"
-                      type="button"
                       onClick={() => setValue("referralSource", platform.id, { shouldValidate: true })}
                       w="full"
                       textAlign="left"

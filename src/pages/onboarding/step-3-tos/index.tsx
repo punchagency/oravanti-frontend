@@ -239,7 +239,7 @@ This agreement shall be governed by the laws of the State of Delaware.`}
                   name="accepted"
                   render={({ field }) => (
                     <Checkbox.Root
-                      checked={field.value}
+                      checked={field.value ?? false}
                       onCheckedChange={({ checked }) =>
                         field.onChange(checked)
                       }

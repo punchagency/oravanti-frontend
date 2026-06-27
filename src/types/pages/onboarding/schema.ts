@@ -32,7 +32,7 @@ export type FirmInformationInput = z.infer<typeof firmInformationSchema>;
 
 export const tosAcceptanceSchema = z.object({
   accepted: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms to continue" }),
+    message: "You must accept the terms to continue",
   }),
 });
 
