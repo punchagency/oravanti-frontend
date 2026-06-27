@@ -362,7 +362,7 @@ export function LeadInboxView() {
       {total > 0 && (
         <PaginationControls
           total={total}
-          page={page}
+          currentPage={page}
           limit={limit}
           onPageChange={setPage}
           onLimitChange={handleLimitChange}
