@@ -4,11 +4,14 @@ import {
   Flex,
   HStack,
   Input,
+  Portal,
+  Select,
   Skeleton,
   Table,
   Text,
   VStack,
   chakra,
+  createListCollection,
 } from "@chakra-ui/react";
 import { Archive, Search, ShieldCheck, X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -19,6 +22,7 @@ import {
   OutlineButton,
   PracticePill,
 } from "../../../../components/ui/intake-ui";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   sourceLabels,
   sourceValues,
@@ -110,9 +114,6 @@ export function LeadInboxView() {
   }
 
   const total = data?.pagination?.total ?? 0;
-  const totalPages = data?.pagination?.totalPages ?? 1;
-  const hasNextPage = data?.pagination?.hasNextPage ?? false;
-  const hasPreviousPage = data?.pagination?.hasPreviousPage ?? false;
 
   return (
     <>
@@ -126,7 +127,7 @@ export function LeadInboxView() {
         wrap="wrap"
         aria-label="Lead inbox controls"
       >
-        <HStack gap="10px" wrap="wrap">
+        <HStack gap="10px">
           <HStack
             gap="8px"
             h="34px"
@@ -167,32 +168,11 @@ export function LeadInboxView() {
             options={["All statuses", ...leadStatuses]}
           />
         </HStack>
-        <HStack gap="10px">
-          <chakra.select
-            aria-label="Rows per page"
-            value={limit}
-            onChange={(e) => handleLimitChange(Number(e.currentTarget.value))}
-            h="34px"
-            px="10px"
-            border="1px solid"
-            borderColor="border"
-            borderRadius="7px"
-            bg="bg"
-            color="fg"
-            fontSize="13px"
-          >
-            {PAGE_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n} per page
-              </option>
-            ))}
-          </chakra.select>
-          <MutedText fontSize="11px">
-            {isLoading
-              ? "Loading…"
-              : `${total} ${total === 1 ? "lead" : "leads"}`}
-          </MutedText>
-        </HStack>
+        <MutedText fontSize="11px">
+          {isLoading
+            ? "Loading…"
+            : `${total} ${total === 1 ? "lead" : "leads"}`}
+        </MutedText>
       </Flex>
 
       <Box
@@ -379,30 +359,15 @@ export function LeadInboxView() {
         </Table.Root>
       </Box>
 
-      {totalPages > 1 && (
-        <Flex align="center" justify="space-between" mt="16px" px="2px">
-          <OutlineButton
-            h="32px"
-            minH="32px"
-            fontSize="12px"
-            disabled={!hasPreviousPage}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </OutlineButton>
-          <MutedText fontSize="12px">
-            Page {page} of {totalPages}
-          </MutedText>
-          <OutlineButton
-            h="32px"
-            minH="32px"
-            fontSize="12px"
-            disabled={!hasNextPage}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </OutlineButton>
-        </Flex>
+      {total > 0 && (
+        <PaginationControls
+          total={total}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={handleLimitChange}
+          pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+        />
       )}
 
       <LeadReviewDrawer
@@ -664,25 +629,45 @@ function FilterSelect({
   onChange: (value: string) => void;
   options: readonly string[];
 }) {
+  const collection = useMemo(
+    () =>
+      createListCollection({
+        items: options.map((option) => ({ label: option, value: option })),
+      }),
+    [options],
+  );
+
   return (
-    <chakra.select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(event) => onChange(event.currentTarget.value)}
-      h="34px"
+    <Select.Root
+      collection={collection}
+      size="sm"
       minW="156px"
-      px="10px"
-      border="1px solid"
-      borderColor="border"
-      borderRadius="7px"
-      bg="bg"
-      color="fg"
-      fontSize="13px"
+      value={[value]}
+      onValueChange={(event) => onChange(event.value[0] ?? value)}
+      aria-label={ariaLabel}
     >
-      {options.map((option) => (
-        <option key={option}>{option}</option>
-      ))}
-    </chakra.select>
+      <Select.HiddenSelect />
+      <Select.Control>
+        <Select.Trigger bg="bg" borderColor="border" rounded="7px">
+          <Select.ValueText />
+        </Select.Trigger>
+        <Select.IndicatorGroup>
+          <Select.Indicator />
+        </Select.IndicatorGroup>
+      </Select.Control>
+      <Portal>
+        <Select.Positioner>
+          <Select.Content>
+            {collection.items.map((item) => (
+              <Select.Item item={item} key={item.value}>
+                <Select.ItemText>{item.label}</Select.ItemText>
+                <Select.ItemIndicator />
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+      </Portal>
+    </Select.Root>
   );
 }
 

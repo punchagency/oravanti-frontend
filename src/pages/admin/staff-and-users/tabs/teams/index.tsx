@@ -1,7 +1,7 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download, UserPlus } from "lucide-react";
-import { PaginationControls } from "../../components/pagination-controls";
 import { CreateTeamDialog } from "./components/create-team/dialog";
 import { TeamsDesktopList } from "./components/teams-desktop-list";
 import { TeamsDesktopSkeleton } from "./components/teams-desktop-skeleton";

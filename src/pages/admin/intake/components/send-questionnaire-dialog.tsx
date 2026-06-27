@@ -13,6 +13,8 @@ import {
   ChevronDown,
   Info,
   Lock,
+  Mail,
+  MessageSquare,
   Minus,
   Plus,
   Send,
@@ -20,12 +22,17 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import type {
   CustomDocumentInput,
   CustomQuestionInput,
   SendQuestionnaireConfig,
 } from "@/api/questionnaires";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { FormSelect } from "@/components/ui/form-select";
 import {
   useCaseTypeQuestionnairePreview,
   useEligibleLeads,
@@ -38,6 +45,7 @@ import {
   MutedText,
   OutlineButton,
 } from "../../../../components/ui/intake-ui";
+import { NotifyChip } from "@/components/ui/notify-chip";
 
 type WizardStep = 1 | 2 | 3;
 type Channel = "email" | "sms";
@@ -58,6 +66,22 @@ const fieldStyles = {
 type DraftCustomQuestion = CustomQuestionInput & { label: string };
 type DraftCustomDoc = CustomDocumentInput & { label: string };
 
+const recipientSchema = z.object({
+  leadId: z.string().min(1, "Select a lead"),
+  channels: z
+    .array(z.enum(["email", "sms"]))
+    .min(1, "Choose at least one delivery channel"),
+  reminder: z.enum(["2", "3", "5", "7", "never"]),
+});
+
+type RecipientForm = z.infer<typeof recipientSchema>;
+
+const RECIPIENT_DEFAULTS: RecipientForm = {
+  leadId: "",
+  channels: ["email", "sms"],
+  reminder: "3",
+};
+
 export function SendQuestionnaireDialog({
   open,
   onOpenChange,
@@ -68,9 +92,21 @@ export function SendQuestionnaireDialog({
   presetLeadId?: string | null;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
-  const [leadId, setLeadId] = useState("");
-  const [channels, setChannels] = useState<Channel[]>(["email", "sms"]);
-  const [reminder, setReminder] = useState<ReminderOption>("3");
+  const {
+    control,
+    setValue,
+    reset: resetForm,
+    trigger,
+    handleSubmit,
+  } = useForm<RecipientForm>({
+    resolver: zodResolver(recipientSchema),
+    defaultValues: RECIPIENT_DEFAULTS,
+    mode: "onChange",
+  });
+  // const { leadId, channels, reminder } = useWatch({ control,  });
+  const leadId = useWatch({ control, name: "leadId" });
+  const channels = useWatch({ control, name: "channels" });
+  const reminder = useWatch({ control, name: "reminder" });
   const [customQuestions, setCustomQuestions] = useState<DraftCustomQuestion[]>(
     [],
   );
@@ -82,7 +118,7 @@ export function SendQuestionnaireDialog({
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setLeadId(presetLeadId ?? "");
+    if (open) resetForm({ ...RECIPIENT_DEFAULTS, leadId: presetLeadId ?? "" });
   }
 
   const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
@@ -94,7 +130,9 @@ export function SendQuestionnaireDialog({
   const { data: preview } = useCaseTypeQuestionnairePreview(
     selectedLead?.caseTypeId ?? null,
   );
-  const previewQuestions = (preview?.sections ?? []).flatMap((s) => s.questions);
+  const previewQuestions = (preview?.sections ?? []).flatMap(
+    (s) => s.questions,
+  );
   const standardCount = previewQuestions.filter(
     (q) => q.isLocked && q.type !== "file_upload",
   ).length;
@@ -104,9 +142,7 @@ export function SendQuestionnaireDialog({
 
   function reset() {
     setStep(1);
-    setLeadId("");
-    setChannels(["email", "sms"]);
-    setReminder("3");
+    resetForm(RECIPIENT_DEFAULTS);
     setCustomQuestions([]);
     setCustomDocs([]);
   }
@@ -117,14 +153,13 @@ export function SendQuestionnaireDialog({
     setTimeout(reset, 200);
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (step === 1) {
-      if (!leadId) {
-        toast.error("Select a lead to continue");
-        return;
-      }
-      if (channels.length === 0) {
-        toast.error("Choose at least one delivery channel");
+      const ok = await trigger(["leadId", "channels"]);
+      if (!ok) {
+        if (!leadId) toast.error("Select a lead to continue");
+        else if (channels.length === 0)
+          toast.error("Choose at least one delivery channel");
         return;
       }
       setStep(2);
@@ -133,14 +168,14 @@ export function SendQuestionnaireDialog({
     if (step === 2) setStep(3);
   }
 
-  function handleSend() {
+  const handleSend = handleSubmit((data) => {
     const config: SendQuestionnaireConfig = {
-      deliveryChannels: channels,
+      deliveryChannels: data.channels,
       language: "english",
       autoReminderDays:
-        reminder === "never"
+        data.reminder === "never"
           ? null
-          : (Number(reminder) as 2 | 3 | 5 | 7),
+          : (Number(data.reminder) as 2 | 3 | 5 | 7),
       customQuestions: customQuestions
         .filter((q) => q.label.trim())
         .map((q) => ({ label: q.label.trim(), saveToFirm: q.saveToFirm })),
@@ -148,8 +183,8 @@ export function SendQuestionnaireDialog({
         .filter((d) => d.label.trim())
         .map((d) => ({ label: d.label.trim(), saveToFirm: d.saveToFirm })),
     };
-    send.mutate({ leadId, config }, { onSuccess: close });
-  }
+    send.mutate({ leadId: data.leadId, config }, { onSuccess: close });
+  });
 
   return (
     <Dialog.Root
@@ -220,7 +255,7 @@ export function SendQuestionnaireDialog({
               <StepProgress step={step} />
             </Box>
 
-            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="20px">
+            <Box flex="1" minH="0" px="24px" pb="20px">
               {step === 1 ? (
                 <RecipientStep
                   leads={leads}
@@ -229,15 +264,21 @@ export function SendQuestionnaireDialog({
                   matterType={selectedLead?.caseTypeName ?? null}
                   channels={channels}
                   reminder={reminder}
-                  onLeadChange={setLeadId}
+                  onLeadChange={(id) =>
+                    setValue("leadId", id, { shouldValidate: true })
+                  }
                   onToggleChannel={(c) =>
-                    setChannels((prev) =>
-                      prev.includes(c)
-                        ? prev.filter((x) => x !== c)
-                        : [...prev, c],
+                    setValue(
+                      "channels",
+                      channels.includes(c)
+                        ? channels.filter((x) => x !== c)
+                        : [...channels, c],
+                      { shouldValidate: true },
                     )
                   }
-                  onReminderChange={setReminder}
+                  onReminderChange={(r) =>
+                    setValue("reminder", r, { shouldValidate: true })
+                  }
                 />
               ) : null}
               {step === 2 ? (
@@ -343,7 +384,12 @@ function RecipientStep({
   onToggleChannel,
   onReminderChange,
 }: {
-  leads: { id: string; name: string; caseTypeName: string | null }[];
+  leads: {
+    id: string;
+    name: string;
+    email: string;
+    caseTypeName: string | null;
+  }[];
   leadsLoading: boolean;
   leadId: string;
   matterType: string | null;
@@ -369,27 +415,26 @@ function RecipientStep({
       >
         <Info size={13} />
         <Box>
-          Only leads who have passed conflict check (ABA 1.7/1.9) are eligible to
-          receive a questionnaire. Conflicted leads are excluded from this list.
+          Only leads who have passed conflict check (ABA 1.7/1.9) are eligible
+          to receive a questionnaire. Conflicted leads are excluded from this
+          list.
         </Box>
       </HStack>
 
       <Field label="Send to (conflict-cleared leads only)">
-        <chakra.select
-          {...fieldStyles}
+        <SearchableSelect
+          ariaLabel="Send questionnaire to lead"
           value={leadId}
-          onChange={(e) => onLeadChange(e.target.value)}
-        >
-          <option value="">
-            {leadsLoading ? "Loading…" : "— Select a cleared lead —"}
-          </option>
-          {leads.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-              {l.caseTypeName ? ` — ${l.caseTypeName}` : ""}
-            </option>
-          ))}
-        </chakra.select>
+          onChange={onLeadChange}
+          placeholder={leadsLoading ? "Loading…" : "— Select a cleared lead —"}
+          searchPlaceholder="Search by name or email…"
+          emptyText="No leads match your search"
+          options={leads.map((l) => ({
+            value: l.id,
+            label: l.caseTypeName ? `${l.name} — ${l.caseTypeName}` : l.name,
+            sublabel: l.email,
+          }))}
+        />
       </Field>
 
       {leadId ? (
@@ -406,50 +451,50 @@ function RecipientStep({
       ) : null}
 
       <Field label="Send questionnaire in">
-        <chakra.select {...fieldStyles} value="english" disabled>
-          <option value="english">English</option>
-        </chakra.select>
+        <FormSelect
+          ariaLabel="Send questionnaire in"
+          value="english"
+          onChange={() => {}}
+          disabled
+          options={[{ value: "english", label: "English" }]}
+        />
       </Field>
 
       <Field label="Deliver via">
         <HStack gap="8px">
-          {(["email", "sms"] as Channel[]).map((c) => {
-            const active = channels.includes(c);
+          {[
+            { type: "email", icon: Mail },
+            { type: "sms", icon: MessageSquare },
+          ].map((c) => {
+            const { type, icon: Icon } = c;
+            const active = channels.includes(type as Channel);
             return (
-              <chakra.button
-                key={c}
-                type="button"
-                onClick={() => onToggleChannel(c)}
-                px="8px"
-                h="24px"
-                borderRadius="999px"
-                border="1px solid"
-                borderColor={active ? "brand.solid" : "border"}
-                bg={active ? "brand.solid" : "bg"}
-                color={active ? "brand.fg" : "fg.muted"}
-                fontSize="12px"
-                fontWeight="500"
-                textTransform="capitalize"
+              <NotifyChip
+                key={c.type}
+                active={active}
+                onClick={() => onToggleChannel(type as Channel)}
+                icon={<Icon size={12} />}
               >
-                {c === "sms" ? "SMS" : "Email"}
-              </chakra.button>
+                {type === "sms" ? "SMS" : "Email"}
+              </NotifyChip>
             );
           })}
         </HStack>
       </Field>
 
       <Field label="Auto-reminder if not completed">
-        <chakra.select
-          {...fieldStyles}
+        <FormSelect
+          ariaLabel="Auto-reminder if not completed"
           value={reminder}
-          onChange={(e) => onReminderChange(e.target.value as ReminderOption)}
-        >
-          <option value="2">After 2 days</option>
-          <option value="3">After 3 days</option>
-          <option value="5">After 5 days</option>
-          <option value="7">After 7 days</option>
-          <option value="never">Never</option>
-        </chakra.select>
+          onChange={(value) => onReminderChange(value as ReminderOption)}
+          options={[
+            { value: "2", label: "After 2 days" },
+            { value: "3", label: "After 3 days" },
+            { value: "5", label: "After 5 days" },
+            { value: "7", label: "After 7 days" },
+            { value: "never", label: "Never" },
+          ]}
+        />
       </Field>
     </Stack>
   );
@@ -465,7 +510,9 @@ function CustomizeStep({
   caseTypeId: string | null;
   customQuestions: DraftCustomQuestion[];
   customDocs: DraftCustomDoc[];
-  setCustomQuestions: React.Dispatch<React.SetStateAction<DraftCustomQuestion[]>>;
+  setCustomQuestions: React.Dispatch<
+    React.SetStateAction<DraftCustomQuestion[]>
+  >;
   setCustomDocs: React.Dispatch<React.SetStateAction<DraftCustomDoc[]>>;
 }) {
   const { data: preview } = useCaseTypeQuestionnairePreview(caseTypeId);
@@ -542,16 +589,28 @@ function CustomizeStep({
       >
         <Info size={13} />
         <Box>
-          Standard questions below are pre-defined for this matter type and cannot
-          be removed. You may add custom questions at the bottom of each section.
+          Standard questions below are pre-defined for this matter type and
+          cannot be removed. You may add custom questions at the bottom of each
+          section.
         </Box>
       </HStack>
 
       {/* Standard (locked) questions */}
       <Box>
-        <HStack gap="6px" mb="2px" color="fg" fontSize="12px" fontWeight="600" background="bg.muted" padding="1" paddingInline="2">
+        <HStack
+          gap="6px"
+          mb="2px"
+          color="fg"
+          fontSize="12px"
+          fontWeight="600"
+          background="bg.muted"
+          padding="1"
+          paddingInline="2"
+        >
           <Lock size={12} />
-          <Text color="fg.muted">Standard questions ({standardQuestions.length} — locked)</Text>
+          <Text color="fg.muted">
+            Standard questions ({standardQuestions.length} — locked)
+          </Text>
         </HStack>
         <Stack gap="2px">
           {visibleStandard.map((q) => (
@@ -633,10 +692,7 @@ function CustomizeStep({
             <Plus size={14} />
             Add custom question
           </DashedButton>
-          <DashedButton
-            milky
-            onClick={() => setShowBank((v) => !v)}
-          >
+          <DashedButton milky onClick={() => setShowBank((v) => !v)}>
             {showBank ? "Hide question snippets" : "Browse question snippets"}
           </DashedButton>
         </Stack>
@@ -732,7 +788,9 @@ function CustomizeStep({
                             <ChevronDown
                               size={14}
                               style={{
-                                transform: isOpen ? "rotate(180deg)" : undefined,
+                                transform: isOpen
+                                  ? "rotate(180deg)"
+                                  : undefined,
                                 transition: "transform 0.15s",
                               }}
                             />
@@ -826,7 +884,13 @@ function CustomizeStep({
       {/* Required documents (pre-defined) */}
       {requiredDocs.length ? (
         <Box>
-          <HStack gap="6px" mb="8px" color="fg" fontSize="12px" fontWeight="600">
+          <HStack
+            gap="6px"
+            mb="8px"
+            color="fg"
+            fontSize="12px"
+            fontWeight="600"
+          >
             <Lock size={12} />
             <Text>Required documents ({requiredDocs.length})</Text>
           </HStack>
@@ -1021,7 +1085,14 @@ function ReviewStep({
 
   return (
     <Stack gap="14px" pt="8px">
-      <Box border="1px solid" borderColor="border" borderRadius="9px" bg="bg.subtle" padding="10px" overflow="hidden">
+      <Box
+        border="1px solid"
+        borderColor="border"
+        borderRadius="9px"
+        bg="bg.subtle"
+        padding="10px"
+        overflow="hidden"
+      >
         {rows.map(([label, value], i) => (
           <Flex
             key={label}
@@ -1031,7 +1102,12 @@ function ReviewStep({
             borderTop={i === 0 ? undefined : "1px solid"}
             borderColor="border.subtle"
           >
-            <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase">
+            <Text
+              fontSize="10px"
+              fontWeight="600"
+              color="fg.muted"
+              textTransform="uppercase"
+            >
               {label}
             </Text>
             <Text fontSize="12px" color="fg">
@@ -1048,20 +1124,27 @@ function ReviewStep({
         borderColor="border.subtle"
         bg="bg"
       >
-        <Text fontSize="10px" fontWeight="600" color="fg.muted" textTransform="uppercase" mb="8px">
+        <Text
+          fontSize="10px"
+          fontWeight="600"
+          color="fg.muted"
+          textTransform="uppercase"
+          mb="8px"
+        >
           Client notification preview
         </Text>
         <Stack gap="10px">
           <MutedText fontSize="12px">Hi {lead?.name ?? "there"},</MutedText>
           <MutedText fontSize="12px">
             {firmName ?? "Your attorney's office"} has sent you an intake
-            questionnaire for your {lead?.caseTypeName ?? "matter"} matter. Please
-            complete the questionnaire via the secure link at your earliest
-            convenience.
+            questionnaire for your {lead?.caseTypeName ?? "matter"} matter.
+            Please complete the questionnaire via the secure link at your
+            earliest convenience.
           </MutedText>
           <MutedText fontSize="12px">
-            The questionnaire covers the information and documents we need to begin
-            work on your matter. All responses are confidential and secured.
+            The questionnaire covers the information and documents we need to
+            begin work on your matter. All responses are confidential and
+            secured.
           </MutedText>
           <MutedText fontSize="12px">
             If you have any questions, please contact your attorney directly.

@@ -1,6 +1,9 @@
 import { Box, chakra, Dialog, HStack, Stack, Text, Textarea } from "@chakra-ui/react";
 import { AlertTriangle, Send, Shield, ShieldAlert, X } from "lucide-react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import type {
   CaseDetail,
   ConflictCheck,
@@ -17,6 +20,7 @@ import {
 import {
   BrandButton,
   CardTitle,
+  IntakeListSkeleton,
   MutedText,
   OutlineButton,
   PracticePill,
@@ -80,7 +84,7 @@ export function ConflictCheckView() {
       </HStack>
 
       {isLoading ? (
-        <MutedText>Loading…</MutedText>
+        <IntakeListSkeleton />
       ) : leads.length === 0 ? (
         <MutedText>No leads pending conflict check.</MutedText>
       ) : (
@@ -349,13 +353,31 @@ function ResolutionDialog({
   onClose: () => void;
   onConfirm: (reviewNotes: string) => void;
 }) {
-  const [notes, setNotes] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<{ notes: string }>({
+    resolver: zodResolver(
+      z.object({
+        notes: z
+          .string()
+          .trim()
+          .min(1, "A note is required for the audit record"),
+      }),
+    ),
+    defaultValues: { notes: "" },
+    mode: "onTouched",
+  });
   const isDecline = mode === "decline";
 
   function handleClose() {
-    setNotes("");
+    reset({ notes: "" });
     onClose();
   }
+
+  const submit = handleSubmit((data) => onConfirm(data.notes.trim()));
 
   return (
     <Dialog.Root
@@ -450,8 +472,7 @@ function ResolutionDialog({
             ) : null}
 
             <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.currentTarget.value)}
+              {...register("notes")}
               placeholder={
                 isDecline
                   ? "Reason for terminating this lead…"
@@ -461,7 +482,7 @@ function ResolutionDialog({
               resize="vertical"
               fontSize="13px"
               border="1px solid"
-              borderColor="border"
+              borderColor={errors.notes ? "#ff2d55" : "border"}
               borderRadius="7px"
               bg="bg"
               color="fg"
@@ -473,6 +494,11 @@ function ResolutionDialog({
                 boxShadow: "0 0 0 1px var(--brand-cta)",
               }}
             />
+            {errors.notes ? (
+              <Text mt="6px" color="#c0392b" fontSize="11px">
+                {errors.notes.message}
+              </Text>
+            ) : null}
 
             <HStack gap="8px" justify="flex-end" mt="16px">
               <OutlineButton type="button" onClick={handleClose}>
@@ -483,17 +509,13 @@ function ResolutionDialog({
                   color="#b00020"
                   borderColor="#ffc3c8"
                   loading={isPending}
-                  disabled={!notes.trim() || isPending}
-                  onClick={() => onConfirm(notes.trim())}
+                  disabled={isPending}
+                  onClick={submit}
                 >
                   Decline lead
                 </OutlineButton>
               ) : (
-                <BrandButton
-                  loading={isPending}
-                  disabled={!notes.trim() || isPending}
-                  onClick={() => onConfirm(notes.trim())}
-                >
+                <BrandButton loading={isPending} disabled={isPending} onClick={submit}>
                   Clear &amp; approve
                 </BrandButton>
               )}
