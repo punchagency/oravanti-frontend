@@ -74,15 +74,15 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      firstName: "Samuel",
-      lastName: "Adekoya",
-      email: "samueladexx@gmail.com",
-      orgEmail: "samueladexx@gmail.com",
-      phone: "+2347060405558",
-      role: "admin",
+      firstName: "",
+      lastName: "",
+      email: "",
+      orgEmail: "",
+      phone: "",
+      role: "",
       teamIds: [],
       startDate: undefined,
-      maxCaseload: "7",
+      maxCaseload: "",
       practiceAreas: [],
     },
     mode: "onBlur",
@@ -92,7 +92,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
   const treeData = treeDataQuery.data;
   const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
   const teamsQuery = useTeamsList({ limit: 200 });
-  const teams = (teamsQuery.data?.data) ?? [];
+  const teams = teamsQuery.data?.data ?? [];
 
   const inviteMutation = useInviteStaff();
 
@@ -537,7 +537,9 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                                       practiceArea.children ?? [],
                                     );
                                     setSelectedIds((prev) =>
-                                      prev.filter((id) => !leafIds.includes(id)),
+                                      prev.filter(
+                                        (id) => !leafIds.includes(id),
+                                      ),
                                     );
                                   } else {
                                     field.onChange([
@@ -609,9 +611,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
                               (n) => n.id === id,
                             );
                             if (pa) {
-                              const leafIds = collectLeafIds(
-                                pa.children ?? [],
-                              );
+                              const leafIds = collectLeafIds(pa.children ?? []);
                               setSelectedIds((prev) =>
                                 prev.filter((sid) => !leafIds.includes(sid)),
                               );
