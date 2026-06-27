@@ -1,5 +1,5 @@
 import { ColorModeButton } from "@/components/ui/color-mode";
-import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-dialog";
+import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-staff/dialog";
 import { useSignOut } from "@/hooks/useSignOut";
 import {
   contextNavigation,

@@ -10,11 +10,18 @@ export const signUpWithEmail = async (data: {
 };
 
 export const signUpAsFirmAdmin = async (data: {
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
 }) => {
   return (
-    await API.post("/auth/sign-up/email?account_type=firm_admin", data)
+    await API.post("/auth/sign-up/email?account_type=firm_admin", {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      password: data.password,
+    })
   ).data;
 };
 
@@ -52,6 +59,25 @@ export const getPublicPracticeAreas = async (): Promise<
   return Array.isArray(response.data)
     ? response.data
     : (response.data?.data ?? []);
+};
+
+export interface PracticeAreaTreeNode {
+  id: string;
+  name: string;
+  children?: PracticeAreaTreeNode[];
+}
+
+export interface PracticeAreaTreeData {
+  practiceAreaTreeNodes: PracticeAreaTreeNode[];
+  practiceAreaIds: string[];
+  subcategoryIds: string[];
+  caseTypeIds: string[];
+  practiceAreaNameLookup: Record<string, string>;
+}
+
+export const getPracticeAreaTreeData = async (): Promise<PracticeAreaTreeData> => {
+  const response = await API.get("/practice-areas/tree-data");
+  return response.data;
 };
 
 const buildContractorSignupFormData = (data: ContractorSignupPayload) => {

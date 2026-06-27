@@ -1,5 +1,6 @@
+import type { PracticeAreaTreeNode } from "@/api/auth";
+import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
-import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import {
   Avatar,
   Box,
@@ -8,10 +9,10 @@ import {
   createListCollection,
   Field,
   Flex,
-  Grid,
   HStack,
   Input,
   Portal,
+  SimpleGrid,
   Text,
   Textarea,
   VStack,
@@ -21,6 +22,18 @@ import { useMemo, useState } from "react";
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import type { CreateTeamFormValues } from "./types";
+
+function collectLeafIds(nodes: PracticeAreaTreeNode[]): string[] {
+  const ids: string[] = [];
+  for (const n of nodes) {
+    if (!n.children || n.children.length === 0) {
+      ids.push(n.id);
+    } else {
+      ids.push(...collectLeafIds(n.children));
+    }
+  }
+  return ids;
+}
 
 function LeadStaffSearch({
   attorneys,
@@ -204,16 +217,20 @@ export function StepInfo({
   register,
   control,
   errors,
-  practiceAreasList,
+  practiceAreaTreeNodes,
   attorneys,
   setLeadName,
+  selectedIds,
+  onSelectedIdsChange,
 }: {
   register: UseFormRegister<CreateTeamFormValues>;
   control: Control<CreateTeamFormValues>;
   errors: FieldErrors<CreateTeamFormValues>;
-  practiceAreasList: PublicPracticeArea[];
+  practiceAreaTreeNodes: PracticeAreaTreeNode[];
   attorneys: StaffMemberDTO[];
   setLeadName: (name: string | null) => void;
+  selectedIds: string[];
+  onSelectedIdsChange: (ids: string[]) => void;
 }) {
   return (
     <VStack align="stretch" gap="16px">
@@ -253,68 +270,124 @@ export function StepInfo({
         />
       </Field.Root>
 
-      <Field.Root invalid={!!errors.practiceAreas}>
-        <Field.Label fontSize="11px" fontWeight="700" color="fg.muted">
-          PRACTICE AREAS
-        </Field.Label>
-        <Text fontSize="12px" color="fg.subtle" mb={2}>
-          Select the practice areas this team will handle.
-        </Text>
-        <Controller
-          name="practiceAreas"
-          control={control}
-          rules={{
-            validate: (v) => v.length > 0 || "Select at least one area",
-          }}
-          render={({ field }) => (
-            <Grid
-              templateColumns={{
-                base: "1fr",
-                md: "repeat(2, 1fr)",
-              }}
-              w="full"
-              gap="8px"
-              maxH="220px"
-              overflowY="auto"
-              pr={1}
-            >
-              {practiceAreasList.map((practiceArea) => {
-                const isSelected = field.value?.includes(practiceArea.id);
-                return (
-                  <Flex
-                    key={practiceArea.id}
-                    align="center"
-                    gap={3}
-                    px={4}
-                    py={3}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor={isSelected ? "brand.solid" : "border.muted"}
-                    cursor="pointer"
-                    _hover={{
-                      borderColor: isSelected ? "brand.solid" : "border",
-                    }}
-                    onClick={() => {
-                      const next = isSelected
-                        ? field.value.filter((id) => id !== practiceArea.id)
-                        : [...(field.value || []), practiceArea.id];
-                      field.onChange(next);
-                    }}
-                    transition="all 0.15s"
-                  >
-                    <Text fontSize="13px" fontWeight="600" color="fg.default">
-                      {practiceArea.name}
-                    </Text>
-                  </Flex>
-                );
-              })}
-            </Grid>
-          )}
-        />
-        {errors.practiceAreas && (
-          <Field.ErrorText>{errors.practiceAreas.message}</Field.ErrorText>
+      <Controller
+        name="practiceAreas"
+        control={control}
+        rules={{
+          validate: (v) =>
+            (v && v.length > 0) || "Select at least one practice area",
+        }}
+        render={({ field }) => (
+          <>
+            <Field.Root invalid={!!errors.practiceAreas}>
+              <Field.Label fontSize="11px" fontWeight="700" color="fg.muted">
+                PRACTICE AREAS
+              </Field.Label>
+              <Text fontSize="12px" color="fg.subtle" mb={2}>
+                Select the practice areas this team will handle.
+              </Text>
+              <SimpleGrid columns={{ base: 1, sm: 2 }} w="full" gap="8px">
+                {practiceAreaTreeNodes.map((practiceArea) => {
+                  const isSelected = field.value?.includes(practiceArea.id);
+                  return (
+                    <Flex
+                      key={practiceArea.id}
+                      align="center"
+                      justify="space-between"
+                      gap={3}
+                      px={4}
+                      py={3}
+                      borderRadius="md"
+                      border="1px solid"
+                      borderColor={isSelected ? "brand.solid" : "border.muted"}
+                      cursor="pointer"
+                      _hover={{
+                        borderColor: "brand.solid",
+                      }}
+                      onClick={() => {
+                        const next = isSelected
+                          ? field.value.filter((id) => id !== practiceArea.id)
+                          : [...(field.value || []), practiceArea.id];
+                        field.onChange(next);
+                        if (isSelected) {
+                          const leafIds = collectLeafIds(
+                            practiceArea.children ?? [],
+                          );
+                          onSelectedIdsChange(
+                            selectedIds.filter(
+                              (sid) => !leafIds.includes(sid),
+                            ),
+                          );
+                        }
+                      }}
+                      transition="all 0.15s"
+                    >
+                      <Text fontSize="13px" fontWeight="600" color="fg.default">
+                        {practiceArea.name}
+                      </Text>
+                      <Box
+                        w="4"
+                        h="4"
+                        borderRadius="sm"
+                        borderWidth="1px"
+                        borderColor={
+                          isSelected ? "brand.solid" : "border.emphasized"
+                        }
+                        bg={isSelected ? "brand.solid" : "transparent"}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        {isSelected && (
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke={isSelected ? "black" : "none"}
+                            strokeWidth="4"
+                            width="10px"
+                            height="10px"
+                          >
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                        )}
+                      </Box>
+                    </Flex>
+                  );
+                })}
+              </SimpleGrid>
+              {errors.practiceAreas && (
+                <Field.ErrorText>
+                  {errors.practiceAreas.message as string}
+                </Field.ErrorText>
+              )}
+            </Field.Root>
+            {field.value.length > 0 && (
+              <PracticeAreaTreeView
+                practiceAreaTreeNodes={practiceAreaTreeNodes}
+                selectedPracticeAreaIds={field.value}
+                selectedIds={selectedIds}
+                onSelectionChange={onSelectedIdsChange}
+                onRemovePracticeArea={(id) => {
+                  field.onChange(
+                    field.value.filter((paId) => paId !== id),
+                  );
+                  const pa = practiceAreaTreeNodes.find(
+                    (n) => n.id === id,
+                  );
+                  if (pa) {
+                    const leafIds = collectLeafIds(
+                      pa.children ?? [],
+                    );
+                    onSelectedIdsChange(
+                      selectedIds.filter((sid) => !leafIds.includes(sid)),
+                    );
+                  }
+                }}
+              />
+            )}
+          </>
         )}
-      </Field.Root>
+      />
 
       <Field.Root invalid={!!errors.teamLeadId}>
         <Field.Label fontSize="11px" fontWeight="700" color="fg.muted">

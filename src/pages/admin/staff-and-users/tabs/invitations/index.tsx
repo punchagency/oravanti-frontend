@@ -1,4 +1,5 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useCancelInvitation } from "@/hooks/useCancelInvitation";
@@ -26,8 +27,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Download, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
-import { PaginationControls } from "@/components/ui/pagination-controls";
-import { InviteStaffDialog } from "../../invite-dialog";
+import { InviteStaffDialog } from "../../invite-staff/dialog";
 import { InvitationMobileList } from "./components/invitation-mobile-list";
 import { InvitationStatusSummary } from "./components/invitation-status-summary";
 import { InvitationsSkeleton } from "./components/invitations-skeleton";
@@ -704,53 +704,57 @@ export default function Invitations() {
                             <Table.Cell py={4} whiteSpace="nowrap">
                               {!inv.team ? (
                                 <Text color="fg.subtle">None</Text>
-                              ) : (() => {
-                                const teams = inv.team.split(", ");
-                                return (
-                                  <HStack gap={1.5} wrap="wrap">
-                                    <Badge
-                                      size="sm"
-                                      borderRadius="full"
-                                      px={2.5}
-                                      py={0.5}
-                                      variant="subtle"
-                                      textTransform="none"
-                                      fontWeight="400"
-                                      bg="rgba(29, 158, 117, 0.12)"
-                                      color="#1D9E75"
-                                    >
-                                      {teams[0]}
-                                    </Badge>
-                                    {teams.length > 1 && (
-                                      <Tooltip.Root positioning={{ placement: "top" }}>
-                                        <Tooltip.Trigger asChild>
-                                          <Badge
-                                            size="sm"
-                                            variant="subtle"
-                                            textTransform="none"
-                                            fontWeight="500"
-                                            borderRadius="full"
-                                            px={2.5}
-                                            py={0.5}
-                                            bg="rgba(180, 178, 169, 0.2)"
-                                            color="fg.muted"
-                                            cursor="pointer"
-                                          >
-                                            +{teams.length - 1}
-                                          </Badge>
-                                        </Tooltip.Trigger>
-                                        <Portal>
-                                          <Tooltip.Positioner>
-                                            <Tooltip.Content>
-                                              {teams.slice(1).join(", ")}
-                                            </Tooltip.Content>
-                                          </Tooltip.Positioner>
-                                        </Portal>
-                                      </Tooltip.Root>
-                                    )}
-                                  </HStack>
-                                );
-                              })()}
+                              ) : (
+                                (() => {
+                                  const teams = inv.team.split(", ");
+                                  return (
+                                    <HStack gap={1.5} wrap="wrap">
+                                      <Badge
+                                        size="sm"
+                                        borderRadius="full"
+                                        px={2.5}
+                                        py={0.5}
+                                        variant="subtle"
+                                        textTransform="none"
+                                        fontWeight="400"
+                                        bg="rgba(29, 158, 117, 0.12)"
+                                        color="#1D9E75"
+                                      >
+                                        {teams[0]}
+                                      </Badge>
+                                      {teams.length > 1 && (
+                                        <Tooltip.Root
+                                          positioning={{ placement: "top" }}
+                                        >
+                                          <Tooltip.Trigger asChild>
+                                            <Badge
+                                              size="sm"
+                                              variant="subtle"
+                                              textTransform="none"
+                                              fontWeight="500"
+                                              borderRadius="full"
+                                              px={2.5}
+                                              py={0.5}
+                                              bg="rgba(180, 178, 169, 0.2)"
+                                              color="fg.muted"
+                                              cursor="pointer"
+                                            >
+                                              +{teams.length - 1}
+                                            </Badge>
+                                          </Tooltip.Trigger>
+                                          <Portal>
+                                            <Tooltip.Positioner>
+                                              <Tooltip.Content>
+                                                {teams.slice(1).join(", ")}
+                                              </Tooltip.Content>
+                                            </Tooltip.Positioner>
+                                          </Portal>
+                                        </Tooltip.Root>
+                                      )}
+                                    </HStack>
+                                  );
+                                })()
+                              )}
                             </Table.Cell>
 
                             <Table.Cell py={4} whiteSpace="nowrap">

@@ -67,7 +67,7 @@ export function AuthGuard() {
   }
 
   if (user.onboardingState !== "completed" && isAdmin) {
-    return <Navigate to="/onboarding/step-1-profile" replace />;
+    return <Navigate to="/onboarding/step-0-source" replace />;
   }
 
   if (isOnboarding) {

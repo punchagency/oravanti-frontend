@@ -34,7 +34,7 @@ function ActivityTimelineItem({
   );
 }
 
-export function StepActivity({ team }: { team: TeamDTO }) {
+export function Activity({ team }: { team: TeamDTO }) {
   return (
     <Box position="relative" pl={6} pt={2}>
       <Box

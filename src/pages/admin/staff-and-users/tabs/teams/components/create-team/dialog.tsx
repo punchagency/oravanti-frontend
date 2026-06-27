@@ -1,7 +1,7 @@
 import { type CreateTeamPayload } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useCreateTeam } from "@/hooks/use-create-team";
-import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
 import { useStaffList } from "@/hooks/use-staff-list";
 import {
   Box,
@@ -26,7 +26,9 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState<Step>("INFO");
 
   const createTeamMutation = useCreateTeam();
-  const { data: practiceAreas } = usePublicPracticeAreas();
+  const treeDataQuery = usePracticeAreaTreeData();
+  const treeData = treeDataQuery.data;
+  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
   const { data: allStaffData } = useStaffList({ limit: 200 });
 
   const attorneys = useMemo(
@@ -37,8 +39,8 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
     [allStaffData],
   );
   const allStaff = useMemo(() => allStaffData?.data ?? [], [allStaffData]);
-  const practiceAreasList = useMemo(() => practiceAreas ?? [], [practiceAreas]);
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [leadName, setLeadName] = useState<string | null>(null);
 
   const {
@@ -78,11 +80,10 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
     if (currentStep == "INFO") {
       const isValid = await trigger([
         "teamName",
-        "practiceAreas",
         "teamLeadId",
         "maxCaseload",
       ]);
-      if (isValid) {
+      if (isValid && selectedIds.length > 0) {
         setCurrentStep("MEMBERS");
       }
     } else if (currentStep == "MEMBERS") {
@@ -104,14 +105,14 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
       maxCaseload: data.maxCaseload
         ? parseInt(data.maxCaseload, 10)
         : undefined,
-      practiceAreaIds:
-        data.practiceAreas.length > 0 ? data.practiceAreas : undefined,
+      caseTypeIds: selectedIds.length > 0 ? selectedIds : undefined,
       memberStaffIds: data.memberIds.length > 0 ? data.memberIds : undefined,
     };
 
     await createTeamMutation.mutateAsync(payload);
     setOpen(false);
     reset();
+    setSelectedIds([]);
     setCurrentStep("INFO");
     setLeadName(null);
   };
@@ -123,6 +124,7 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
         setOpen(details.open);
         if (!details.open) {
           reset();
+          setSelectedIds([]);
           setCurrentStep("INFO");
           setLeadName(null);
         }
@@ -234,9 +236,11 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
                   register={register}
                   control={control}
                   errors={errors}
-                  practiceAreasList={practiceAreasList}
+                  practiceAreaTreeNodes={practiceAreaTreeNodes}
                   attorneys={attorneys}
                   setLeadName={setLeadName}
+                  selectedIds={selectedIds}
+                  onSelectedIdsChange={setSelectedIds}
                 />
               )}
 
@@ -251,9 +255,11 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
               {currentStep == "REVIEW" && (
                 <StepReview
                   formValues={formValues}
-                  practiceAreasList={practiceAreasList}
+                  practiceAreaNameLookup={treeData?.practiceAreaNameLookup ?? {}}
+                  practiceAreaTreeNodes={practiceAreaTreeNodes}
                   allStaff={allStaff}
                   leadName={leadName}
+                  selectedIds={selectedIds}
                 />
               )}
 

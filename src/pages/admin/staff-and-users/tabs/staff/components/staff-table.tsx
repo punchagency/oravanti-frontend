@@ -26,7 +26,7 @@ import {
   type StaffMember,
 } from "../../../data";
 import { useStaffData } from "../staff-data-context";
-import { StaffDetailsDrawer } from "./staff-details/dialog";
+import { StaffDetailsDrawer } from "./staff-details/drawer";
 
 function TableActionMenu({ staff }: { staff: StaffMember }) {
   const [open, setOpen] = useState(false);
@@ -54,7 +54,7 @@ function TableActionMenu({ staff }: { staff: StaffMember }) {
 
   return (
     <StaffDetailsDrawer
-      staff={staff}
+      staffId={staff.id}
       open={open}
       onOpenChange={({ open }) => setOpen(open)}
     >

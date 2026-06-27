@@ -2,6 +2,7 @@ import { API } from ".";
 
 export const submitOnboardingData = async (data: {
   accountType: "firm_admin";
+  referralSource?: string;
   profile: {
     firstName: string;
     lastName: string;
