@@ -4,6 +4,7 @@ import { AdminDashboard } from "@/pages/admin/dashboard";
 import { IntakePipelinePage } from "@/pages/admin/intake";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
+import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
 import { NotFoundPage } from "@/pages/not-found";
 import Certifications from "@/pages/admin/staff-and-users/tabs/certifications";
 import Invitations from "@/pages/admin/staff-and-users/tabs/invitations";
@@ -91,6 +92,7 @@ const router = createBrowserRouter(
               path="email-accounts"
               element={<EmailAccountConnectionPage />}
             />
+            <Route path="firm-settings" element={<FirmSettingsPage />} />
           </Route>
 
           <Route
