@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Upload } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import {
@@ -357,6 +357,7 @@ function FileUploadField({
   const [uploadedName, setUploadedName] = useState<string | null>(
     initialFilename,
   );
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const upload = useMutation({
     mutationFn: (file: File) => {
@@ -371,8 +372,10 @@ function FileUploadField({
       setUploadedName(file.name);
       toast.success("Document uploaded");
     },
-    onError: (err: Error) =>
-      toast.error(err.message ?? "Upload failed — please try again"),
+    onError: (err: Error) => {
+      toast.error(err.message ?? "Upload failed — please try again");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   });
 
   return (
@@ -397,6 +400,7 @@ function FileUploadField({
       <chakra.input
         type="file"
         display="none"
+        ref={fileInputRef}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) upload.mutate(file);
