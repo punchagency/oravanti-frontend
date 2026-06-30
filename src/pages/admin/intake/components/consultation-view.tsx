@@ -6,6 +6,7 @@ import {
   HStack,
   Input,
   Stack,
+  Switch,
   Text,
   Textarea,
   chakra,
@@ -23,7 +24,6 @@ import {
   Lock,
   Mail,
   MapPin,
-  MessageSquare,
   Phone,
   Scale,
   Send,
@@ -81,10 +81,18 @@ import {
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
-import { NotifyChip } from "@/components/ui/notify-chip";
 
 type ScheduleStep = 1 | 2 | 3;
 type ConsultationMode = "video" | "in_person" | "phone_call";
+
+const STEP_META: Record<ScheduleStep, { title: string; label: string }> = {
+  1: { title: "Schedule consultation", label: "Step 1 of 3 — Select lead" },
+  2: {
+    title: "Consultation details",
+    label: "Step 2 of 3 — Consultation details",
+  },
+  3: { title: "Review & confirm", label: "Step 3 of 3 — Review & confirm" },
+};
 
 const CONSULTATION_TYPE_OPTIONS: { value: ConsultationMode; label: string }[] =
   [
@@ -1386,16 +1394,15 @@ function ScheduleConsultationDialog({
                     fontWeight="600"
                     lineHeight="1.2"
                   >
-                    Schedule consultation
+                    {STEP_META[step].title}
                   </Dialog.Title>
                   <Dialog.Description
-                    mt="8px"
+                    mt="6px"
                     color="fg.muted"
                     fontSize="12px"
                     lineHeight="1.45"
                   >
-                    Schedule a consultation with a lead who has cleared conflict
-                    check.
+                    {STEP_META[step].label}
                   </Dialog.Description>
                 </Box>
                 <Dialog.CloseTrigger asChild>
@@ -1482,8 +1489,6 @@ function ScheduleConsultationDialog({
               {step === 3 && selectedLead ? (
                 <ReviewStep
                   lead={selectedLead}
-                  matterType={matterType}
-                  language={language}
                   duration={durationLabel}
                   consultationType={consultationModeLabel(consultationType)}
                   attorney={attorneyName}
@@ -1518,21 +1523,22 @@ function ScheduleConsultationDialog({
               ) : (
                 <Box />
               )}
-              {step < 3 ? (
-                <BrandButton minW="116px" onClick={handleContinue}>
-                  Continue
-                  <Send size={14} />
-                </BrandButton>
-              ) : (
-                <BrandButton
-                  minW="200px"
-                  loading={initiateConsultation.isPending}
-                  onClick={handleConfirm}
-                >
-                  <CalendarDays size={14} />
-                  Confirm & send to lead
-                </BrandButton>
-              )}
+              <HStack gap="10px">
+                <OutlineButton onClick={closeDialog}>Cancel</OutlineButton>
+                {step < 3 ? (
+                  <BrandButton minW="100px" onClick={handleContinue}>
+                    Next
+                  </BrandButton>
+                ) : (
+                  <BrandButton
+                    minW="180px"
+                    loading={initiateConsultation.isPending}
+                    onClick={handleConfirm}
+                  >
+                    Confirm &amp; schedule
+                  </BrandButton>
+                )}
+              </HStack>
             </Flex>
           </Flex>
         </Dialog.Content>
@@ -1542,27 +1548,20 @@ function ScheduleConsultationDialog({
 }
 
 function StepProgress({ step }: { step: ScheduleStep }) {
-  const labels = {
-    1: "Step 1 of 3 — Select lead",
-    2: "Step 2 of 3 — Attendees & details",
-    3: "Step 3 of 3 — Fee & review",
-  } as const;
-
   return (
-    <Box mt="18px">
-      <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap="4px">
-        {[1, 2, 3].map((stage) => (
-          <Box
-            key={stage}
-            h="3px"
-            borderRadius="999px"
-            bg={stage <= step ? "brand.solid" : "border.subtle"}
-          />
-        ))}
-      </Grid>
-      <Text m="8px 0 0" color="fg.muted" fontSize="11px">
-        {labels[step]}
-      </Text>
+    <Box
+      mt="14px"
+      h="3px"
+      borderRadius="999px"
+      bg="border.subtle"
+      overflow="hidden"
+    >
+      <Box
+        h="full"
+        bg="brand.solid"
+        w={`${(step / 3) * 100}%`}
+        transition="width 0.2s ease"
+      />
     </Box>
   );
 }
@@ -1641,6 +1640,84 @@ function SelectClientStep({
   );
 }
 
+function StepFieldLabel({
+  children,
+  required,
+}: {
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <Text m="0 0 8px" color="fg" fontSize="13px" fontWeight="600">
+      {children}
+      {required ? <chakra.span color="#d14343"> *</chakra.span> : null}
+    </Text>
+  );
+}
+
+function CheckOption({
+  checked,
+  disabled,
+  label,
+  onToggle,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: ReactNode;
+  onToggle: () => void;
+}) {
+  return (
+    <chakra.button
+      type="button"
+      disabled={disabled}
+      onClick={onToggle}
+      display="flex"
+      alignItems="center"
+      gap="8px"
+      opacity={disabled ? 0.5 : 1}
+      cursor={disabled ? "not-allowed" : "pointer"}
+    >
+      <Box
+        w="16px"
+        h="16px"
+        borderRadius="4px"
+        border="1px solid"
+        borderColor={checked ? "brand.solid" : "border"}
+        bg={checked ? "brand.solid" : "bg"}
+        color="brand.fg"
+        display="grid"
+        placeItems="center"
+      >
+        {checked ? <Check size={12} /> : null}
+      </Box>
+      <Text m="0" fontSize="13px" color="fg">
+        {label}
+      </Text>
+    </chakra.button>
+  );
+}
+
+// Note shown in place of mode-specific fields that our backend handles
+// automatically (video Meet link, phone number).
+function ModeNote({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <HStack
+      gap="8px"
+      p="10px 12px"
+      border="1px solid"
+      borderColor="border"
+      borderRadius="8px"
+      bg="bg.subtle"
+      color="fg.muted"
+      fontSize="12px"
+      lineHeight="1.4"
+    >
+      {icon}
+      <Text m="0">{children}</Text>
+    </HStack>
+  );
+}
+
 function ScheduleDetailsStep({
   durationChoice,
   customDuration,
@@ -1690,81 +1767,80 @@ function ScheduleDetailsStep({
 }) {
   const [addingLocation, setAddingLocation] = useState(false);
   const [newLocationLabel, setNewLocationLabel] = useState("");
+  const [attendeeQuery, setAttendeeQuery] = useState("");
 
   const participantOptions = allStaff.filter(
-    (s) =>
-      s.id !== attorneyId &&
-      (s.role === "attorney" || s.role === "paralegal"),
+    (s) => s.id !== attorneyId && (s.role === "attorney" || s.role === "paralegal"),
   );
+  const addedParticipants = participantOptions.filter((s) =>
+    participantIds.includes(s.id),
+  );
+  const attendeeMatches = attendeeQuery.trim()
+    ? participantOptions.filter(
+        (s) =>
+          !participantIds.includes(s.id) &&
+          `${s.firstName} ${s.lastName}`
+            .toLowerCase()
+            .includes(attendeeQuery.toLowerCase()),
+      )
+    : [];
 
-  const toggleParticipant = (id: string) =>
-    onParticipantsChange(
-      participantIds.includes(id)
-        ? participantIds.filter((p) => p !== id)
-        : [...participantIds, id],
-    );
+  const addParticipant = (id: string) => {
+    onParticipantsChange([...participantIds, id]);
+    setAttendeeQuery("");
+  };
+  const removeParticipant = (id: string) =>
+    onParticipantsChange(participantIds.filter((p) => p !== id));
 
   return (
-    <Stack gap="12px" pt="10px">
-      <FormField label="Lead attorney conducting consultation">
-        <FormSelect
-          ariaLabel="Lead attorney conducting consultation"
-          value={attorneyId}
-          onChange={onAttorneyChange}
-          invalid={touchedField === "attorney"}
-          placeholder="— Select attorney —"
-          options={attorneys.map((attorney) => ({
-            value: attorney.id,
-            label: `${attorney.firstName} ${attorney.lastName}`.trim(),
-          }))}
-        />
-      </FormField>
-
-      <FormField label="Additional attendees (optional)">
-        {participantOptions.length === 0 ? (
-          <MutedText>No other staff available to invite.</MutedText>
-        ) : (
-          <HStack gap="8px" wrap="wrap">
-            {participantOptions.map((member) => (
-              <ChoiceChip
-                key={member.id}
-                active={participantIds.includes(member.id)}
-                onClick={() => toggleParticipant(member.id)}
+    <Stack gap="16px" pt="12px">
+      {/* Consultation type */}
+      <Box>
+        <StepFieldLabel required>Consultation type</StepFieldLabel>
+        <HStack gap="8px" wrap="wrap">
+          {CONSULTATION_TYPE_OPTIONS.map((option) => {
+            const active = consultationType === option.value;
+            return (
+              <chakra.button
+                key={option.value}
+                type="button"
+                onClick={() => onConsultationTypeChange(option.value)}
+                px="16px"
+                h="36px"
+                borderRadius="999px"
+                border="1px solid"
+                fontSize="13px"
+                fontWeight="500"
+                bg={active ? "brand.subtle" : "bg"}
+                color={active ? "brand.fg" : "fg.muted"}
+                borderColor={active ? "brand.solid" : "border"}
               >
-                {`${member.firstName} ${member.lastName}`.trim()}
-                {member.role ? ` · ${member.role}` : ""}
-              </ChoiceChip>
-            ))}
-          </HStack>
-        )}
-        <MutedText>
-          Added attendees are invited to whatever time the lead selects.
-        </MutedText>
-      </FormField>
+                {option.label}
+              </chakra.button>
+            );
+          })}
+        </HStack>
+      </Box>
 
-      <FormField label="Consultation type">
-        <FormSelect
-          ariaLabel="Consultation type"
-          value={consultationType}
-          onChange={(value) =>
-            onConsultationTypeChange(value as ConsultationMode)
-          }
-          options={CONSULTATION_TYPE_OPTIONS.map((option) => ({
-            value: option.value,
-            label: option.label,
-          }))}
-        />
-        {consultationType === "video" ? (
-          <MutedText>
-            A Google Meet link will be generated automatically.
-          </MutedText>
-        ) : consultationType === "phone_call" ? (
-          <MutedText>The lead attorney's phone number will be used.</MutedText>
-        ) : null}
-      </FormField>
-
-      {consultationType === "in_person" ? (
-        <FormField label="Location">
+      {/* Mode-specific */}
+      {consultationType === "video" ? (
+        <Box>
+          <StepFieldLabel>Video call link</StepFieldLabel>
+          <ModeNote icon={<Video size={14} />}>
+            A Google Meet link is generated automatically once the lead picks a
+            time.
+          </ModeNote>
+        </Box>
+      ) : consultationType === "phone_call" ? (
+        <Box>
+          <StepFieldLabel>Phone call</StepFieldLabel>
+          <ModeNote icon={<Phone size={14} />}>
+            The lead attorney's phone number will be used for this call.
+          </ModeNote>
+        </Box>
+      ) : (
+        <Box>
+          <StepFieldLabel required>Office location</StepFieldLabel>
           {addingLocation ? (
             <Stack gap="8px">
               <Input
@@ -1790,13 +1866,13 @@ function ScheduleDetailsStep({
               </HStack>
             </Stack>
           ) : (
-            <Stack gap="8px">
+            <Stack gap="6px">
               <FormSelect
-                ariaLabel="Location"
+                ariaLabel="Office location"
                 value={locationId}
                 onChange={onLocationChange}
                 invalid={touchedField === "location"}
-                placeholder="— Select a saved location —"
+                placeholder="Select office location"
                 options={locations.map((loc) => ({
                   value: loc.id,
                   label: loc.label,
@@ -1815,77 +1891,210 @@ function ScheduleDetailsStep({
               </chakra.button>
             </Stack>
           )}
-        </FormField>
-      ) : null}
+        </Box>
+      )}
 
-      <FormField label="Expected duration">
-        <HStack gap="8px" wrap="wrap">
-          {DURATION_PRESETS.map((preset) => (
+      {/* Available time slots — lead-driven (matches "Let client choose" on) */}
+      <Box>
+        <Flex align="center" justify="space-between" mb="8px">
+          <StepFieldLabel required>Available time slots</StepFieldLabel>
+          <HStack gap="8px">
+            <Text fontSize="12px" color="fg.muted">
+              Let client choose
+            </Text>
+            <Switch.Root checked disabled>
+              <Switch.HiddenInput />
+              <Switch.Control bg="brand.solid">
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Root>
+          </HStack>
+        </Flex>
+        <ModeNote icon={<CalendarClock size={14} />}>
+          The lead chooses a time from the selected attorney's availability —
+          they'll receive a link to pick the slot that works for them.
+        </ModeNote>
+        <Box mt="12px">
+          <StepFieldLabel>Consultation length</StepFieldLabel>
+          <HStack gap="8px" wrap="wrap">
+            {DURATION_PRESETS.map((preset) => (
+              <ChoiceChip
+                key={preset}
+                active={durationChoice === preset}
+                onClick={() => onDurationChoiceChange(preset)}
+              >
+                {preset} min
+              </ChoiceChip>
+            ))}
             <ChoiceChip
-              key={preset}
-              active={durationChoice === preset}
-              onClick={() => onDurationChoiceChange(preset)}
+              active={durationChoice === "custom"}
+              onClick={() => onDurationChoiceChange("custom")}
             >
-              {preset} min
+              Custom
             </ChoiceChip>
-          ))}
-          <ChoiceChip
-            active={durationChoice === "custom"}
-            onClick={() => onDurationChoiceChange("custom")}
-          >
-            Custom
-          </ChoiceChip>
-        </HStack>
-        {durationChoice === "custom" ? (
-          <Input
-            type="number"
-            min={1}
-            value={customDuration}
-            onChange={(event) =>
-              onCustomDurationChange(event.currentTarget.value)
-            }
-            placeholder="Minutes"
-            mt="8px"
-            {...fieldStyles}
-            borderColor={touchedField === "duration" ? invalidColor : "border"}
-          />
-        ) : null}
-      </FormField>
+          </HStack>
+          {durationChoice === "custom" ? (
+            <Input
+              type="number"
+              min={1}
+              value={customDuration}
+              onChange={(event) =>
+                onCustomDurationChange(event.currentTarget.value)
+              }
+              placeholder="Minutes"
+              mt="8px"
+              {...fieldStyles}
+              borderColor={touchedField === "duration" ? invalidColor : "border"}
+            />
+          ) : null}
+        </Box>
+      </Box>
 
-      <FormField label="Pre-consultation notes (optional)">
+      {/* Assigned attorney */}
+      <Box>
+        <StepFieldLabel required>Assigned attorney</StepFieldLabel>
+        <FormSelect
+          ariaLabel="Assigned attorney"
+          value={attorneyId}
+          onChange={onAttorneyChange}
+          invalid={touchedField === "attorney"}
+          placeholder="Select attorney"
+          options={attorneys.map((attorney) => ({
+            value: attorney.id,
+            label: `${attorney.firstName} ${attorney.lastName}`.trim(),
+          }))}
+        />
+      </Box>
+
+      {/* Additional attendees — search to add */}
+      <Box>
+        <StepFieldLabel>
+          Additional attendees{" "}
+          <chakra.span color="fg.muted" fontWeight="400">
+            (optional)
+          </chakra.span>
+        </StepFieldLabel>
+        <Text m="0 0 8px" fontSize="12px" color="fg.muted">
+          Add paralegals or staff who need to attend.
+        </Text>
+        {addedParticipants.length > 0 ? (
+          <HStack gap="6px" wrap="wrap" mb="8px">
+            {addedParticipants.map((member) => (
+              <HStack
+                key={member.id}
+                gap="6px"
+                px="10px"
+                h="28px"
+                borderRadius="999px"
+                bg="bg.subtle"
+                border="1px solid"
+                borderColor="border"
+                fontSize="12px"
+              >
+                <Text m="0">
+                  {`${member.firstName} ${member.lastName}`.trim()}
+                </Text>
+                <chakra.button
+                  type="button"
+                  onClick={() => removeParticipant(member.id)}
+                  color="fg.muted"
+                  aria-label="Remove attendee"
+                  display="grid"
+                  placeItems="center"
+                >
+                  <X size={12} />
+                </chakra.button>
+              </HStack>
+            ))}
+          </HStack>
+        ) : null}
+        <Box position="relative">
+          <Input
+            value={attendeeQuery}
+            onChange={(e) => setAttendeeQuery(e.currentTarget.value)}
+            placeholder="Search staff to add…"
+            {...fieldStyles}
+          />
+          {attendeeMatches.length > 0 ? (
+            <Stack
+              gap="0"
+              position="absolute"
+              zIndex={10}
+              top="calc(100% + 4px)"
+              left="0"
+              right="0"
+              bg="bg"
+              border="1px solid"
+              borderColor="border"
+              borderRadius="8px"
+              boxShadow="0 8px 24px rgba(0, 0, 0, 0.12)"
+              maxH="184px"
+              overflowY="auto"
+              p="4px"
+            >
+              {attendeeMatches.map((member) => (
+                <chakra.button
+                  key={member.id}
+                  type="button"
+                  onClick={() => addParticipant(member.id)}
+                  textAlign="left"
+                  px="10px"
+                  py="8px"
+                  borderRadius="6px"
+                  fontSize="13px"
+                  _hover={{ bg: "bg.subtle" }}
+                >
+                  {`${member.firstName} ${member.lastName}`.trim()}
+                  {member.role ? (
+                    <chakra.span color="fg.muted"> · {member.role}</chakra.span>
+                  ) : null}
+                </chakra.button>
+              ))}
+            </Stack>
+          ) : null}
+        </Box>
+      </Box>
+
+      {/* Pre-consultation notes */}
+      <Box>
+        <StepFieldLabel>
+          Pre-consultation notes{" "}
+          <chakra.span color="fg.muted" fontWeight="400">
+            (optional — attorney only)
+          </chakra.span>
+        </StepFieldLabel>
         <Textarea
           value={notes}
           onChange={(event) => onNotesChange(event.currentTarget.value)}
-          minH="82px"
+          minH="92px"
           resize="vertical"
-          placeholder="Add any notes for the attorney before the consultation — e.g. outstanding documents or follow-up questions from questionnaire review."
+          placeholder="Add any notes for the attorney before the consultation."
           {...fieldStyles}
           h="auto"
           py="10px"
         />
-      </FormField>
+      </Box>
 
+      {/* Notify */}
       <Box>
-        <Text m="0 0 8px" color="fg" fontSize="12px" fontWeight="500">
-          Notify client via
-        </Text>
-        <HStack gap="8px" wrap="wrap">
-          <NotifyChip
-            active={notifyEmail}
-            onClick={() => onNotifyEmailChange(!notifyEmail)}
-            icon={<Mail size={12} />}
-          >
-            Email
-          </NotifyChip>
-          <Box opacity={0.5} cursor="not-allowed" title="SMS coming soon">
-            <NotifyChip
-              active={false}
-              onClick={() => undefined}
-              icon={<MessageSquare size={12} />}
-            >
-              SMS (coming soon)
-            </NotifyChip>
-          </Box>
+        <StepFieldLabel>Notify client via</StepFieldLabel>
+        <HStack gap="24px">
+          <CheckOption
+            checked={notifyEmail}
+            label="Email"
+            onToggle={() => onNotifyEmailChange(!notifyEmail)}
+          />
+          <CheckOption
+            checked={false}
+            disabled
+            onToggle={() => undefined}
+            label={
+              <>
+                SMS{" "}
+                <chakra.span color="fg.subtle">(coming soon)</chakra.span>
+              </>
+            }
+          />
         </HStack>
       </Box>
     </Stack>
@@ -1894,8 +2103,6 @@ function ScheduleDetailsStep({
 
 function ReviewStep({
   lead,
-  matterType,
-  language,
   duration,
   consultationType,
   mode,
@@ -1909,8 +2116,6 @@ function ReviewStep({
   onFeeAmountChange,
 }: {
   lead: Lead;
-  matterType: string;
-  language: string;
   duration: string;
   consultationType: string;
   mode: ConsultationMode;
@@ -1932,117 +2137,122 @@ function ReviewStep({
   const structure = feeSettings?.feeStructure;
 
   return (
-    <Stack gap="14px" pt="10px">
-      {charges ? (
-        <Box
-          p="14px 16px"
-          borderRadius="8px"
-          border="1px solid"
-          borderColor="border"
-          bg="bg"
-        >
-          <Text m="0 0 8px" fontSize="12px" fontWeight="600" color="fg">
-            Consultation fee
-          </Text>
-          {structure === "custom_per_case_type" ? (
-            <Flex align="center" gap="8px">
-              <Text fontSize="14px" color="fg.muted">
-                $
-              </Text>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={feeAmount}
-                onChange={(e) => onFeeAmountChange(e.currentTarget.value)}
-                placeholder={feeSettings?.defaultAmount?.toString() ?? "0.00"}
-                maxW="160px"
-                {...fieldStyles}
-              />
-            </Flex>
-          ) : structure === "waived_if_retainer" ? (
-            <MutedText>
-              ${feeSettings?.defaultAmount ?? 0} — waived if the client signs a
-              retainer within {feeSettings?.waiverWindowDays ?? 0} days.
-            </MutedText>
-          ) : (
-            <Text fontSize="14px" color="fg">
-              ${feeSettings?.defaultAmount ?? 0} flat fee
-            </Text>
-          )}
-        </Box>
-      ) : null}
+    <Stack gap="16px" pt="12px">
+      <Text m="0" fontSize="14px" fontWeight="600" color="fg">
+        Review consultation details
+      </Text>
 
-      <Box p="14px 16px" borderRadius="8px" bg="bg.subtle">
+      <Box p="14px 16px" borderRadius="10px" bg="bg.subtle">
         <SummaryItem label="Lead">{lead.name}</SummaryItem>
-        <SummaryItem label="Matter type">{matterType}</SummaryItem>
-        <SummaryItem label="Language">{language}</SummaryItem>
         <SummaryItem label="Consultation type">{consultationType}</SummaryItem>
         {mode === "in_person" ? (
           <SummaryItem label="Location">{locationLabel}</SummaryItem>
         ) : null}
         <SummaryItem label="Duration">{duration}</SummaryItem>
-        <SummaryItem label="Lead attorney">{attorney}</SummaryItem>
+        <SummaryItem label="Attorney">{attorney}</SummaryItem>
         {participantNames ? (
           <SummaryItem label="Additional attendees">
             {participantNames}
           </SummaryItem>
         ) : null}
-        <SummaryItem label="Notify via">{notifyLabel}</SummaryItem>
-        {notes ? (
-          <SummaryItem label="Pre-consultation notes">{notes}</SummaryItem>
-        ) : null}
+        <SummaryItem label="Notification">{notifyLabel}</SummaryItem>
+        {notes ? <SummaryItem label="Notes">{notes}</SummaryItem> : null}
       </Box>
 
-      <HStack
-        align="flex-start"
-        gap="10px"
-        p="12px"
-        border="1px solid"
-        borderColor="#377dff"
-        borderRadius="7px"
-        bg="#e8f1ff"
-        color="#0f4aa8"
-        fontSize="12px"
-        lineHeight="1.45"
-      >
-        <Info size={14} />
-        <Box>
-          <Text m="0 0 4px" fontSize="12px" fontWeight="500">
-            What happens next:
-          </Text>
-          <Text m="0">
-            1. The lead receives an email to {charges ? "pay the fee and " : ""}
-            pick a time that works for them.
-            <br />
-            2. Once they choose a slot, the consultation is confirmed and
-            everyone is notified.
-            <br />
-            3. The attorney sees the consultation with the client's
-            questionnaire responses and documents.
-            <br />
-            4. After the consultation the attorney records an outcome.
-          </Text>
-        </Box>
-      </HStack>
-    </Stack>
-  );
-}
+      <Box borderTop="1px solid" borderColor="border.subtle" />
 
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <Box>
-      <Text m="0 0 6px" color="fg" fontSize="12px" fontWeight="500">
-        {label}
-      </Text>
-      {children}
-    </Box>
+      <Box>
+        <Text
+          textTransform="uppercase"
+          fontSize="11px"
+          fontWeight="600"
+          letterSpacing="0.04em"
+          color="fg.muted"
+          mb="12px"
+        >
+          Consultation fee
+        </Text>
+
+        <Flex align="flex-start" justify="space-between" gap="12px">
+          <Box>
+            <Text m="0" fontSize="13px" fontWeight="600" color="fg">
+              Charge consultation fee
+            </Text>
+            <Text m="2px 0 0" fontSize="12px" color="fg.muted">
+              Default set in firm settings
+            </Text>
+          </Box>
+          <Switch.Root checked={charges} disabled>
+            <Switch.HiddenInput />
+            <Switch.Control bg={charges ? "brand.solid" : "bg.muted"}>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Root>
+        </Flex>
+
+        {charges ? (
+          <>
+            <Flex align="center" justify="space-between" mt="16px">
+              <Text fontSize="13px" color="fg">
+                Fee amount
+              </Text>
+              <HStack gap="6px">
+                <Text fontSize="14px" color="fg.muted">
+                  $
+                </Text>
+                {structure === "custom_per_case_type" ? (
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={feeAmount}
+                    onChange={(e) => onFeeAmountChange(e.currentTarget.value)}
+                    placeholder={feeSettings?.defaultAmount?.toString() ?? "0.00"}
+                    maxW="96px"
+                    textAlign="right"
+                    {...fieldStyles}
+                  />
+                ) : (
+                  <Text fontSize="14px" fontWeight="600" color="fg">
+                    {feeSettings?.defaultAmount ?? 0}
+                  </Text>
+                )}
+                <Text fontSize="12px" color="fg.muted">
+                  per session
+                </Text>
+              </HStack>
+            </Flex>
+
+            {structure === "waived_if_retainer" ? (
+              <MutedText>
+                Waived if the client signs a retainer within{" "}
+                {feeSettings?.waiverWindowDays ?? 0} days.
+              </MutedText>
+            ) : null}
+
+            <HStack
+              mt="14px"
+              align="flex-start"
+              gap="10px"
+              p="12px"
+              border="1px solid"
+              borderColor="#377dff"
+              borderRadius="8px"
+              bg="#e8f1ff"
+              color="#0f4aa8"
+              fontSize="12px"
+              lineHeight="1.45"
+            >
+              <Info size={14} />
+              <Text m="0">
+                A payment link will be included in the client confirmation email.
+                Payment goes to the firm's operating account.
+              </Text>
+            </HStack>
+          </>
+        ) : null}
+      </Box>
+    </Stack>
   );
 }
 
