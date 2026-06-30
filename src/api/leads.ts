@@ -251,20 +251,21 @@ export const sendQuestionnaire = async (
   return res.data.data;
 };
 
-export const createConsultation = async (
+export const initiateConsultation = async (
   id: string,
   data: {
-    scheduledAt: string;
-    duration: number;
+    leadAttorneyId: string;
+    participantStaffIds?: string[];
     mode: "video" | "in_person" | "phone_call";
-    leadAttorneyId?: string;
-    videoLink?: string;
+    duration: number;
+    locationId?: string;
+    feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
   },
-): Promise<Consultation> => {
+) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
-  return res.data.data;
+  return res.data.data as { consultation: Consultation; bookingToken: string };
 };
 
 export const updateConsultation = async (
