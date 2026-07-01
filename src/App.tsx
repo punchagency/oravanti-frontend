@@ -35,6 +35,7 @@ import Step2FirmDetailsPage from "./pages/onboarding/step-2-firm-details";
 import Step3TosPage from "./pages/onboarding/step-3-tos";
 import ResetPassword from "./pages/reset-password";
 import { QuestionnairePortalPage } from "./pages/questionnaire-portal";
+import { ConsultationBookingPage } from "./pages/consultation-booking";
 import VerifyEmailNoticePage from "./pages/verify-email";
 
 const router = createBrowserRouter(
@@ -55,6 +56,12 @@ const router = createBrowserRouter(
       <Route
         path="/questionnaire/:firmSlug/:token"
         element={<QuestionnairePortalPage />}
+      />
+
+      {/* Public consultation booking & payment portal (token-gated, no auth) */}
+      <Route
+        path="/consultation-booking/:token"
+        element={<ConsultationBookingPage />}
       />
 
       <Route element={<AuthGuard />}>
