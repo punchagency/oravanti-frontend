@@ -97,14 +97,18 @@ export type ConflictCheck = {
 export type Consultation = {
   id: string;
   leadId: string;
-  scheduledAt: string;
+  scheduledAt: string | null;
   duration: number;
   mode: "video" | "in_person" | "phone_call";
+  isUrgent: boolean;
   leadAttorneyId: string | null;
   videoLink: string | null;
-  status: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
+  status: ConsultationStatus;
+  feeStatus: "none" | "unpaid" | "paid" | "waived";
   preConsultationNotes: string | null;
   attorneyNotes: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
   outcome: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up" | null;
   createdAt: string;
   updatedAt: string;
@@ -356,6 +360,14 @@ export const updateConsultation = async (
   },
 ): Promise<Consultation> => {
   const res = await API.patch(`/leads/${id}/consultation`, data);
+  return res.data.data;
+};
+
+export const cancelConsultation = async (
+  id: string,
+  data: { reason?: string } = {},
+): Promise<Consultation> => {
+  const res = await API.post(`/leads/${id}/consultation/cancel`, data);
   return res.data.data;
 };
 

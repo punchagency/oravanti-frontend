@@ -58,6 +58,7 @@ import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
+  useCancelConsultation,
   useConsultations,
   useInitiateConsultation,
   useGenerateFeeAgreement,
@@ -625,6 +626,7 @@ function ConsultationCard({
   const completeMutation = useUpdateConsultation();
   const noShowMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
+  const cancelMutation = useCancelConsultation();
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
@@ -648,6 +650,8 @@ function ConsultationCard({
     id: string;
     tab: "responses" | "documents";
   } | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -673,22 +677,11 @@ function ConsultationCard({
     ? formatIsoTime(consultation.scheduledAt)
     : "—";
   const consultStatusLabel = consultation
-    ? (
-        {
-          scheduled: "Scheduled",
-          in_progress: "In progress",
-          completed: "Completed",
-          cancelled: "Cancelled",
-          no_show: "No show",
-        } as const
-      )[consultation.status]
+    ? CONSULT_STATUS_LABEL[consultation.status]
     : null;
-  const consultStatusTone: "info" | "success" | "danger" =
-    consultation?.status === "cancelled" || consultation?.status === "no_show"
-      ? "danger"
-      : consultation?.status === "scheduled"
-        ? "info"
-        : "success";
+  const consultStatusTone: StatusTone = consultation
+    ? CONSULT_STATUS_TONE[consultation.status]
+    : "neutral";
 
   // A consultation can be marked complete once it exists, hasn't already been
   // completed/cancelled, and its scheduled start time has passed.
@@ -701,6 +694,13 @@ function ConsultationCard({
     ? now >= new Date(scheduledAt).getTime()
     : false;
   const canComplete = isCompletable && startTimeReached;
+
+  // A consultation can be cancelled at any pre-terminal stage.
+  const canCancel =
+    consultation?.status === "pending_payment" ||
+    consultation?.status === "awaiting_slot_selection" ||
+    consultation?.status === "scheduled" ||
+    consultation?.status === "in_progress";
 
   // ── Documents ──────────────────────────────────────────────────────────────
   // Staff can manually attach a document received outside the client portal.
@@ -815,6 +815,17 @@ function ConsultationCard({
       data: { outcome: "refer_elsewhere" },
     });
   }
+  function handleCancelConsultation() {
+    cancelMutation.mutate(
+      { id: lead.id, reason: cancelReason.trim() || undefined },
+      {
+        onSuccess: () => {
+          setCancelOpen(false);
+          setCancelReason("");
+        },
+      },
+    );
+  }
 
   const Container = bare ? BareCardBody : SurfaceCard;
 
@@ -844,6 +855,22 @@ function ConsultationCard({
               {consultationDate} · {consultationTime} · {consultation.duration}{" "}
               min
             </MutedText>
+            {canCancel ? (
+              <chakra.button
+                type="button"
+                onClick={() => setCancelOpen(true)}
+                display="inline-flex"
+                alignItems="center"
+                gap="4px"
+                fontSize="12px"
+                fontWeight="500"
+                color="#b00020"
+                _hover={{ textDecoration: "underline" }}
+              >
+                <X size={12} />
+                Cancel
+              </chakra.button>
+            ) : null}
           </HStack>
         ) : (
           <HStack gap="8px" align="center">
@@ -1324,7 +1351,104 @@ function ConsultationCard({
         initialTab={docDialog?.tab ?? "responses"}
         onClose={() => setDocDialog(null)}
       />
+
+      <CancelConsultationDialog
+        open={cancelOpen}
+        leadName={lead.name}
+        reason={cancelReason}
+        onReasonChange={setCancelReason}
+        loading={cancelMutation.isPending}
+        onConfirm={handleCancelConsultation}
+        onClose={() => {
+          setCancelOpen(false);
+          setCancelReason("");
+        }}
+      />
     </Container>
+  );
+}
+
+function CancelConsultationDialog({
+  open,
+  leadName,
+  reason,
+  onReasonChange,
+  loading,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  leadName: string;
+  reason: string;
+  onReasonChange: (value: string) => void;
+  loading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(d) => {
+        if (!d.open) onClose();
+      }}
+    >
+      <Dialog.Backdrop bg="blackAlpha.500" />
+      <Dialog.Positioner>
+        <Dialog.Content
+          maxW="440px"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          overflow="hidden"
+        >
+          <Box p="20px 24px">
+            <Dialog.Title color="fg" fontSize="16px" fontWeight="600">
+              Cancel consultation
+            </Dialog.Title>
+            <MutedText fontSize="13px">
+              This cancels {leadName}'s consultation, revokes their booking link,
+              and notifies everyone involved. This can't be undone, but you can
+              schedule a new consultation afterwards.
+            </MutedText>
+            <Box mt="14px">
+              <Text m="0 0 6px" fontSize="12px" color="fg.muted">
+                Reason (optional)
+              </Text>
+              <Textarea
+                value={reason}
+                onChange={(e) => onReasonChange(e.currentTarget.value)}
+                placeholder="Shared with the client and staff in the cancellation email."
+                minH="72px"
+                resize="vertical"
+                {...fieldStyles}
+                h="auto"
+                py="10px"
+              />
+            </Box>
+          </Box>
+          <Flex
+            justify="flex-end"
+            gap="10px"
+            p="14px 24px"
+            borderTop="1px solid"
+            borderColor="border.subtle"
+          >
+            <OutlineButton onClick={onClose} disabled={loading}>
+              Keep consultation
+            </OutlineButton>
+            <BrandButton
+              onClick={onConfirm}
+              loading={loading}
+              bg="#b00020"
+              _hover={{ bg: "#970019" }}
+            >
+              <X size={14} />
+              Cancel consultation
+            </BrandButton>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
   );
 }
 
