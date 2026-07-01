@@ -38,11 +38,20 @@ import {
   X,
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
+  Consultation,
   ConsultationListItem,
   ConsultationSort,
   ConsultationStatus,
@@ -209,22 +218,48 @@ function attorneyFullName(item: ConsultationListItem): string {
   return name || "Unassigned";
 }
 
+type FollowUpRequest = {
+  lead: ConsultationSummaryLead;
+  attorneyId?: string | null;
+  parentConsultationId: string;
+};
+
+// Lets a ConsultationCard (rendered deep in the collapsible list) open the
+// scheduling wizard as a follow-up without prop-drilling through the list.
+const ScheduleFollowUpContext = createContext<(req: FollowUpRequest) => void>(
+  () => {},
+);
+
+type WizardPreset = {
+  lead: ConsultationSummaryLead | null;
+  attorneyId?: string | null;
+  parentConsultationId?: string;
+};
+
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
+  const [preset, setPreset] = useState<WizardPreset>({ lead: null });
   const { data, isLoading } = useLeads({ stage: "consultation" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
 
   const noConsultation = leads.filter((l) => !l.consultationId);
   const scheduled = leads.filter((l) => l.consultationId);
 
-  function openWizard(leadId: string | null) {
-    setPresetLeadId(leadId);
+  function openWizard(lead: ConsultationSummaryLead | null) {
+    setPreset({ lead });
+    setScheduleOpen(true);
+  }
+  function openFollowUp(req: FollowUpRequest) {
+    setPreset({
+      lead: req.lead,
+      attorneyId: req.attorneyId,
+      parentConsultationId: req.parentConsultationId,
+    });
     setScheduleOpen(true);
   }
 
   return (
-    <>
+    <ScheduleFollowUpContext.Provider value={openFollowUp}>
       <Stack gap="20px" pt="24px" aria-label="Consultation and notes">
         <HStack justify="space-between" gap="16px" wrap="wrap">
           <Text m="0" color="fg" fontSize="15px" fontWeight="500">
@@ -258,7 +293,7 @@ export function ConsultationView() {
                     <ConsultationCard
                       key={lead.id}
                       lead={lead}
-                      onSchedule={() => openWizard(lead.id)}
+                      onSchedule={() => openWizard(lead)}
                     />
                   ))}
                 </Stack>
@@ -279,9 +314,11 @@ export function ConsultationView() {
       <ScheduleConsultationDialog
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
-        presetLeadId={presetLeadId}
+        presetLead={preset.lead}
+        presetAttorneyId={preset.attorneyId}
+        parentConsultationId={preset.parentConsultationId}
       />
-    </>
+    </ScheduleFollowUpContext.Provider>
   );
 }
 
@@ -627,6 +664,7 @@ function ConsultationCard({
   const noShowMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
   const cancelMutation = useCancelConsultation();
+  const openFollowUp = useContext(ScheduleFollowUpContext);
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
@@ -635,6 +673,7 @@ function ConsultationCard({
   const requestMissing = useRequestMissingDocuments();
 
   const consultation = leadDetail?.consultation;
+  const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
   const send = questionnaire?.send;
@@ -801,7 +840,15 @@ function ConsultationCard({
     noShowMutation.mutate({ id: lead.id, data: { status: "no_show" } });
   }
   function handleFollowUp() {
+    if (!consultation) return;
+    // Record the outcome on the completed parent, then open the wizard to book
+    // the follow-up (admin can choose urgent or lead-driven).
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
+    openFollowUp({
+      lead,
+      attorneyId: consultation.leadAttorneyId,
+      parentConsultationId: consultation.id,
+    });
   }
   function handleCloseNoCase() {
     outcomesMutation.mutate({
@@ -1294,6 +1341,13 @@ function ConsultationCard({
         </SectionRow>
       )}
 
+      {/* Past consultations (follow-ups / re-schedules) */}
+      {consultationHistory.length > 0 ? (
+        <SectionRow>
+          <PastConsultations items={consultationHistory} />
+        </SectionRow>
+      ) : null}
+
       {/* 5. Footer — outcomes are recorded against a consultation */}
       {hasConsultation ? (
         <HStack
@@ -1320,13 +1374,15 @@ function ConsultationCard({
             </MutedText>
           ) : (
             <HStack gap="8px" wrap="wrap" justify="flex-end">
-              <OutlineButton
-                loading={outcomesMutation.isPending}
-                onClick={handleFollowUp}
-              >
-                <CalendarDays size={14} />
-                Schedule follow-up
-              </OutlineButton>
+              {consultationCompleted ? (
+                <OutlineButton
+                  loading={outcomesMutation.isPending}
+                  onClick={handleFollowUp}
+                >
+                  <CalendarDays size={14} />
+                  Schedule follow-up
+                </OutlineButton>
+              ) : null}
               <OutlineButton
                 loading={outcomesMutation.isPending}
                 onClick={handleCloseNoCase}
@@ -1449,6 +1505,78 @@ function CancelConsultationDialog({
         </Dialog.Content>
       </Dialog.Positioner>
     </Dialog.Root>
+  );
+}
+
+// Collapsed history of a lead's prior consultations (follow-ups / re-schedules).
+function PastConsultations({ items }: { items: Consultation[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Box>
+      <chakra.button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        gap="8px"
+        w="full"
+        textAlign="left"
+      >
+        <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+          Past consultations
+        </Text>
+        <MutedText>{items.length}</MutedText>
+        <Box ml="auto" color="fg.muted">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </Box>
+      </chakra.button>
+      {open ? (
+        <Stack gap="0" mt="8px">
+          {items.map((c) => {
+            const tone = CONSULT_STATUS_TONE[c.status];
+            const when = c.scheduledAt
+              ? `${formatReceivedDate(c.scheduledAt)} · ${formatIsoTime(
+                  c.scheduledAt,
+                )}`
+              : "Not scheduled";
+            return (
+              <HStack
+                key={c.id}
+                justify="space-between"
+                gap="10px"
+                py="8px"
+                borderBottom="1px solid"
+                borderColor="border.subtle"
+                _last={{ borderBottom: 0 }}
+              >
+                <HStack gap="8px" minW="0">
+                  <Box
+                    flex="0 0 auto"
+                    w="7px"
+                    h="7px"
+                    borderRadius="full"
+                    bg={TONE_DOT[tone]}
+                  />
+                  <Box minW="0">
+                    <Text m="0" color="fg" fontSize="13px" truncate>
+                      {consultationModeLabel(c.mode)} · {when}
+                    </Text>
+                    {c.outcome ? (
+                      <MutedText>
+                        Outcome: {c.outcome.replace(/_/g, " ")}
+                      </MutedText>
+                    ) : null}
+                  </Box>
+                </HStack>
+                <StatusPill tone={tone}>
+                  {CONSULT_STATUS_LABEL[c.status]}
+                </StatusPill>
+              </HStack>
+            );
+          })}
+        </Stack>
+      ) : null}
+    </Box>
   );
 }
 
@@ -1728,12 +1856,17 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
 function ScheduleConsultationDialog({
   open,
   onOpenChange,
-  presetLeadId,
+  presetLead,
+  presetAttorneyId,
+  parentConsultationId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  presetLeadId?: string | null;
+  presetLead?: ConsultationSummaryLead | null;
+  presetAttorneyId?: string | null;
+  parentConsultationId?: string;
 }) {
+  const presetLeadId = presetLead?.id ?? null;
   const [step, setStep] = useState<ScheduleStep>(1);
   const {
     control,
@@ -1799,12 +1932,20 @@ function ScheduleConsultationDialog({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      reset({ ...SCHEDULE_DEFAULTS, selectedLeadId: presetLeadId ?? "" });
+      reset({
+        ...SCHEDULE_DEFAULTS,
+        selectedLeadId: presetLeadId ?? "",
+        attorneyId: presetAttorneyId ?? "",
+      });
       setStep(presetLeadId ? 2 : 1);
     }
   }
 
-  const selectedLead = leads.find((l) => l.id === selectedLeadId);
+  // Fall back to the preset lead: a follow-up lead may have advanced past the
+  // consultation stage and so not appear in the candidate list.
+  const selectedLead =
+    leads.find((l) => l.id === selectedLeadId) ??
+    (presetLead && presetLead.id === selectedLeadId ? presetLead : undefined);
   const { data: questionnaire } = useLeadQuestionnaire(selectedLeadId);
   const language = questionnaire?.send?.language ?? "English";
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
@@ -1906,6 +2047,7 @@ function ScheduleConsultationDialog({
           ],
           urgent: data.urgent || undefined,
           scheduledAt,
+          parentConsultationId: parentConsultationId || undefined,
         },
       },
       { onSuccess: () => closeDialog() },
@@ -2756,7 +2898,7 @@ function ReviewStep({
   feeAmount,
   onFeeAmountChange,
 }: {
-  lead: Lead;
+  lead: { name: string };
   duration: string;
   consultationType: string;
   mode: ConsultationMode;

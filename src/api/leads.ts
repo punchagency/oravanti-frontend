@@ -97,6 +97,7 @@ export type ConflictCheck = {
 export type Consultation = {
   id: string;
   leadId: string;
+  parentConsultationId: string | null;
   scheduledAt: string | null;
   duration: number;
   mode: "video" | "in_person" | "phone_call";
@@ -131,6 +132,8 @@ export type FeeAgreement = {
 export type LeadDetail = Lead & {
   conflictCheck: ConflictCheck | null;
   consultation: Consultation | null;
+  // Prior consultations (follow-ups / re-schedules), newest first.
+  consultationHistory?: Consultation[];
   feeAgreement: FeeAgreement | null;
 };
 
@@ -336,6 +339,8 @@ export const initiateConsultation = async (
     // Urgent (admin fast-track): schedule now, lead skips the slot queue.
     urgent?: boolean;
     scheduledAt?: string;
+    // Set when this consultation is a follow-up of a prior completed one.
+    parentConsultationId?: string;
   },
 ) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
