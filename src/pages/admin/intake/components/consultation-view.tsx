@@ -333,7 +333,7 @@ type ConsultationRow = {
 // the consultation-stage leads, enriched with a batch summary fetch so each
 // collapsed row can show status, attorney and time without a per-card detail
 // request. Controls are applied client-side against that summary set.
-function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
+function ConsultationList({ leads }: { leads: Lead[] }) {
   const { data, isLoading } = useConsultations({ limit: 200 });
 
   const [query, setQuery] = useState("");
@@ -343,20 +343,25 @@ function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const summaryByLead = useMemo(() => {
+  // Keyed by consultation id (a lead can now have several consultations —
+  // follow-ups, cancelled ones) so each row shows the lead's *current* one.
+  const summaryByConsultation = useMemo(() => {
     const map = new Map<string, ConsultationListItem>();
-    for (const item of data?.data ?? []) map.set(item.leadId, item);
+    for (const item of data?.data ?? []) map.set(item.id, item);
     return map;
   }, [data]);
 
   // Only the leads currently in the consultation stage, paired with their
-  // consultation summary (dropping any whose summary hasn't loaded yet).
+  // current consultation's summary (dropping any whose summary hasn't loaded
+  // yet, or whose consultation was detached, e.g. after a cancellation).
   const rows = useMemo<ConsultationRow[]>(() => {
     return leads.flatMap((lead) => {
-      const summary = summaryByLead.get(lead.id);
+      const summary = lead.consultationId
+        ? summaryByConsultation.get(lead.consultationId)
+        : undefined;
       return summary ? [{ lead, summary }] : [];
     });
-  }, [leads, summaryByLead]);
+  }, [leads, summaryByConsultation]);
 
   const attorneyOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -418,7 +423,7 @@ function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
   return (
     <Stack gap="14px">
       <Flex align="center" justify="space-between" gap="12px" wrap="wrap">
-        <HStack gap="10px" wrap="wrap">
+        <HStack gap="10px">
           <HStack
             gap="8px"
             h="34px"
@@ -512,6 +517,7 @@ function CollapsibleConsultation({
   lead: ConsultationSummaryLead;
   summary: ConsultationListItem;
 }) {
+  console.log('summary', summary)
   const [open, setOpen] = useState(false);
   const tone = CONSULT_STATUS_TONE[summary.status];
   const dateLabel = summary.scheduledAt
@@ -1496,6 +1502,7 @@ function CancelConsultationDialog({
               onClick={onConfirm}
               loading={loading}
               bg="#b00020"
+              color="white"
               _hover={{ bg: "#970019" }}
             >
               <X size={14} />
