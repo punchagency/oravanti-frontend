@@ -3,6 +3,7 @@ import {
   initiateConsultation,
   createLead,
   generateFeeAgreement,
+  getConsultations,
   getLeadById,
   getLeads,
   getLeadsStageCount,
@@ -16,6 +17,7 @@ import {
   updateConsultation,
   updateLead,
   updateLeadStatus,
+  type GetConsultationsParams,
   type GetLeadsParams,
   type PipelineStage,
 } from "@/api/leads";
@@ -42,6 +44,13 @@ export function useLeadById(id: string) {
     queryKey: ["lead", id],
     queryFn: () => getLeadById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useConsultations(params: GetConsultationsParams = {}) {
+  return useQuery({
+    queryKey: ["consultations", params],
+    queryFn: () => getConsultations(params),
   });
 }
 

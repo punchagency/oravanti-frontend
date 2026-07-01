@@ -5,17 +5,22 @@ import {
   Grid,
   HStack,
   Input,
+  Portal,
+  Select,
   Stack,
   Switch,
   Text,
   Textarea,
   chakra,
+  createListCollection,
 } from "@chakra-ui/react";
 import {
   AlertTriangle,
   CalendarClock,
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   Download,
   ExternalLink,
@@ -26,17 +31,23 @@ import {
   MapPin,
   Phone,
   Scale,
+  Search,
   Send,
   UserX,
   Video,
   X,
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Lead } from "@/api/leads";
+import type {
+  ConsultationListItem,
+  ConsultationSort,
+  ConsultationStatus,
+  Lead,
+} from "@/api/leads";
 import { toast } from "sonner";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
@@ -45,6 +56,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
+  useConsultations,
   useInitiateConsultation,
   useGenerateFeeAgreement,
   useLeadById,
@@ -80,6 +92,7 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
 
 type ScheduleStep = 1 | 2 | 3;
@@ -135,6 +148,64 @@ function consultationModeIcon(mode: ConsultationMode | undefined) {
   return <MapPin size={12} />;
 }
 
+type StatusTone = "info" | "success" | "danger" | "warning" | "neutral";
+
+const CONSULT_STATUS_LABEL: Record<ConsultationStatus, string> = {
+  pending_payment: "Pending payment",
+  awaiting_slot_selection: "Awaiting slot",
+  scheduled: "Scheduled",
+  in_progress: "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_show: "No show",
+};
+
+const CONSULT_STATUS_TONE: Record<ConsultationStatus, StatusTone> = {
+  pending_payment: "warning",
+  awaiting_slot_selection: "warning",
+  scheduled: "info",
+  in_progress: "warning",
+  completed: "success",
+  cancelled: "danger",
+  no_show: "danger",
+};
+
+// Solid dot colour per tone (mirrors intakeColors text tones in intake-ui).
+const TONE_DOT: Record<StatusTone, string> = {
+  info: "#2f63c7",
+  success: "#00785a",
+  warning: "#8a641d",
+  danger: "#b00020",
+  neutral: "#94a3b8",
+};
+
+const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
+  { label: "All statuses", value: "all" },
+  { label: "Pending payment", value: "pending_payment" },
+  { label: "Awaiting slot", value: "awaiting_slot_selection" },
+  { label: "Scheduled", value: "scheduled" },
+  { label: "In progress", value: "in_progress" },
+  { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
+  { label: "No show", value: "no_show" },
+];
+
+const SORT_OPTIONS: { label: string; value: ConsultationSort }[] = [
+  { label: "Date: earliest first", value: "date_asc" },
+  { label: "Date: latest first", value: "date_desc" },
+  { label: "Client: A–Z", value: "client_asc" },
+  { label: "Client: Z–A", value: "client_desc" },
+];
+
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+
+function attorneyFullName(item: ConsultationListItem): string {
+  const name = `${item.attorneyFirstName ?? ""} ${
+    item.attorneyLastName ?? ""
+  }`.trim();
+  return name || "Unassigned";
+}
+
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
@@ -153,11 +224,17 @@ export function ConsultationView() {
     <>
       <Stack gap="20px" pt="24px" aria-label="Consultation and notes">
         <HStack justify="space-between" gap="16px" wrap="wrap">
-          <MutedText fontSize="14px">Consultation &amp; notes</MutedText>
-          <OutlineButton onClick={() => openWizard(null)}>
+          <Text m="0" color="fg" fontSize="15px" fontWeight="500">
+            {scheduled.length > 0
+              ? `${scheduled.length} consultation${
+                  scheduled.length === 1 ? "" : "s"
+                } in progress`
+              : "Consultation & notes"}
+          </Text>
+          <BrandButton onClick={() => openWizard(null)}>
             <CalendarDays size={14} />
             Schedule consultation
-          </OutlineButton>
+          </BrandButton>
         </HStack>
 
         {isLoading ? (
@@ -190,17 +267,7 @@ export function ConsultationView() {
             ) : null}
 
             {scheduled.length > 0 ? (
-              <Stack gap="12px">
-                <MutedText fontSize="14px">
-                  {scheduled.length} consultation
-                  {scheduled.length === 1 ? "" : "s"} in progress
-                </MutedText>
-                <Stack gap="16px">
-                  {scheduled.map((lead) => (
-                    <ConsultationCard key={lead.id} lead={lead} />
-                  ))}
-                </Stack>
-              </Stack>
+              <ConsultationList leads={scheduled} />
             ) : null}
           </Stack>
         )}
@@ -215,12 +282,331 @@ export function ConsultationView() {
   );
 }
 
+type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
+
+type ConsultationRow = {
+  lead: ConsultationSummaryLead;
+  summary: ConsultationListItem;
+};
+
+// The consultation list: search / status / attorney / sort / pagination over
+// the consultation-stage leads, enriched with a batch summary fetch so each
+// collapsed row can show status, attorney and time without a per-card detail
+// request. Controls are applied client-side against that summary set.
+function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
+  const { data, isLoading } = useConsultations({ limit: 200 });
+
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const [attorney, setAttorney] = useState("all");
+  const [sort, setSort] = useState<ConsultationSort>("date_asc");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const summaryByLead = useMemo(() => {
+    const map = new Map<string, ConsultationListItem>();
+    for (const item of data?.data ?? []) map.set(item.leadId, item);
+    return map;
+  }, [data]);
+
+  // Only the leads currently in the consultation stage, paired with their
+  // consultation summary (dropping any whose summary hasn't loaded yet).
+  const rows = useMemo<ConsultationRow[]>(() => {
+    return leads.flatMap((lead) => {
+      const summary = summaryByLead.get(lead.id);
+      return summary ? [{ lead, summary }] : [];
+    });
+  }, [leads, summaryByLead]);
+
+  const attorneyOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const { summary } of rows) {
+      if (summary.leadAttorneyId && !seen.has(summary.leadAttorneyId)) {
+        seen.set(summary.leadAttorneyId, attorneyFullName(summary));
+      }
+    }
+    return [
+      { label: "All attorneys", value: "all" },
+      ...[...seen.entries()].map(([value, label]) => ({ label, value })),
+    ];
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = rows.filter(({ lead, summary }) => {
+      if (q && !lead.name.toLowerCase().includes(q)) return false;
+      if (status !== "all" && summary.status !== status) return false;
+      if (attorney !== "all" && summary.leadAttorneyId !== attorney)
+        return false;
+      return true;
+    });
+    const time = (r: ConsultationRow) =>
+      r.summary.scheduledAt ? new Date(r.summary.scheduledAt).getTime() : null;
+    list.sort((a, b) => {
+      switch (sort) {
+        case "client_asc":
+          return a.lead.name.localeCompare(b.lead.name);
+        case "client_desc":
+          return b.lead.name.localeCompare(a.lead.name);
+        case "date_desc":
+        case "date_asc":
+        default: {
+          const ta = time(a);
+          const tb = time(b);
+          // Unscheduled consultations sort to the bottom either way.
+          if (ta === null && tb === null) return 0;
+          if (ta === null) return 1;
+          if (tb === null) return -1;
+          return sort === "date_desc" ? tb - ta : ta - tb;
+        }
+      }
+    });
+    return list;
+  }, [rows, query, status, attorney, sort]);
+
+  const total = filtered.length;
+  const pageStart = (page - 1) * limit;
+  const paged = filtered.slice(pageStart, pageStart + limit);
+
+  function resetPage<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  return (
+    <Stack gap="14px">
+      <Flex align="center" justify="space-between" gap="12px" wrap="wrap">
+        <HStack gap="10px" wrap="wrap">
+          <HStack
+            gap="8px"
+            h="34px"
+            minW="240px"
+            px="12px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="7px"
+            bg="bg"
+            color="fg.muted"
+          >
+            <Search size={15} />
+            <Input
+              aria-label="Search consultations"
+              placeholder="Search consultations..."
+              type="search"
+              value={query}
+              onChange={(e) => resetPage(setQuery)(e.target.value)}
+              p="0"
+              h="auto"
+              border="0"
+              bg="transparent"
+              color="fg"
+              _focus={{ boxShadow: "none", outline: "0" }}
+            />
+          </HStack>
+          <FilterSelect
+            ariaLabel="Filter by status"
+            value={status}
+            onChange={resetPage(setStatus)}
+            options={STATUS_FILTER_OPTIONS}
+          />
+          <FilterSelect
+            ariaLabel="Filter by attorney"
+            value={attorney}
+            onChange={resetPage(setAttorney)}
+            options={attorneyOptions}
+          />
+          <FilterSelect
+            ariaLabel="Sort consultations"
+            value={sort}
+            onChange={resetPage((v: string) => setSort(v as ConsultationSort))}
+            options={SORT_OPTIONS}
+          />
+        </HStack>
+        <MutedText fontSize="11px">
+          {isLoading
+            ? "Loading…"
+            : `${total} of ${rows.length} consultation${
+                rows.length === 1 ? "" : "s"
+              }`}
+        </MutedText>
+      </Flex>
+
+      {isLoading ? (
+        <IntakeListSkeleton />
+      ) : total === 0 ? (
+        <MutedText>No consultations match your filters.</MutedText>
+      ) : (
+        <Stack gap="10px">
+          {paged.map(({ lead, summary }) => (
+            <CollapsibleConsultation
+              key={summary.id}
+              lead={lead}
+              summary={summary}
+            />
+          ))}
+        </Stack>
+      )}
+
+      {total > limit ? (
+        <PaginationControls
+          total={total}
+          currentPage={page}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={resetPage(setLimit)}
+          pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+        />
+      ) : null}
+    </Stack>
+  );
+}
+
+// A consultation rendered as a collapsible row: the summary bar is always
+// visible; expanding reveals the full consultation detail card.
+function CollapsibleConsultation({
+  lead,
+  summary,
+}: {
+  lead: ConsultationSummaryLead;
+  summary: ConsultationListItem;
+}) {
+  const [open, setOpen] = useState(false);
+  const tone = CONSULT_STATUS_TONE[summary.status];
+  const dateLabel = summary.scheduledAt
+    ? `${formatReceivedDate(summary.scheduledAt)}, ${formatIsoTime(
+        summary.scheduledAt,
+      )}`
+    : "Not scheduled yet";
+
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      overflow="hidden"
+    >
+      <chakra.button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="16px"
+        w="full"
+        textAlign="left"
+        px="18px"
+        py="14px"
+        bg={open ? "bg.subtle" : "bg"}
+        _hover={{ bg: "bg.subtle" }}
+      >
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Box
+            flex="0 0 auto"
+            mt="6px"
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg={TONE_DOT[tone]}
+          />
+          <Box minW="0">
+            <HStack gap="8px" minW="0" wrap="wrap">
+              <Text
+                m="0"
+                color="fg"
+                fontSize="14px"
+                fontWeight="600"
+                truncate
+              >
+                {lead.name}
+              </Text>
+              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+            </HStack>
+            <MutedText>
+              {dateLabel} · {attorneyFullName(summary)}
+            </MutedText>
+          </Box>
+        </HStack>
+        <HStack gap="10px" flex="0 0 auto">
+          <StatusPill tone={tone}>
+            {CONSULT_STATUS_LABEL[summary.status]}
+          </StatusPill>
+          <Box color="fg.muted">
+            {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </Box>
+        </HStack>
+      </chakra.button>
+
+      {open ? (
+        <Box borderTop="1px solid" borderColor="border">
+          <ConsultationCard lead={lead} bare />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+function FilterSelect({
+  ariaLabel,
+  value,
+  onChange,
+  options,
+}: {
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { label: string; value: string }[];
+}) {
+  const collection = useMemo(
+    () => createListCollection({ items: [...options] }),
+    [options],
+  );
+
+  return (
+    <Select.Root
+      collection={collection}
+      size="sm"
+      minW="164px"
+      value={[value]}
+      onValueChange={(event) => onChange(event.value[0] ?? value)}
+      aria-label={ariaLabel}
+    >
+      <Select.HiddenSelect />
+      <Select.Control>
+        <Select.Trigger bg="bg" borderColor="border" rounded="7px">
+          <Select.ValueText />
+        </Select.Trigger>
+        <Select.IndicatorGroup>
+          <Select.Indicator />
+        </Select.IndicatorGroup>
+      </Select.Control>
+      <Portal>
+        <Select.Positioner>
+          <Select.Content>
+            {collection.items.map((item) => (
+              <Select.Item item={item} key={item.value}>
+                <Select.ItemText>{item.label}</Select.ItemText>
+                <Select.ItemIndicator />
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+      </Portal>
+    </Select.Root>
+  );
+}
+
 function ConsultationCard({
   lead,
   onSchedule,
+  bare = false,
 }: {
-  lead: Lead;
+  lead: ConsultationSummaryLead;
   onSchedule?: () => void;
+  bare?: boolean;
 }) {
   const { data: leadDetail } = useLeadById(lead.id);
   const { data: questionnaire } = useLeadQuestionnaire(lead.id);
@@ -428,8 +814,10 @@ function ConsultationCard({
     });
   }
 
+  const Container = bare ? BareCardBody : SurfaceCard;
+
   return (
-    <SurfaceCard>
+    <Container>
       {/* 1. Lead + consultation details */}
       <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
         <HStack gap="12px" minW="0" align="flex-start">
@@ -934,8 +1322,14 @@ function ConsultationCard({
         initialTab={docDialog?.tab ?? "responses"}
         onClose={() => setDocDialog(null)}
       />
-    </SurfaceCard>
+    </Container>
   );
+}
+
+// Bare body used when the card is rendered inside a collapsible row (the
+// surrounding container already supplies the border and radius).
+function BareCardBody({ children }: { children: ReactNode }) {
+  return <Box p="18px">{children}</Box>;
 }
 
 function SectionRow({ children }: { children: ReactNode }) {
