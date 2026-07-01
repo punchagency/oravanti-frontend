@@ -329,10 +329,17 @@ export const initiateConsultation = async (
     feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
+    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    urgent?: boolean;
+    scheduledAt?: string;
   },
 ) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
-  return res.data.data as { consultation: Consultation; bookingToken: string };
+  return res.data.data as {
+    consultation: Consultation;
+    bookingToken: string;
+    warnings?: string[];
+  };
 };
 
 export const updateConsultation = async (

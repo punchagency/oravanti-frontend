@@ -196,10 +196,19 @@ export function useInitiateConsultation() {
       id: string;
       data: Parameters<typeof initiateConsultation>[1];
     }) => initiateConsultation(id, data),
-    onSuccess: (_, { id }) => {
-      toast.success("Consultation request sent to the lead");
+    onSuccess: (res, { data, id }) => {
+      toast.success(
+        data.urgent
+          ? "Consultation booked"
+          : "Consultation request sent to the lead",
+      );
+      // Surface non-blocking urgent conflict warnings (warn-but-allow).
+      for (const warning of res.warnings ?? []) {
+        toast.warning(warning);
+      }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["consultations"] });
       qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
     },
     onError: (err: APIError) => {

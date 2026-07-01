@@ -53,6 +53,8 @@ import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
+import { DateField } from "@/components/ui/date-field";
+import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
@@ -1540,6 +1542,10 @@ const scheduleSchema = z
     notes: z.string(),
     notifyEmail: z.boolean(),
     notifySms: z.boolean(),
+    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    urgent: z.boolean(),
+    urgentDate: z.string(),
+    urgentTime: z.string(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -1560,6 +1566,20 @@ const scheduleSchema = z
         message: "Select a location for in-person consultations",
       });
     }
+    if (val.urgent && !val.urgentDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urgentDate"],
+        message: "Pick a date",
+      });
+    }
+    if (val.urgent && !val.urgentTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urgentTime"],
+        message: "Pick a time",
+      });
+    }
   });
 
 type ScheduleForm = z.infer<typeof scheduleSchema>;
@@ -1576,6 +1596,9 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   notes: "",
   notifyEmail: true,
   notifySms: false,
+  urgent: false,
+  urgentDate: "",
+  urgentTime: "",
 };
 
 function ScheduleConsultationDialog({
@@ -1611,6 +1634,9 @@ function ScheduleConsultationDialog({
   const notes = useWatch({ control, name: "notes" });
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
+  const urgent = useWatch({ control, name: "urgent" });
+  const urgentDate = useWatch({ control, name: "urgentDate" });
+  const urgentTime = useWatch({ control, name: "urgentTime" });
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -1695,14 +1721,22 @@ function ScheduleConsultationDialog({
       return;
     }
     if (step === 2) {
-      if (await trigger(["customDuration", "attorneyId", "locationId"]))
+      if (
+        await trigger([
+          "customDuration",
+          "attorneyId",
+          "locationId",
+          "urgentDate",
+          "urgentTime",
+        ])
+      )
         setStep(3);
     }
   }
 
+  const chargesFee = Boolean(feeSettings?.chargesFee);
   const chargesCustomFee =
-    Boolean(feeSettings?.chargesFee) &&
-    feeSettings?.feeStructure === "custom_per_case_type";
+    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
 
   const onValid = (data: ScheduleForm) => {
     const duration =
@@ -1715,6 +1749,16 @@ function ScheduleConsultationDialog({
       setStep(3);
       return;
     }
+
+    // Urgent bookings may override the fee (urgency surcharge) even when the
+    // structure isn't custom-per-case-type.
+    const feeEditable = chargesCustomFee || (data.urgent && chargesFee);
+    const feeAmount =
+      feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
+
+    const scheduledAt = data.urgent
+      ? new Date(`${data.urgentDate}T${data.urgentTime}:00Z`).toISOString()
+      : undefined;
 
     initiateConsultation.mutate(
       {
@@ -1730,12 +1774,14 @@ function ScheduleConsultationDialog({
             data.consultationType === "in_person"
               ? data.locationId || undefined
               : undefined,
-          feeAmount: chargesCustomFee ? Number(data.feeAmount) : undefined,
+          feeAmount,
           preConsultationNotes: data.notes || undefined,
           notifyChannels: [
             ...(data.notifyEmail ? (["email"] as const) : []),
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
+          urgent: data.urgent || undefined,
+          scheduledAt,
         },
       },
       { onSuccess: () => closeDialog() },
@@ -1745,7 +1791,13 @@ function ScheduleConsultationDialog({
   const onInvalid = () => {
     // Jump back to the step that holds the first error.
     if (errors.selectedLeadId) setStep(1);
-    else if (errors.customDuration || errors.attorneyId || errors.locationId)
+    else if (
+      errors.customDuration ||
+      errors.attorneyId ||
+      errors.locationId ||
+      errors.urgentDate ||
+      errors.urgentTime
+    )
       setStep(2);
   };
 
@@ -1846,6 +1898,9 @@ function ScheduleConsultationDialog({
                   locations={locations}
                   notes={notes}
                   notifyEmail={notifyEmail}
+                  urgent={urgent}
+                  urgentDate={urgentDate}
+                  urgentTime={urgentTime}
                   touchedField={
                     errors.customDuration
                       ? "duration"
@@ -1853,8 +1908,15 @@ function ScheduleConsultationDialog({
                         ? "attorney"
                         : errors.locationId
                           ? "location"
-                          : null
+                          : errors.urgentDate
+                            ? "urgentDate"
+                            : errors.urgentTime
+                              ? "urgentTime"
+                              : null
                   }
+                  onUrgentChange={(value) => setField("urgent", value)}
+                  onUrgentDateChange={(value) => setField("urgentDate", value)}
+                  onUrgentTimeChange={(value) => setField("urgentTime", value)}
                   onDurationChoiceChange={(value) =>
                     setField("durationChoice", value)
                   }
@@ -1891,6 +1953,12 @@ function ScheduleConsultationDialog({
                   locationLabel={locationLabel}
                   notifyChannels={notifyChannels}
                   notes={notes}
+                  urgent={urgent}
+                  urgentAt={
+                    urgent && urgentDate && urgentTime
+                      ? `${urgentDate} ${urgentTime} UTC`
+                      : null
+                  }
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
@@ -2124,7 +2192,13 @@ function ScheduleDetailsStep({
   locations,
   notes,
   notifyEmail,
+  urgent,
+  urgentDate,
+  urgentTime,
   touchedField,
+  onUrgentChange,
+  onUrgentDateChange,
+  onUrgentTimeChange,
   onDurationChoiceChange,
   onCustomDurationChange,
   onConsultationTypeChange,
@@ -2147,7 +2221,19 @@ function ScheduleDetailsStep({
   locations: ConsultationLocation[];
   notes: string;
   notifyEmail: boolean;
-  touchedField: "duration" | "attorney" | "location" | null;
+  urgent: boolean;
+  urgentDate: string;
+  urgentTime: string;
+  touchedField:
+    | "duration"
+    | "attorney"
+    | "location"
+    | "urgentDate"
+    | "urgentTime"
+    | null;
+  onUrgentChange: (value: boolean) => void;
+  onUrgentDateChange: (value: string) => void;
+  onUrgentTimeChange: (value: string) => void;
   onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
@@ -2221,8 +2307,8 @@ function ScheduleDetailsStep({
         <Box>
           <StepFieldLabel>Video call link</StepFieldLabel>
           <ModeNote icon={<Video size={14} />}>
-            A Google Meet link is generated automatically once the lead picks a
-            time.
+            A Google Meet link is generated automatically when the consultation
+            is confirmed.
           </ModeNote>
         </Box>
       ) : consultationType === "phone_call" ? (
@@ -2288,26 +2374,61 @@ function ScheduleDetailsStep({
         </Box>
       )}
 
-      {/* Available time slots — lead-driven (matches "Let client choose" on) */}
+      {/* Time — lead-driven by default; urgent lets the admin book now */}
       <Box>
         <Flex align="center" justify="space-between" mb="8px">
-          <StepFieldLabel required>Available time slots</StepFieldLabel>
+          <StepFieldLabel required>
+            {urgent ? "Scheduled time" : "Available time slots"}
+          </StepFieldLabel>
           <HStack gap="8px">
             <Text fontSize="12px" color="fg.muted">
-              Let client choose
+              Urgent — schedule now
             </Text>
-            <Switch.Root checked disabled>
+            <Switch.Root
+              checked={urgent}
+              onCheckedChange={(e) => onUrgentChange(e.checked)}
+            >
               <Switch.HiddenInput />
-              <Switch.Control bg="brand.solid">
+              <Switch.Control bg={urgent ? "brand.solid" : undefined}>
                 <Switch.Thumb />
               </Switch.Control>
             </Switch.Root>
           </HStack>
         </Flex>
-        <ModeNote icon={<CalendarClock size={14} />}>
-          The lead chooses a time from the selected attorney's availability —
-          they'll receive a link to pick the slot that works for them.
-        </ModeNote>
+        {urgent ? (
+          <Stack gap="10px">
+            <ModeNote icon={<CalendarClock size={14} />}>
+              The lead skips the slot queue and is connected as soon as they pay
+              (if a fee applies). Times are in UTC.
+            </ModeNote>
+            <Grid templateColumns="1fr 1fr" gap="10px">
+              <Box>
+                <StepFieldLabel required>Date</StepFieldLabel>
+                <DateField
+                  ariaLabel="Consultation date"
+                  value={urgentDate}
+                  onChange={onUrgentDateChange}
+                  min={new Date().toISOString().slice(0, 10)}
+                  invalid={touchedField === "urgentDate"}
+                />
+              </Box>
+              <Box>
+                <StepFieldLabel required>Time (UTC)</StepFieldLabel>
+                <TimeField
+                  ariaLabel="Consultation time"
+                  value={urgentTime}
+                  onChange={onUrgentTimeChange}
+                  invalid={touchedField === "urgentTime"}
+                />
+              </Box>
+            </Grid>
+          </Stack>
+        ) : (
+          <ModeNote icon={<CalendarClock size={14} />}>
+            The lead chooses a time from the selected attorney's availability —
+            they'll receive a link to pick the slot that works for them.
+          </ModeNote>
+        )}
         <Box mt="12px">
           <StepFieldLabel>Consultation length</StepFieldLabel>
           <HStack gap="8px" wrap="wrap">
@@ -2505,6 +2626,8 @@ function ReviewStep({
   locationLabel,
   notifyChannels,
   notes,
+  urgent,
+  urgentAt,
   feeSettings,
   feeAmount,
   onFeeAmountChange,
@@ -2518,6 +2641,8 @@ function ReviewStep({
   locationLabel: string;
   notifyChannels: ("email" | "sms")[];
   notes: string;
+  urgent: boolean;
+  urgentAt: string | null;
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
@@ -2529,6 +2654,9 @@ function ReviewStep({
 
   const charges = Boolean(feeSettings?.chargesFee);
   const structure = feeSettings?.feeStructure;
+  // Urgent bookings let the admin set the amount (urgency surcharge) even when
+  // the firm's structure isn't custom-per-case-type.
+  const feeEditable = structure === "custom_per_case_type" || urgent;
 
   return (
     <Stack gap="16px" pt="12px">
@@ -2541,6 +2669,12 @@ function ReviewStep({
         <SummaryItem label="Consultation type">{consultationType}</SummaryItem>
         {mode === "in_person" ? (
           <SummaryItem label="Location">{locationLabel}</SummaryItem>
+        ) : null}
+        <SummaryItem label="Scheduling">
+          {urgent ? "Urgent — schedule now" : "Lead picks a time"}
+        </SummaryItem>
+        {urgent && urgentAt ? (
+          <SummaryItem label="Scheduled time">{urgentAt}</SummaryItem>
         ) : null}
         <SummaryItem label="Duration">{duration}</SummaryItem>
         <SummaryItem label="Attorney">{attorney}</SummaryItem>
@@ -2594,7 +2728,7 @@ function ReviewStep({
                 <Text fontSize="14px" color="fg.muted">
                   $
                 </Text>
-                {structure === "custom_per_case_type" ? (
+                {feeEditable ? (
                   <Input
                     type="number"
                     min={0}
@@ -2639,8 +2773,9 @@ function ReviewStep({
             >
               <Info size={14} />
               <Text m="0">
-                A payment link will be included in the client confirmation email.
-                Payment goes to the firm's operating account.
+                {urgent
+                  ? "A payment link will be emailed to the client; as soon as they pay they'll be connected with the attorney. Payment goes to the firm's operating account."
+                  : "A payment link will be included in the client confirmation email. Payment goes to the firm's operating account."}
               </Text>
             </HStack>
           </>
