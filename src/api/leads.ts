@@ -189,6 +189,73 @@ export const getLeadById = async (id: string): Promise<LeadDetail> => {
   return res.data.data;
 };
 
+export type ConsultationStatus =
+  | "pending_payment"
+  | "awaiting_slot_selection"
+  | "scheduled"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+
+export type ConsultationSort =
+  | "date_asc"
+  | "date_desc"
+  | "client_asc"
+  | "client_desc";
+
+export type ConsultationListItem = {
+  id: string;
+  leadId: string;
+  leadName: string;
+  leadEmail: string;
+  mode: "video" | "in_person" | "phone_call";
+  status: ConsultationStatus;
+  scheduledAt: string | null;
+  duration: number;
+  feeStatus: string | null;
+  feeAmount: string | null;
+  leadAttorneyId: string | null;
+  attorneyFirstName: string | null;
+  attorneyLastName: string | null;
+};
+
+export type GetConsultationsParams = {
+  search?: string;
+  attorneyId?: string;
+  sort?: ConsultationSort;
+  page?: number;
+  limit?: number;
+};
+
+export type ConsultationsResponse = {
+  data: ConsultationListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+// Backend batch summary of consultations (across stages), used to enrich the
+// consultation-stage cards with attorney / status / scheduled-time so the list
+// can be searched, filtered and sorted without a detail fetch per card.
+export const getConsultations = async (
+  params: GetConsultationsParams = {},
+): Promise<ConsultationsResponse> => {
+  const query: Record<string, string> = {};
+  if (params.search) query.search = params.search;
+  if (params.attorneyId) query.attorneyId = params.attorneyId;
+  if (params.sort) query.sort = params.sort;
+  if (params.page) query.page = String(params.page);
+  if (params.limit) query.limit = String(params.limit);
+  const res = await API.get("/leads/consultations", { params: query });
+  return res.data.data;
+};
+
 export const createLead = async (data: {
   name: string;
   email: string;
@@ -251,20 +318,21 @@ export const sendQuestionnaire = async (
   return res.data.data;
 };
 
-export const createConsultation = async (
+export const initiateConsultation = async (
   id: string,
   data: {
-    scheduledAt: string;
-    duration: number;
+    leadAttorneyId: string;
+    participantStaffIds?: string[];
     mode: "video" | "in_person" | "phone_call";
-    leadAttorneyId?: string;
-    videoLink?: string;
+    duration: number;
+    locationId?: string;
+    feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
   },
-): Promise<Consultation> => {
+) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
-  return res.data.data;
+  return res.data.data as { consultation: Consultation; bookingToken: string };
 };
 
 export const updateConsultation = async (

@@ -5,16 +5,22 @@ import {
   Grid,
   HStack,
   Input,
+  Portal,
+  Select,
   Stack,
+  Switch,
   Text,
   Textarea,
   chakra,
+  createListCollection,
 } from "@chakra-ui/react";
 import {
   AlertTriangle,
   CalendarClock,
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   Download,
   ExternalLink,
@@ -23,30 +29,35 @@ import {
   Lock,
   Mail,
   MapPin,
-  MessageSquare,
   Phone,
   Scale,
+  Search,
   Send,
   UserX,
   Video,
   X,
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Lead } from "@/api/leads";
+import type {
+  ConsultationListItem,
+  ConsultationSort,
+  ConsultationStatus,
+  Lead,
+} from "@/api/leads";
+import { toast } from "sonner";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
-import { DateField } from "@/components/ui/date-field";
-import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
-  useCreateConsultation,
+  useConsultations,
+  useInitiateConsultation,
   useGenerateFeeAgreement,
   useLeadById,
   useLeads,
@@ -64,6 +75,15 @@ import {
 } from "@/hooks/use-questionnaires";
 import { useStaffList, type StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
+  useConsultationLocations,
+  useConsultationSettings,
+  useCreateConsultationLocation,
+} from "@/hooks/use-consultation-settings";
+import type {
+  ConsultationLocation,
+  ConsultationSettings,
+} from "@/api/consultation-settings";
+import {
   BrandButton,
   CardTitle,
   IntakeListSkeleton,
@@ -72,11 +92,20 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
-import { NotifyChip } from "@/components/ui/notify-chip";
 
 type ScheduleStep = 1 | 2 | 3;
 type ConsultationMode = "video" | "in_person" | "phone_call";
+
+const STEP_META: Record<ScheduleStep, { title: string; label: string }> = {
+  1: { title: "Schedule consultation", label: "Step 1 of 3 — Select lead" },
+  2: {
+    title: "Consultation details",
+    label: "Step 2 of 3 — Consultation details",
+  },
+  3: { title: "Review & confirm", label: "Step 3 of 3 — Review & confirm" },
+};
 
 const CONSULTATION_TYPE_OPTIONS: { value: ConsultationMode; label: string }[] =
   [
@@ -93,29 +122,6 @@ function consultationModeLabel(mode: ConsultationMode): string {
     CONSULTATION_TYPE_OPTIONS.find((o) => o.value === mode)?.label ??
     "Video call"
   );
-}
-
-// time is a 24h "HH:MM" value from a native time input.
-function buildScheduledAt(date: string, time: string): string {
-  return `${date}T${time || "09:00"}:00`;
-}
-
-// Local "YYYY-MM-DD" for today — used to block scheduling in the past.
-function getTodayDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
-}
-
-function formatTimeLabel(time: string): string {
-  if (!time) return "—";
-  const [hourStr, minStr] = time.split(":");
-  let hour = parseInt(hourStr, 10);
-  if (Number.isNaN(hour)) return time;
-  const period = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12 || 12;
-  return `${hour}:${minStr} ${period}`;
 }
 
 function getInitials(name: string): string {
@@ -142,6 +148,64 @@ function consultationModeIcon(mode: ConsultationMode | undefined) {
   return <MapPin size={12} />;
 }
 
+type StatusTone = "info" | "success" | "danger" | "warning" | "neutral";
+
+const CONSULT_STATUS_LABEL: Record<ConsultationStatus, string> = {
+  pending_payment: "Pending payment",
+  awaiting_slot_selection: "Awaiting slot",
+  scheduled: "Scheduled",
+  in_progress: "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_show: "No show",
+};
+
+const CONSULT_STATUS_TONE: Record<ConsultationStatus, StatusTone> = {
+  pending_payment: "warning",
+  awaiting_slot_selection: "warning",
+  scheduled: "info",
+  in_progress: "warning",
+  completed: "success",
+  cancelled: "danger",
+  no_show: "danger",
+};
+
+// Solid dot colour per tone (mirrors intakeColors text tones in intake-ui).
+const TONE_DOT: Record<StatusTone, string> = {
+  info: "#2f63c7",
+  success: "#00785a",
+  warning: "#8a641d",
+  danger: "#b00020",
+  neutral: "#94a3b8",
+};
+
+const STATUS_FILTER_OPTIONS: { label: string; value: string }[] = [
+  { label: "All statuses", value: "all" },
+  { label: "Pending payment", value: "pending_payment" },
+  { label: "Awaiting slot", value: "awaiting_slot_selection" },
+  { label: "Scheduled", value: "scheduled" },
+  { label: "In progress", value: "in_progress" },
+  { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
+  { label: "No show", value: "no_show" },
+];
+
+const SORT_OPTIONS: { label: string; value: ConsultationSort }[] = [
+  { label: "Date: earliest first", value: "date_asc" },
+  { label: "Date: latest first", value: "date_desc" },
+  { label: "Client: A–Z", value: "client_asc" },
+  { label: "Client: Z–A", value: "client_desc" },
+];
+
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+
+function attorneyFullName(item: ConsultationListItem): string {
+  const name = `${item.attorneyFirstName ?? ""} ${
+    item.attorneyLastName ?? ""
+  }`.trim();
+  return name || "Unassigned";
+}
+
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
@@ -160,11 +224,17 @@ export function ConsultationView() {
     <>
       <Stack gap="20px" pt="24px" aria-label="Consultation and notes">
         <HStack justify="space-between" gap="16px" wrap="wrap">
-          <MutedText fontSize="14px">Consultation &amp; notes</MutedText>
-          <OutlineButton onClick={() => openWizard(null)}>
+          <Text m="0" color="fg" fontSize="15px" fontWeight="500">
+            {scheduled.length > 0
+              ? `${scheduled.length} consultation${
+                  scheduled.length === 1 ? "" : "s"
+                } in progress`
+              : "Consultation & notes"}
+          </Text>
+          <BrandButton onClick={() => openWizard(null)}>
             <CalendarDays size={14} />
             Schedule consultation
-          </OutlineButton>
+          </BrandButton>
         </HStack>
 
         {isLoading ? (
@@ -197,17 +267,7 @@ export function ConsultationView() {
             ) : null}
 
             {scheduled.length > 0 ? (
-              <Stack gap="12px">
-                <MutedText fontSize="14px">
-                  {scheduled.length} consultation
-                  {scheduled.length === 1 ? "" : "s"} in progress
-                </MutedText>
-                <Stack gap="16px">
-                  {scheduled.map((lead) => (
-                    <ConsultationCard key={lead.id} lead={lead} />
-                  ))}
-                </Stack>
-              </Stack>
+              <ConsultationList leads={scheduled} />
             ) : null}
           </Stack>
         )}
@@ -222,12 +282,331 @@ export function ConsultationView() {
   );
 }
 
+type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
+
+type ConsultationRow = {
+  lead: ConsultationSummaryLead;
+  summary: ConsultationListItem;
+};
+
+// The consultation list: search / status / attorney / sort / pagination over
+// the consultation-stage leads, enriched with a batch summary fetch so each
+// collapsed row can show status, attorney and time without a per-card detail
+// request. Controls are applied client-side against that summary set.
+function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
+  const { data, isLoading } = useConsultations({ limit: 200 });
+
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const [attorney, setAttorney] = useState("all");
+  const [sort, setSort] = useState<ConsultationSort>("date_asc");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const summaryByLead = useMemo(() => {
+    const map = new Map<string, ConsultationListItem>();
+    for (const item of data?.data ?? []) map.set(item.leadId, item);
+    return map;
+  }, [data]);
+
+  // Only the leads currently in the consultation stage, paired with their
+  // consultation summary (dropping any whose summary hasn't loaded yet).
+  const rows = useMemo<ConsultationRow[]>(() => {
+    return leads.flatMap((lead) => {
+      const summary = summaryByLead.get(lead.id);
+      return summary ? [{ lead, summary }] : [];
+    });
+  }, [leads, summaryByLead]);
+
+  const attorneyOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const { summary } of rows) {
+      if (summary.leadAttorneyId && !seen.has(summary.leadAttorneyId)) {
+        seen.set(summary.leadAttorneyId, attorneyFullName(summary));
+      }
+    }
+    return [
+      { label: "All attorneys", value: "all" },
+      ...[...seen.entries()].map(([value, label]) => ({ label, value })),
+    ];
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = rows.filter(({ lead, summary }) => {
+      if (q && !lead.name.toLowerCase().includes(q)) return false;
+      if (status !== "all" && summary.status !== status) return false;
+      if (attorney !== "all" && summary.leadAttorneyId !== attorney)
+        return false;
+      return true;
+    });
+    const time = (r: ConsultationRow) =>
+      r.summary.scheduledAt ? new Date(r.summary.scheduledAt).getTime() : null;
+    list.sort((a, b) => {
+      switch (sort) {
+        case "client_asc":
+          return a.lead.name.localeCompare(b.lead.name);
+        case "client_desc":
+          return b.lead.name.localeCompare(a.lead.name);
+        case "date_desc":
+        case "date_asc":
+        default: {
+          const ta = time(a);
+          const tb = time(b);
+          // Unscheduled consultations sort to the bottom either way.
+          if (ta === null && tb === null) return 0;
+          if (ta === null) return 1;
+          if (tb === null) return -1;
+          return sort === "date_desc" ? tb - ta : ta - tb;
+        }
+      }
+    });
+    return list;
+  }, [rows, query, status, attorney, sort]);
+
+  const total = filtered.length;
+  const pageStart = (page - 1) * limit;
+  const paged = filtered.slice(pageStart, pageStart + limit);
+
+  function resetPage<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  return (
+    <Stack gap="14px">
+      <Flex align="center" justify="space-between" gap="12px" wrap="wrap">
+        <HStack gap="10px" wrap="wrap">
+          <HStack
+            gap="8px"
+            h="34px"
+            minW="240px"
+            px="12px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="7px"
+            bg="bg"
+            color="fg.muted"
+          >
+            <Search size={15} />
+            <Input
+              aria-label="Search consultations"
+              placeholder="Search consultations..."
+              type="search"
+              value={query}
+              onChange={(e) => resetPage(setQuery)(e.target.value)}
+              p="0"
+              h="auto"
+              border="0"
+              bg="transparent"
+              color="fg"
+              _focus={{ boxShadow: "none", outline: "0" }}
+            />
+          </HStack>
+          <FilterSelect
+            ariaLabel="Filter by status"
+            value={status}
+            onChange={resetPage(setStatus)}
+            options={STATUS_FILTER_OPTIONS}
+          />
+          <FilterSelect
+            ariaLabel="Filter by attorney"
+            value={attorney}
+            onChange={resetPage(setAttorney)}
+            options={attorneyOptions}
+          />
+          <FilterSelect
+            ariaLabel="Sort consultations"
+            value={sort}
+            onChange={resetPage((v: string) => setSort(v as ConsultationSort))}
+            options={SORT_OPTIONS}
+          />
+        </HStack>
+        <MutedText fontSize="11px">
+          {isLoading
+            ? "Loading…"
+            : `${total} of ${rows.length} consultation${
+                rows.length === 1 ? "" : "s"
+              }`}
+        </MutedText>
+      </Flex>
+
+      {isLoading ? (
+        <IntakeListSkeleton />
+      ) : total === 0 ? (
+        <MutedText>No consultations match your filters.</MutedText>
+      ) : (
+        <Stack gap="10px">
+          {paged.map(({ lead, summary }) => (
+            <CollapsibleConsultation
+              key={summary.id}
+              lead={lead}
+              summary={summary}
+            />
+          ))}
+        </Stack>
+      )}
+
+      {total > limit ? (
+        <PaginationControls
+          total={total}
+          currentPage={page}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={resetPage(setLimit)}
+          pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+        />
+      ) : null}
+    </Stack>
+  );
+}
+
+// A consultation rendered as a collapsible row: the summary bar is always
+// visible; expanding reveals the full consultation detail card.
+function CollapsibleConsultation({
+  lead,
+  summary,
+}: {
+  lead: ConsultationSummaryLead;
+  summary: ConsultationListItem;
+}) {
+  const [open, setOpen] = useState(false);
+  const tone = CONSULT_STATUS_TONE[summary.status];
+  const dateLabel = summary.scheduledAt
+    ? `${formatReceivedDate(summary.scheduledAt)}, ${formatIsoTime(
+        summary.scheduledAt,
+      )}`
+    : "Not scheduled yet";
+
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      overflow="hidden"
+    >
+      <chakra.button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="16px"
+        w="full"
+        textAlign="left"
+        px="18px"
+        py="14px"
+        bg={open ? "bg.subtle" : "bg"}
+        _hover={{ bg: "bg.subtle" }}
+      >
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Box
+            flex="0 0 auto"
+            mt="6px"
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg={TONE_DOT[tone]}
+          />
+          <Box minW="0">
+            <HStack gap="8px" minW="0" wrap="wrap">
+              <Text
+                m="0"
+                color="fg"
+                fontSize="14px"
+                fontWeight="600"
+                truncate
+              >
+                {lead.name}
+              </Text>
+              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+            </HStack>
+            <MutedText>
+              {dateLabel} · {attorneyFullName(summary)}
+            </MutedText>
+          </Box>
+        </HStack>
+        <HStack gap="10px" flex="0 0 auto">
+          <StatusPill tone={tone}>
+            {CONSULT_STATUS_LABEL[summary.status]}
+          </StatusPill>
+          <Box color="fg.muted">
+            {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </Box>
+        </HStack>
+      </chakra.button>
+
+      {open ? (
+        <Box borderTop="1px solid" borderColor="border">
+          <ConsultationCard lead={lead} bare />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+function FilterSelect({
+  ariaLabel,
+  value,
+  onChange,
+  options,
+}: {
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly { label: string; value: string }[];
+}) {
+  const collection = useMemo(
+    () => createListCollection({ items: [...options] }),
+    [options],
+  );
+
+  return (
+    <Select.Root
+      collection={collection}
+      size="sm"
+      minW="164px"
+      value={[value]}
+      onValueChange={(event) => onChange(event.value[0] ?? value)}
+      aria-label={ariaLabel}
+    >
+      <Select.HiddenSelect />
+      <Select.Control>
+        <Select.Trigger bg="bg" borderColor="border" rounded="7px">
+          <Select.ValueText />
+        </Select.Trigger>
+        <Select.IndicatorGroup>
+          <Select.Indicator />
+        </Select.IndicatorGroup>
+      </Select.Control>
+      <Portal>
+        <Select.Positioner>
+          <Select.Content>
+            {collection.items.map((item) => (
+              <Select.Item item={item} key={item.value}>
+                <Select.ItemText>{item.label}</Select.ItemText>
+                <Select.ItemIndicator />
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+      </Portal>
+    </Select.Root>
+  );
+}
+
 function ConsultationCard({
   lead,
   onSchedule,
+  bare = false,
 }: {
-  lead: Lead;
+  lead: ConsultationSummaryLead;
   onSchedule?: () => void;
+  bare?: boolean;
 }) {
   const { data: leadDetail } = useLeadById(lead.id);
   const { data: questionnaire } = useLeadQuestionnaire(lead.id);
@@ -435,8 +814,10 @@ function ConsultationCard({
     });
   }
 
+  const Container = bare ? BareCardBody : SurfaceCard;
+
   return (
-    <SurfaceCard>
+    <Container>
       {/* 1. Lead + consultation details */}
       <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
         <HStack gap="12px" minW="0" align="flex-start">
@@ -941,8 +1322,14 @@ function ConsultationCard({
         initialTab={docDialog?.tab ?? "responses"}
         onClose={() => setDocDialog(null)}
       />
-    </SurfaceCard>
+    </Container>
   );
+}
+
+// Bare body used when the card is rendered inside a collapsible row (the
+// surrounding container already supplies the border and radius).
+function BareCardBody({ children }: { children: ReactNode }) {
+  return <Box p="18px">{children}</Box>;
 }
 
 function SectionRow({ children }: { children: ReactNode }) {
@@ -1137,8 +1524,6 @@ function titleCase(value: string): string {
 const scheduleSchema = z
   .object({
     selectedLeadId: z.string().min(1, "Select a lead"),
-    date: z.string().min(1, "Pick a date"),
-    startTime: z.string().min(1),
     durationChoice: z.union([
       z.literal(30),
       z.literal(45),
@@ -1149,19 +1534,14 @@ const scheduleSchema = z
     customDuration: z.string(),
     consultationType: z.enum(["video", "in_person", "phone_call"]),
     attorneyId: z.string().min(1, "Select an attorney"),
-    videoLink: z.string(),
+    participantIds: z.array(z.string()),
+    locationId: z.string(),
+    feeAmount: z.string(),
     notes: z.string(),
     notifyEmail: z.boolean(),
     notifySms: z.boolean(),
   })
   .superRefine((val, ctx) => {
-    if (val.date && val.date < getTodayDate()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["date"],
-        message: "Consultation date cannot be in the past",
-      });
-    }
     const dur =
       val.durationChoice === "custom"
         ? parseInt(val.customDuration, 10)
@@ -1173,19 +1553,26 @@ const scheduleSchema = z
         message: "Enter a duration in minutes",
       });
     }
+    if (val.consultationType === "in_person" && !val.locationId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["locationId"],
+        message: "Select a location for in-person consultations",
+      });
+    }
   });
 
 type ScheduleForm = z.infer<typeof scheduleSchema>;
 
 const SCHEDULE_DEFAULTS: ScheduleForm = {
   selectedLeadId: "",
-  date: "",
-  startTime: "09:00",
   durationChoice: 60,
   customDuration: "",
   consultationType: "video",
   attorneyId: "",
-  videoLink: "",
+  participantIds: [],
+  locationId: "",
+  feeAmount: "",
   notes: "",
   notifyEmail: true,
   notifySms: false,
@@ -1213,17 +1600,17 @@ function ScheduleConsultationDialog({
     defaultValues: SCHEDULE_DEFAULTS,
     mode: "onChange",
   });
-  const date = useWatch({ control, name: "date" });
   const attorneyId = useWatch({ control, name: "attorneyId" });
   const selectedLeadId = useWatch({ control, name: "selectedLeadId" });
   const customDuration = useWatch({ control, name: "customDuration" });
   const durationChoice = useWatch({ control, name: "durationChoice" });
   const consultationType = useWatch({ control, name: "consultationType" });
+  const participantIds = useWatch({ control, name: "participantIds" });
+  const locationId = useWatch({ control, name: "locationId" });
+  const feeAmount = useWatch({ control, name: "feeAmount" });
   const notes = useWatch({ control, name: "notes" });
-  const startTime = useWatch({ control, name: "startTime" });
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
-  const videoLink = useWatch({ control, name: "videoLink" });
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -1245,13 +1632,15 @@ function ScheduleConsultationDialog({
     ...consultationLeads.filter((l) => !l.consultationId),
   ];
 
-  const { data: staffData } = useStaffList({
-    role: "attorney",
-    status: "active",
-  });
-  const attorneys = staffData?.data ?? [];
+  const { data: staffData } = useStaffList({ status: "active" });
+  const allStaff = staffData?.data ?? [];
+  const attorneys = allStaff.filter((s) => s.role === "attorney");
 
-  const createConsultation = useCreateConsultation();
+  const { data: feeSettings } = useConsultationSettings();
+  const { data: locations = [] } = useConsultationLocations();
+  const createLocation = useCreateConsultationLocation();
+
+  const initiateConsultation = useInitiateConsultation();
 
   // Preselect the lead when the dialog is opened from a specific card, and skip
   // straight to step 2 since the lead is already chosen. Done during render
@@ -1280,6 +1669,15 @@ function ScheduleConsultationDialog({
     const a = attorneys.find((s) => s.id === attorneyId);
     return a ? `${a.firstName} ${a.lastName}`.trim() : "Not assigned";
   })();
+  const participantNames = participantIds
+    .map((id) => {
+      const member = allStaff.find((m) => m.id === id);
+      return member ? `${member.firstName} ${member.lastName}`.trim() : null;
+    })
+    .filter(Boolean)
+    .join(", ");
+  const locationLabel =
+    locations.find((l) => l.id === locationId)?.label ?? "—";
   const notifyChannels: ("email" | "sms")[] = [
     ...(notifyEmail ? (["email"] as const) : []),
     ...(notifySms ? (["sms"] as const) : []),
@@ -1297,24 +1695,42 @@ function ScheduleConsultationDialog({
       return;
     }
     if (step === 2) {
-      if (await trigger(["date", "customDuration", "attorneyId"])) setStep(3);
+      if (await trigger(["customDuration", "attorneyId", "locationId"]))
+        setStep(3);
     }
   }
+
+  const chargesCustomFee =
+    Boolean(feeSettings?.chargesFee) &&
+    feeSettings?.feeStructure === "custom_per_case_type";
 
   const onValid = (data: ScheduleForm) => {
     const duration =
       data.durationChoice === "custom"
         ? parseInt(data.customDuration, 10)
         : data.durationChoice;
-    createConsultation.mutate(
+
+    if (chargesCustomFee && !data.feeAmount.trim()) {
+      toast.error("Enter the consultation fee for this case type");
+      setStep(3);
+      return;
+    }
+
+    initiateConsultation.mutate(
       {
         id: data.selectedLeadId,
         data: {
-          scheduledAt: buildScheduledAt(data.date, data.startTime),
-          duration,
+          leadAttorneyId: data.attorneyId,
+          participantStaffIds: data.participantIds.length
+            ? data.participantIds
+            : undefined,
           mode: data.consultationType,
-          leadAttorneyId: data.attorneyId || undefined,
-          videoLink: data.videoLink || undefined,
+          duration,
+          locationId:
+            data.consultationType === "in_person"
+              ? data.locationId || undefined
+              : undefined,
+          feeAmount: chargesCustomFee ? Number(data.feeAmount) : undefined,
           preConsultationNotes: data.notes || undefined,
           notifyChannels: [
             ...(data.notifyEmail ? (["email"] as const) : []),
@@ -1329,7 +1745,7 @@ function ScheduleConsultationDialog({
   const onInvalid = () => {
     // Jump back to the step that holds the first error.
     if (errors.selectedLeadId) setStep(1);
-    else if (errors.date || errors.customDuration || errors.attorneyId)
+    else if (errors.customDuration || errors.attorneyId || errors.locationId)
       setStep(2);
   };
 
@@ -1372,16 +1788,15 @@ function ScheduleConsultationDialog({
                     fontWeight="600"
                     lineHeight="1.2"
                   >
-                    Schedule consultation
+                    {STEP_META[step].title}
                   </Dialog.Title>
                   <Dialog.Description
-                    mt="8px"
+                    mt="6px"
                     color="fg.muted"
                     fontSize="12px"
                     lineHeight="1.45"
                   >
-                    Schedule a consultation with a lead who has cleared conflict
-                    check.
+                    {STEP_META[step].label}
                   </Dialog.Description>
                 </Box>
                 <Dialog.CloseTrigger asChild>
@@ -1420,28 +1835,26 @@ function ScheduleConsultationDialog({
               ) : null}
               {step === 2 ? (
                 <ScheduleDetailsStep
-                  date={date}
-                  startTime={startTime}
                   durationChoice={durationChoice}
                   customDuration={customDuration}
                   consultationType={consultationType}
                   attorneyId={attorneyId}
                   attorneys={attorneys}
-                  videoLink={videoLink}
+                  allStaff={allStaff}
+                  participantIds={participantIds}
+                  locationId={locationId}
+                  locations={locations}
                   notes={notes}
                   notifyEmail={notifyEmail}
-                  notifySms={notifySms}
                   touchedField={
-                    errors.date
-                      ? "date"
-                      : errors.customDuration
-                        ? "duration"
-                        : errors.attorneyId
-                          ? "attorney"
+                    errors.customDuration
+                      ? "duration"
+                      : errors.attorneyId
+                        ? "attorney"
+                        : errors.locationId
+                          ? "location"
                           : null
                   }
-                  onDateChange={(value) => setField("date", value)}
-                  onStartTimeChange={(value) => setField("startTime", value)}
                   onDurationChoiceChange={(value) =>
                     setField("durationChoice", value)
                   }
@@ -1452,27 +1865,35 @@ function ScheduleConsultationDialog({
                     setField("consultationType", value)
                   }
                   onAttorneyChange={(value) => setField("attorneyId", value)}
-                  onVideoLinkChange={(value) => setField("videoLink", value)}
+                  onParticipantsChange={(value) =>
+                    setField("participantIds", value)
+                  }
+                  onLocationChange={(value) => setField("locationId", value)}
+                  onCreateLocation={async (label) => {
+                    const created = await createLocation.mutateAsync({ label });
+                    setField("locationId", created.id);
+                  }}
+                  creatingLocation={createLocation.isPending}
                   onNotesChange={(value) => setField("notes", value)}
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }
-                  onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
               {step === 3 && selectedLead ? (
                 <ReviewStep
                   lead={selectedLead}
-                  matterType={matterType}
-                  language={language}
-                  date={date || "—"}
-                  startTime={formatTimeLabel(startTime)}
                   duration={durationLabel}
                   consultationType={consultationModeLabel(consultationType)}
                   attorney={attorneyName}
+                  participantNames={participantNames}
+                  mode={consultationType}
+                  locationLabel={locationLabel}
                   notifyChannels={notifyChannels}
-                  videoLink={videoLink}
                   notes={notes}
+                  feeSettings={feeSettings ?? null}
+                  feeAmount={feeAmount}
+                  onFeeAmountChange={(value) => setField("feeAmount", value)}
                 />
               ) : null}
             </Box>
@@ -1496,21 +1917,22 @@ function ScheduleConsultationDialog({
               ) : (
                 <Box />
               )}
-              {step < 3 ? (
-                <BrandButton minW="116px" onClick={handleContinue}>
-                  Continue
-                  <Send size={14} />
-                </BrandButton>
-              ) : (
-                <BrandButton
-                  minW="180px"
-                  loading={createConsultation.isPending}
-                  onClick={handleConfirm}
-                >
-                  <CalendarDays size={14} />
-                  Confirm & schedule
-                </BrandButton>
-              )}
+              <HStack gap="10px">
+                <OutlineButton onClick={closeDialog}>Cancel</OutlineButton>
+                {step < 3 ? (
+                  <BrandButton minW="100px" onClick={handleContinue}>
+                    Next
+                  </BrandButton>
+                ) : (
+                  <BrandButton
+                    minW="180px"
+                    loading={initiateConsultation.isPending}
+                    onClick={handleConfirm}
+                  >
+                    Confirm &amp; schedule
+                  </BrandButton>
+                )}
+              </HStack>
             </Flex>
           </Flex>
         </Dialog.Content>
@@ -1520,27 +1942,20 @@ function ScheduleConsultationDialog({
 }
 
 function StepProgress({ step }: { step: ScheduleStep }) {
-  const labels = {
-    1: "Step 1 of 3 — Select lead",
-    2: "Step 2 of 3 — Date, time & attorney",
-    3: "Step 3 of 3 — Review & confirm",
-  } as const;
-
   return (
-    <Box mt="18px">
-      <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap="4px">
-        {[1, 2, 3].map((stage) => (
-          <Box
-            key={stage}
-            h="3px"
-            borderRadius="999px"
-            bg={stage <= step ? "brand.solid" : "border.subtle"}
-          />
-        ))}
-      </Grid>
-      <Text m="8px 0 0" color="fg.muted" fontSize="11px">
-        {labels[step]}
-      </Text>
+    <Box
+      mt="14px"
+      h="3px"
+      borderRadius="999px"
+      bg="border.subtle"
+      overflow="hidden"
+    >
+      <Box
+        h="full"
+        bg="brand.solid"
+        w={`${(step / 3) * 100}%`}
+        transition="width 0.2s ease"
+      />
     </Box>
   );
 }
@@ -1619,183 +2034,461 @@ function SelectClientStep({
   );
 }
 
+function StepFieldLabel({
+  children,
+  required,
+}: {
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <Text m="0 0 8px" color="fg" fontSize="13px" fontWeight="600">
+      {children}
+      {required ? <chakra.span color="#d14343"> *</chakra.span> : null}
+    </Text>
+  );
+}
+
+function CheckOption({
+  checked,
+  disabled,
+  label,
+  onToggle,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: ReactNode;
+  onToggle: () => void;
+}) {
+  return (
+    <chakra.button
+      type="button"
+      disabled={disabled}
+      onClick={onToggle}
+      display="flex"
+      alignItems="center"
+      gap="8px"
+      opacity={disabled ? 0.5 : 1}
+      cursor={disabled ? "not-allowed" : "pointer"}
+    >
+      <Box
+        w="16px"
+        h="16px"
+        borderRadius="4px"
+        border="1px solid"
+        borderColor={checked ? "brand.solid" : "border"}
+        bg={checked ? "brand.solid" : "bg"}
+        color="brand.fg"
+        display="grid"
+        placeItems="center"
+      >
+        {checked ? <Check size={12} /> : null}
+      </Box>
+      <Text m="0" fontSize="13px" color="fg">
+        {label}
+      </Text>
+    </chakra.button>
+  );
+}
+
+// Note shown in place of mode-specific fields that our backend handles
+// automatically (video Meet link, phone number).
+function ModeNote({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <HStack
+      gap="8px"
+      p="10px 12px"
+      border="1px solid"
+      borderColor="border"
+      borderRadius="8px"
+      bg="bg.subtle"
+      color="fg.muted"
+      fontSize="12px"
+      lineHeight="1.4"
+    >
+      {icon}
+      <Text m="0">{children}</Text>
+    </HStack>
+  );
+}
+
 function ScheduleDetailsStep({
-  date,
-  startTime,
   durationChoice,
   customDuration,
   consultationType,
   attorneyId,
   attorneys,
-  videoLink,
+  allStaff,
+  participantIds,
+  locationId,
+  locations,
   notes,
   notifyEmail,
-  notifySms,
   touchedField,
-  onDateChange,
-  onStartTimeChange,
   onDurationChoiceChange,
   onCustomDurationChange,
   onConsultationTypeChange,
   onAttorneyChange,
-  onVideoLinkChange,
+  onParticipantsChange,
+  onLocationChange,
+  onCreateLocation,
+  creatingLocation,
   onNotesChange,
   onNotifyEmailChange,
-  onNotifySmsChange,
 }: {
-  date: string;
-  startTime: string;
   durationChoice: DurationChoice;
   customDuration: string;
   consultationType: ConsultationMode;
   attorneyId: string;
   attorneys: StaffMemberDTO[];
-  videoLink: string;
+  allStaff: StaffMemberDTO[];
+  participantIds: string[];
+  locationId: string;
+  locations: ConsultationLocation[];
   notes: string;
   notifyEmail: boolean;
-  notifySms: boolean;
-  touchedField: "client" | "date" | "duration" | "attorney" | null;
-  onDateChange: (value: string) => void;
-  onStartTimeChange: (value: string) => void;
+  touchedField: "duration" | "attorney" | "location" | null;
   onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
   onAttorneyChange: (value: string) => void;
-  onVideoLinkChange: (value: string) => void;
+  onParticipantsChange: (value: string[]) => void;
+  onLocationChange: (value: string) => void;
+  onCreateLocation: (label: string) => void;
+  creatingLocation: boolean;
   onNotesChange: (value: string) => void;
   onNotifyEmailChange: (value: boolean) => void;
-  onNotifySmsChange: (value: boolean) => void;
 }) {
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [newLocationLabel, setNewLocationLabel] = useState("");
+  const [attendeeQuery, setAttendeeQuery] = useState("");
+
+  const participantOptions = allStaff.filter(
+    (s) => s.id !== attorneyId && (s.role === "attorney" || s.role === "paralegal"),
+  );
+  const addedParticipants = participantOptions.filter((s) =>
+    participantIds.includes(s.id),
+  );
+  const attendeeMatches = attendeeQuery.trim()
+    ? participantOptions.filter(
+        (s) =>
+          !participantIds.includes(s.id) &&
+          `${s.firstName} ${s.lastName}`
+            .toLowerCase()
+            .includes(attendeeQuery.toLowerCase()),
+      )
+    : [];
+
+  const addParticipant = (id: string) => {
+    onParticipantsChange([...participantIds, id]);
+    setAttendeeQuery("");
+  };
+  const removeParticipant = (id: string) =>
+    onParticipantsChange(participantIds.filter((p) => p !== id));
+
   return (
-    <Stack gap="12px" pt="10px">
-      <Grid
-        templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
-        gap="10px"
-      >
-        <FormField label="Date">
-          <DateField
-            ariaLabel="Date"
-            value={date}
-            min={getTodayDate()}
-            invalid={touchedField === "date"}
-            onChange={onDateChange}
-          />
-        </FormField>
-        <FormField label="Start time">
-          <TimeField
-            ariaLabel="Start time"
-            value={startTime}
-            onChange={onStartTimeChange}
-          />
-        </FormField>
-      </Grid>
-
-      <FormField label="Duration">
+    <Stack gap="16px" pt="12px">
+      {/* Consultation type */}
+      <Box>
+        <StepFieldLabel required>Consultation type</StepFieldLabel>
         <HStack gap="8px" wrap="wrap">
-          {DURATION_PRESETS.map((preset) => (
-            <ChoiceChip
-              key={preset}
-              active={durationChoice === preset}
-              onClick={() => onDurationChoiceChange(preset)}
-            >
-              {preset} min
-            </ChoiceChip>
-          ))}
-          <ChoiceChip
-            active={durationChoice === "custom"}
-            onClick={() => onDurationChoiceChange("custom")}
-          >
-            Custom
-          </ChoiceChip>
+          {CONSULTATION_TYPE_OPTIONS.map((option) => {
+            const active = consultationType === option.value;
+            return (
+              <chakra.button
+                key={option.value}
+                type="button"
+                onClick={() => onConsultationTypeChange(option.value)}
+                px="16px"
+                h="36px"
+                borderRadius="999px"
+                border="1px solid"
+                fontSize="13px"
+                fontWeight="500"
+                bg={active ? "brand.subtle" : "bg"}
+                color={active ? "brand.fg" : "fg.muted"}
+                borderColor={active ? "brand.solid" : "border"}
+              >
+                {option.label}
+              </chakra.button>
+            );
+          })}
         </HStack>
-        {durationChoice === "custom" ? (
-          <Input
-            type="number"
-            min={1}
-            value={customDuration}
-            onChange={(event) =>
-              onCustomDurationChange(event.currentTarget.value)
-            }
-            placeholder="Minutes"
-            mt="8px"
-            {...fieldStyles}
-            borderColor={touchedField === "duration" ? invalidColor : "border"}
-          />
-        ) : null}
-      </FormField>
+      </Box>
 
-      <FormField label="Consultation type">
-        <FormSelect
-          ariaLabel="Consultation type"
-          value={consultationType}
-          onChange={(value) =>
-            onConsultationTypeChange(value as ConsultationMode)
-          }
-          options={CONSULTATION_TYPE_OPTIONS.map((option) => ({
-            value: option.value,
-            label: option.label,
-          }))}
-        />
-      </FormField>
+      {/* Mode-specific */}
+      {consultationType === "video" ? (
+        <Box>
+          <StepFieldLabel>Video call link</StepFieldLabel>
+          <ModeNote icon={<Video size={14} />}>
+            A Google Meet link is generated automatically once the lead picks a
+            time.
+          </ModeNote>
+        </Box>
+      ) : consultationType === "phone_call" ? (
+        <Box>
+          <StepFieldLabel>Phone call</StepFieldLabel>
+          <ModeNote icon={<Phone size={14} />}>
+            The lead attorney's phone number will be used for this call.
+          </ModeNote>
+        </Box>
+      ) : (
+        <Box>
+          <StepFieldLabel required>Office location</StepFieldLabel>
+          {addingLocation ? (
+            <Stack gap="8px">
+              <Input
+                value={newLocationLabel}
+                onChange={(e) => setNewLocationLabel(e.currentTarget.value)}
+                placeholder="Location name / address"
+                {...fieldStyles}
+              />
+              <HStack gap="8px">
+                <BrandButton
+                  disabled={!newLocationLabel.trim() || creatingLocation}
+                  onClick={() => {
+                    onCreateLocation(newLocationLabel.trim());
+                    setNewLocationLabel("");
+                    setAddingLocation(false);
+                  }}
+                >
+                  {creatingLocation ? "Saving…" : "Save location"}
+                </BrandButton>
+                <OutlineButton onClick={() => setAddingLocation(false)}>
+                  Cancel
+                </OutlineButton>
+              </HStack>
+            </Stack>
+          ) : (
+            <Stack gap="6px">
+              <FormSelect
+                ariaLabel="Office location"
+                value={locationId}
+                onChange={onLocationChange}
+                invalid={touchedField === "location"}
+                placeholder="Select office location"
+                options={locations.map((loc) => ({
+                  value: loc.id,
+                  label: loc.label,
+                }))}
+              />
+              <chakra.button
+                type="button"
+                onClick={() => setAddingLocation(true)}
+                color="brand.fg"
+                fontSize="12px"
+                fontWeight="500"
+                textAlign="left"
+                w="fit-content"
+              >
+                + Add new location
+              </chakra.button>
+            </Stack>
+          )}
+        </Box>
+      )}
 
-      <FormField label="Lead attorney conducting consultation">
+      {/* Available time slots — lead-driven (matches "Let client choose" on) */}
+      <Box>
+        <Flex align="center" justify="space-between" mb="8px">
+          <StepFieldLabel required>Available time slots</StepFieldLabel>
+          <HStack gap="8px">
+            <Text fontSize="12px" color="fg.muted">
+              Let client choose
+            </Text>
+            <Switch.Root checked disabled>
+              <Switch.HiddenInput />
+              <Switch.Control bg="brand.solid">
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Root>
+          </HStack>
+        </Flex>
+        <ModeNote icon={<CalendarClock size={14} />}>
+          The lead chooses a time from the selected attorney's availability —
+          they'll receive a link to pick the slot that works for them.
+        </ModeNote>
+        <Box mt="12px">
+          <StepFieldLabel>Consultation length</StepFieldLabel>
+          <HStack gap="8px" wrap="wrap">
+            {DURATION_PRESETS.map((preset) => (
+              <ChoiceChip
+                key={preset}
+                active={durationChoice === preset}
+                onClick={() => onDurationChoiceChange(preset)}
+              >
+                {preset} min
+              </ChoiceChip>
+            ))}
+            <ChoiceChip
+              active={durationChoice === "custom"}
+              onClick={() => onDurationChoiceChange("custom")}
+            >
+              Custom
+            </ChoiceChip>
+          </HStack>
+          {durationChoice === "custom" ? (
+            <Input
+              type="number"
+              min={1}
+              value={customDuration}
+              onChange={(event) =>
+                onCustomDurationChange(event.currentTarget.value)
+              }
+              placeholder="Minutes"
+              mt="8px"
+              {...fieldStyles}
+              borderColor={touchedField === "duration" ? invalidColor : "border"}
+            />
+          ) : null}
+        </Box>
+      </Box>
+
+      {/* Assigned attorney */}
+      <Box>
+        <StepFieldLabel required>Assigned attorney</StepFieldLabel>
         <FormSelect
-          ariaLabel="Lead attorney conducting consultation"
+          ariaLabel="Assigned attorney"
           value={attorneyId}
           onChange={onAttorneyChange}
           invalid={touchedField === "attorney"}
-          placeholder="— Select attorney —"
+          placeholder="Select attorney"
           options={attorneys.map((attorney) => ({
             value: attorney.id,
             label: `${attorney.firstName} ${attorney.lastName}`.trim(),
           }))}
         />
-      </FormField>
+      </Box>
 
-      <FormField label="Video call link (optional)">
-        <Input
-          value={videoLink}
-          onChange={(event) => onVideoLinkChange(event.currentTarget.value)}
-          placeholder="https://zoom.us/j/... or Teams / Google Meet link"
-          {...fieldStyles}
-        />
-        <MutedText>
-          Link will be included in the client's calendar invitation.
-        </MutedText>
-      </FormField>
+      {/* Additional attendees — search to add */}
+      <Box>
+        <StepFieldLabel>
+          Additional attendees{" "}
+          <chakra.span color="fg.muted" fontWeight="400">
+            (optional)
+          </chakra.span>
+        </StepFieldLabel>
+        <Text m="0 0 8px" fontSize="12px" color="fg.muted">
+          Add paralegals or staff who need to attend.
+        </Text>
+        {addedParticipants.length > 0 ? (
+          <HStack gap="6px" wrap="wrap" mb="8px">
+            {addedParticipants.map((member) => (
+              <HStack
+                key={member.id}
+                gap="6px"
+                px="10px"
+                h="28px"
+                borderRadius="999px"
+                bg="bg.subtle"
+                border="1px solid"
+                borderColor="border"
+                fontSize="12px"
+              >
+                <Text m="0">
+                  {`${member.firstName} ${member.lastName}`.trim()}
+                </Text>
+                <chakra.button
+                  type="button"
+                  onClick={() => removeParticipant(member.id)}
+                  color="fg.muted"
+                  aria-label="Remove attendee"
+                  display="grid"
+                  placeItems="center"
+                >
+                  <X size={12} />
+                </chakra.button>
+              </HStack>
+            ))}
+          </HStack>
+        ) : null}
+        <Box position="relative">
+          <Input
+            value={attendeeQuery}
+            onChange={(e) => setAttendeeQuery(e.currentTarget.value)}
+            placeholder="Search staff to add…"
+            {...fieldStyles}
+          />
+          {attendeeMatches.length > 0 ? (
+            <Stack
+              gap="0"
+              position="absolute"
+              zIndex={10}
+              top="calc(100% + 4px)"
+              left="0"
+              right="0"
+              bg="bg"
+              border="1px solid"
+              borderColor="border"
+              borderRadius="8px"
+              boxShadow="0 8px 24px rgba(0, 0, 0, 0.12)"
+              maxH="184px"
+              overflowY="auto"
+              p="4px"
+            >
+              {attendeeMatches.map((member) => (
+                <chakra.button
+                  key={member.id}
+                  type="button"
+                  onClick={() => addParticipant(member.id)}
+                  textAlign="left"
+                  px="10px"
+                  py="8px"
+                  borderRadius="6px"
+                  fontSize="13px"
+                  _hover={{ bg: "bg.subtle" }}
+                >
+                  {`${member.firstName} ${member.lastName}`.trim()}
+                  {member.role ? (
+                    <chakra.span color="fg.muted"> · {member.role}</chakra.span>
+                  ) : null}
+                </chakra.button>
+              ))}
+            </Stack>
+          ) : null}
+        </Box>
+      </Box>
 
-      <FormField label="Pre-consultation notes (optional)">
+      {/* Pre-consultation notes */}
+      <Box>
+        <StepFieldLabel>
+          Pre-consultation notes{" "}
+          <chakra.span color="fg.muted" fontWeight="400">
+            (optional — attorney only)
+          </chakra.span>
+        </StepFieldLabel>
         <Textarea
           value={notes}
           onChange={(event) => onNotesChange(event.currentTarget.value)}
-          minH="82px"
+          minH="92px"
           resize="vertical"
-          placeholder="Add any notes for the attorney before the consultation — e.g. outstanding documents, follow-up questions from questionnaire review, or client-specific considerations."
+          placeholder="Add any notes for the attorney before the consultation."
           {...fieldStyles}
           h="auto"
           py="10px"
         />
-      </FormField>
+      </Box>
 
+      {/* Notify */}
       <Box>
-        <Text m="0 0 8px" color="fg" fontSize="12px" fontWeight="500">
-          Notify client via
-        </Text>
-        <HStack gap="8px" wrap="wrap">
-          <NotifyChip
-            active={notifyEmail}
-            onClick={() => onNotifyEmailChange(!notifyEmail)}
-            icon={<Mail size={12} />}
-          >
-            Email
-          </NotifyChip>
-          <NotifyChip
-            active={notifySms}
-            onClick={() => onNotifySmsChange(!notifySms)}
-            icon={<MessageSquare size={12} />}
-          >
-            SMS
-          </NotifyChip>
+        <StepFieldLabel>Notify client via</StepFieldLabel>
+        <HStack gap="24px">
+          <CheckOption
+            checked={notifyEmail}
+            label="Email"
+            onToggle={() => onNotifyEmailChange(!notifyEmail)}
+          />
+          <CheckOption
+            checked={false}
+            disabled
+            onToggle={() => undefined}
+            label={
+              <>
+                SMS{" "}
+                <chakra.span color="fg.subtle">(coming soon)</chakra.span>
+              </>
+            }
+          />
         </HStack>
       </Box>
     </Stack>
@@ -1804,101 +2497,156 @@ function ScheduleDetailsStep({
 
 function ReviewStep({
   lead,
-  matterType,
-  language,
-  date,
-  startTime,
   duration,
   consultationType,
+  mode,
   attorney,
+  participantNames,
+  locationLabel,
   notifyChannels,
-  videoLink,
   notes,
+  feeSettings,
+  feeAmount,
+  onFeeAmountChange,
 }: {
   lead: Lead;
-  matterType: string;
-  language: string;
-  date: string;
-  startTime: string;
   duration: string;
   consultationType: string;
+  mode: ConsultationMode;
   attorney: string;
+  participantNames: string;
+  locationLabel: string;
   notifyChannels: ("email" | "sms")[];
-  videoLink: string;
   notes: string;
+  feeSettings: ConsultationSettings | null;
+  feeAmount: string;
+  onFeeAmountChange: (value: string) => void;
 }) {
   const notifyLabel =
     notifyChannels.length === 0
       ? "No notification"
       : notifyChannels.map((c) => (c === "email" ? "Email" : "SMS")).join(", ");
+
+  const charges = Boolean(feeSettings?.chargesFee);
+  const structure = feeSettings?.feeStructure;
+
   return (
-    <Stack gap="14px" pt="10px">
-      <Box p="14px 16px" borderRadius="8px" bg="bg.subtle">
+    <Stack gap="16px" pt="12px">
+      <Text m="0" fontSize="14px" fontWeight="600" color="fg">
+        Review consultation details
+      </Text>
+
+      <Box p="14px 16px" borderRadius="10px" bg="bg.subtle">
         <SummaryItem label="Lead">{lead.name}</SummaryItem>
-        <SummaryItem label="Matter type">{matterType}</SummaryItem>
-        <SummaryItem label="Language">{language}</SummaryItem>
-        <SummaryItem label="Date">{date}</SummaryItem>
-        <SummaryItem label="Start time">{startTime}</SummaryItem>
-        <SummaryItem label="Duration">{duration}</SummaryItem>
         <SummaryItem label="Consultation type">{consultationType}</SummaryItem>
-        <SummaryItem label="Lead attorney">{attorney}</SummaryItem>
-        <SummaryItem label="Notify via">{notifyLabel}</SummaryItem>
-        {videoLink ? (
-          <SummaryItem label="Video link">{videoLink}</SummaryItem>
+        {mode === "in_person" ? (
+          <SummaryItem label="Location">{locationLabel}</SummaryItem>
         ) : null}
-        {notes ? (
-          <SummaryItem label="Pre-consultation notes">{notes}</SummaryItem>
+        <SummaryItem label="Duration">{duration}</SummaryItem>
+        <SummaryItem label="Attorney">{attorney}</SummaryItem>
+        {participantNames ? (
+          <SummaryItem label="Additional attendees">
+            {participantNames}
+          </SummaryItem>
         ) : null}
+        <SummaryItem label="Notification">{notifyLabel}</SummaryItem>
+        {notes ? <SummaryItem label="Notes">{notes}</SummaryItem> : null}
       </Box>
 
-      <HStack
-        align="flex-start"
-        gap="10px"
-        p="12px"
-        border="1px solid"
-        borderColor="#377dff"
-        borderRadius="7px"
-        bg="#e8f1ff"
-        color="#0f4aa8"
-        fontSize="12px"
-        lineHeight="1.45"
-      >
-        <Info size={14} />
-        <Box>
-          <Text m="0 0 4px" fontSize="12px" fontWeight="500">
-            What happens after scheduling:
-          </Text>
-          <Text m="0">
-            1. Client receives a notification via the selected channels.
-            <br />
-            2. The lead moves to Consultation & Notes stage and a consultation
-            card is created.
-            <br />
-            3. The assigned attorney sees the consultation in their portal with
-            the client's questionnaire responses and documents ready to review.
-            <br />
-            4. After the consultation the attorney selects an outcome.
-          </Text>
-        </Box>
-      </HStack>
-    </Stack>
-  );
-}
+      <Box borderTop="1px solid" borderColor="border.subtle" />
 
-function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <Box>
-      <Text m="0 0 6px" color="fg" fontSize="12px" fontWeight="500">
-        {label}
-      </Text>
-      {children}
-    </Box>
+      <Box>
+        <Text
+          textTransform="uppercase"
+          fontSize="11px"
+          fontWeight="600"
+          letterSpacing="0.04em"
+          color="fg.muted"
+          mb="12px"
+        >
+          Consultation fee
+        </Text>
+
+        <Flex align="flex-start" justify="space-between" gap="12px">
+          <Box>
+            <Text m="0" fontSize="13px" fontWeight="600" color="fg">
+              Charge consultation fee
+            </Text>
+            <Text m="2px 0 0" fontSize="12px" color="fg.muted">
+              Default set in firm settings
+            </Text>
+          </Box>
+          <Switch.Root checked={charges} disabled>
+            <Switch.HiddenInput />
+            <Switch.Control bg={charges ? "brand.solid" : "bg.muted"}>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Root>
+        </Flex>
+
+        {charges ? (
+          <>
+            <Flex align="center" justify="space-between" mt="16px">
+              <Text fontSize="13px" color="fg">
+                Fee amount
+              </Text>
+              <HStack gap="6px">
+                <Text fontSize="14px" color="fg.muted">
+                  $
+                </Text>
+                {structure === "custom_per_case_type" ? (
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={feeAmount}
+                    onChange={(e) => onFeeAmountChange(e.currentTarget.value)}
+                    placeholder={feeSettings?.defaultAmount?.toString() ?? "0.00"}
+                    maxW="96px"
+                    textAlign="right"
+                    {...fieldStyles}
+                  />
+                ) : (
+                  <Text fontSize="14px" fontWeight="600" color="fg">
+                    {feeSettings?.defaultAmount ?? 0}
+                  </Text>
+                )}
+                <Text fontSize="12px" color="fg.muted">
+                  per session
+                </Text>
+              </HStack>
+            </Flex>
+
+            {structure === "waived_if_retainer" ? (
+              <MutedText>
+                Waived if the client signs a retainer within{" "}
+                {feeSettings?.waiverWindowDays ?? 0} days.
+              </MutedText>
+            ) : null}
+
+            <HStack
+              mt="14px"
+              align="flex-start"
+              gap="10px"
+              p="12px"
+              border="1px solid"
+              borderColor="#377dff"
+              borderRadius="8px"
+              bg="#e8f1ff"
+              color="#0f4aa8"
+              fontSize="12px"
+              lineHeight="1.45"
+            >
+              <Info size={14} />
+              <Text m="0">
+                A payment link will be included in the client confirmation email.
+                Payment goes to the firm's operating account.
+              </Text>
+            </HStack>
+          </>
+        ) : null}
+      </Box>
+    </Stack>
   );
 }
 

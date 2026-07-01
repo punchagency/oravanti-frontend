@@ -1,8 +1,9 @@
 import {
   advanceLeadStage,
-  createConsultation,
+  initiateConsultation,
   createLead,
   generateFeeAgreement,
+  getConsultations,
   getLeadById,
   getLeads,
   getLeadsStageCount,
@@ -16,6 +17,7 @@ import {
   updateConsultation,
   updateLead,
   updateLeadStatus,
+  type GetConsultationsParams,
   type GetLeadsParams,
   type PipelineStage,
 } from "@/api/leads";
@@ -42,6 +44,13 @@ export function useLeadById(id: string) {
     queryKey: ["lead", id],
     queryFn: () => getLeadById(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useConsultations(params: GetConsultationsParams = {}) {
+  return useQuery({
+    queryKey: ["consultations", params],
+    queryFn: () => getConsultations(params),
   });
 }
 
@@ -177,7 +186,7 @@ export function useSendQuestionnaire() {
   });
 }
 
-export function useCreateConsultation() {
+export function useInitiateConsultation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -185,16 +194,17 @@ export function useCreateConsultation() {
       data,
     }: {
       id: string;
-      data: Parameters<typeof createConsultation>[1];
-    }) => createConsultation(id, data),
+      data: Parameters<typeof initiateConsultation>[1];
+    }) => initiateConsultation(id, data),
     onSuccess: (_, { id }) => {
-      toast.success("Consultation scheduled");
+      toast.success("Consultation request sent to the lead");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
     },
     onError: (err: APIError) => {
       toast.error(
-        err.response?.data?.message ?? "Failed to schedule consultation",
+        err.response?.data?.message ?? "Failed to start scheduling",
       );
     },
   });
