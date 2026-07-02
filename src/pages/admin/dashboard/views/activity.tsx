@@ -31,7 +31,7 @@ function ActivityRow({
         <p className="row-meta">{meta}</p>
       </div>
       {action ? (
-        <Link className="activity-action-button" to="/admin/cases/all-matters">
+        <Link className="activity-action-button" to="/cases">
           {action}
         </Link>
       ) : null}
@@ -74,7 +74,9 @@ export function ActivityView() {
       <div className="activity-layout">
         <article className="surface-card activity-feed-card">
           <header className="activity-card-header">
-            <h3 className="pipeline-card-title">Today — Tuesday, June 9, 2026</h3>
+            <h3 className="pipeline-card-title">
+              Today — Tuesday, June 9, 2026
+            </h3>
             <span className="alert-count">24 events</span>
           </header>
 
@@ -118,25 +120,33 @@ export function ActivityView() {
             <h3 className="pipeline-card-title">Staff on duty today</h3>
             <p className="section-subtitle">Caseload vs individual cap</p>
             <div className="activity-staff-list">
-              {staffDuty.map(([name, role, initials, load, percent, tone, avatarTone]) => (
-                <div key={name} className="activity-staff-row">
-                  <div className="staff-person">
-                    <span className={`staff-avatar staff-avatar--${avatarTone}`}>{initials}</span>
-                    <div>
-                      <p className="row-title">{name}</p>
-                      <p className="row-meta">{role}</p>
+              {staffDuty.map(
+                ([name, role, initials, load, percent, tone, avatarTone]) => (
+                  <div key={name} className="activity-staff-row">
+                    <div className="staff-person">
+                      <span
+                        className={`staff-avatar staff-avatar--${avatarTone}`}
+                      >
+                        {initials}
+                      </span>
+                      <div>
+                        <p className="row-title">{name}</p>
+                        <p className="row-meta">{role}</p>
+                      </div>
                     </div>
-                  </div>
-                  <span className="activity-capacity-track">
+                    <span className="activity-capacity-track">
+                      <span
+                        className={`activity-capacity-fill activity-capacity-fill--${tone}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </span>
+                    <span className="activity-load-value">{load}</span>
                     <span
-                      className={`activity-capacity-fill activity-capacity-fill--${tone}`}
-                      style={{ width: `${percent}%` }}
+                      className={`activity-status-dot activity-status-dot--${tone}`}
                     />
-                  </span>
-                  <span className="activity-load-value">{load}</span>
-                  <span className={`activity-status-dot activity-status-dot--${tone}`} />
-                </div>
-              ))}
+                  </div>
+                ),
+              )}
             </div>
           </article>
 
@@ -180,7 +190,10 @@ export function ActivityView() {
             <div className="closed-list">
               {closedThisWeek.map(([title, meta]) => (
                 <div key={title} className="closed-row">
-                  <span className="chip-dot" style={{ background: "var(--status-success)" }} />
+                  <span
+                    className="chip-dot"
+                    style={{ background: "var(--status-success)" }}
+                  />
                   <div>
                     <p className="row-title">{title}</p>
                     <p className="row-meta">{meta}</p>
