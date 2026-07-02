@@ -5,6 +5,7 @@ import {
   createLead,
   generateFeeAgreement,
   getConsultations,
+  getFeeAgreementPreview,
   getLeadById,
   getLeads,
   getLeadsStageCount,
@@ -283,6 +284,17 @@ export function useGenerateFeeAgreement() {
         err.response?.data?.message ?? "Failed to generate fee agreement",
       );
     },
+  });
+}
+
+export function useFeeAgreementPreview(
+  agreementId: string | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["feeAgreementPreview", agreementId],
+    queryFn: () => getFeeAgreementPreview(agreementId as string),
+    enabled: enabled && Boolean(agreementId),
   });
 }
 

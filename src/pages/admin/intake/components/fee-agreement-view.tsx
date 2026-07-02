@@ -1,8 +1,18 @@
 import { Box, HStack, Stack } from "@chakra-ui/react";
 import { FileText, PenLine } from "lucide-react";
-import type { Lead } from "@/api/leads";
+import { useState } from "react";
+import type { FeeAgreementPreview, Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
-import { useLeads, useLeadById, useNudgeClient, useGenerateFeeAgreement, useAdvanceLeadStage } from "@/hooks/use-leads";
+import {
+  useLeads,
+  useLeadById,
+  useNudgeClient,
+  useGenerateFeeAgreement,
+  useAdvanceLeadStage,
+  useFeeAgreementPreview,
+  useSendFeeAgreement,
+} from "@/hooks/use-leads";
+import { useConsultationSettings } from "@/hooks/use-consultation-settings";
 import {
   BrandButton,
   CardTitle,
@@ -13,6 +23,10 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
+import {
+  FeeAgreementForm,
+  FeeAgreementPreviewModal,
+} from "./consultation-view";
 
 export function FeeAgreementView() {
   const { data, isLoading } = useLeads({ stage: "fee_agreement" });
@@ -53,18 +67,29 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
   const nudge = useNudgeClient();
   const generateAgreement = useGenerateFeeAgreement();
   const advanceStage = useAdvanceLeadStage();
+  const sendFee = useSendFeeAgreement();
+  const { data: firmFeeSettings } = useConsultationSettings();
 
   const agreement = leadDetail?.feeAgreement;
   const isSigned = agreement?.status === "signed";
   const isPending = agreement?.status === "pending_signature";
 
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [generatedPreview, setGeneratedPreview] =
+    useState<FeeAgreementPreview | null>(null);
+  const draftPreview = useFeeAgreementPreview(
+    agreement?.id ?? null,
+    previewOpen && !generatedPreview,
+  );
+  const previewData = generatedPreview ?? draftPreview.data ?? null;
+  function closePreview() {
+    setPreviewOpen(false);
+    setGeneratedPreview(null);
+  }
+
   function handleNudge() {
     if (!agreement?.id) return;
     nudge.mutate(agreement.id);
-  }
-
-  function handleGenerateAgreement() {
-    generateAgreement.mutate({ id: lead.id, data: { agreementType: "retainer" } });
   }
 
   function handleAdvanceStage() {
@@ -125,40 +150,68 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
         </Stack>
       ) : null}
 
-      <Box
-        display="grid"
-        gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }}
-        gap="8px"
-        mt="14px"
-      >
-        {agreement ? (
-          <>
-            {!isSigned ? (
-              <OutlineButton loading={nudge.isPending} onClick={handleNudge}>
-                Nudge client
-              </OutlineButton>
-            ) : (
-              <OutlineButton disabled>Agreement signed</OutlineButton>
-            )}
-            {isSigned ? (
-              <BrandButton loading={advanceStage.isPending} onClick={handleAdvanceStage}>
-                <PenLine size={14} />
-                Advance to case opening
-              </BrandButton>
-            ) : (
-              <BrandButton disabled>
-                <PenLine size={14} />
-                Advance stage (Digital Sign)
-              </BrandButton>
-            )}
-          </>
-        ) : (
-          <BrandButton loading={generateAgreement.isPending} onClick={handleGenerateAgreement}>
-            <FileText size={14} />
-            Generate fee agreement
-          </BrandButton>
-        )}
-      </Box>
+      {agreement ? (
+        <Box
+          display="grid"
+          gridTemplateColumns={{ base: "1fr", md: "1fr 1fr" }}
+          gap="8px"
+          mt="14px"
+        >
+          {agreement.status === "draft" ? (
+            <BrandButton onClick={() => setPreviewOpen(true)}>
+              <FileText size={14} />
+              Preview &amp; send
+            </BrandButton>
+          ) : !isSigned ? (
+            <OutlineButton loading={nudge.isPending} onClick={handleNudge}>
+              Nudge client
+            </OutlineButton>
+          ) : (
+            <OutlineButton disabled>Agreement signed</OutlineButton>
+          )}
+          {isSigned ? (
+            <BrandButton loading={advanceStage.isPending} onClick={handleAdvanceStage}>
+              <PenLine size={14} />
+              Advance to case opening
+            </BrandButton>
+          ) : agreement.status !== "draft" ? (
+            <BrandButton disabled>
+              <PenLine size={14} />
+              Advance stage (Digital Sign)
+            </BrandButton>
+          ) : null}
+        </Box>
+      ) : (
+        <Box mt="14px">
+          <FeeAgreementForm
+            consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
+            generating={generateAgreement.isPending}
+            onSubmit={(data) =>
+              generateAgreement.mutate(
+                { id: lead.id, data },
+                {
+                  onSuccess: (preview) => {
+                    setGeneratedPreview(preview);
+                    setPreviewOpen(true);
+                  },
+                },
+              )
+            }
+          />
+        </Box>
+      )}
+
+      <FeeAgreementPreviewModal
+        open={previewOpen}
+        loading={draftPreview.isLoading && !generatedPreview}
+        preview={previewData}
+        sending={sendFee.isPending}
+        onSend={() =>
+          previewData &&
+          sendFee.mutate(previewData.agreement.id, { onSuccess: closePreview })
+        }
+        onClose={closePreview}
+      />
     </SurfaceCard>
   );
 }
