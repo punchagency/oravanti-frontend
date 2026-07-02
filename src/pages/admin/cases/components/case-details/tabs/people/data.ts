@@ -1,8 +1,6 @@
 import {
   ExternalLink,
-  Mail,
   MessageSquare,
-  Phone,
   RefreshCw,
 } from "lucide-react";
 

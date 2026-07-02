@@ -1,6 +1,5 @@
 import {
   Box,
-  HStack,
   Separator,
   Text,
   Timeline,
