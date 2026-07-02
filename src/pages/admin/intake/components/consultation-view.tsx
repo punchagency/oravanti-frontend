@@ -288,9 +288,9 @@ export function ConsultationView() {
                   {noConsultation.length === 1 ? "" : "s"} with no consultation
                   scheduled yet
                 </MutedText>
-                <Stack gap="16px">
+                <Stack gap="10px">
                   {noConsultation.map((lead) => (
-                    <ConsultationCard
+                    <CollapsibleNoConsultation
                       key={lead.id}
                       lead={lead}
                       onSchedule={() => openWizard(lead)}
@@ -517,7 +517,6 @@ function CollapsibleConsultation({
   lead: ConsultationSummaryLead;
   summary: ConsultationListItem;
 }) {
-  console.log('summary', summary)
   const [open, setOpen] = useState(false);
   const tone = CONSULT_STATUS_TONE[summary.status];
   const dateLabel = summary.scheduledAt
@@ -589,6 +588,78 @@ function CollapsibleConsultation({
       {open ? (
         <Box borderTop="1px solid" borderColor="border">
           <ConsultationCard lead={lead} bare />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+// Collapsible row for a lead that has no active consultation yet — expands to
+// the same card (with its "Schedule consultation" action).
+function CollapsibleNoConsultation({
+  lead,
+  onSchedule,
+}: {
+  lead: Lead;
+  onSchedule: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      overflow="hidden"
+    >
+      <chakra.button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="16px"
+        w="full"
+        textAlign="left"
+        px="18px"
+        py="14px"
+        bg={open ? "bg.subtle" : "bg"}
+        _hover={{ bg: "bg.subtle" }}
+      >
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Box
+            flex="0 0 auto"
+            mt="6px"
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg={TONE_DOT.warning}
+          />
+          <Box minW="0">
+            <HStack gap="8px" minW="0" wrap="wrap">
+              <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
+                {lead.name}
+              </Text>
+              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+            </HStack>
+            <MutedText>No consultation scheduled yet</MutedText>
+          </Box>
+        </HStack>
+        <HStack gap="10px" flex="0 0 auto">
+          <StatusPill tone="warning" icon={<CalendarClock size={11} />}>
+            No consultation
+          </StatusPill>
+          <Box color="fg.muted">
+            {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </Box>
+        </HStack>
+      </chakra.button>
+
+      {open ? (
+        <Box borderTop="1px solid" borderColor="border">
+          <ConsultationCard lead={lead} bare onSchedule={onSchedule} />
         </Box>
       ) : null}
     </Box>
