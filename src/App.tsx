@@ -5,6 +5,7 @@ import { IntakePipelinePage } from "@/pages/admin/intake";
 import { CasesPage } from "@/pages/admin/cases";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
+import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
 import { NotFoundPage } from "@/pages/not-found";
 import Certifications from "@/pages/admin/staff-and-users/tabs/certifications";
 import Invitations from "@/pages/admin/staff-and-users/tabs/invitations";
@@ -35,6 +36,7 @@ import Step2FirmDetailsPage from "./pages/onboarding/step-2-firm-details";
 import Step3TosPage from "./pages/onboarding/step-3-tos";
 import ResetPassword from "./pages/reset-password";
 import { QuestionnairePortalPage } from "./pages/questionnaire-portal";
+import { ConsultationBookingPage } from "./pages/consultation-booking";
 import VerifyEmailNoticePage from "./pages/verify-email";
 
 const router = createBrowserRouter(
@@ -55,6 +57,12 @@ const router = createBrowserRouter(
       <Route
         path="/questionnaire/:firmSlug/:token"
         element={<QuestionnairePortalPage />}
+      />
+
+      {/* Public consultation booking & payment portal (token-gated, no auth) */}
+      <Route
+        path="/consultation-booking/:token"
+        element={<ConsultationBookingPage />}
       />
 
       <Route element={<AuthGuard />}>
@@ -92,6 +100,7 @@ const router = createBrowserRouter(
               path="email-accounts"
               element={<EmailAccountConnectionPage />}
             />
+            <Route path="firm-settings" element={<FirmSettingsPage />} />
           </Route>
 
           <Route
