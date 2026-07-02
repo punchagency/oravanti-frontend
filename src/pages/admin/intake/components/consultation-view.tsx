@@ -280,13 +280,13 @@ export function ConsultationView() {
         ) : leads.length === 0 ? (
           <MutedText>No leads in the consultation stage.</MutedText>
         ) : (
-          <Stack gap="20px">
+          <Stack gap="32px">
             {noConsultation.length > 0 ? (
               <Stack gap="12px">
                 <MutedText fontSize="14px">
                   {noConsultation.length} lead
                   {noConsultation.length === 1 ? "" : "s"} with no consultation
-                  scheduled yet
+                  in progress
                 </MutedText>
                 <Stack gap="10px">
                   {noConsultation.map((lead) => (
@@ -301,7 +301,12 @@ export function ConsultationView() {
             ) : null}
 
             {noConsultation.length > 0 && scheduled.length > 0 ? (
-              <Box borderTop="1px solid" borderColor="border" />
+              <Box
+                borderTop="1px solid"
+                borderColor="border"
+                mt="4px"
+                pt="8px"
+              />
             ) : null}
 
             {scheduled.length > 0 ? (
