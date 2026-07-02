@@ -60,10 +60,11 @@ export function AuthGuard() {
   // }
 
   const isOnboarding = location.pathname.startsWith("/onboarding");
-  const isAdmin = location.pathname.startsWith("/admin");
+  const authPaths = ["/email-verified", "/verify-email", "/accept-invitation", "/set-password"];
+  const isAdmin = !isOnboarding && !authPaths.includes(location.pathname);
 
   if (user.onboardingState === "completed" && isOnboarding) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (user.onboardingState !== "completed" && isAdmin) {

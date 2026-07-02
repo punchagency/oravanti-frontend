@@ -97,7 +97,7 @@ export function PipelineView() {
           <h2 className="section-heading">Intake pipeline</h2>
           <Link
             className="section-card__footer-link"
-            to="/admin/intake/pipeline/lead-inbox"
+            to="/intake/pipeline/lead-inbox"
           >
             Go to intake →
           </Link>

@@ -37,7 +37,7 @@ export default function AcceptInvitationPage() {
 
   useEffect(() => {
     if (!needsAcceptInvitation) {
-      navigate(needsPasswordChange ? "/set-password" : "/admin", {
+      navigate(needsPasswordChange ? "/set-password" : "/", {
         replace: true,
       });
     }
@@ -60,7 +60,7 @@ export default function AcceptInvitationPage() {
       if (current.needsPasswordChange) {
         navigate("/set-password", { replace: true });
       } else {
-        navigate("/admin", { replace: true });
+        navigate("/", { replace: true });
       }
       queryClient.invalidateQueries({ queryKey: ["my-pending-invitation"] });
       queryClient.invalidateQueries({ queryKey: ["staff"] });
@@ -93,7 +93,7 @@ export default function AcceptInvitationPage() {
             No pending invitations found.
           </Text>
           <Button
-            onClick={() => navigate("/admin", { replace: true })}
+            onClick={() => navigate("/", { replace: true })}
             layerStyle="brand-button"
             size="lg"
             w="full"

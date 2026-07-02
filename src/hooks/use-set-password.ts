@@ -16,7 +16,7 @@ export function useSetPassword() {
     onSuccess: () => {
       useAuthStore.getState().setNeedsPasswordChange(false);
       queryClient.invalidateQueries({ queryKey: ["session"] });
-      navigate("/admin", { replace: true });
+      navigate("/", { replace: true });
       showSuccess({
         title: "Password set successfully",
         description: "You can now use your new password to log in.",
