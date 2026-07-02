@@ -1,16 +1,27 @@
 import {
   Badge,
   Box,
-  Button,
   HStack,
+  IconButton,
+  Menu,
+  Portal,
   ScrollArea,
   Stack,
   Table,
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { Eye } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  Download,
+  Ellipsis,
+  Eye,
+  UserPlus,
+} from "lucide-react";
+import { useState } from "react";
 import { getSpecialtyColors } from "@/utils/specialty-colors";
+import { CaseDetailsDrawer } from "./case-details/drawer";
 
 const specialtyLabelMap: Record<string, string> = {
   family: "Family law",
@@ -27,9 +38,9 @@ interface Case {
   id: string;
   clientName: string;
   caseRef: string;
-  filingType: string;
+  caseType: string;
   stage: string;
-  assignedTo: string;
+  assignedTeam: string;
   deadline?: string;
   status: string;
   matttersCount?: number;
@@ -46,9 +57,9 @@ export const mockCases: Case[] = [
     id: "1",
     clientName: "Aisha Patel",
     caseRef: "ORV-2026-0131",
-    filingType: "I-485 Adjustment of Status",
+    caseType: "I-485 Adjustment of Status",
     stage: "Interview scheduled",
-    assignedTo: "Sandra Adeyemi",
+    assignedTeam: "Immigration Team A",
     deadline: "Jun 22, 2026",
     status: "Interview",
     matttersCount: 1,
@@ -58,9 +69,9 @@ export const mockCases: Case[] = [
     id: "2",
     clientName: "Amara Chen",
     caseRef: "ORV-2026-0142",
-    filingType: "I-485 Adjustment of Status",
+    caseType: "I-485 Adjustment of Status",
     stage: "USCIS Review",
-    assignedTo: "Yemi Okafor",
+    assignedTeam: "Immigration Team B",
     deadline: "—",
     status: "Active",
     matttersCount: 2,
@@ -70,9 +81,9 @@ export const mockCases: Case[] = [
     id: "3",
     clientName: "Amara Chen",
     caseRef: "ORV-2026-0143",
-    filingType: "I-765 Employment Authorization",
+    caseType: "I-765 Employment Authorization",
     stage: "Filed",
-    assignedTo: "Yemi Okafor",
+    assignedTeam: "Immigration Team B",
     deadline: "—",
     status: "Filed",
     matttersCount: 2,
@@ -82,9 +93,9 @@ export const mockCases: Case[] = [
     id: "4",
     clientName: "Anna Kowalski",
     caseRef: "ORV-2025-0241",
-    filingType: "Trust Document Generation",
+    caseType: "Trust Document Generation",
     stage: "Executed",
-    assignedTo: "Sarah Mitchell",
+    assignedTeam: "Estate Team",
     deadline: "—",
     status: "Closed",
     specialty: "estate",
@@ -93,9 +104,9 @@ export const mockCases: Case[] = [
     id: "5",
     clientName: "Carlos Rivera",
     caseRef: "ORV-2026-0128",
-    filingType: "Divorce Petition",
+    caseType: "Divorce Petition",
     stage: "Discovery",
-    assignedTo: "Jennifer Lee",
+    assignedTeam: "Family Team A",
     deadline: "—",
     status: "Active",
     matttersCount: 2,
@@ -105,9 +116,9 @@ export const mockCases: Case[] = [
     id: "6",
     clientName: "Carlos Rivera",
     caseRef: "ORV-2026-0144",
-    filingType: "Child Custody Agreement",
+    caseType: "Child Custody Agreement",
     stage: "Finalized",
-    assignedTo: "Jennifer Lee",
+    assignedTeam: "Family Team A",
     deadline: "—",
     status: "Filed",
     matttersCount: 2,
@@ -117,9 +128,9 @@ export const mockCases: Case[] = [
     id: "7",
     clientName: "Chioma Okafor",
     caseRef: "ORV-2026-0054",
-    filingType: "Guardianship Petition",
+    caseType: "Guardianship Petition",
     stage: "Pending hearing",
-    assignedTo: "Michael Chen",
+    assignedTeam: "Family Team B",
     deadline: "Jul 10, 2026",
     status: "RFE",
     specialty: "family",
@@ -128,9 +139,9 @@ export const mockCases: Case[] = [
     id: "8",
     clientName: "Daniel Park",
     caseRef: "ORV-2026-0068",
-    filingType: "N-400 Naturalization",
+    caseType: "N-400 Naturalization",
     stage: "Decision received",
-    assignedTo: "Yemi Okafor",
+    assignedTeam: "Immigration Team A",
     deadline: "—",
     status: "Closed",
     specialty: "immigration",
@@ -139,9 +150,9 @@ export const mockCases: Case[] = [
     id: "9",
     clientName: "David Kim",
     caseRef: "ORV-2026-0135",
-    filingType: "Business Formation",
+    caseType: "Business Formation",
     stage: "Articles filed",
-    assignedTo: "Robert Thompson",
+    assignedTeam: "Business Team",
     deadline: "—",
     status: "Filed",
     specialty: "business",
@@ -150,9 +161,9 @@ export const mockCases: Case[] = [
     id: "10",
     clientName: "Emeka Eze",
     caseRef: "ORV-2026-0087",
-    filingType: "I-589 Asylum",
+    caseType: "I-589 Asylum",
     stage: "Response due",
-    assignedTo: "Sandra Adeyemi",
+    assignedTeam: "Immigration Team A",
     deadline: "Jun 14, 2026",
     status: "RFE",
     specialty: "immigration",
@@ -161,9 +172,9 @@ export const mockCases: Case[] = [
     id: "11",
     clientName: "Fatima Diallo",
     caseRef: "ORV-2026-0121",
-    filingType: "Settlement Agreement",
+    caseType: "Settlement Agreement",
     stage: "Negotiation",
-    assignedTo: "Patricia Williams",
+    assignedTeam: "Family Team A",
     deadline: "—",
     status: "Active",
     specialty: "family",
@@ -172,9 +183,9 @@ export const mockCases: Case[] = [
     id: "12",
     clientName: "Grace Johnson",
     caseRef: "ORV-2026-0095",
-    filingType: "Wrongful Termination",
+    caseType: "Wrongful Termination",
     stage: "Discovery",
-    assignedTo: "Robert Thompson",
+    assignedTeam: "Employment Team",
     deadline: "Jul 15, 2026",
     status: "Active",
     matttersCount: 1,
@@ -184,9 +195,9 @@ export const mockCases: Case[] = [
     id: "13",
     clientName: "Henry Martinez",
     caseRef: "ORV-2026-0102",
-    filingType: "DUI Defense",
+    caseType: "DUI Defense",
     stage: "Trial Scheduled",
-    assignedTo: "Michael Chen",
+    assignedTeam: "Criminal Team",
     deadline: "Aug 5, 2026",
     status: "Active",
     specialty: "criminal",
@@ -195,9 +206,9 @@ export const mockCases: Case[] = [
     id: "14",
     clientName: "Isabel Santos",
     caseRef: "ORV-2026-0089",
-    filingType: "Motor Vehicle Accident",
+    caseType: "Motor Vehicle Accident",
     stage: "Settlement Negotiation",
-    assignedTo: "Jennifer Lee",
+    assignedTeam: "PI Team A",
     deadline: "—",
     status: "Active",
     matttersCount: 1,
@@ -207,9 +218,9 @@ export const mockCases: Case[] = [
     id: "15",
     clientName: "James Wilson",
     caseRef: "ORV-2026-0156",
-    filingType: "Commercial Lease Review",
+    caseType: "Commercial Lease Review",
     stage: "Document Review",
-    assignedTo: "Sarah Mitchell",
+    assignedTeam: "Real Estate Team",
     deadline: "Jun 28, 2026",
     status: "Active",
     specialty: "realestate",
@@ -220,26 +231,87 @@ const statusColorMap: Record<
   string,
   { borderColor: string; textColor: string; bg: string }
 > = {
-  Interview: { borderColor: "blue.300", textColor: "blue.700", bg: "blue.50" },
-  Active: { borderColor: "green.300", textColor: "green.700", bg: "green.50" },
-  Filed: { borderColor: "blue.300", textColor: "blue.700", bg: "blue.50" },
-  Closed: { borderColor: "gray.300", textColor: "gray.700", bg: "gray.50" },
-  RFE: { borderColor: "orange.300", textColor: "orange.700", bg: "orange.50" },
+  Interview: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  Active: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  Filed: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  Closed: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },
+  RFE: { borderColor: "brand.solid", textColor: "brand.contrast", bg: "brand.solid" },
   Pending: {
-    borderColor: "orange.300",
-    textColor: "orange.700",
-    bg: "orange.50",
+    borderColor: "brand.emphasized",
+    textColor: "brand.fg",
+    bg: "brand.subtle",
   },
 };
 
-const actionButtonMap: Record<string, { label: string; variant: string }> = {
-  Interview: { label: "View", variant: "outline" },
-  Active: { label: "View", variant: "outline" },
-  Filed: { label: "View", variant: "outline" },
-  Closed: { label: "View", variant: "outline" },
-  RFE: { label: "Respond", variant: "solid" },
-  Pending: { label: "Prepare", variant: "solid" },
-};
+function CaseActionMenu({ caseItem }: { caseItem: Case }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <CaseDetailsDrawer
+      caseData={{
+        id: caseItem.id,
+        clientName: caseItem.clientName,
+        caseRef: caseItem.caseRef,
+        caseType: { id: caseItem.id, code: caseItem.caseType, name: caseItem.caseType },
+        practiceArea: caseItem.specialty ?? "",
+        stage: caseItem.stage,
+        stageDetail: { phase: "", workflowTitle: "", stepTitle: caseItem.stage, stepStatus: "in_progress" },
+        status: caseItem.status,
+        assignedTeam: caseItem.assignedTeam ? { id: caseItem.id, name: caseItem.assignedTeam } : null,
+        assignedStaff: null,
+        filingDate: "",
+        deadline: caseItem.deadline ?? "",
+        courtRef: "",
+        caseProgress: 50,
+      }}
+      open={open}
+      onOpenChange={({ open }) => setOpen(open)}
+    >
+      <Menu.Root>
+        <Menu.Trigger asChild>
+          <IconButton
+            variant="ghost"
+            size="xs"
+            color="fg.muted"
+            _hover={{ color: "fg", bg: "bg.muted" }}
+          >
+            <Ellipsis size={15} />
+          </IconButton>
+        </Menu.Trigger>
+        <Portal>
+          <Menu.Positioner>
+            <Menu.Content minW="170px">
+              <Menu.Item value="view" onClick={() => setOpen(true)}>
+                <Eye size={14} />
+                <Box flex="1">View details</Box>
+              </Menu.Item>
+              <Menu.Item value="reassign-team">
+                <UserPlus size={14} />
+                <Box flex="1">Reassign team</Box>
+              </Menu.Item>
+              <Menu.Item value="export">
+                <Download size={14} />
+                <Box flex="1">Export case file</Box>
+              </Menu.Item>
+              <Menu.Item value="close">
+                <Archive size={14} />
+                <Box flex="1">Close case</Box>
+              </Menu.Item>
+              <Menu.Item
+                value="flag"
+                color="fg.error"
+                _hover={{ bg: "bg.error", color: "fg.error" }}
+              >
+                <AlertTriangle size={14} />
+                <Box flex="1">Flag as urgent</Box>
+              </Menu.Item>
+            </Menu.Content>
+          </Menu.Positioner>
+        </Portal>
+      </Menu.Root>
+    </CaseDetailsDrawer>
+  );
+}
 
 export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }: CasesTableProps) {
   return (
@@ -250,6 +322,7 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
       borderRadius="lg"
       overflow="hidden"
       bg="bg"
+      display={{ base: "none", lg: "block" }}
     >
       {cases.length === 0 ? (
         <VStack py={16} gap={2} textAlign="center">
@@ -262,11 +335,11 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
         </VStack>
       ) : (
         <ScrollArea.Root w="full" size="xs">
-            <ScrollArea.Viewport>
-              <ScrollArea.Content>
-                <Table.Root size="md">
-                  <Table.Header borderBottom="1px solid" borderColor="border">
-                    <Table.Row bg="bg.subtle">
+          <ScrollArea.Viewport>
+            <ScrollArea.Content>
+              <Table.Root size="md">
+                <Table.Header borderBottom="1px solid" borderColor="border">
+                  <Table.Row bg="bg.subtle">
                     <Table.ColumnHeader
                       textStyle="body-sm"
                       fontWeight="bold"
@@ -283,7 +356,7 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
                       pb={3}
                       whiteSpace="nowrap"
                     >
-                      FILING TYPE
+                      CASE TYPE
                     </Table.ColumnHeader>
                     <Table.ColumnHeader
                       textStyle="body-sm"
@@ -301,7 +374,7 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
                       pb={3}
                       whiteSpace="nowrap"
                     >
-                      ASSIGNED TO
+                      TEAM
                     </Table.ColumnHeader>
                     <Table.ColumnHeader
                       textStyle="body-sm"
@@ -335,7 +408,7 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
                 <Table.Body>
                   {cases.map((caseItem) => (
                     <Table.Row key={caseItem.id}>
-                      <Table.Cell>
+                      <Table.Cell whiteSpace="nowrap">
                         <Stack gap="2px">
                           <Text textStyle="body-sm" fontWeight="500" color="fg">
                             {caseItem.clientName}
@@ -382,22 +455,22 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
                           </HStack>
                         </Stack>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell whiteSpace="nowrap">
                         <Text textStyle="body-sm" color="fg">
-                          {caseItem.filingType}
+                          {caseItem.caseType}
                         </Text>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell whiteSpace="nowrap">
                         <Text textStyle="body-sm" color="fg.muted">
                           {caseItem.stage}
                         </Text>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell whiteSpace="nowrap">
                         <Text textStyle="body-sm" color="fg">
-                          {caseItem.assignedTo}
+                          {caseItem.assignedTeam}
                         </Text>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell whiteSpace="nowrap">
                         <Text
                           textStyle="body-sm"
                           fontWeight={
@@ -414,7 +487,7 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
                           {caseItem.deadline}
                         </Text>
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell whiteSpace="nowrap">
                         {(() => {
                           const colors =
                             statusColorMap[caseItem.status] ||
@@ -433,46 +506,18 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
                           );
                         })()}
                       </Table.Cell>
-                      <Table.Cell>
-                        {(() => {
-                          const action = actionButtonMap[caseItem.status];
-                          return (
-                            <Button
-                              size="xs"
-                              variant={action.variant === "solid" ? "solid" : "outline"}
-                              bg={
-                                action.variant === "solid"
-                                  ? "brand.solid"
-                                  : undefined
-                              }
-                              color={
-                                action.variant === "solid"
-                                  ? "brand.fg"
-                                  : undefined
-                              }
-                              _hover={
-                                action.variant === "solid"
-                                  ? { bg: "brand.600" }
-                                  : undefined
-                              }
-                            >
-                              {action.variant === "outline" && (
-                                <Eye size={14} />
-                              )}
-                              {action.label}
-                            </Button>
-                          );
-                        })()}
+                      <Table.Cell whiteSpace="nowrap">
+                        <CaseActionMenu caseItem={caseItem} />
                       </Table.Cell>
                     </Table.Row>
                   ))}
                 </Table.Body>
-              </Table.Root>
-            </ScrollArea.Content>
-          </ScrollArea.Viewport>
-          <ScrollArea.Scrollbar orientation="horizontal" />
-          <ScrollArea.Corner />
-        </ScrollArea.Root>
+            </Table.Root>
+          </ScrollArea.Content>
+        </ScrollArea.Viewport>
+        <ScrollArea.Scrollbar orientation="horizontal" />
+        <ScrollArea.Corner />
+      </ScrollArea.Root>
       )}
     </Box>
   );

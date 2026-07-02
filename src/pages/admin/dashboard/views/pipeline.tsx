@@ -1,7 +1,7 @@
-import { Link } from "react-router";
-import { useLeads } from "@/hooks/use-leads";
-import { useCases } from "@/hooks/use-cases";
 import type { PipelineStage } from "@/api/leads";
+import { useCases } from "@/hooks/use-cases";
+import { useLeads } from "@/hooks/use-leads";
+import { Link } from "react-router";
 import {
   deadlines,
   healthIndicators,
@@ -9,7 +9,11 @@ import {
   velocityWeeks,
 } from "../data";
 
-const PIPELINE_STAGE_DEFS: Array<{ label: string; stage: PipelineStage; color: string }> = [
+const PIPELINE_STAGE_DEFS: Array<{
+  label: string;
+  stage: PipelineStage;
+  color: string;
+}> = [
   { label: "Lead inbox", stage: "lead_inbox", color: "#8c8f87" },
   { label: "Conflict check", stage: "conflict_check", color: "#d18400" },
   { label: "Questionnaire", stage: "questionnaire", color: "#4b78dd" },
@@ -91,12 +95,18 @@ export function PipelineView() {
       <section className="pipeline-overview">
         <header className="dashboard-section-header">
           <h2 className="section-heading">Intake pipeline</h2>
-          <Link className="section-card__footer-link" to="/admin/intake/pipeline/lead-inbox">
+          <Link
+            className="section-card__footer-link"
+            to="/admin/intake/pipeline/lead-inbox"
+          >
             Go to intake →
           </Link>
         </header>
 
-        <div className="pipeline-bar-chart" aria-label="Intake pipeline counts by stage">
+        <div
+          className="pipeline-bar-chart"
+          aria-label="Intake pipeline counts by stage"
+        >
           {pipelineStagesLive.map(({ label, count, color, height }) => (
             <div key={label} className="pipeline-bar-item">
               <span className="pipeline-bar-count" style={{ color }}>
@@ -113,7 +123,10 @@ export function PipelineView() {
 
         <div className="pipeline-summary-row">
           <span className="chip">
-            <span className="chip-dot" style={{ background: "var(--text-primary)" }} />
+            <span
+              className="chip-dot"
+              style={{ background: "var(--text-primary)" }}
+            />
             {totalLeads} total leads in pipeline
           </span>
         </div>
@@ -140,7 +153,9 @@ export function PipelineView() {
                       style={{ width: `${percent}%`, backgroundColor: color }}
                     />
                   </span>
-                  <span className="count-pill count-pill--neutral">{count}</span>
+                  <span className="count-pill count-pill--neutral">
+                    {count}
+                  </span>
                 </div>
               ))}
             </div>
@@ -150,26 +165,37 @@ export function PipelineView() {
             <h3 className="pipeline-card-title">Matters by practice area</h3>
             <div className="practice-progress-list">
               {practiceAreaStatsLive.length === 0 ? (
-                <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: 0 }}>
+                <p
+                  style={{
+                    color: "var(--text-muted)",
+                    fontSize: "13px",
+                    margin: 0,
+                  }}
+                >
                   No cases yet.
                 </p>
               ) : (
-                practiceAreaStatsLive.map(({ label, count, percentText, color, tone, percent }) => (
-                  <div key={label} className="practice-progress-row">
-                    <span className={`practice-pill practice-pill--${tone}`}>
-                      {label}
-                    </span>
-                    <span className="progress-track">
-                      <span
-                        className="progress-fill"
-                        style={{ width: `${percent}%`, backgroundColor: color }}
-                      />
-                    </span>
-                    <span className="practice-progress-value">
-                      <strong>{count}</strong> {percentText}
-                    </span>
-                  </div>
-                ))
+                practiceAreaStatsLive.map(
+                  ({ label, count, percentText, color, tone, percent }) => (
+                    <div key={label} className="practice-progress-row">
+                      <span className={`practice-pill practice-pill--${tone}`}>
+                        {label}
+                      </span>
+                      <span className="progress-track">
+                        <span
+                          className="progress-fill"
+                          style={{
+                            width: `${percent}%`,
+                            backgroundColor: color,
+                          }}
+                        />
+                      </span>
+                      <span className="practice-progress-value">
+                        <strong>{count}</strong> {percentText}
+                      </span>
+                    </div>
+                  ),
+                )
               )}
             </div>
           </article>
@@ -190,14 +216,16 @@ export function PipelineView() {
                 <p className="row-meta">{id}</p>
               </div>
               <span className="deadline-matter">{matter}</span>
-              <span className={`deadline-due deadline-due--${tone}`}>{due}</span>
-              <Link className="deadline-view-button" to="/admin/cases/all-matters">
+              <span className={`deadline-due deadline-due--${tone}`}>
+                {due}
+              </span>
+              <Link className="deadline-view-button" to="/cases">
                 View
               </Link>
             </div>
           ))}
         </div>
-        <Link className="section-card__footer-link" to="/admin/cases/all-matters">
+        <Link className="section-card__footer-link" to="/cases">
           View all deadlines →
         </Link>
       </article>
@@ -205,14 +233,19 @@ export function PipelineView() {
       <section className="pipeline-section">
         <header className="pipeline-copy-header">
           <h2 className="section-heading">Case opening velocity</h2>
-          <p className="section-subtitle">New matters opened per week — last 8 weeks</p>
+          <p className="section-subtitle">
+            New matters opened per week — last 8 weeks
+          </p>
         </header>
 
         <div className="velocity-chart" aria-label="Case opening velocity">
           {velocityWeeks.map(([label, value, height]) => (
             <div key={label} className="velocity-bar-item">
               <span className="velocity-value">{value}</span>
-              <span className="velocity-bar" style={{ height: `${height}px` }} />
+              <span
+                className="velocity-bar"
+                style={{ height: `${height}px` }}
+              />
               <span className="velocity-label">{label}</span>
             </div>
           ))}
@@ -220,11 +253,17 @@ export function PipelineView() {
 
         <div className="pipeline-summary-row">
           <span className="chip">
-            <span className="chip-dot" style={{ background: "var(--text-primary)" }} />
+            <span
+              className="chip-dot"
+              style={{ background: "var(--text-primary)" }}
+            />
             Avg 5.25 cases / week
           </span>
           <span className="chip">
-            <span className="chip-dot" style={{ background: "var(--status-success)" }} />
+            <span
+              className="chip-dot"
+              style={{ background: "var(--status-success)" }}
+            />
             ↑ 33% from 8 weeks ago
           </span>
         </div>
@@ -233,21 +272,30 @@ export function PipelineView() {
       <section className="pipeline-section">
         <h2 className="section-heading">Pipeline health indicators</h2>
         <div className="health-grid">
-          {healthIndicators.map(([label, value, helper, tone, percent, Icon]) => (
-            <article key={label} className="surface-card health-card">
-              <div>
-                <p className="health-label">{label}</p>
-                <p className={`health-value health-value--${tone}`}>{value}</p>
-                <p className={`health-helper health-helper--${tone}`}>{helper}</p>
-              </div>
-              <span className={`health-icon health-icon--${tone}`}>
-                <Icon size={14} strokeWidth={1.8} />
-              </span>
-              <span className="progress-track">
-                <span className={`health-fill health-fill--${tone}`} style={{ width: `${percent}%` }} />
-              </span>
-            </article>
-          ))}
+          {healthIndicators.map(
+            ([label, value, helper, tone, percent, Icon]) => (
+              <article key={label} className="surface-card health-card">
+                <div>
+                  <p className="health-label">{label}</p>
+                  <p className={`health-value health-value--${tone}`}>
+                    {value}
+                  </p>
+                  <p className={`health-helper health-helper--${tone}`}>
+                    {helper}
+                  </p>
+                </div>
+                <span className={`health-icon health-icon--${tone}`}>
+                  <Icon size={14} strokeWidth={1.8} />
+                </span>
+                <span className="progress-track">
+                  <span
+                    className={`health-fill health-fill--${tone}`}
+                    style={{ width: `${percent}%` }}
+                  />
+                </span>
+              </article>
+            ),
+          )}
         </div>
       </section>
     </>

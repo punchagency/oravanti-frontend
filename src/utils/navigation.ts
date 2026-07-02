@@ -69,7 +69,7 @@ export const primaryNavigation: PrimaryNavigationItem[] = [
   {
     label: "Cases",
     section: "cases",
-    path: "/admin/cases/all-matters",
+    path: "/admin/cases",
     icon: "folder",
   },
   {
@@ -158,12 +158,12 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Cases",
-          path: "/admin/cases/all-matters",
+          path: "/admin/cases",
           icon: "folder",
           children: [
             {
               label: "All matters",
-              path: "/admin/cases/all-matters",
+              path: "/admin/cases",
               icon: "folder-open",
             },
             {

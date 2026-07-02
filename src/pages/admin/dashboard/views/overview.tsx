@@ -345,9 +345,7 @@ export function OverviewView() {
               ))
             )}
           </Stack>
-          <FooterLink to="/admin/cases/all-matters">
-            View all matters →
-          </FooterLink>
+          <FooterLink to="/cases">View all matters →</FooterLink>
         </SurfaceCard>
 
         <SurfaceCard gridColumn={{ base: "1", xl: "span 6" }} minH="100%">
