@@ -731,6 +731,12 @@ function ConsultationCard({
   // A consultation can be marked complete once it exists, hasn't already been
   // completed/cancelled, and its scheduled start time has passed.
   const consultationCompleted = consultation?.status === "completed";
+  // The fee agreement unlocks once the lead has completed *any* consultation —
+  // a later follow-up being cancelled (which detaches the current consultation)
+  // must not hide it again.
+  const hasCompletedConsultation =
+    consultationCompleted ||
+    consultationHistory.some((c) => c.status === "completed");
   const isCompletable =
     consultation?.status === "scheduled" ||
     consultation?.status === "in_progress";
@@ -1202,8 +1208,8 @@ function ConsultationCard({
         </Stack>
       </SectionRow>
 
-      {/* 4. Fee agreement — unlocks once the consultation is completed */}
-      {consultationCompleted ? (
+      {/* 4. Fee agreement — unlocks once any consultation has been completed */}
+      {hasCompletedConsultation ? (
         <SectionRow>
           <Stack gap="14px">
             <HStack justify="space-between" gap="12px" wrap="wrap">
@@ -1539,49 +1545,75 @@ function PastConsultations({ items }: { items: Consultation[] }) {
       </chakra.button>
       {open ? (
         <Stack gap="0" mt="8px">
-          {items.map((c) => {
-            const tone = CONSULT_STATUS_TONE[c.status];
-            const when = c.scheduledAt
-              ? `${formatReceivedDate(c.scheduledAt)} · ${formatIsoTime(
-                  c.scheduledAt,
-                )}`
-              : "Not scheduled";
-            return (
-              <HStack
-                key={c.id}
-                justify="space-between"
-                gap="10px"
-                py="8px"
-                borderBottom="1px solid"
-                borderColor="border.subtle"
-                _last={{ borderBottom: 0 }}
-              >
-                <HStack gap="8px" minW="0">
-                  <Box
-                    flex="0 0 auto"
-                    w="7px"
-                    h="7px"
-                    borderRadius="full"
-                    bg={TONE_DOT[tone]}
-                  />
-                  <Box minW="0">
-                    <Text m="0" color="fg" fontSize="13px" truncate>
-                      {consultationModeLabel(c.mode)} · {when}
-                    </Text>
-                    {c.outcome ? (
-                      <MutedText>
-                        Outcome: {c.outcome.replace(/_/g, " ")}
-                      </MutedText>
-                    ) : null}
-                  </Box>
-                </HStack>
-                <StatusPill tone={tone}>
-                  {CONSULT_STATUS_LABEL[c.status]}
-                </StatusPill>
-              </HStack>
-            );
-          })}
+          {items.map((c) => (
+            <PastConsultationRow key={c.id} consultation={c} />
+          ))}
         </Stack>
+      ) : null}
+    </Box>
+  );
+}
+
+function PastConsultationRow({ consultation: c }: { consultation: Consultation }) {
+  const [showNotes, setShowNotes] = useState(false);
+  const tone = CONSULT_STATUS_TONE[c.status];
+  const when = c.scheduledAt
+    ? `${formatReceivedDate(c.scheduledAt)} · ${formatIsoTime(c.scheduledAt)}`
+    : "Not scheduled";
+  const notes = c.attorneyNotes?.trim();
+  return (
+    <Box
+      py="8px"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      _last={{ borderBottom: 0 }}
+    >
+      <HStack justify="space-between" gap="10px">
+        <HStack gap="8px" minW="0">
+          <Box
+            flex="0 0 auto"
+            w="7px"
+            h="7px"
+            borderRadius="full"
+            bg={TONE_DOT[tone]}
+          />
+          <Box minW="0">
+            <Text m="0" color="fg" fontSize="13px" truncate>
+              {consultationModeLabel(c.mode)} · {when}
+            </Text>
+            {c.outcome ? (
+              <MutedText>Outcome: {c.outcome.replace(/_/g, " ")}</MutedText>
+            ) : null}
+          </Box>
+        </HStack>
+        <StatusPill tone={tone}>{CONSULT_STATUS_LABEL[c.status]}</StatusPill>
+      </HStack>
+      {notes ? (
+        <Box pl="15px" mt="4px">
+          <chakra.button
+            type="button"
+            onClick={() => setShowNotes((v) => !v)}
+            color="brand.fg"
+            fontSize="12px"
+            fontWeight="500"
+          >
+            {showNotes ? "Hide attorney notes" : "View attorney notes"}
+          </chakra.button>
+          {showNotes ? (
+            <Text
+              m="6px 0 0"
+              p="8px 10px"
+              bg="bg.subtle"
+              borderRadius="6px"
+              color="fg"
+              fontSize="12px"
+              lineHeight="1.5"
+              whiteSpace="pre-wrap"
+            >
+              {notes}
+            </Text>
+          ) : null}
+        </Box>
       ) : null}
     </Box>
   );
