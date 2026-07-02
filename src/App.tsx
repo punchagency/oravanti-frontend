@@ -2,6 +2,7 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
 import { AdminDashboard } from "@/pages/admin/dashboard";
 import { IntakePipelinePage } from "@/pages/admin/intake";
+import { CasesPage } from "@/pages/admin/cases";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { NotFoundPage } from "@/pages/not-found";
@@ -114,6 +115,8 @@ const router = createBrowserRouter(
             element={<IntakePipelinePage />}
           />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
+
+          <Route path="cases" element={<CasesPage />} />
 
           <Route path="staff-management" element={<StaffAndUsersPage />}>
             <Route index element={<Staff />} />
