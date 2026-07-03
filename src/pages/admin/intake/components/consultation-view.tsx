@@ -29,10 +29,13 @@ import {
   Lock,
   Mail,
   MapPin,
+  Pencil,
   Phone,
+  Plus,
   Scale,
   Search,
   Send,
+  Trash2,
   UserX,
   Video,
   X,
@@ -47,7 +50,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
@@ -55,8 +58,11 @@ import type {
   ConsultationListItem,
   ConsultationSort,
   ConsultationStatus,
+  FeeAgreementPreview,
+  GenerateFeeAgreementInput,
   Lead,
 } from "@/api/leads";
+import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
@@ -70,6 +76,7 @@ import {
   useCancelConsultation,
   useConsultations,
   useInitiateConsultation,
+  useFeeAgreementPreview,
   useGenerateFeeAgreement,
   useLeadById,
   useLeads,
@@ -760,6 +767,22 @@ function ConsultationCard({
   const feeAgreement = leadDetail?.feeAgreement;
   const send = questionnaire?.send;
   const response = questionnaire?.response;
+  const { data: firmFeeSettings } = useConsultationSettings();
+
+  // Fee-agreement preview modal. `generatedPreview` holds the doc returned by a
+  // fresh generate; reopening a draft fetches it by id instead.
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [generatedPreview, setGeneratedPreview] =
+    useState<FeeAgreementPreview | null>(null);
+  const draftPreview = useFeeAgreementPreview(
+    feeAgreement?.id ?? null,
+    previewOpen && !generatedPreview,
+  );
+  const previewData = generatedPreview ?? draftPreview.data ?? null;
+  function closePreview() {
+    setPreviewOpen(false);
+    setGeneratedPreview(null);
+  }
 
   const [notes, setNotes] = useState<string | null>(null);
   const [now, setTime] = useState(() => Date.now());
@@ -1303,33 +1326,28 @@ function ConsultationCard({
                 </Text>
               </HStack>
             ) : !feeAgreement ? (
-              <HStack gap="8px" wrap="wrap">
-                <BrandButton
-                  loading={generateFee.isPending}
-                  onClick={() =>
-                    generateFee.mutate({
-                      id: lead.id,
-                      data: {
-                        agreementType: "retainer",
-                        generatedFrom: "manual",
+              <FeeAgreementForm
+                consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
+                generating={generateFee.isPending}
+                onSubmit={(data) =>
+                  generateFee.mutate(
+                    { id: lead.id, data },
+                    {
+                      onSuccess: (preview) => {
+                        setGeneratedPreview(preview);
+                        setPreviewOpen(true);
                       },
-                    })
-                  }
-                >
-                  <FileText size={14} />
-                  Generate fee agreement
-                </BrandButton>
-              </HStack>
+                    },
+                  )
+                }
+              />
             ) : feeAgreement.status === "draft" ? (
               <Stack gap="10px">
                 <MutedText>Agreement generated — ready to dispatch.</MutedText>
                 <HStack gap="8px" wrap="wrap">
-                  <BrandButton
-                    loading={sendFee.isPending}
-                    onClick={() => sendFee.mutate(feeAgreement.id)}
-                  >
-                    <Send size={14} />
-                    Send to client
+                  <BrandButton onClick={() => setPreviewOpen(true)}>
+                    <FileText size={14} />
+                    Preview &amp; send
                   </BrandButton>
                 </HStack>
               </Stack>
@@ -1508,6 +1526,18 @@ function ConsultationCard({
           setCancelReason("");
         }}
       />
+
+      <FeeAgreementPreviewModal
+        open={previewOpen}
+        loading={draftPreview.isLoading && !generatedPreview}
+        preview={previewData}
+        sending={sendFee.isPending}
+        onSend={() =>
+          previewData &&
+          sendFee.mutate(previewData.agreement.id, { onSuccess: closePreview })
+        }
+        onClose={closePreview}
+      />
     </Container>
   );
 }
@@ -1591,6 +1621,489 @@ function CancelConsultationDialog({
               Cancel consultation
             </BrandButton>
           </Flex>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+// ── Fee agreement form + preview ──────────────────────────────────────────────
+
+const feeFormSchema = z
+  .object({
+    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly"]),
+    flatRate: z.string(),
+    hourlyRate: z.string(),
+    governmentFees: z.array(
+      z.object({ name: z.string(), amount: z.string() }),
+    ),
+    paymentPlan: z.enum(["pay_in_full", "two_payments", "installments"]),
+    applyConsultationCredit: z.boolean(),
+    operating: z.string(),
+    trust: z.string(),
+  })
+  .superRefine((val, ctx) => {
+    if (
+      (val.attorneyFeeType === "flat" || val.attorneyFeeType === "flat_hourly") &&
+      !val.flatRate.trim()
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["flatRate"],
+        message: "Enter the flat rate",
+      });
+    if (
+      (val.attorneyFeeType === "hourly" ||
+        val.attorneyFeeType === "flat_hourly") &&
+      !val.hourlyRate.trim()
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hourlyRate"],
+        message: "Enter the hourly rate",
+      });
+    val.governmentFees.forEach((g, i) => {
+      if (!g.name.trim())
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["governmentFees", i, "name"],
+          message: "Name required",
+        });
+      if (!g.amount.trim())
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["governmentFees", i, "amount"],
+          message: "Amount required",
+        });
+    });
+  });
+
+type FeeForm = z.infer<typeof feeFormSchema>;
+
+const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] = [
+  { value: "flat", label: "Flat fee" },
+  { value: "hourly", label: "Hourly" },
+  { value: "flat_hourly", label: "Flat + hourly" },
+];
+const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] = [
+  { value: "pay_in_full", label: "Pay in full" },
+  { value: "two_payments", label: "2 payments" },
+  { value: "installments", label: "Instalment" },
+];
+
+function FeeFieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <Text
+      m="0 0 8px"
+      fontSize="11px"
+      fontWeight="600"
+      letterSpacing="0.04em"
+      textTransform="uppercase"
+      color="fg.muted"
+    >
+      {children}
+    </Text>
+  );
+}
+
+export function FeeAgreementForm({
+  consultationFeeAmount,
+  generating,
+  onSubmit,
+}: {
+  consultationFeeAmount: number | null;
+  generating: boolean;
+  onSubmit: (data: GenerateFeeAgreementInput) => void;
+}) {
+  const { control, register, handleSubmit, setValue } = useForm<FeeForm>({
+    resolver: zodResolver(feeFormSchema),
+    defaultValues: {
+      attorneyFeeType: "flat",
+      flatRate: "",
+      hourlyRate: "",
+      governmentFees: [{ name: "", amount: "" }],
+      paymentPlan: "pay_in_full",
+      applyConsultationCredit: false,
+      operating: "",
+      trust: "",
+    },
+    mode: "onChange",
+  });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "governmentFees",
+  });
+
+  const attorneyFeeType = useWatch({ control, name: "attorneyFeeType" });
+  const paymentPlan = useWatch({ control, name: "paymentPlan" });
+  const applyCredit = useWatch({ control, name: "applyConsultationCredit" });
+  const flatRate = useWatch({ control, name: "flatRate" });
+  const govFees = useWatch({ control, name: "governmentFees" });
+  const operatingField = useWatch({ control, name: "operating" });
+  const trustField = useWatch({ control, name: "trust" });
+
+  const attorneyTotal =
+    attorneyFeeType === "hourly" ? 0 : Number(flatRate || 0);
+  const govTotal = (govFees ?? []).reduce(
+    (sum, g) => sum + Number(g?.amount || 0),
+    0,
+  );
+
+  // Account split auto-fills from the fees until the admin edits a field.
+  const [operatingTouched, setOperatingTouched] = useState(false);
+  const [trustTouched, setTrustTouched] = useState(false);
+  const operatingValue = operatingTouched
+    ? operatingField
+    : String(attorneyTotal);
+  const trustValue = trustTouched ? trustField : String(govTotal);
+
+  const onValid = (data: FeeForm) => {
+    onSubmit({
+      attorneyFee: {
+        type: data.attorneyFeeType,
+        flatRate:
+          data.attorneyFeeType !== "hourly"
+            ? Number(data.flatRate || 0)
+            : undefined,
+        hourlyRate:
+          data.attorneyFeeType !== "flat"
+            ? Number(data.hourlyRate || 0)
+            : undefined,
+      },
+      governmentFees: data.governmentFees.map((g) => ({
+        name: g.name.trim(),
+        amount: Number(g.amount || 0),
+      })),
+      paymentPlan: data.paymentPlan,
+      applyConsultationCredit: data.applyConsultationCredit,
+      accountSplit: {
+        operating: Number(operatingValue || 0),
+        trust: Number(trustValue || 0),
+      },
+    });
+  };
+
+  return (
+    <chakra.form onSubmit={handleSubmit(onValid)}>
+      <Box p="16px" borderRadius="10px" bg="bg.subtle">
+        <Stack gap="18px">
+          {/* Attorney fees */}
+          <Box>
+            <FeeFieldLabel>Attorney fees</FeeFieldLabel>
+            <HStack gap="8px" wrap="wrap" mb="10px">
+              {FEE_TYPE_OPTIONS.map((o) => (
+                <ChoiceChip
+                  key={o.value}
+                  active={attorneyFeeType === o.value}
+                  onClick={() => setValue("attorneyFeeType", o.value)}
+                >
+                  {o.label}
+                </ChoiceChip>
+              ))}
+            </HStack>
+            <HStack gap="10px" wrap="wrap">
+              {attorneyFeeType !== "hourly" ? (
+                <HStack gap="6px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    maxW="120px"
+                    {...fieldStyles}
+                    {...register("flatRate")}
+                  />
+                  <MutedText>flat rate</MutedText>
+                </HStack>
+              ) : null}
+              {attorneyFeeType !== "flat" ? (
+                <HStack gap="6px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    maxW="120px"
+                    {...fieldStyles}
+                    {...register("hourlyRate")}
+                  />
+                  <MutedText>/ hour</MutedText>
+                </HStack>
+              ) : null}
+            </HStack>
+          </Box>
+
+          {/* Government fees */}
+          <Box>
+            <FeeFieldLabel>Government fees</FeeFieldLabel>
+            <Stack gap="8px">
+              {fields.map((f, i) => (
+                <HStack key={f.id} gap="8px">
+                  <Input
+                    placeholder="Fee name (e.g. USCIS filing fee)"
+                    {...fieldStyles}
+                    {...register(`governmentFees.${i}.name` as const)}
+                  />
+                  <HStack gap="4px" flex="0 0 auto">
+                    <Text fontSize="14px" color="fg.muted">
+                      $
+                    </Text>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0.00"
+                      maxW="110px"
+                      textAlign="right"
+                      {...fieldStyles}
+                      {...register(`governmentFees.${i}.amount` as const)}
+                    />
+                  </HStack>
+                  <chakra.button
+                    type="button"
+                    aria-label="Remove fee"
+                    onClick={() => (fields.length > 1 ? remove(i) : undefined)}
+                    display="grid"
+                    placeItems="center"
+                    w="32px"
+                    h="32px"
+                    flex="0 0 auto"
+                    borderRadius="7px"
+                    color="fg.muted"
+                    opacity={fields.length > 1 ? 1 : 0.4}
+                    _hover={{ bg: "bg.muted" }}
+                  >
+                    <Trash2 size={14} />
+                  </chakra.button>
+                </HStack>
+              ))}
+            </Stack>
+            <chakra.button
+              type="button"
+              onClick={() => append({ name: "", amount: "" })}
+              mt="8px"
+              display="inline-flex"
+              alignItems="center"
+              gap="4px"
+              fontSize="12px"
+              fontWeight="500"
+              color="fg.muted"
+              border="1px solid"
+              borderColor="border"
+              borderRadius="7px"
+              px="10px"
+              h="30px"
+              _hover={{ bg: "bg.muted" }}
+            >
+              <Plus size={13} />
+              Add fee row
+            </chakra.button>
+          </Box>
+
+          {/* Payment plan */}
+          <Box>
+            <FeeFieldLabel>Payment plan</FeeFieldLabel>
+            <HStack gap="8px" wrap="wrap">
+              {PAYMENT_PLAN_OPTIONS.map((o) => (
+                <ChoiceChip
+                  key={o.value}
+                  active={paymentPlan === o.value}
+                  onClick={() => setValue("paymentPlan", o.value)}
+                >
+                  {o.label}
+                </ChoiceChip>
+              ))}
+            </HStack>
+          </Box>
+
+          {/* Apply consultation credit */}
+          <CheckOption
+            checked={applyCredit}
+            onToggle={() => setValue("applyConsultationCredit", !applyCredit)}
+            label={`Apply consultation fee${
+              consultationFeeAmount != null
+                ? ` ($${consultationFeeAmount})`
+                : ""
+            } as credit toward retainer`}
+          />
+
+          {/* Account split */}
+          <Box>
+            <FeeFieldLabel>Account split</FeeFieldLabel>
+            <HStack gap="10px" wrap="wrap" align="flex-start">
+              <Box flex="1" minW="180px">
+                <MutedText>Operating</MutedText>
+                <HStack gap="4px" mt="4px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={operatingValue}
+                    {...fieldStyles}
+                    onChange={(e) => {
+                      setOperatingTouched(true);
+                      setValue("operating", e.currentTarget.value);
+                    }}
+                  />
+                </HStack>
+              </Box>
+              <Box flex="1" minW="180px">
+                <MutedText>Trust (IOLTA)</MutedText>
+                <HStack gap="4px" mt="4px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={trustValue}
+                    {...fieldStyles}
+                    onChange={(e) => {
+                      setTrustTouched(true);
+                      setValue("trust", e.currentTarget.value);
+                    }}
+                  />
+                </HStack>
+              </Box>
+            </HStack>
+          </Box>
+        </Stack>
+      </Box>
+
+      <HStack mt="14px">
+        <BrandButton type="submit" loading={generating}>
+          <FileText size={14} />
+          Generate fee agreement
+        </BrandButton>
+      </HStack>
+    </chakra.form>
+  );
+}
+
+export function FeeAgreementPreviewModal({
+  open,
+  loading,
+  preview,
+  sending,
+  onSend,
+  onClose,
+}: {
+  open: boolean;
+  loading: boolean;
+  preview: FeeAgreementPreview | null;
+  sending: boolean;
+  onSend: () => void;
+  onClose: () => void;
+}) {
+  function handleDownload() {
+    if (!preview) return;
+    const win = window.open("", "_blank", "width=820,height=1000");
+    if (!win) return;
+    win.document.write(
+      `<html><head><title>Fee agreement ${preview.document.docRef}</title></head><body style="margin:24px;">${buildFeeAgreementHtml(
+        preview.document,
+      )}</body></html>`,
+    );
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(d) => {
+        if (!d.open) onClose();
+      }}
+      placement="center"
+      lazyMount
+      unmountOnExit
+    >
+      <Dialog.Backdrop bg="rgba(0,0,0,0.46)" />
+      <Dialog.Positioner>
+        <Dialog.Content
+          maxW="760px"
+          w="calc(100vw - 48px)"
+          maxH="calc(100vh - 72px)"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          overflow="hidden"
+          display="flex"
+          flexDirection="column"
+        >
+          <Flex
+            align="center"
+            justify="space-between"
+            gap="12px"
+            p="14px 18px"
+            borderBottom="1px solid"
+            borderColor="border.subtle"
+            flex="0 0 auto"
+          >
+            <Dialog.Title color="fg" fontSize="15px" fontWeight="600">
+              Fee agreement preview
+            </Dialog.Title>
+            <HStack gap="8px">
+              <OutlineButton disabled title="Coming soon">
+                <Pencil size={14} />
+                Edit
+              </OutlineButton>
+              <OutlineButton disabled={!preview} onClick={handleDownload}>
+                <Download size={14} />
+                Download
+              </OutlineButton>
+              <BrandButton
+                disabled={!preview}
+                loading={sending}
+                onClick={onSend}
+              >
+                <Send size={14} />
+                Send to client
+              </BrandButton>
+              <chakra.button
+                type="button"
+                aria-label="Close preview"
+                onClick={onClose}
+                display="grid"
+                placeItems="center"
+                w="32px"
+                h="32px"
+                borderRadius="full"
+                color="fg.muted"
+                _hover={{ bg: "bg.muted" }}
+              >
+                <X size={16} />
+              </chakra.button>
+            </HStack>
+          </Flex>
+
+          <Box flex="1" overflowY="auto" p="24px" bg="bg.subtle">
+            {loading || !preview ? (
+              <MutedText>Loading preview…</MutedText>
+            ) : (
+              <Box
+                bg="bg"
+                borderRadius="10px"
+                p="28px"
+                border="1px solid"
+                borderColor="border"
+                dangerouslySetInnerHTML={{
+                  __html: buildFeeAgreementHtml(preview.document),
+                }}
+              />
+            )}
+          </Box>
         </Dialog.Content>
       </Dialog.Positioner>
     </Dialog.Root>

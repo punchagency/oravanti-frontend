@@ -376,11 +376,60 @@ export const cancelConsultation = async (
   return res.data.data;
 };
 
+export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly";
+export type FeePaymentPlan = "pay_in_full" | "two_payments" | "installments";
+
+export type GenerateFeeAgreementInput = {
+  attorneyFee: {
+    type: AttorneyFeeType;
+    flatRate?: number;
+    hourlyRate?: number;
+  };
+  governmentFees: { name: string; amount: number }[];
+  paymentPlan: FeePaymentPlan;
+  applyConsultationCredit: boolean;
+  accountSplit: { operating: number; trust: number };
+};
+
+export type FeeAgreementDocument = {
+  docRef: string;
+  datePrepared: string;
+  firm: {
+    name: string;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zipCode: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+  attorneyName: string;
+  client: { name: string; matterType: string };
+  feeLines: { description: string; amount: number }[];
+  totalDue: number;
+  allocation: { operating: number; trust: number; total: number };
+  paymentPlan: FeePaymentPlan;
+  applyConsultationCredit: boolean;
+  consultationFeeAmount: number | null;
+};
+
+export type FeeAgreementPreview = {
+  agreement: FeeAgreement;
+  document: FeeAgreementDocument;
+};
+
 export const generateFeeAgreement = async (
   id: string,
-  data: { agreementType: string; generatedFrom?: "manual" | "questionnaire_auto" },
-): Promise<FeeAgreement> => {
+  data: GenerateFeeAgreementInput,
+): Promise<FeeAgreementPreview> => {
   const res = await API.post(`/leads/${id}/generate-agreement`, data);
+  return res.data.data;
+};
+
+export const getFeeAgreementPreview = async (
+  agreementId: string,
+): Promise<FeeAgreementPreview> => {
+  const res = await API.get(`/agreements/${agreementId}/preview`);
   return res.data.data;
 };
 
