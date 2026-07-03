@@ -2,6 +2,7 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
 import { AdminDashboard } from "@/pages/admin/dashboard";
 import { IntakePipelinePage } from "@/pages/admin/intake";
+import { CasesPage } from "@/pages/admin/cases";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
@@ -89,7 +90,7 @@ const router = createBrowserRouter(
         />
         <Route path="/onboarding/step-3-tos" element={<Step3TosPage />} />
 
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard/pipeline" element={<AdminDashboard />} />
           <Route path="dashboard/activity" element={<AdminDashboard />} />
@@ -124,9 +125,11 @@ const router = createBrowserRouter(
           />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
 
+          <Route path="cases" element={<CasesPage />} />
+
           <Route path="staff-management" element={<StaffAndUsersPage />}>
             <Route index element={<Staff />} />
-            <Route path="accounts" element={<Navigate to="/admin/staff-management" replace />} />
+            <Route path="accounts" element={<Navigate to="/staff-management" replace />} />
             <Route path="teams" element={<Teams />} />
             <Route path="certifications" element={<Certifications />} />
             <Route path="performance" element={<Performance />} />

@@ -1,323 +1,478 @@
 import {
   Box,
   Button,
+  Combobox,
   createListCollection,
   Flex,
   Input,
   Portal,
-  Select,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { Search, X, ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PRACTICE_AREAS } from "@/utils/practice-areas";
+import { statusFilterItems } from "../data";
+import { useCasesData } from "../cases-data-context";
 
-const practiceAreaOptions = createListCollection({
-  items: [
-    { value: "all", label: "All practice areas" },
-    ...PRACTICE_AREAS.map((pa) => ({ value: pa.value, label: pa.label })),
-  ],
-});
+export function CasesFilters() {
+  const {
+    filteredCases,
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    practiceAreaFilter,
+    setPracticeAreaFilter,
+    caseTypeFilter,
+    setCaseTypeFilter,
+    stageFilter,
+    setStageFilter,
+    teamFilter,
+    setTeamFilter,
+    sortDirection,
+    setSortDirection,
+  } = useCasesData();
 
-const filingTypeOptions = createListCollection({
-  items: [
-    { value: "all", label: "All filing types" },
-    { value: "i485", label: "I-485" },
-    { value: "i130", label: "I-130" },
-  ],
-});
+  const [statusSearch, setStatusSearch] = useState("");
+  const [practiceAreaSearch, setPracticeAreaSearch] = useState("");
+  const [caseTypeSearch, setCaseTypeSearch] = useState("");
+  const [stageSearch, setStageSearch] = useState("");
+  const [teamSearch, setTeamSearch] = useState("");
 
-const stageOptions = createListCollection({
-  items: [
-    { value: "all", label: "All stages" },
-    { value: "intake", label: "Intake" },
-    { value: "filed", label: "Filed" },
-  ],
-});
+  const filters = {
+    search: searchQuery,
+    status: statusFilter,
+    practiceArea: practiceAreaFilter,
+    caseType: caseTypeFilter,
+    stage: stageFilter,
+    team: teamFilter,
+  };
 
-const staffOptions = createListCollection({
-  items: [
-    { value: "all", label: "All staff" },
-    { value: "john", label: "John Doe" },
-    { value: "jane", label: "Jane Smith" },
-  ],
-});
+  const setFilter = (key: string, value: string) => {
+    const setters: Record<string, (v: string) => void> = {
+      search: setSearchQuery,
+      status: setStatusFilter,
+      practiceArea: setPracticeAreaFilter,
+      caseType: setCaseTypeFilter,
+      stage: setStageFilter,
+      team: setTeamFilter,
+    };
+    setters[key]?.(value);
+  };
 
-interface CasesFiltersProps {
-  casesCount?: number;
-  sortDirection?: "asc" | "desc";
-  onSortToggle?: () => void;
-  onSearchChange?: (value: string) => void;
-  onPracticeAreaChange?: (value: string) => void;
-  onFilingTypeChange?: (value: string) => void;
-  onStageChange?: (value: string) => void;
-  onStaffChange?: (value: string) => void;
-}
+  const statusCollection = useMemo(
+    () => createListCollection({ items: statusFilterItems }),
+    [],
+  );
 
-export function CasesFilters({
-  casesCount = 0,
-  sortDirection: _sortDirection = "asc",
-  onSortToggle,
-  onSearchChange,
-  onPracticeAreaChange,
-  onFilingTypeChange,
-  onStageChange,
-  onStaffChange,
-}: CasesFiltersProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [practiceArea, setPracticeArea] = useState("all");
-  const [filingType, setFilingType] = useState("all");
-  const [stage, setStage] = useState("all");
-  const [staff, setStaff] = useState("all");
+  const practiceAreaCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          ...PRACTICE_AREAS.map((pa) => ({ value: pa.value, label: pa.label })),
+        ],
+      }),
+    [],
+  );
+
+  const caseTypeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "i485", label: "I-485 Adjustment of Status" },
+          { value: "i130", label: "I-130 Petition" },
+          { value: "i765", label: "I-765 Employment Authorization" },
+          { value: "i589", label: "I-589 Asylum" },
+        ],
+      }),
+    [],
+  );
+
+  const stageCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "intake", label: "Intake" },
+          { value: "filed", label: "Filed" },
+        ],
+      }),
+    [],
+  );
+
+  const teamCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "immigration-a", label: "Immigration Team A" },
+          { value: "immigration-b", label: "Immigration Team B" },
+          { value: "family-a", label: "Family Team A" },
+          { value: "criminal", label: "Criminal Team" },
+        ],
+      }),
+    [],
+  );
 
   const hasActiveFilters =
-    searchQuery !== "" ||
-    practiceArea !== "all" ||
-    filingType !== "all" ||
-    stage !== "all" ||
-    staff !== "all";
-
-  function clearFilters() {
-    setSearchQuery("");
-    setPracticeArea("all");
-    setFilingType("all");
-    setStage("all");
-    setStaff("all");
-    onSearchChange?.("");
-  }
+    filters.search !== "" ||
+    !!filters.status ||
+    !!filters.practiceArea ||
+    !!filters.caseType ||
+    !!filters.stage ||
+    !!filters.team;
 
   return (
-    <Box mb={6}>
-      <Flex
-        direction={{ base: "column", lg: "row" }}
-        gap={3}
-        mb={3}
-        justify="space-between"
-        align={{ lg: "center" }}
-      >
-        <Stack direction={{ base: "column", md: "row" }} gap={3} w="full">
-          <Box position="relative" w="full" maxW={{ md: "240px" }}>
-            <Box
-              position="absolute"
-              left={3}
-              top="50%"
-              transform="translateY(-50%)"
-              zIndex={1}
-              color="fg.subtle"
-              pointerEvents="none"
-            >
-              <Search size={16} />
-            </Box>
-            <Input
-              placeholder="Search matters, clients, ref..."
-              pl={9}
-              size={{ base: "xs", md: "sm" }}
+    <Flex
+      gap={3}
+      mb={6}
+      flexWrap="wrap"
+      align="center"
+      justify="space-between"
+    >
+      <Stack direction="row" gap={3} flexWrap="wrap" flex="1 1 auto">
+        <Box position="relative" w={{ base: "full", md: "180px", lg: "220px" }}>
+          <Box
+            position="absolute"
+            left={3}
+            top="50%"
+            transform="translateY(-50%)"
+            zIndex={1}
+            color="fg.subtle"
+            pointerEvents="none"
+          >
+            <Search size={16} />
+          </Box>
+          <Input
+            placeholder="Search matters, clients, ref..."
+            pl={9}
+            size={{ base: "xs", md: "sm" }}
+            bg="bg.input"
+            borderColor="border.input"
+            borderRadius="md"
+            value={filters.search}
+            onChange={(e) => setFilter("search", e.target.value)}
+          />
+        </Box>
+
+        <Combobox.Root
+          collection={statusCollection}
+          size={{ base: "xs", md: "sm" }}
+          w={{ base: "full", md: "auto" }}
+          minW={{ md: "150px" }}
+          value={[filters.status]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setFilter("status", val);
+            if (!val) setStatusSearch("");
+          }}
+          onInputValueChange={(e) => setStatusSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
+        >
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All statuses"
               bg="bg.input"
               borderColor="border.input"
               borderRadius="md"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                onSearchChange?.(e.target.value);
-              }}
             />
-          </Box>
+            <Combobox.IndicatorGroup>
+              {!!filters.status && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = statusCollection.items.filter(
+                    (item) =>
+                      !statusSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(statusSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No statuses matching &ldquo;{statusSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Root>
 
-          <Select.Root
-            collection={practiceAreaOptions}
+        <Combobox.Root
+          collection={practiceAreaCollection}
+          size={{ base: "xs", md: "sm" }}
+          w={{ base: "full", md: "auto" }}
+          minW={{ md: "160px" }}
+          value={[filters.practiceArea]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setFilter("practiceArea", val);
+            if (!val) setPracticeAreaSearch("");
+          }}
+          onInputValueChange={(e) => setPracticeAreaSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
+        >
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All practice areas"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!filters.practiceArea && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = practiceAreaCollection.items.filter(
+                    (item) =>
+                      !practiceAreaSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(practiceAreaSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No practice areas matching &ldquo;{practiceAreaSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Root>
+
+        <Combobox.Root
+          collection={caseTypeCollection}
+          size={{ base: "xs", md: "sm" }}
+          w={{ base: "full", md: "auto" }}
+          minW={{ md: "150px" }}
+          value={[filters.caseType]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setFilter("caseType", val);
+            if (!val) setCaseTypeSearch("");
+          }}
+          onInputValueChange={(e) => setCaseTypeSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
+        >
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All case types"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!filters.caseType && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = caseTypeCollection.items.filter(
+                    (item) =>
+                      !caseTypeSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(caseTypeSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No case types matching &ldquo;{caseTypeSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Root>
+
+        <Combobox.Root
+          collection={stageCollection}
+          size={{ base: "xs", md: "sm" }}
+          w={{ base: "full", md: "auto" }}
+          minW={{ md: "130px" }}
+          value={[filters.stage]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setFilter("stage", val);
+            if (!val) setStageSearch("");
+          }}
+          onInputValueChange={(e) => setStageSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
+        >
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All stages"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!filters.stage && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = stageCollection.items.filter(
+                    (item) =>
+                      !stageSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(stageSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No stages matching &ldquo;{stageSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Root>
+
+        <Combobox.Root
+          collection={teamCollection}
+          size={{ base: "xs", md: "sm" }}
+          w={{ base: "full", md: "auto" }}
+          minW={{ md: "130px" }}
+          value={[filters.team]}
+          onValueChange={(e) => {
+            const val = e.value[0] ?? "";
+            setFilter("team", val);
+            if (!val) setTeamSearch("");
+          }}
+          onInputValueChange={(e) => setTeamSearch(e.inputValue)}
+          positioning={{ sameWidth: true }}
+          openOnClick
+        >
+          <Combobox.Control>
+            <Combobox.Input
+              placeholder="All teams"
+              bg="bg.input"
+              borderColor="border.input"
+              borderRadius="md"
+            />
+            <Combobox.IndicatorGroup>
+              {!!filters.team && <Combobox.ClearTrigger />}
+              <Combobox.Trigger />
+            </Combobox.IndicatorGroup>
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content>
+                {(() => {
+                  const filtered = teamCollection.items.filter(
+                    (item) =>
+                      !teamSearch ||
+                      item.label
+                        .toLowerCase()
+                        .includes(teamSearch.toLowerCase()),
+                  );
+                  return filtered.length === 0 ? (
+                    <Text p={3} fontSize="sm" color="fg.muted">
+                      No teams matching &ldquo;{teamSearch}&rdquo;
+                    </Text>
+                  ) : (
+                    filtered.map((item) => (
+                      <Combobox.Item key={item.value} item={item}>
+                        <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                      </Combobox.Item>
+                    ))
+                  );
+                })()}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Root>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
             size={{ base: "xs", md: "sm" }}
-            w={{ base: "full", md: "auto" }}
-            minW={{ md: "160px" }}
-            value={[practiceArea]}
-            onValueChange={(e) => {
-              setPracticeArea(e.value[0] ?? "all");
-              onPracticeAreaChange?.(e.value[0] ?? "all");
+            color="fg.muted"
+            onClick={() => {
+              setSearchQuery("");
+              setStatusFilter("");
+              setPracticeAreaFilter("");
+              setCaseTypeFilter("");
+              setStageFilter("");
+              setTeamFilter("");
             }}
+            flexShrink={0}
           >
-            <Select.Control>
-              <Select.Trigger bg="bg.input" borderColor="border.input">
-                <Select.ValueText />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {practiceAreaOptions.items.map((opt) => (
-                    <Select.Item
-                      item={opt}
-                      key={opt.value}
-                      _hover={{ bg: "bg.muted" }}
-                      _focus={{ bg: "bg.subtle" }}
-                      bg="transparent"
-                      _selected={{ bg: "transparent" }}
-                    >
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
-            </Portal>
-          </Select.Root>
+            <X size={14} />
+            <Text display={{ base: "inline", md: "none" }} ml={1}>
+              Clear
+            </Text>
+            <Text display={{ base: "none", md: "inline" }}>Clear filters</Text>
+          </Button>
+        )}
+      </Stack>
 
-          <Select.Root
-            collection={filingTypeOptions}
-            size={{ base: "xs", md: "sm" }}
-            w={{ base: "full", md: "auto" }}
-            minW={{ md: "160px" }}
-            value={[filingType]}
-            onValueChange={(e) => {
-              setFilingType(e.value[0] ?? "all");
-              onFilingTypeChange?.(e.value[0] ?? "all");
-            }}
-          >
-            <Select.Control>
-              <Select.Trigger bg="bg.input" borderColor="border.input">
-                <Select.ValueText />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {filingTypeOptions.items.map((opt) => (
-                    <Select.Item
-                      item={opt}
-                      key={opt.value}
-                      _hover={{ bg: "bg.muted" }}
-                      _focus={{ bg: "bg.subtle" }}
-                      bg="transparent"
-                      _selected={{ bg: "transparent" }}
-                    >
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
-            </Portal>
-          </Select.Root>
-
-          <Select.Root
-            collection={stageOptions}
-            size={{ base: "xs", md: "sm" }}
-            w={{ base: "full", md: "auto" }}
-            minW={{ md: "130px" }}
-            value={[stage]}
-            onValueChange={(e) => {
-              setStage(e.value[0] ?? "all");
-              onStageChange?.(e.value[0] ?? "all");
-            }}
-          >
-            <Select.Control>
-              <Select.Trigger bg="bg.input" borderColor="border.input">
-                <Select.ValueText />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {stageOptions.items.map((opt) => (
-                    <Select.Item
-                      item={opt}
-                      key={opt.value}
-                      _hover={{ bg: "bg.muted" }}
-                      _focus={{ bg: "bg.subtle" }}
-                      bg="transparent"
-                      _selected={{ bg: "transparent" }}
-                    >
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
-            </Portal>
-          </Select.Root>
-
-          <Select.Root
-            collection={staffOptions}
-            size={{ base: "xs", md: "sm" }}
-            w={{ base: "full", md: "auto" }}
-            minW={{ md: "130px" }}
-            value={[staff]}
-            onValueChange={(e) => {
-              setStaff(e.value[0] ?? "all");
-              onStaffChange?.(e.value[0] ?? "all");
-            }}
-          >
-            <Select.Control>
-              <Select.Trigger bg="bg.input" borderColor="border.input">
-                <Select.ValueText />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {staffOptions.items.map((opt) => (
-                    <Select.Item
-                      item={opt}
-                      key={opt.value}
-                      _hover={{ bg: "bg.muted" }}
-                      _focus={{ bg: "bg.subtle" }}
-                      bg="transparent"
-                      _selected={{ bg: "transparent" }}
-                    >
-                      <Select.ItemText>{opt.label}</Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
-            </Portal>
-          </Select.Root>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size={{ base: "xs", md: "sm" }}
-              color="fg.muted"
-              onClick={clearFilters}
-              flexShrink={0}
-            >
-              <X size={14} />
-              <Text display={{ base: "inline", md: "none" }} ml={1}>
-                Clear
-              </Text>
-              <Text display={{ base: "none", md: "inline" }}>Clear filters</Text>
-            </Button>
-          )}
-        </Stack>
-
+      <Flex align="center" gap={3} flexShrink={0}>
         <Button
           variant="outline"
           size={{ base: "xs", md: "sm" }}
-          flexShrink={0}
-          onClick={onSortToggle}
+          onClick={() =>
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+          }
         >
           <ArrowUpDown size={14} />
           Sort
         </Button>
-      </Flex>
-
-      <Flex justify="flex-end">
         <Text
           textStyle="body-sm"
           color="fg.muted"
           whiteSpace="nowrap"
           display={{ base: "none", md: "block" }}
         >
-          {casesCount} matter{casesCount !== 1 ? "s" : ""}
+          {filteredCases.length} matter{filteredCases.length !== 1 ? "s" : ""}
         </Text>
       </Flex>
-    </Box>
+    </Flex>
   );
 }

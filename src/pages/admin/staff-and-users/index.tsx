@@ -28,8 +28,8 @@ export function StaffAndUsersPage() {
         onValueChange={(e) =>
           navigate(
             e.value === DEFAULT_TAB
-              ? "/admin/staff-management"
-              : `/admin/staff-management/${e.value}`,
+              ? "/staff-management"
+              : `/staff-management/${e.value}`,
           )
         }
         variant="plain"
