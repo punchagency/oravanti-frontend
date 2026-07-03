@@ -53,7 +53,7 @@ export default function SetPasswordPage() {
 
   useEffect(() => {
     if (!needsPasswordChange) {
-      navigate("/admin", { replace: true });
+      navigate("/", { replace: true });
     }
   }, [needsPasswordChange, navigate]);
 

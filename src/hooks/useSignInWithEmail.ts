@@ -57,7 +57,7 @@ export const useSignInWithEmail = () => {
         if (needsSetup.needsAcceptInvitation) {
           navigate("/accept-invitation", { replace: true });
         } else {
-          navigate("/admin", { replace: true });
+          navigate("/", { replace: true });
         }
       }
     },

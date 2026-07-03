@@ -59,41 +59,41 @@ export type ContextNavigationGroup = {
 };
 
 export const primaryNavigation: PrimaryNavigationItem[] = [
-  { label: "Overview", section: "overview", path: "/admin", icon: "dashboard" },
+  { label: "Overview", section: "overview", path: "/", icon: "dashboard" },
   {
     label: "Intake",
     section: "intake",
-    path: "/admin/intake/pipeline/lead-inbox",
+    path: "/intake/pipeline/lead-inbox",
     icon: "intake",
   },
   {
     label: "Cases",
     section: "cases",
-    path: "/admin/cases",
+    path: "/cases",
     icon: "folder",
   },
   {
     label: "Staff",
     section: "staff",
-    path: "/admin/staff-management",
+    path: "/staff-management",
     icon: "users",
   },
   {
     label: "Finance",
     section: "finance",
-    path: "/admin/finance/invoicing",
+    path: "/finance/invoicing",
     icon: "billing",
   },
   {
     label: "Analytics",
     section: "analytics",
-    path: "/admin/analytics/firm-overview",
+    path: "/analytics/firm-overview",
     icon: "analytics",
   },
   {
     label: "Settings",
     section: "settings",
-    path: "/admin/settings/add-on-activation",
+    path: "/settings/add-on-activation",
     icon: "settings",
   },
 ];
@@ -105,7 +105,7 @@ export const contextNavigation: Record<
   overview: [
     {
       label: "Overview",
-      items: [{ label: "Dashboard", path: "/admin", icon: "dashboard" }],
+      items: [{ label: "Dashboard", path: "/", icon: "dashboard" }],
     },
   ],
   intake: [
@@ -114,39 +114,39 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Intake pipeline",
-          path: "/admin/intake/pipeline/lead-inbox",
+          path: "/intake/pipeline/lead-inbox",
           icon: "intake",
           children: [
             {
               label: "Lead inbox",
-              path: "/admin/intake/pipeline/lead-inbox",
+              path: "/intake/pipeline/lead-inbox",
               icon: "mail",
             },
             {
               label: "Conflict check",
-              path: "/admin/intake/pipeline/conflict-check",
+              path: "/intake/pipeline/conflict-check",
               icon: "shield",
             },
             {
               label: "Questionnaire",
-              path: "/admin/intake/pipeline/questionnaire",
+              path: "/intake/pipeline/questionnaire",
               icon: "clipboard",
             },
             {
               label: "Consultation & notes",
-              path: "/admin/intake/pipeline/consultation",
+              path: "/intake/pipeline/consultation",
               icon: "file",
             },
             {
               label: "Case opening",
-              path: "/admin/intake/pipeline/case-opening",
+              path: "/intake/pipeline/case-opening",
               icon: "folder",
             },
           ],
         },
         {
           label: "CRM & leads",
-          path: "/admin/intake/crm-leads",
+          path: "/intake/crm-leads",
           icon: "chart-pie",
         },
       ],
@@ -158,17 +158,17 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Cases",
-          path: "/admin/cases",
+          path: "/cases",
           icon: "folder",
           children: [
             {
               label: "All matters",
-              path: "/admin/cases",
+              path: "/cases",
               icon: "folder-open",
             },
             {
               label: "Policy alerts",
-              path: "/admin/cases/policy-alerts",
+              path: "/cases/policy-alerts",
               icon: "rss",
             },
           ],
@@ -182,44 +182,44 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Staff Management",
-          path: "/admin/staff-management",
+          path: "/staff-management",
           icon: "users",
           children: [
             {
               label: "Staff accounts",
-              path: "/admin/staff-management",
+              path: "/staff-management",
               icon: "users",
             },
             {
               label: "Certifications",
-              path: "/admin/staff-management/certifications",
+              path: "/staff-management/certifications",
               icon: "book-open-check",
             },
             {
               label: "Performance",
-              path: "/admin/staff-management/performance",
+              path: "/staff-management/performance",
               icon: "chart-column-big",
             },
             {
               label: "Leave management",
-              path: "/admin/staff-management/leave",
+              path: "/staff-management/leave",
               icon: "calendar",
             },
           ],
         },
         {
           label: "Contractors",
-          path: "/admin/staff/contractors/marketplace",
+          path: "/staff/contractors/marketplace",
           icon: "briefcase",
           children: [
             {
               label: "Marketplace",
-              path: "/admin/staff/contractors/marketplace",
+              path: "/staff/contractors/marketplace",
               icon: "search",
             },
             {
               label: "Active engagements",
-              path: "/admin/staff/contractors/active-engagements",
+              path: "/staff/contractors/active-engagements",
               icon: "lock",
             },
           ],
@@ -233,22 +233,22 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Billing & finance",
-          path: "/admin/finance/invoicing",
+          path: "/finance/invoicing",
           icon: "billing",
           children: [
             {
               label: "Invoicing",
-              path: "/admin/finance/invoicing",
+              path: "/finance/invoicing",
               icon: "file",
             },
             {
               label: "Trust accounts",
-              path: "/admin/finance/trust-accounts",
+              path: "/finance/trust-accounts",
               icon: "landmark",
             },
             {
               label: "International payments",
-              path: "/admin/finance/international-payments",
+              path: "/finance/international-payments",
               icon: "globe",
             },
           ],
@@ -262,32 +262,32 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Analytics",
-          path: "/admin/analytics/firm-overview",
+          path: "/analytics/firm-overview",
           icon: "analytics",
           children: [
             {
               label: "Firm overview",
-              path: "/admin/analytics/firm-overview",
+              path: "/analytics/firm-overview",
               icon: "overview",
             },
             {
               label: "Revenue & billing",
-              path: "/admin/analytics/revenue-billing",
+              path: "/analytics/revenue-billing",
               icon: "billing",
             },
             {
               label: "Staff performance",
-              path: "/admin/analytics/staff-performance",
+              path: "/analytics/staff-performance",
               icon: "users",
             },
             {
               label: "Intake & CRM",
-              path: "/admin/analytics/intake-crm",
+              path: "/analytics/intake-crm",
               icon: "intake",
             },
             {
               label: "Compliance",
-              path: "/admin/analytics/compliance",
+              path: "/analytics/compliance",
               icon: "shield",
             },
           ],
@@ -301,38 +301,38 @@ export const contextNavigation: Record<
       items: [
         {
           label: "Settings",
-          path: "/admin/settings/add-on-activation",
+          path: "/settings/add-on-activation",
           icon: "settings",
           children: [
             {
               label: "Add-on activation",
-              path: "/admin/settings/add-on-activation",
+              path: "/settings/add-on-activation",
               icon: "intake",
             },
-            { label: "RBAC", path: "/admin/settings/rbac", icon: "shield" },
+            { label: "RBAC", path: "/settings/rbac", icon: "shield" },
             {
               label: "Integrations",
-              path: "/admin/settings/integrations",
+              path: "/settings/integrations",
               icon: "briefcase",
             },
             {
               label: "Email accounts",
-              path: "/admin/settings/email-accounts",
+              path: "/settings/email-accounts",
               icon: "mail",
             },
             {
               label: "Firm settings",
-              path: "/admin/settings/firm-settings",
+              path: "/settings/firm-settings",
               icon: "settings",
             },
             {
               label: "Training platform",
-              path: "/admin/settings/training-platform",
+              path: "/settings/training-platform",
               icon: "education",
             },
             {
               label: "Education & leads",
-              path: "/admin/settings/education-leads",
+              path: "/settings/education-leads",
               icon: "education",
             },
           ],
@@ -343,15 +343,11 @@ export const contextNavigation: Record<
 };
 
 export function getSectionForPath(pathname: string): PrimarySection {
-  const adminScopedPath = pathname.startsWith("/admin/")
-    ? pathname.slice("/admin".length)
-    : pathname;
-
-  if (adminScopedPath.startsWith("/intake")) return "intake";
-  if (adminScopedPath.startsWith("/cases")) return "cases";
-  if (adminScopedPath.startsWith("/staff")) return "staff";
-  if (adminScopedPath.startsWith("/finance")) return "finance";
-  if (adminScopedPath.startsWith("/analytics")) return "analytics";
-  if (adminScopedPath.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/intake")) return "intake";
+  if (pathname.startsWith("/cases")) return "cases";
+  if (pathname.startsWith("/staff")) return "staff";
+  if (pathname.startsWith("/finance")) return "finance";
+  if (pathname.startsWith("/analytics")) return "analytics";
+  if (pathname.startsWith("/settings")) return "settings";
   return "overview";
 }
