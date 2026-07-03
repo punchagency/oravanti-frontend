@@ -38,11 +38,20 @@ import {
   X,
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
+  Consultation,
   ConsultationListItem,
   ConsultationSort,
   ConsultationStatus,
@@ -53,9 +62,12 @@ import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
+import { DateField } from "@/components/ui/date-field";
+import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
+  useCancelConsultation,
   useConsultations,
   useInitiateConsultation,
   useGenerateFeeAgreement,
@@ -206,22 +218,48 @@ function attorneyFullName(item: ConsultationListItem): string {
   return name || "Unassigned";
 }
 
+type FollowUpRequest = {
+  lead: ConsultationSummaryLead;
+  attorneyId?: string | null;
+  parentConsultationId: string;
+};
+
+// Lets a ConsultationCard (rendered deep in the collapsible list) open the
+// scheduling wizard as a follow-up without prop-drilling through the list.
+const ScheduleFollowUpContext = createContext<(req: FollowUpRequest) => void>(
+  () => {},
+);
+
+type WizardPreset = {
+  lead: ConsultationSummaryLead | null;
+  attorneyId?: string | null;
+  parentConsultationId?: string;
+};
+
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
+  const [preset, setPreset] = useState<WizardPreset>({ lead: null });
   const { data, isLoading } = useLeads({ stage: "consultation" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
 
   const noConsultation = leads.filter((l) => !l.consultationId);
   const scheduled = leads.filter((l) => l.consultationId);
 
-  function openWizard(leadId: string | null) {
-    setPresetLeadId(leadId);
+  function openWizard(lead: ConsultationSummaryLead | null) {
+    setPreset({ lead });
+    setScheduleOpen(true);
+  }
+  function openFollowUp(req: FollowUpRequest) {
+    setPreset({
+      lead: req.lead,
+      attorneyId: req.attorneyId,
+      parentConsultationId: req.parentConsultationId,
+    });
     setScheduleOpen(true);
   }
 
   return (
-    <>
+    <ScheduleFollowUpContext.Provider value={openFollowUp}>
       <Stack gap="20px" pt="24px" aria-label="Consultation and notes">
         <HStack justify="space-between" gap="16px" wrap="wrap">
           <Text m="0" color="fg" fontSize="15px" fontWeight="500">
@@ -242,20 +280,20 @@ export function ConsultationView() {
         ) : leads.length === 0 ? (
           <MutedText>No leads in the consultation stage.</MutedText>
         ) : (
-          <Stack gap="20px">
+          <Stack gap="32px">
             {noConsultation.length > 0 ? (
               <Stack gap="12px">
                 <MutedText fontSize="14px">
                   {noConsultation.length} lead
                   {noConsultation.length === 1 ? "" : "s"} with no consultation
-                  scheduled yet
+                  in progress
                 </MutedText>
-                <Stack gap="16px">
+                <Stack gap="10px">
                   {noConsultation.map((lead) => (
-                    <ConsultationCard
+                    <CollapsibleNoConsultation
                       key={lead.id}
                       lead={lead}
-                      onSchedule={() => openWizard(lead.id)}
+                      onSchedule={() => openWizard(lead)}
                     />
                   ))}
                 </Stack>
@@ -263,7 +301,12 @@ export function ConsultationView() {
             ) : null}
 
             {noConsultation.length > 0 && scheduled.length > 0 ? (
-              <Box borderTop="1px solid" borderColor="border" />
+              <Box
+                borderTop="1px solid"
+                borderColor="border"
+                mt="4px"
+                pt="8px"
+              />
             ) : null}
 
             {scheduled.length > 0 ? (
@@ -276,9 +319,11 @@ export function ConsultationView() {
       <ScheduleConsultationDialog
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
-        presetLeadId={presetLeadId}
+        presetLead={preset.lead}
+        presetAttorneyId={preset.attorneyId}
+        parentConsultationId={preset.parentConsultationId}
       />
-    </>
+    </ScheduleFollowUpContext.Provider>
   );
 }
 
@@ -293,7 +338,7 @@ type ConsultationRow = {
 // the consultation-stage leads, enriched with a batch summary fetch so each
 // collapsed row can show status, attorney and time without a per-card detail
 // request. Controls are applied client-side against that summary set.
-function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
+function ConsultationList({ leads }: { leads: Lead[] }) {
   const { data, isLoading } = useConsultations({ limit: 200 });
 
   const [query, setQuery] = useState("");
@@ -303,20 +348,25 @@ function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const summaryByLead = useMemo(() => {
+  // Keyed by consultation id (a lead can now have several consultations —
+  // follow-ups, cancelled ones) so each row shows the lead's *current* one.
+  const summaryByConsultation = useMemo(() => {
     const map = new Map<string, ConsultationListItem>();
-    for (const item of data?.data ?? []) map.set(item.leadId, item);
+    for (const item of data?.data ?? []) map.set(item.id, item);
     return map;
   }, [data]);
 
   // Only the leads currently in the consultation stage, paired with their
-  // consultation summary (dropping any whose summary hasn't loaded yet).
+  // current consultation's summary (dropping any whose summary hasn't loaded
+  // yet, or whose consultation was detached, e.g. after a cancellation).
   const rows = useMemo<ConsultationRow[]>(() => {
     return leads.flatMap((lead) => {
-      const summary = summaryByLead.get(lead.id);
+      const summary = lead.consultationId
+        ? summaryByConsultation.get(lead.consultationId)
+        : undefined;
       return summary ? [{ lead, summary }] : [];
     });
-  }, [leads, summaryByLead]);
+  }, [leads, summaryByConsultation]);
 
   const attorneyOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -378,7 +428,7 @@ function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
   return (
     <Stack gap="14px">
       <Flex align="center" justify="space-between" gap="12px" wrap="wrap">
-        <HStack gap="10px" wrap="wrap">
+        <HStack gap="10px">
           <HStack
             gap="8px"
             h="34px"
@@ -549,6 +599,78 @@ function CollapsibleConsultation({
   );
 }
 
+// Collapsible row for a lead that has no active consultation yet — expands to
+// the same card (with its "Schedule consultation" action).
+function CollapsibleNoConsultation({
+  lead,
+  onSchedule,
+}: {
+  lead: Lead;
+  onSchedule: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      overflow="hidden"
+    >
+      <chakra.button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="16px"
+        w="full"
+        textAlign="left"
+        px="18px"
+        py="14px"
+        bg={open ? "bg.subtle" : "bg"}
+        _hover={{ bg: "bg.subtle" }}
+      >
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Box
+            flex="0 0 auto"
+            mt="6px"
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg={TONE_DOT.warning}
+          />
+          <Box minW="0">
+            <HStack gap="8px" minW="0" wrap="wrap">
+              <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
+                {lead.name}
+              </Text>
+              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+            </HStack>
+            <MutedText>No consultation scheduled yet</MutedText>
+          </Box>
+        </HStack>
+        <HStack gap="10px" flex="0 0 auto">
+          <StatusPill tone="warning" icon={<CalendarClock size={11} />}>
+            No consultation
+          </StatusPill>
+          <Box color="fg.muted">
+            {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </Box>
+        </HStack>
+      </chakra.button>
+
+      {open ? (
+        <Box borderTop="1px solid" borderColor="border">
+          <ConsultationCard lead={lead} bare onSchedule={onSchedule} />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
 function FilterSelect({
   ariaLabel,
   value,
@@ -623,6 +745,8 @@ function ConsultationCard({
   const completeMutation = useUpdateConsultation();
   const noShowMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
+  const cancelMutation = useCancelConsultation();
+  const openFollowUp = useContext(ScheduleFollowUpContext);
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
@@ -631,6 +755,7 @@ function ConsultationCard({
   const requestMissing = useRequestMissingDocuments();
 
   const consultation = leadDetail?.consultation;
+  const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
   const send = questionnaire?.send;
@@ -646,6 +771,8 @@ function ConsultationCard({
     id: string;
     tab: "responses" | "documents";
   } | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -671,26 +798,21 @@ function ConsultationCard({
     ? formatIsoTime(consultation.scheduledAt)
     : "—";
   const consultStatusLabel = consultation
-    ? (
-        {
-          scheduled: "Scheduled",
-          in_progress: "In progress",
-          completed: "Completed",
-          cancelled: "Cancelled",
-          no_show: "No show",
-        } as const
-      )[consultation.status]
+    ? CONSULT_STATUS_LABEL[consultation.status]
     : null;
-  const consultStatusTone: "info" | "success" | "danger" =
-    consultation?.status === "cancelled" || consultation?.status === "no_show"
-      ? "danger"
-      : consultation?.status === "scheduled"
-        ? "info"
-        : "success";
+  const consultStatusTone: StatusTone = consultation
+    ? CONSULT_STATUS_TONE[consultation.status]
+    : "neutral";
 
   // A consultation can be marked complete once it exists, hasn't already been
   // completed/cancelled, and its scheduled start time has passed.
   const consultationCompleted = consultation?.status === "completed";
+  // The fee agreement unlocks once the lead has completed *any* consultation —
+  // a later follow-up being cancelled (which detaches the current consultation)
+  // must not hide it again.
+  const hasCompletedConsultation =
+    consultationCompleted ||
+    consultationHistory.some((c) => c.status === "completed");
   const isCompletable =
     consultation?.status === "scheduled" ||
     consultation?.status === "in_progress";
@@ -699,6 +821,13 @@ function ConsultationCard({
     ? now >= new Date(scheduledAt).getTime()
     : false;
   const canComplete = isCompletable && startTimeReached;
+
+  // A consultation can be cancelled at any pre-terminal stage.
+  const canCancel =
+    consultation?.status === "pending_payment" ||
+    consultation?.status === "awaiting_slot_selection" ||
+    consultation?.status === "scheduled" ||
+    consultation?.status === "in_progress";
 
   // ── Documents ──────────────────────────────────────────────────────────────
   // Staff can manually attach a document received outside the client portal.
@@ -799,7 +928,15 @@ function ConsultationCard({
     noShowMutation.mutate({ id: lead.id, data: { status: "no_show" } });
   }
   function handleFollowUp() {
+    if (!consultation) return;
+    // Record the outcome on the completed parent, then open the wizard to book
+    // the follow-up (admin can choose urgent or lead-driven).
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
+    openFollowUp({
+      lead,
+      attorneyId: consultation.leadAttorneyId,
+      parentConsultationId: consultation.id,
+    });
   }
   function handleCloseNoCase() {
     outcomesMutation.mutate({
@@ -812,6 +949,17 @@ function ConsultationCard({
       id: lead.id,
       data: { outcome: "refer_elsewhere" },
     });
+  }
+  function handleCancelConsultation() {
+    cancelMutation.mutate(
+      { id: lead.id, reason: cancelReason.trim() || undefined },
+      {
+        onSuccess: () => {
+          setCancelOpen(false);
+          setCancelReason("");
+        },
+      },
+    );
   }
 
   const Container = bare ? BareCardBody : SurfaceCard;
@@ -842,6 +990,22 @@ function ConsultationCard({
               {consultationDate} · {consultationTime} · {consultation.duration}{" "}
               min
             </MutedText>
+            {canCancel ? (
+              <chakra.button
+                type="button"
+                onClick={() => setCancelOpen(true)}
+                display="inline-flex"
+                alignItems="center"
+                gap="4px"
+                fontSize="12px"
+                fontWeight="500"
+                color="#b00020"
+                _hover={{ textDecoration: "underline" }}
+              >
+                <X size={12} />
+                Cancel
+              </chakra.button>
+            ) : null}
           </HStack>
         ) : (
           <HStack gap="8px" align="center">
@@ -1120,8 +1284,8 @@ function ConsultationCard({
         </Stack>
       </SectionRow>
 
-      {/* 4. Fee agreement — unlocks once the consultation is completed */}
-      {consultationCompleted ? (
+      {/* 4. Fee agreement — unlocks once any consultation has been completed */}
+      {hasCompletedConsultation ? (
         <SectionRow>
           <Stack gap="14px">
             <HStack justify="space-between" gap="12px" wrap="wrap">
@@ -1265,6 +1429,13 @@ function ConsultationCard({
         </SectionRow>
       )}
 
+      {/* Past consultations (follow-ups / re-schedules) */}
+      {consultationHistory.length > 0 ? (
+        <SectionRow>
+          <PastConsultations items={consultationHistory} />
+        </SectionRow>
+      ) : null}
+
       {/* 5. Footer — outcomes are recorded against a consultation */}
       {hasConsultation ? (
         <HStack
@@ -1291,13 +1462,15 @@ function ConsultationCard({
             </MutedText>
           ) : (
             <HStack gap="8px" wrap="wrap" justify="flex-end">
-              <OutlineButton
-                loading={outcomesMutation.isPending}
-                onClick={handleFollowUp}
-              >
-                <CalendarDays size={14} />
-                Schedule follow-up
-              </OutlineButton>
+              {consultationCompleted ? (
+                <OutlineButton
+                  loading={outcomesMutation.isPending}
+                  onClick={handleFollowUp}
+                >
+                  <CalendarDays size={14} />
+                  Schedule follow-up
+                </OutlineButton>
+              ) : null}
               <OutlineButton
                 loading={outcomesMutation.isPending}
                 onClick={handleCloseNoCase}
@@ -1322,7 +1495,203 @@ function ConsultationCard({
         initialTab={docDialog?.tab ?? "responses"}
         onClose={() => setDocDialog(null)}
       />
+
+      <CancelConsultationDialog
+        open={cancelOpen}
+        leadName={lead.name}
+        reason={cancelReason}
+        onReasonChange={setCancelReason}
+        loading={cancelMutation.isPending}
+        onConfirm={handleCancelConsultation}
+        onClose={() => {
+          setCancelOpen(false);
+          setCancelReason("");
+        }}
+      />
     </Container>
+  );
+}
+
+function CancelConsultationDialog({
+  open,
+  leadName,
+  reason,
+  onReasonChange,
+  loading,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  leadName: string;
+  reason: string;
+  onReasonChange: (value: string) => void;
+  loading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(d) => {
+        if (!d.open) onClose();
+      }}
+    >
+      <Dialog.Backdrop bg="blackAlpha.500" />
+      <Dialog.Positioner>
+        <Dialog.Content
+          maxW="440px"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          overflow="hidden"
+        >
+          <Box p="20px 24px">
+            <Dialog.Title color="fg" fontSize="16px" fontWeight="600">
+              Cancel consultation
+            </Dialog.Title>
+            <MutedText fontSize="13px">
+              This cancels {leadName}'s consultation, revokes their booking link,
+              and notifies everyone involved. This can't be undone, but you can
+              schedule a new consultation afterwards.
+            </MutedText>
+            <Box mt="14px">
+              <Text m="0 0 6px" fontSize="12px" color="fg.muted">
+                Reason (optional)
+              </Text>
+              <Textarea
+                value={reason}
+                onChange={(e) => onReasonChange(e.currentTarget.value)}
+                placeholder="Shared with the client and staff in the cancellation email."
+                minH="72px"
+                resize="vertical"
+                {...fieldStyles}
+                h="auto"
+                py="10px"
+              />
+            </Box>
+          </Box>
+          <Flex
+            justify="flex-end"
+            gap="10px"
+            p="14px 24px"
+            borderTop="1px solid"
+            borderColor="border.subtle"
+          >
+            <OutlineButton onClick={onClose} disabled={loading}>
+              Keep consultation
+            </OutlineButton>
+            <BrandButton
+              onClick={onConfirm}
+              loading={loading}
+              bg="#b00020"
+              color="white"
+              _hover={{ bg: "#970019" }}
+            >
+              <X size={14} />
+              Cancel consultation
+            </BrandButton>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+// Collapsed history of a lead's prior consultations (follow-ups / re-schedules).
+function PastConsultations({ items }: { items: Consultation[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Box>
+      <chakra.button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        gap="8px"
+        w="full"
+        textAlign="left"
+      >
+        <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+          Past consultations
+        </Text>
+        <MutedText>{items.length}</MutedText>
+        <Box ml="auto" color="fg.muted">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </Box>
+      </chakra.button>
+      {open ? (
+        <Stack gap="0" mt="8px">
+          {items.map((c) => (
+            <PastConsultationRow key={c.id} consultation={c} />
+          ))}
+        </Stack>
+      ) : null}
+    </Box>
+  );
+}
+
+function PastConsultationRow({ consultation: c }: { consultation: Consultation }) {
+  const [showNotes, setShowNotes] = useState(false);
+  const tone = CONSULT_STATUS_TONE[c.status];
+  const when = c.scheduledAt
+    ? `${formatReceivedDate(c.scheduledAt)} · ${formatIsoTime(c.scheduledAt)}`
+    : "Not scheduled";
+  const notes = c.attorneyNotes?.trim();
+  return (
+    <Box
+      py="8px"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      _last={{ borderBottom: 0 }}
+    >
+      <HStack justify="space-between" gap="10px">
+        <HStack gap="8px" minW="0">
+          <Box
+            flex="0 0 auto"
+            w="7px"
+            h="7px"
+            borderRadius="full"
+            bg={TONE_DOT[tone]}
+          />
+          <Box minW="0">
+            <Text m="0" color="fg" fontSize="13px" truncate>
+              {consultationModeLabel(c.mode)} · {when}
+            </Text>
+            {c.outcome ? (
+              <MutedText>Outcome: {c.outcome.replace(/_/g, " ")}</MutedText>
+            ) : null}
+          </Box>
+        </HStack>
+        <StatusPill tone={tone}>{CONSULT_STATUS_LABEL[c.status]}</StatusPill>
+      </HStack>
+      {notes ? (
+        <Box pl="15px" mt="4px">
+          <chakra.button
+            type="button"
+            onClick={() => setShowNotes((v) => !v)}
+            color="brand.fg"
+            fontSize="12px"
+            fontWeight="500"
+          >
+            {showNotes ? "Hide attorney notes" : "View attorney notes"}
+          </chakra.button>
+          {showNotes ? (
+            <Text
+              m="6px 0 0"
+              p="8px 10px"
+              bg="bg.subtle"
+              borderRadius="6px"
+              color="fg"
+              fontSize="12px"
+              lineHeight="1.5"
+              whiteSpace="pre-wrap"
+            >
+              {notes}
+            </Text>
+          ) : null}
+        </Box>
+      ) : null}
+    </Box>
   );
 }
 
@@ -1540,6 +1909,10 @@ const scheduleSchema = z
     notes: z.string(),
     notifyEmail: z.boolean(),
     notifySms: z.boolean(),
+    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    urgent: z.boolean(),
+    urgentDate: z.string(),
+    urgentTime: z.string(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -1560,6 +1933,20 @@ const scheduleSchema = z
         message: "Select a location for in-person consultations",
       });
     }
+    if (val.urgent && !val.urgentDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urgentDate"],
+        message: "Pick a date",
+      });
+    }
+    if (val.urgent && !val.urgentTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["urgentTime"],
+        message: "Pick a time",
+      });
+    }
   });
 
 type ScheduleForm = z.infer<typeof scheduleSchema>;
@@ -1576,17 +1963,25 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   notes: "",
   notifyEmail: true,
   notifySms: false,
+  urgent: false,
+  urgentDate: "",
+  urgentTime: "",
 };
 
 function ScheduleConsultationDialog({
   open,
   onOpenChange,
-  presetLeadId,
+  presetLead,
+  presetAttorneyId,
+  parentConsultationId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  presetLeadId?: string | null;
+  presetLead?: ConsultationSummaryLead | null;
+  presetAttorneyId?: string | null;
+  parentConsultationId?: string;
 }) {
+  const presetLeadId = presetLead?.id ?? null;
   const [step, setStep] = useState<ScheduleStep>(1);
   const {
     control,
@@ -1611,6 +2006,9 @@ function ScheduleConsultationDialog({
   const notes = useWatch({ control, name: "notes" });
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
+  const urgent = useWatch({ control, name: "urgent" });
+  const urgentDate = useWatch({ control, name: "urgentDate" });
+  const urgentTime = useWatch({ control, name: "urgentTime" });
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -1649,12 +2047,20 @@ function ScheduleConsultationDialog({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      reset({ ...SCHEDULE_DEFAULTS, selectedLeadId: presetLeadId ?? "" });
+      reset({
+        ...SCHEDULE_DEFAULTS,
+        selectedLeadId: presetLeadId ?? "",
+        attorneyId: presetAttorneyId ?? "",
+      });
       setStep(presetLeadId ? 2 : 1);
     }
   }
 
-  const selectedLead = leads.find((l) => l.id === selectedLeadId);
+  // Fall back to the preset lead: a follow-up lead may have advanced past the
+  // consultation stage and so not appear in the candidate list.
+  const selectedLead =
+    leads.find((l) => l.id === selectedLeadId) ??
+    (presetLead && presetLead.id === selectedLeadId ? presetLead : undefined);
   const { data: questionnaire } = useLeadQuestionnaire(selectedLeadId);
   const language = questionnaire?.send?.language ?? "English";
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
@@ -1695,14 +2101,22 @@ function ScheduleConsultationDialog({
       return;
     }
     if (step === 2) {
-      if (await trigger(["customDuration", "attorneyId", "locationId"]))
+      if (
+        await trigger([
+          "customDuration",
+          "attorneyId",
+          "locationId",
+          "urgentDate",
+          "urgentTime",
+        ])
+      )
         setStep(3);
     }
   }
 
+  const chargesFee = Boolean(feeSettings?.chargesFee);
   const chargesCustomFee =
-    Boolean(feeSettings?.chargesFee) &&
-    feeSettings?.feeStructure === "custom_per_case_type";
+    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
 
   const onValid = (data: ScheduleForm) => {
     const duration =
@@ -1715,6 +2129,16 @@ function ScheduleConsultationDialog({
       setStep(3);
       return;
     }
+
+    // Urgent bookings may override the fee (urgency surcharge) even when the
+    // structure isn't custom-per-case-type.
+    const feeEditable = chargesCustomFee || (data.urgent && chargesFee);
+    const feeAmount =
+      feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
+
+    const scheduledAt = data.urgent
+      ? new Date(`${data.urgentDate}T${data.urgentTime}:00Z`).toISOString()
+      : undefined;
 
     initiateConsultation.mutate(
       {
@@ -1730,12 +2154,15 @@ function ScheduleConsultationDialog({
             data.consultationType === "in_person"
               ? data.locationId || undefined
               : undefined,
-          feeAmount: chargesCustomFee ? Number(data.feeAmount) : undefined,
+          feeAmount,
           preConsultationNotes: data.notes || undefined,
           notifyChannels: [
             ...(data.notifyEmail ? (["email"] as const) : []),
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
+          urgent: data.urgent || undefined,
+          scheduledAt,
+          parentConsultationId: parentConsultationId || undefined,
         },
       },
       { onSuccess: () => closeDialog() },
@@ -1745,7 +2172,13 @@ function ScheduleConsultationDialog({
   const onInvalid = () => {
     // Jump back to the step that holds the first error.
     if (errors.selectedLeadId) setStep(1);
-    else if (errors.customDuration || errors.attorneyId || errors.locationId)
+    else if (
+      errors.customDuration ||
+      errors.attorneyId ||
+      errors.locationId ||
+      errors.urgentDate ||
+      errors.urgentTime
+    )
       setStep(2);
   };
 
@@ -1846,6 +2279,9 @@ function ScheduleConsultationDialog({
                   locations={locations}
                   notes={notes}
                   notifyEmail={notifyEmail}
+                  urgent={urgent}
+                  urgentDate={urgentDate}
+                  urgentTime={urgentTime}
                   touchedField={
                     errors.customDuration
                       ? "duration"
@@ -1853,8 +2289,15 @@ function ScheduleConsultationDialog({
                         ? "attorney"
                         : errors.locationId
                           ? "location"
-                          : null
+                          : errors.urgentDate
+                            ? "urgentDate"
+                            : errors.urgentTime
+                              ? "urgentTime"
+                              : null
                   }
+                  onUrgentChange={(value) => setField("urgent", value)}
+                  onUrgentDateChange={(value) => setField("urgentDate", value)}
+                  onUrgentTimeChange={(value) => setField("urgentTime", value)}
                   onDurationChoiceChange={(value) =>
                     setField("durationChoice", value)
                   }
@@ -1891,6 +2334,12 @@ function ScheduleConsultationDialog({
                   locationLabel={locationLabel}
                   notifyChannels={notifyChannels}
                   notes={notes}
+                  urgent={urgent}
+                  urgentAt={
+                    urgent && urgentDate && urgentTime
+                      ? `${urgentDate} ${urgentTime} UTC`
+                      : null
+                  }
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
@@ -2124,7 +2573,13 @@ function ScheduleDetailsStep({
   locations,
   notes,
   notifyEmail,
+  urgent,
+  urgentDate,
+  urgentTime,
   touchedField,
+  onUrgentChange,
+  onUrgentDateChange,
+  onUrgentTimeChange,
   onDurationChoiceChange,
   onCustomDurationChange,
   onConsultationTypeChange,
@@ -2147,7 +2602,19 @@ function ScheduleDetailsStep({
   locations: ConsultationLocation[];
   notes: string;
   notifyEmail: boolean;
-  touchedField: "duration" | "attorney" | "location" | null;
+  urgent: boolean;
+  urgentDate: string;
+  urgentTime: string;
+  touchedField:
+    | "duration"
+    | "attorney"
+    | "location"
+    | "urgentDate"
+    | "urgentTime"
+    | null;
+  onUrgentChange: (value: boolean) => void;
+  onUrgentDateChange: (value: string) => void;
+  onUrgentTimeChange: (value: string) => void;
   onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
@@ -2221,8 +2688,8 @@ function ScheduleDetailsStep({
         <Box>
           <StepFieldLabel>Video call link</StepFieldLabel>
           <ModeNote icon={<Video size={14} />}>
-            A Google Meet link is generated automatically once the lead picks a
-            time.
+            A Google Meet link is generated automatically when the consultation
+            is confirmed.
           </ModeNote>
         </Box>
       ) : consultationType === "phone_call" ? (
@@ -2288,26 +2755,61 @@ function ScheduleDetailsStep({
         </Box>
       )}
 
-      {/* Available time slots — lead-driven (matches "Let client choose" on) */}
+      {/* Time — lead-driven by default; urgent lets the admin book now */}
       <Box>
         <Flex align="center" justify="space-between" mb="8px">
-          <StepFieldLabel required>Available time slots</StepFieldLabel>
+          <StepFieldLabel required>
+            {urgent ? "Scheduled time" : "Available time slots"}
+          </StepFieldLabel>
           <HStack gap="8px">
             <Text fontSize="12px" color="fg.muted">
-              Let client choose
+              Urgent — schedule now
             </Text>
-            <Switch.Root checked disabled>
+            <Switch.Root
+              checked={urgent}
+              onCheckedChange={(e) => onUrgentChange(e.checked)}
+            >
               <Switch.HiddenInput />
-              <Switch.Control bg="brand.solid">
+              <Switch.Control bg={urgent ? "brand.solid" : undefined}>
                 <Switch.Thumb />
               </Switch.Control>
             </Switch.Root>
           </HStack>
         </Flex>
-        <ModeNote icon={<CalendarClock size={14} />}>
-          The lead chooses a time from the selected attorney's availability —
-          they'll receive a link to pick the slot that works for them.
-        </ModeNote>
+        {urgent ? (
+          <Stack gap="10px">
+            <ModeNote icon={<CalendarClock size={14} />}>
+              The lead skips the slot queue and is connected as soon as they pay
+              (if a fee applies). Times are in UTC.
+            </ModeNote>
+            <Grid templateColumns="1fr 1fr" gap="10px">
+              <Box>
+                <StepFieldLabel required>Date</StepFieldLabel>
+                <DateField
+                  ariaLabel="Consultation date"
+                  value={urgentDate}
+                  onChange={onUrgentDateChange}
+                  min={new Date().toISOString().slice(0, 10)}
+                  invalid={touchedField === "urgentDate"}
+                />
+              </Box>
+              <Box>
+                <StepFieldLabel required>Time (UTC)</StepFieldLabel>
+                <TimeField
+                  ariaLabel="Consultation time"
+                  value={urgentTime}
+                  onChange={onUrgentTimeChange}
+                  invalid={touchedField === "urgentTime"}
+                />
+              </Box>
+            </Grid>
+          </Stack>
+        ) : (
+          <ModeNote icon={<CalendarClock size={14} />}>
+            The lead chooses a time from the selected attorney's availability —
+            they'll receive a link to pick the slot that works for them.
+          </ModeNote>
+        )}
         <Box mt="12px">
           <StepFieldLabel>Consultation length</StepFieldLabel>
           <HStack gap="8px" wrap="wrap">
@@ -2505,11 +3007,13 @@ function ReviewStep({
   locationLabel,
   notifyChannels,
   notes,
+  urgent,
+  urgentAt,
   feeSettings,
   feeAmount,
   onFeeAmountChange,
 }: {
-  lead: Lead;
+  lead: { name: string };
   duration: string;
   consultationType: string;
   mode: ConsultationMode;
@@ -2518,6 +3022,8 @@ function ReviewStep({
   locationLabel: string;
   notifyChannels: ("email" | "sms")[];
   notes: string;
+  urgent: boolean;
+  urgentAt: string | null;
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
@@ -2529,6 +3035,9 @@ function ReviewStep({
 
   const charges = Boolean(feeSettings?.chargesFee);
   const structure = feeSettings?.feeStructure;
+  // Urgent bookings let the admin set the amount (urgency surcharge) even when
+  // the firm's structure isn't custom-per-case-type.
+  const feeEditable = structure === "custom_per_case_type" || urgent;
 
   return (
     <Stack gap="16px" pt="12px">
@@ -2541,6 +3050,12 @@ function ReviewStep({
         <SummaryItem label="Consultation type">{consultationType}</SummaryItem>
         {mode === "in_person" ? (
           <SummaryItem label="Location">{locationLabel}</SummaryItem>
+        ) : null}
+        <SummaryItem label="Scheduling">
+          {urgent ? "Urgent — schedule now" : "Lead picks a time"}
+        </SummaryItem>
+        {urgent && urgentAt ? (
+          <SummaryItem label="Scheduled time">{urgentAt}</SummaryItem>
         ) : null}
         <SummaryItem label="Duration">{duration}</SummaryItem>
         <SummaryItem label="Attorney">{attorney}</SummaryItem>
@@ -2594,7 +3109,7 @@ function ReviewStep({
                 <Text fontSize="14px" color="fg.muted">
                   $
                 </Text>
-                {structure === "custom_per_case_type" ? (
+                {feeEditable ? (
                   <Input
                     type="number"
                     min={0}
@@ -2639,8 +3154,9 @@ function ReviewStep({
             >
               <Info size={14} />
               <Text m="0">
-                A payment link will be included in the client confirmation email.
-                Payment goes to the firm's operating account.
+                {urgent
+                  ? "A payment link will be emailed to the client; as soon as they pay they'll be connected with the attorney. Payment goes to the firm's operating account."
+                  : "A payment link will be included in the client confirmation email. Payment goes to the firm's operating account."}
               </Text>
             </HStack>
           </>

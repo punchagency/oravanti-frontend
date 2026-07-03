@@ -97,14 +97,19 @@ export type ConflictCheck = {
 export type Consultation = {
   id: string;
   leadId: string;
-  scheduledAt: string;
+  parentConsultationId: string | null;
+  scheduledAt: string | null;
   duration: number;
   mode: "video" | "in_person" | "phone_call";
+  isUrgent: boolean;
   leadAttorneyId: string | null;
   videoLink: string | null;
-  status: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
+  status: ConsultationStatus;
+  feeStatus: "none" | "unpaid" | "paid" | "waived";
   preConsultationNotes: string | null;
   attorneyNotes: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
   outcome: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up" | null;
   createdAt: string;
   updatedAt: string;
@@ -127,6 +132,8 @@ export type FeeAgreement = {
 export type LeadDetail = Lead & {
   conflictCheck: ConflictCheck | null;
   consultation: Consultation | null;
+  // Prior consultations (follow-ups / re-schedules), newest first.
+  consultationHistory?: Consultation[];
   feeAgreement: FeeAgreement | null;
 };
 
@@ -329,10 +336,19 @@ export const initiateConsultation = async (
     feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
+    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    urgent?: boolean;
+    scheduledAt?: string;
+    // Set when this consultation is a follow-up of a prior completed one.
+    parentConsultationId?: string;
   },
 ) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
-  return res.data.data as { consultation: Consultation; bookingToken: string };
+  return res.data.data as {
+    consultation: Consultation;
+    bookingToken: string;
+    warnings?: string[];
+  };
 };
 
 export const updateConsultation = async (
@@ -349,6 +365,14 @@ export const updateConsultation = async (
   },
 ): Promise<Consultation> => {
   const res = await API.patch(`/leads/${id}/consultation`, data);
+  return res.data.data;
+};
+
+export const cancelConsultation = async (
+  id: string,
+  data: { reason?: string } = {},
+): Promise<Consultation> => {
+  const res = await API.post(`/leads/${id}/consultation/cancel`, data);
   return res.data.data;
 };
 

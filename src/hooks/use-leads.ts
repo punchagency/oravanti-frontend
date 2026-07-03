@@ -1,5 +1,6 @@
 import {
   advanceLeadStage,
+  cancelConsultation,
   initiateConsultation,
   createLead,
   generateFeeAgreement,
@@ -196,10 +197,19 @@ export function useInitiateConsultation() {
       id: string;
       data: Parameters<typeof initiateConsultation>[1];
     }) => initiateConsultation(id, data),
-    onSuccess: (_, { id }) => {
-      toast.success("Consultation request sent to the lead");
+    onSuccess: (res, { data, id }) => {
+      toast.success(
+        data.urgent
+          ? "Consultation booked"
+          : "Consultation request sent to the lead",
+      );
+      // Surface non-blocking urgent conflict warnings (warn-but-allow).
+      for (const warning of res.warnings ?? []) {
+        toast.warning(warning);
+      }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["consultations"] });
       qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
     },
     onError: (err: APIError) => {
@@ -228,6 +238,26 @@ export function useUpdateConsultation() {
     onError: (err: APIError) => {
       toast.error(
         err.response?.data?.message ?? "Failed to update consultation",
+      );
+    },
+  });
+}
+
+export function useCancelConsultation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      cancelConsultation(id, { reason }),
+    onSuccess: (_, { id }) => {
+      toast.success("Consultation cancelled");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["consultations"] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to cancel consultation",
       );
     },
   });
