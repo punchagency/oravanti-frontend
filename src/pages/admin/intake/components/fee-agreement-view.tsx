@@ -1,5 +1,6 @@
 import { Box, HStack, Stack } from "@chakra-ui/react";
-import { FileText, PenLine } from "lucide-react";
+import { FileText, Link2, PenLine } from "lucide-react";
+import { toast } from "sonner";
 import { useState } from "react";
 import type { FeeAgreementPreview, Lead } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
@@ -96,6 +97,16 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
     advanceStage.mutate({ id: lead.id, stage: "case_opening" });
   }
 
+  async function handleCopySigningLink() {
+    if (!agreement?.signingLink) return;
+    try {
+      await navigator.clipboard.writeText(agreement.signingLink);
+      toast.success("Signing link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy the link");
+    }
+  }
+
   const statusTone = isSigned ? "success" : "warning";
   const statusLabel = isSigned
     ? "Signed"
@@ -174,11 +185,11 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
               <PenLine size={14} />
               Advance to case opening
             </BrandButton>
-          ) : agreement.status !== "draft" ? (
-            <BrandButton disabled>
-              <PenLine size={14} />
-              Advance stage (Digital Sign)
-            </BrandButton>
+          ) : agreement.status === "pending_signature" && agreement.signingLink ? (
+            <OutlineButton onClick={handleCopySigningLink}>
+              <Link2 size={14} />
+              Copy signing link
+            </OutlineButton>
           ) : null}
         </Box>
       ) : (
