@@ -40,7 +40,7 @@ export function EmailAccountConnectionPage() {
       });
     }
 
-    navigate("/admin/settings/email-accounts", { replace: true });
+    navigate("/settings/email-accounts", { replace: true });
   }, []);
 
   return (

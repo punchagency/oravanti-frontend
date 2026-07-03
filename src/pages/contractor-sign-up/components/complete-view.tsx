@@ -15,7 +15,7 @@ export function CompleteView() {
           (2-3 business days), your profile goes live on the marketplace and you
           can start receiving assignments.
         </p>
-        <a className="signup-primary-button signup-primary-button--dashboard" href="/admin">
+        <a className="signup-primary-button signup-primary-button--dashboard" href="/">
           Go to contractor dashboard
         </a>
       </section>

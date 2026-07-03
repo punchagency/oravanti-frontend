@@ -274,7 +274,7 @@ export function OverviewView() {
               </HStack>
             ))}
           </Stack>
-          <FooterLink to="/admin/intake/pipeline/conflict-check">
+          <FooterLink to="/intake/pipeline/conflict-check">
             View all alerts →
           </FooterLink>
         </SurfaceCard>
@@ -286,7 +286,7 @@ export function OverviewView() {
             {pipelineItems.map(({ title, meta, stage, tone, count }) => (
               <Link key={title} asChild textDecoration="none">
                 <RouterLink
-                  to={`/admin/intake/pipeline/${stage.replace(/_/g, "-")}`}
+                  to={`/intake/pipeline/${stage.replace(/_/g, "-")}`}
                 >
                   <HStack
                     justify="space-between"
@@ -306,7 +306,7 @@ export function OverviewView() {
               </Link>
             ))}
           </Stack>
-          <FooterLink to="/admin/intake/pipeline/lead-inbox">
+          <FooterLink to="/intake/pipeline/lead-inbox">
             Go to intake pipeline →
           </FooterLink>
         </SurfaceCard>
@@ -345,9 +345,7 @@ export function OverviewView() {
               ))
             )}
           </Stack>
-          <FooterLink to="/admin/cases/all-matters">
-            View all matters →
-          </FooterLink>
+          <FooterLink to="/cases">View all matters →</FooterLink>
         </SurfaceCard>
 
         <SurfaceCard gridColumn={{ base: "1", xl: "span 6" }} minH="100%">
@@ -384,7 +382,7 @@ export function OverviewView() {
               ))
             )}
           </Stack>
-          <FooterLink to="/admin/staff-management">Manage staff →</FooterLink>
+          <FooterLink to="/staff-management">Manage staff →</FooterLink>
         </SurfaceCard>
       </Box>
     </>

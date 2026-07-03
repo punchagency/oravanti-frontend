@@ -26,7 +26,7 @@ export default function EmailVerifiedPage() {
         const res = await getSession();
         const sessionData = res.data as { user?: { id: string } };
         if (sessionData?.user) {
-          navigate("/admin", { replace: true });
+          navigate("/", { replace: true });
           return;
         }
       } catch {
@@ -129,7 +129,7 @@ export default function EmailVerifiedPage() {
 
           <VStack gap="3" mt="6">
             <Button
-              onClick={() => navigate("/admin", { replace: true })}
+              onClick={() => navigate("/", { replace: true })}
               layerStyle="brand-button"
               size="lg"
               w="full"

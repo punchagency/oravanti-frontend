@@ -52,7 +52,7 @@ export function useSubmitOnboardingData() {
         description: "Welcome to Oravanti. You're all set.",
       });
       advanceState("completed");
-      navigate("/admin", { replace: true });
+      navigate("/", { replace: true });
     },
     onError: (error: APIError) => {
       showError({

@@ -25,7 +25,7 @@ export function GuestGuard() {
   if (isAuthenticated && user) {
     const targetRoute =
       user.onboardingState === "completed"
-        ? "/admin"
+        ? "/"
         : "/onboarding/step-0-source";
 
     return <Navigate to={targetRoute} replace />;
