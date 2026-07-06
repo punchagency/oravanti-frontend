@@ -2,9 +2,11 @@ import {
   getConsultationBooking,
   payConsultationFee,
   selectConsultationSlot,
+  updateBookingTimezone,
   type ConsultationBooking,
   type ConsultationBookingMode,
 } from "@/api/consultation-booking";
+import { dayjs, formatDualZone, guessTimezone } from "@/utils/date";
 import { Box, Button, Container, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck2, CheckCircle2, Loader2 } from "lucide-react";
@@ -12,25 +14,15 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 
-const dayFmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-});
-const timeFmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  hour: "numeric",
-  minute: "2-digit",
-});
-const dateTimeFmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
+// The viewer's (lead's) browser-detected timezone; slot times are shown in this
+// zone alongside the firm's zone.
+const viewerTz = guessTimezone();
+
+// Group key = the slot's viewer-local calendar date.
+const viewerDateKey = (iso: string) =>
+  dayjs.utc(iso).tz(viewerTz).format("YYYY-MM-DD");
+
+const dayLabel = (dayKey: string) => dayjs(dayKey).format("dddd, MMMM D");
 
 const MODE_NOTE: Record<ConsultationBookingMode, string> = {
   video: "Video call — a Google Meet link will be emailed to you.",
@@ -59,7 +51,7 @@ function Shell({ children }: { children: ReactNode }) {
           {children}
         </Box>
         <Text textAlign="center" fontSize="11px" color="fg.muted" mt="14px">
-          Times shown in UTC
+          Times shown in your timezone and the firm's timezone
         </Text>
       </Container>
     </Box>
@@ -123,10 +115,21 @@ export function ConsultationBookingPage() {
     },
   });
 
+  const [tzPromptDismissed, setTzPromptDismissed] = useState(false);
+  const updateTz = useMutation({
+    mutationFn: () => updateBookingTimezone(token as string, viewerTz),
+    onSuccess: () => {
+      toast.success("Timezone updated");
+      setTzPromptDismissed(true);
+      qc.invalidateQueries({ queryKey: ["consultation-booking", token] });
+    },
+    onError: (err) => toast.error(errorMessage(err, "Couldn't update timezone")),
+  });
+
   const groupedSlots = useMemo(() => {
     const map = new Map<string, ConsultationBooking["slots"]>();
     for (const slot of data?.slots ?? []) {
-      const key = slot.start.slice(0, 10);
+      const key = viewerDateKey(slot.start);
       const bucket = map.get(key) ?? [];
       bucket.push(slot);
       map.set(key, bucket);
@@ -171,16 +174,59 @@ export function ConsultationBookingPage() {
             </Box>
           }
           title="Your consultation is confirmed"
-          description={`${dateTimeFmt.format(new Date(confirmedAt))} UTC. ${
-            MODE_NOTE[data.mode]
-          } You can close this window.`}
+          description={`${formatDualZone(confirmedAt, {
+            viewerTz,
+            firmTz: data.firmTimezone,
+            withDate: true,
+          })}. ${MODE_NOTE[data.mode]} You can close this window.`}
         />
       </Shell>
     );
   }
 
+  const showTzPrompt =
+    !tzPromptDismissed && data.leadTimezone !== viewerTz;
+
   return (
     <Shell>
+      {showTzPrompt && (
+        <Flex
+          direction={{ base: "column", sm: "row" }}
+          align={{ base: "stretch", sm: "center" }}
+          justify="space-between"
+          gap="3"
+          bg="bg.subtle"
+          border="1px solid"
+          borderColor="border"
+          borderRadius="10px"
+          p="14px"
+          mb="20px"
+        >
+          <Text fontSize="13px" color="fg.muted">
+            Your timezone looks like <strong>{viewerTz}</strong>. Update it so
+            reminders show your local time?
+          </Text>
+          <Flex gap="2" flexShrink={0}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTzPromptDismissed(true)}
+            >
+              Keep {data.leadTimezone ?? "current"}
+            </Button>
+            <Button
+              size="sm"
+              bg="brand.solid"
+              color="brand.fg"
+              loading={updateTz.isPending}
+              onClick={() => updateTz.mutate()}
+            >
+              Update
+            </Button>
+          </Flex>
+        </Flex>
+      )}
+
       <Stack gap="1" mb="24px">
         <Text fontSize="12px" color="fg.muted" textTransform="uppercase" letterSpacing="0.04em">
           {headerName}
@@ -239,7 +285,7 @@ export function ConsultationBookingPage() {
           {groupedSlots.map(([day, slots]) => (
             <Stack key={day} gap="3">
               <Text fontSize="13px" fontWeight="600" color="fg">
-                {dayFmt.format(new Date(`${day}T00:00:00Z`))}
+                {dayLabel(day)}
               </Text>
               <Flex wrap="wrap" gap="2">
                 {slots.map((slot) => {
@@ -257,7 +303,10 @@ export function ConsultationBookingPage() {
                       color={isSelected ? "brand.fg" : "fg"}
                       borderColor={isSelected ? "brand.solid" : "border"}
                     >
-                      {timeFmt.format(new Date(slot.start))}
+                      {formatDualZone(slot.start, {
+                        viewerTz,
+                        firmTz: data.firmTimezone,
+                      })}
                     </Button>
                   );
                 })}
@@ -273,7 +322,10 @@ export function ConsultationBookingPage() {
             onClick={() => selectedSlot && select.mutate(selectedSlot)}
           >
             {selectedSlot
-              ? `Confirm ${timeFmt.format(new Date(selectedSlot))} UTC`
+              ? `Confirm ${formatDualZone(selectedSlot, {
+                  viewerTz,
+                  firmTz: data.firmTimezone,
+                })}`
               : "Select a time to continue"}
           </Button>
         </Stack>
