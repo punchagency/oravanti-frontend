@@ -1,4 +1,5 @@
 import { API } from ".";
+import { dayjs, formatTime, guessTimezone } from "@/utils/date";
 
 export type LeadSource =
   | "education_flywheel"
@@ -274,6 +275,7 @@ export const createLead = async (data: {
   situationSummary?: string;
   intakeAdversePartyName?: string;
   intakeAdversePartyEmail?: string;
+  timezone?: string;
 }): Promise<Lead> => {
   const res = await API.post("/leads", data);
   return res.data.data;
@@ -496,23 +498,10 @@ export const conflictStatusLabels: Record<ConflictCheck["status"], string> = {
 };
 
 export function formatReceivedDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  // Viewer-local date (stored value is UTC).
+  return dayjs.utc(dateStr).tz(guessTimezone()).format("MMMM D, YYYY");
 }
 
 export function formatReceivedDateDetail(dateStr: string): string {
-  const d = new Date(dateStr);
-  const date = d.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-  const time = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${date} - ${time}`;
+  return `${formatReceivedDate(dateStr)} - ${formatTime(dateStr)}`;
 }

@@ -1,39 +1,19 @@
+import {
+  dayjs,
+  formatDate as formatDateUtil,
+  guessTimezone,
+  isToday,
+  isYesterday,
+} from "@/utils/date";
+
+// Timeline rows are dense and grouped by day, so time is shown compactly in the
+// viewer's local zone without a per-row zone label.
 export function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return dayjs.utc(iso).tz(guessTimezone()).format("h:mm A");
 }
 
 export function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
-}
-
-function isYesterday(iso: string): boolean {
-  const d = new Date(iso);
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return (
-    d.getFullYear() === yesterday.getFullYear() &&
-    d.getMonth() === yesterday.getMonth() &&
-    d.getDate() === yesterday.getDate()
-  );
+  return formatDateUtil(iso);
 }
 
 export function dateLabel(dateStr: string, iso?: string): string {

@@ -24,6 +24,7 @@ export function useAuthRefresh() {
           user: SessionUser;
           session: AuthSession;
           memberRole?: MemberRole | null;
+          firmTimezone?: string | null;
         };
 
         const state = useAuthStore.getState();
@@ -31,6 +32,7 @@ export function useAuthRefresh() {
           user: sessionData.user,
           session: sessionData.session,
           memberRole: sessionData.memberRole ?? null,
+          firmTimezone: sessionData.firmTimezone ?? null,
           isAuthenticated: !!sessionData.user,
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),

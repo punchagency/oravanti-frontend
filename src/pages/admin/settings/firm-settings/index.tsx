@@ -1,6 +1,8 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Box, Heading, Stack, Text } from "@chakra-ui/react";
 import { ConsultationFeeDefaults } from "./components/consultation-fee-defaults";
+import { FirmTimezone } from "./components/firm-timezone";
+import { PersonalTimezone } from "./components/personal-timezone";
 
 export function FirmSettingsPage() {
   useDocumentTitle("Firm Settings - Oravanti");
@@ -28,6 +30,8 @@ export function FirmSettingsPage() {
       </Box>
 
       <Stack gap="6">
+        <FirmTimezone />
+        <PersonalTimezone />
         <ConsultationFeeDefaults />
       </Stack>
     </Box>

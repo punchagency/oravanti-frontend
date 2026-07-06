@@ -3,7 +3,9 @@ import { FormSelect } from "@/components/ui/form-select";
 import { leadSources } from "@/pages/admin/intake/data";
 import { sourceValues, type LeadSource } from "@/api/leads";
 import { useCreateLead } from "@/hooks/use-leads";
+import { useFirmTimezone } from "@/hooks/useTimezone";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { listTimezones } from "@/utils/timezones";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import {
   Box,
@@ -39,6 +41,7 @@ const leadSchema = z.object({
   practiceAreaId: z.string(),
   caseTypeId: z.string(),
   source: z.string(),
+  timezone: z.string(),
   situationSummary: z.string(),
   adversePartyName: z.string(),
   adversePartyEmail: z.union([
@@ -57,10 +60,13 @@ const LEAD_DEFAULTS: LeadForm = {
   practiceAreaId: "",
   caseTypeId: "",
   source: "Direct",
+  timezone: "",
   situationSummary: "",
   adversePartyName: "",
   adversePartyEmail: "",
 };
+
+const TIMEZONE_OPTIONS = listTimezones().map((tz) => ({ value: tz, label: tz }));
 
 export function AddLeadDialog({
   open,
@@ -71,6 +77,10 @@ export function AddLeadDialog({
 }) {
   const { data: practiceAreas } = usePublicPracticeAreas();
   const createLead = useCreateLead();
+  const firmTimezone = useFirmTimezone();
+
+  // Lead timezone is optional and defaults to the firm's zone.
+  const formDefaults = { ...LEAD_DEFAULTS, timezone: firmTimezone };
 
   const {
     register,
@@ -82,7 +92,7 @@ export function AddLeadDialog({
     formState: { errors },
   } = useForm<LeadForm>({
     resolver: zodResolver(leadSchema),
-    defaultValues: LEAD_DEFAULTS,
+    defaultValues: formDefaults,
     mode: "onTouched",
   });
 
@@ -91,7 +101,7 @@ export function AddLeadDialog({
 
   function handleClose() {
     onOpenChange(false);
-    reset(LEAD_DEFAULTS);
+    reset(formDefaults);
   }
 
   const onSubmit = handleSubmit((data) => {
@@ -109,6 +119,7 @@ export function AddLeadDialog({
         situationSummary: data.situationSummary || undefined,
         intakeAdversePartyName: data.adversePartyName.trim() || undefined,
         intakeAdversePartyEmail: data.adversePartyEmail.trim() || undefined,
+        timezone: data.timezone || undefined,
       },
       { onSuccess: () => handleClose() },
     );
@@ -272,6 +283,21 @@ export function AddLeadDialog({
                       value={field.value}
                       onChange={field.onChange}
                       options={leadSources.map((s) => ({ value: s, label: s }))}
+                    />
+                  )}
+                />
+              </FormField>
+
+              <FormField label="Timezone (optional — defaults to firm timezone)">
+                <Controller
+                  control={control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormSelect
+                      ariaLabel="Lead timezone"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={TIMEZONE_OPTIONS}
                     />
                   )}
                 />

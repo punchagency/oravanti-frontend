@@ -11,6 +11,7 @@ export type ConsultationSettings = {
   defaultAmount: number | null;
   feeStructure: ConsultationFeeStructure | null;
   waiverWindowDays: number | null;
+  timezone: string;
   smsEnabled: boolean;
   updatedAt: string | null;
 };
@@ -20,6 +21,7 @@ export type UpsertConsultationSettingsInput = {
   defaultAmount?: number | null;
   feeStructure?: ConsultationFeeStructure | null;
   waiverWindowDays?: number | null;
+  timezone?: string;
   smsEnabled?: boolean;
 };
 
