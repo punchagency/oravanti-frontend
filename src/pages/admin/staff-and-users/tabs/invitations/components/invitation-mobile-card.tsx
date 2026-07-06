@@ -1,4 +1,5 @@
 import type { InvitationDTO } from "@/api/organization";
+import { dayjs, guessTimezone } from "@/utils/date";
 import {
   Avatar,
   Badge,
@@ -46,11 +47,8 @@ function getInvitationStatusLabel(status: string): string {
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  // Viewer-local date (stored value is UTC).
+  return dayjs.utc(dateStr).tz(guessTimezone()).format("MMM D, YYYY");
 }
 
 interface InvitationMobileCardProps {
