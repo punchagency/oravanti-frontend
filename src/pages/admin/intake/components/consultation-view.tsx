@@ -64,6 +64,8 @@ import type {
 } from "@/api/leads";
 import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
+import { dayjs, formatTime, wallClockToUtcIso } from "@/utils/date";
+import { useFirmTimezone } from "@/hooks/useTimezone";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -153,12 +155,9 @@ function getInitials(name: string): string {
 }
 
 function formatIsoTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  if (!iso || !dayjs(iso).isValid()) return "—";
+  // Viewer-local time with an explicit zone label.
+  return formatTime(iso);
 }
 
 function consultationModeIcon(mode: ConsultationMode | undefined) {
@@ -2522,6 +2521,8 @@ function ScheduleConsultationDialog({
   const urgent = useWatch({ control, name: "urgent" });
   const urgentDate = useWatch({ control, name: "urgentDate" });
   const urgentTime = useWatch({ control, name: "urgentTime" });
+  // Admins enter the urgent time as the firm's local wall-clock time.
+  const firmTimezone = useFirmTimezone();
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -2650,7 +2651,7 @@ function ScheduleConsultationDialog({
       feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
 
     const scheduledAt = data.urgent
-      ? new Date(`${data.urgentDate}T${data.urgentTime}:00Z`).toISOString()
+      ? wallClockToUtcIso(data.urgentDate, data.urgentTime, firmTimezone)
       : undefined;
 
     initiateConsultation.mutate(
@@ -2850,7 +2851,7 @@ function ScheduleConsultationDialog({
                   urgent={urgent}
                   urgentAt={
                     urgent && urgentDate && urgentTime
-                      ? `${urgentDate} ${urgentTime} UTC`
+                      ? `${urgentDate} ${urgentTime} (firm time)`
                       : null
                   }
                   feeSettings={feeSettings ?? null}
@@ -3293,7 +3294,7 @@ function ScheduleDetailsStep({
           <Stack gap="10px">
             <ModeNote icon={<CalendarClock size={14} />}>
               The lead skips the slot queue and is connected as soon as they pay
-              (if a fee applies). Times are in UTC.
+              (if a fee applies). Times are in the firm's timezone.
             </ModeNote>
             <Grid templateColumns="1fr 1fr" gap="10px">
               <Box>
@@ -3307,7 +3308,7 @@ function ScheduleDetailsStep({
                 />
               </Box>
               <Box>
-                <StepFieldLabel required>Time (UTC)</StepFieldLabel>
+                <StepFieldLabel required>Time (firm timezone)</StepFieldLabel>
                 <TimeField
                   ariaLabel="Consultation time"
                   value={urgentTime}

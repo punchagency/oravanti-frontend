@@ -1,4 +1,5 @@
 import type { FeeAgreementDocument } from "@/api/leads";
+import { dayjs, guessTimezone } from "@/utils/date";
 
 function esc(value: string | null | undefined): string {
   return String(value ?? "")
@@ -16,13 +17,8 @@ function money(n: number): string {
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  if (!iso || !dayjs(iso).isValid()) return "—";
+  return dayjs.utc(iso).tz(guessTimezone()).format("MMMM D, YYYY");
 }
 
 function paymentTermsText(

@@ -17,6 +17,7 @@
     "@tanstack/react-query": "^5.100.11",
     "@uidotdev/usehooks": "^2.4.1",
     "axios": "^1.16.1",
+    "dayjs": "^1.11.21",
     "hellosign-embedded": "^2.12.3",
     "lucide-react": "^1.14.0",
     "next-themes": "^0.4.6",

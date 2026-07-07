@@ -14,6 +14,7 @@ import { CertificationGate } from "../certification-gate";
 import { StepIcon } from "./step-icon";
 import { CompleteStepDialog } from "./complete-step-dialog";
 import type { CaseStepInstance } from "../types";
+import { dayjs, guessTimezone } from "@/utils/date";
 
 interface StepRowProps {
   step: CaseStepInstance;
@@ -26,14 +27,14 @@ interface StepRowProps {
 
 function formatDueDate(iso: string | null): string | null {
   if (!iso) return null;
-  const d = new Date(iso);
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  return `Due ${d.toLocaleDateString(undefined, opts)}`;
+  // Viewer-local due date.
+  return `Due ${dayjs.utc(iso).tz(guessTimezone()).format("MMM D")}`;
 }
 
 function isOverdue(iso: string | null): boolean {
   if (!iso) return false;
-  return new Date(iso).getTime() < Date.now();
+  // Compare against the real UTC instant.
+  return dayjs.utc(iso).valueOf() < Date.now();
 }
 
 const badgeProps = {
