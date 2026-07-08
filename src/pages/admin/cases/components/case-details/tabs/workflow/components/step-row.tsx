@@ -122,9 +122,42 @@ export function StepRow({
     );
   }
 
+  // ── In-review step ─────────────────────────────────────────────────
+  if (step.status === "in_review") {
+    return (
+      <Box
+        w="full"
+        display="flex"
+        alignItems="center"
+        gap={2}
+        py={{ base: 2, md: 1.5 }}
+        px={{ base: 2.5, md: 3 }}
+        borderRadius="md"
+        border="1px solid"
+        borderColor="orange.200"
+        bg="orange.50/40"
+      >
+        <StepIcon status="in_review" />
+        <Text fontSize="11px" color="fg" lineHeight="140%" flex={1} minW={0}>
+          {stepTitle}
+        </Text>
+        <Flex gap={1.5} flexWrap="wrap">
+          {step.assignedTo && (
+            <Badge {...badgeProps} bg="blue.50" color="blue.700">
+              {step.assignedTo.name}
+            </Badge>
+          )}
+          <Badge {...badgeProps} bg="orange.50" color="orange.700">
+            Review
+          </Badge>
+        </Flex>
+      </Box>
+    );
+  }
+
   // ── Active step ─────────────────────────────────────────────────────
   const showGate = isAdmin || !step.assignedTo;
-  const showComplete = step.assignedTo;
+  const showComplete = step.assignedTo && step.status === "in_progress";
 
   return (
     <>

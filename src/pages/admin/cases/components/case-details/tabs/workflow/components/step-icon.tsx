@@ -16,6 +16,8 @@ export function StepIcon({ status }: { status: string }) {
       return <Box as="span" color="green.500"><CheckCircle {...iconProps} /></Box>;
     case "in_progress":
       return <Box as="span" color="blue.500"><Clock {...iconProps} /></Box>;
+    case "in_review":
+      return <Box as="span" color="orange.500"><Clock {...iconProps} /></Box>;
     case "blocked":
       return <Box as="span" color="orange.500"><AlertTriangle {...iconProps} /></Box>;
     default:

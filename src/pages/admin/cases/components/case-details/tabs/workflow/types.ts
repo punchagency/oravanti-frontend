@@ -2,7 +2,7 @@
 export type AssignableRole = "attorney" | "paralegal" | "case_manager" | "trial_paralegal";
 
 /** The current status of a workflow step within a case instance */
-export type StepStatus = "not_started" | "in_progress" | "complete" | "blocked";
+export type StepStatus = "not_started" | "in_progress" | "in_review" | "complete" | "blocked";
 
 /** Activation behaviour for conditional modules (e.g. Litigation only triggers manually) */
 export type ModuleActivationType = "auto" | "manual_trigger" | "condition_met";
