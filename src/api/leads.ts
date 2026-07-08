@@ -338,9 +338,8 @@ export const initiateConsultation = async (
     feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
-    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    // Urgent (admin fast-track): auto-scheduled ASAP, skips the slot queue.
     urgent?: boolean;
-    scheduledAt?: string;
     // Set when this consultation is a follow-up of a prior completed one.
     parentConsultationId?: string;
   },
@@ -349,7 +348,6 @@ export const initiateConsultation = async (
   return res.data.data as {
     consultation: Consultation;
     bookingToken: string;
-    warnings?: string[];
   };
 };
 

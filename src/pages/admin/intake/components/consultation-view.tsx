@@ -64,14 +64,11 @@ import type {
 } from "@/api/leads";
 import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
-import { dayjs, formatTime, wallClockToUtcIso } from "@/utils/date";
-import { useFirmTimezone } from "@/hooks/useTimezone";
+import { dayjs, formatTime } from "@/utils/date";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
-import { DateField } from "@/components/ui/date-field";
-import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
@@ -2421,10 +2418,8 @@ const scheduleSchema = z
     notes: z.string(),
     notifyEmail: z.boolean(),
     notifySms: z.boolean(),
-    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    // Urgent (admin fast-track): auto-scheduled ASAP, lead skips the slot queue.
     urgent: z.boolean(),
-    urgentDate: z.string(),
-    urgentTime: z.string(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -2445,20 +2440,6 @@ const scheduleSchema = z
         message: "Select a location for in-person consultations",
       });
     }
-    if (val.urgent && !val.urgentDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["urgentDate"],
-        message: "Pick a date",
-      });
-    }
-    if (val.urgent && !val.urgentTime) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["urgentTime"],
-        message: "Pick a time",
-      });
-    }
   });
 
 type ScheduleForm = z.infer<typeof scheduleSchema>;
@@ -2476,8 +2457,6 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   notifyEmail: true,
   notifySms: false,
   urgent: false,
-  urgentDate: "",
-  urgentTime: "",
 };
 
 function ScheduleConsultationDialog({
@@ -2519,10 +2498,6 @@ function ScheduleConsultationDialog({
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
-  const urgentDate = useWatch({ control, name: "urgentDate" });
-  const urgentTime = useWatch({ control, name: "urgentTime" });
-  // Admins enter the urgent time as the firm's local wall-clock time.
-  const firmTimezone = useFirmTimezone();
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -2616,13 +2591,7 @@ function ScheduleConsultationDialog({
     }
     if (step === 2) {
       if (
-        await trigger([
-          "customDuration",
-          "attorneyId",
-          "locationId",
-          "urgentDate",
-          "urgentTime",
-        ])
+        await trigger(["customDuration", "attorneyId", "locationId"])
       )
         setStep(3);
     }
@@ -2650,10 +2619,6 @@ function ScheduleConsultationDialog({
     const feeAmount =
       feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
 
-    const scheduledAt = data.urgent
-      ? wallClockToUtcIso(data.urgentDate, data.urgentTime, firmTimezone)
-      : undefined;
-
     initiateConsultation.mutate(
       {
         id: data.selectedLeadId,
@@ -2675,7 +2640,6 @@ function ScheduleConsultationDialog({
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
           urgent: data.urgent || undefined,
-          scheduledAt,
           parentConsultationId: parentConsultationId || undefined,
         },
       },
@@ -2686,13 +2650,7 @@ function ScheduleConsultationDialog({
   const onInvalid = () => {
     // Jump back to the step that holds the first error.
     if (errors.selectedLeadId) setStep(1);
-    else if (
-      errors.customDuration ||
-      errors.attorneyId ||
-      errors.locationId ||
-      errors.urgentDate ||
-      errors.urgentTime
-    )
+    else if (errors.customDuration || errors.attorneyId || errors.locationId)
       setStep(2);
   };
 
@@ -2794,8 +2752,6 @@ function ScheduleConsultationDialog({
                   notes={notes}
                   notifyEmail={notifyEmail}
                   urgent={urgent}
-                  urgentDate={urgentDate}
-                  urgentTime={urgentTime}
                   touchedField={
                     errors.customDuration
                       ? "duration"
@@ -2803,15 +2759,9 @@ function ScheduleConsultationDialog({
                         ? "attorney"
                         : errors.locationId
                           ? "location"
-                          : errors.urgentDate
-                            ? "urgentDate"
-                            : errors.urgentTime
-                              ? "urgentTime"
-                              : null
+                          : null
                   }
                   onUrgentChange={(value) => setField("urgent", value)}
-                  onUrgentDateChange={(value) => setField("urgentDate", value)}
-                  onUrgentTimeChange={(value) => setField("urgentTime", value)}
                   onDurationChoiceChange={(value) =>
                     setField("durationChoice", value)
                   }
@@ -2849,11 +2799,6 @@ function ScheduleConsultationDialog({
                   notifyChannels={notifyChannels}
                   notes={notes}
                   urgent={urgent}
-                  urgentAt={
-                    urgent && urgentDate && urgentTime
-                      ? `${urgentDate} ${urgentTime} (firm time)`
-                      : null
-                  }
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
@@ -3088,12 +3033,8 @@ function ScheduleDetailsStep({
   notes,
   notifyEmail,
   urgent,
-  urgentDate,
-  urgentTime,
   touchedField,
   onUrgentChange,
-  onUrgentDateChange,
-  onUrgentTimeChange,
   onDurationChoiceChange,
   onCustomDurationChange,
   onConsultationTypeChange,
@@ -3117,18 +3058,8 @@ function ScheduleDetailsStep({
   notes: string;
   notifyEmail: boolean;
   urgent: boolean;
-  urgentDate: string;
-  urgentTime: string;
-  touchedField:
-    | "duration"
-    | "attorney"
-    | "location"
-    | "urgentDate"
-    | "urgentTime"
-    | null;
+  touchedField: "duration" | "attorney" | "location" | null;
   onUrgentChange: (value: boolean) => void;
-  onUrgentDateChange: (value: string) => void;
-  onUrgentTimeChange: (value: string) => void;
   onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
@@ -3269,11 +3200,11 @@ function ScheduleDetailsStep({
         </Box>
       )}
 
-      {/* Time — lead-driven by default; urgent lets the admin book now */}
+      {/* Time — lead-driven by default; urgent is auto-scheduled ASAP */}
       <Box>
         <Flex align="center" justify="space-between" mb="8px">
           <StepFieldLabel required>
-            {urgent ? "Scheduled time" : "Available time slots"}
+            {urgent ? "Urgent scheduling" : "Available time slots"}
           </StepFieldLabel>
           <HStack gap="8px">
             <Text fontSize="12px" color="fg.muted">
@@ -3291,33 +3222,11 @@ function ScheduleDetailsStep({
           </HStack>
         </Flex>
         {urgent ? (
-          <Stack gap="10px">
-            <ModeNote icon={<CalendarClock size={14} />}>
-              The lead skips the slot queue and is connected as soon as they pay
-              (if a fee applies). Times are in the firm's timezone.
-            </ModeNote>
-            <Grid templateColumns="1fr 1fr" gap="10px">
-              <Box>
-                <StepFieldLabel required>Date</StepFieldLabel>
-                <DateField
-                  ariaLabel="Consultation date"
-                  value={urgentDate}
-                  onChange={onUrgentDateChange}
-                  min={new Date().toISOString().slice(0, 10)}
-                  invalid={touchedField === "urgentDate"}
-                />
-              </Box>
-              <Box>
-                <StepFieldLabel required>Time (firm timezone)</StepFieldLabel>
-                <TimeField
-                  ariaLabel="Consultation time"
-                  value={urgentTime}
-                  onChange={onUrgentTimeChange}
-                  invalid={touchedField === "urgentTime"}
-                />
-              </Box>
-            </Grid>
-          </Stack>
+          <ModeNote icon={<CalendarClock size={14} />}>
+            The lead skips the slot queue. The consultation is scheduled
+            automatically for the earliest moment — if a fee applies, the time
+            is set when they pay and confirmation follows immediately.
+          </ModeNote>
         ) : (
           <ModeNote icon={<CalendarClock size={14} />}>
             The lead chooses a time from the selected attorney's availability —
@@ -3522,7 +3431,6 @@ function ReviewStep({
   notifyChannels,
   notes,
   urgent,
-  urgentAt,
   feeSettings,
   feeAmount,
   onFeeAmountChange,
@@ -3537,7 +3445,6 @@ function ReviewStep({
   notifyChannels: ("email" | "sms")[];
   notes: string;
   urgent: boolean;
-  urgentAt: string | null;
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
@@ -3568,8 +3475,11 @@ function ReviewStep({
         <SummaryItem label="Scheduling">
           {urgent ? "Urgent — schedule now" : "Lead picks a time"}
         </SummaryItem>
-        {urgent && urgentAt ? (
-          <SummaryItem label="Scheduled time">{urgentAt}</SummaryItem>
+        {urgent ? (
+          <SummaryItem label="Scheduled time">
+            ASAP — set automatically{" "}
+            {charges ? "after payment" : "on confirmation"}
+          </SummaryItem>
         ) : null}
         <SummaryItem label="Duration">{duration}</SummaryItem>
         <SummaryItem label="Attorney">{attorney}</SummaryItem>
