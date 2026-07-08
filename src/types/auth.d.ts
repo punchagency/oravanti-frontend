@@ -32,6 +32,9 @@ export type SessionUser = {
     | "password_reset_required";
   tosAccepted: boolean;
   tosAcceptedAt: Date | null;
+  // The user's own IANA timezone preference. Null → fall back to the
+  // browser-detected zone for display.
+  timezone?: string | null;
 };
 
 export type SessionUserUpdateData = Omit<

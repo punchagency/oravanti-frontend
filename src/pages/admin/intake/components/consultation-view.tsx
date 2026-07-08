@@ -29,26 +29,42 @@ import {
   Lock,
   Mail,
   MapPin,
+  Pencil,
   Phone,
+  Plus,
   Scale,
   Search,
   Send,
+  Trash2,
   UserX,
   Video,
   X,
 } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import {
+  Fragment,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
+  Consultation,
   ConsultationListItem,
   ConsultationSort,
   ConsultationStatus,
+  FeeAgreementPreview,
+  GenerateFeeAgreementInput,
   Lead,
 } from "@/api/leads";
+import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
+import { dayjs, formatTime } from "@/utils/date";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -56,8 +72,10 @@ import { FormSelect } from "@/components/ui/form-select";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
+  useCancelConsultation,
   useConsultations,
   useInitiateConsultation,
+  useFeeAgreementPreview,
   useGenerateFeeAgreement,
   useLeadById,
   useLeads,
@@ -134,12 +152,9 @@ function getInitials(name: string): string {
 }
 
 function formatIsoTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  if (!iso || !dayjs(iso).isValid()) return "—";
+  // Viewer-local time with an explicit zone label.
+  return formatTime(iso);
 }
 
 function consultationModeIcon(mode: ConsultationMode | undefined) {
@@ -206,22 +221,48 @@ function attorneyFullName(item: ConsultationListItem): string {
   return name || "Unassigned";
 }
 
+type FollowUpRequest = {
+  lead: ConsultationSummaryLead;
+  attorneyId?: string | null;
+  parentConsultationId: string;
+};
+
+// Lets a ConsultationCard (rendered deep in the collapsible list) open the
+// scheduling wizard as a follow-up without prop-drilling through the list.
+const ScheduleFollowUpContext = createContext<(req: FollowUpRequest) => void>(
+  () => {},
+);
+
+type WizardPreset = {
+  lead: ConsultationSummaryLead | null;
+  attorneyId?: string | null;
+  parentConsultationId?: string;
+};
+
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [presetLeadId, setPresetLeadId] = useState<string | null>(null);
+  const [preset, setPreset] = useState<WizardPreset>({ lead: null });
   const { data, isLoading } = useLeads({ stage: "consultation" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
 
   const noConsultation = leads.filter((l) => !l.consultationId);
   const scheduled = leads.filter((l) => l.consultationId);
 
-  function openWizard(leadId: string | null) {
-    setPresetLeadId(leadId);
+  function openWizard(lead: ConsultationSummaryLead | null) {
+    setPreset({ lead });
+    setScheduleOpen(true);
+  }
+  function openFollowUp(req: FollowUpRequest) {
+    setPreset({
+      lead: req.lead,
+      attorneyId: req.attorneyId,
+      parentConsultationId: req.parentConsultationId,
+    });
     setScheduleOpen(true);
   }
 
   return (
-    <>
+    <ScheduleFollowUpContext.Provider value={openFollowUp}>
       <Stack gap="20px" pt="24px" aria-label="Consultation and notes">
         <HStack justify="space-between" gap="16px" wrap="wrap">
           <Text m="0" color="fg" fontSize="15px" fontWeight="500">
@@ -242,20 +283,20 @@ export function ConsultationView() {
         ) : leads.length === 0 ? (
           <MutedText>No leads in the consultation stage.</MutedText>
         ) : (
-          <Stack gap="20px">
+          <Stack gap="32px">
             {noConsultation.length > 0 ? (
               <Stack gap="12px">
                 <MutedText fontSize="14px">
                   {noConsultation.length} lead
                   {noConsultation.length === 1 ? "" : "s"} with no consultation
-                  scheduled yet
+                  in progress
                 </MutedText>
-                <Stack gap="16px">
+                <Stack gap="10px">
                   {noConsultation.map((lead) => (
-                    <ConsultationCard
+                    <CollapsibleNoConsultation
                       key={lead.id}
                       lead={lead}
-                      onSchedule={() => openWizard(lead.id)}
+                      onSchedule={() => openWizard(lead)}
                     />
                   ))}
                 </Stack>
@@ -263,7 +304,12 @@ export function ConsultationView() {
             ) : null}
 
             {noConsultation.length > 0 && scheduled.length > 0 ? (
-              <Box borderTop="1px solid" borderColor="border" />
+              <Box
+                borderTop="1px solid"
+                borderColor="border"
+                mt="4px"
+                pt="8px"
+              />
             ) : null}
 
             {scheduled.length > 0 ? (
@@ -276,9 +322,11 @@ export function ConsultationView() {
       <ScheduleConsultationDialog
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
-        presetLeadId={presetLeadId}
+        presetLead={preset.lead}
+        presetAttorneyId={preset.attorneyId}
+        parentConsultationId={preset.parentConsultationId}
       />
-    </>
+    </ScheduleFollowUpContext.Provider>
   );
 }
 
@@ -293,7 +341,7 @@ type ConsultationRow = {
 // the consultation-stage leads, enriched with a batch summary fetch so each
 // collapsed row can show status, attorney and time without a per-card detail
 // request. Controls are applied client-side against that summary set.
-function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
+function ConsultationList({ leads }: { leads: Lead[] }) {
   const { data, isLoading } = useConsultations({ limit: 200 });
 
   const [query, setQuery] = useState("");
@@ -303,20 +351,25 @@ function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const summaryByLead = useMemo(() => {
+  // Keyed by consultation id (a lead can now have several consultations —
+  // follow-ups, cancelled ones) so each row shows the lead's *current* one.
+  const summaryByConsultation = useMemo(() => {
     const map = new Map<string, ConsultationListItem>();
-    for (const item of data?.data ?? []) map.set(item.leadId, item);
+    for (const item of data?.data ?? []) map.set(item.id, item);
     return map;
   }, [data]);
 
   // Only the leads currently in the consultation stage, paired with their
-  // consultation summary (dropping any whose summary hasn't loaded yet).
+  // current consultation's summary (dropping any whose summary hasn't loaded
+  // yet, or whose consultation was detached, e.g. after a cancellation).
   const rows = useMemo<ConsultationRow[]>(() => {
     return leads.flatMap((lead) => {
-      const summary = summaryByLead.get(lead.id);
+      const summary = lead.consultationId
+        ? summaryByConsultation.get(lead.consultationId)
+        : undefined;
       return summary ? [{ lead, summary }] : [];
     });
-  }, [leads, summaryByLead]);
+  }, [leads, summaryByConsultation]);
 
   const attorneyOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -378,7 +431,7 @@ function ConsultationList({ leads }: { leads: ConsultationSummaryLead[] }) {
   return (
     <Stack gap="14px">
       <Flex align="center" justify="space-between" gap="12px" wrap="wrap">
-        <HStack gap="10px" wrap="wrap">
+        <HStack gap="10px">
           <HStack
             gap="8px"
             h="34px"
@@ -549,6 +602,78 @@ function CollapsibleConsultation({
   );
 }
 
+// Collapsible row for a lead that has no active consultation yet — expands to
+// the same card (with its "Schedule consultation" action).
+function CollapsibleNoConsultation({
+  lead,
+  onSchedule,
+}: {
+  lead: Lead;
+  onSchedule: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      overflow="hidden"
+    >
+      <chakra.button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="16px"
+        w="full"
+        textAlign="left"
+        px="18px"
+        py="14px"
+        bg={open ? "bg.subtle" : "bg"}
+        _hover={{ bg: "bg.subtle" }}
+      >
+        <HStack gap="12px" minW="0" align="flex-start">
+          <Box
+            flex="0 0 auto"
+            mt="6px"
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg={TONE_DOT.warning}
+          />
+          <Box minW="0">
+            <HStack gap="8px" minW="0" wrap="wrap">
+              <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
+                {lead.name}
+              </Text>
+              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+            </HStack>
+            <MutedText>No consultation scheduled yet</MutedText>
+          </Box>
+        </HStack>
+        <HStack gap="10px" flex="0 0 auto">
+          <StatusPill tone="warning" icon={<CalendarClock size={11} />}>
+            No consultation
+          </StatusPill>
+          <Box color="fg.muted">
+            {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </Box>
+        </HStack>
+      </chakra.button>
+
+      {open ? (
+        <Box borderTop="1px solid" borderColor="border">
+          <ConsultationCard lead={lead} bare onSchedule={onSchedule} />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
 function FilterSelect({
   ariaLabel,
   value,
@@ -623,6 +748,8 @@ function ConsultationCard({
   const completeMutation = useUpdateConsultation();
   const noShowMutation = useUpdateConsultation();
   const outcomesMutation = useUpdateConsultation();
+  const cancelMutation = useCancelConsultation();
+  const openFollowUp = useContext(ScheduleFollowUpContext);
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
@@ -631,10 +758,27 @@ function ConsultationCard({
   const requestMissing = useRequestMissingDocuments();
 
   const consultation = leadDetail?.consultation;
+  const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
   const send = questionnaire?.send;
   const response = questionnaire?.response;
+  const { data: firmFeeSettings } = useConsultationSettings();
+
+  // Fee-agreement preview modal. `generatedPreview` holds the doc returned by a
+  // fresh generate; reopening a draft fetches it by id instead.
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [generatedPreview, setGeneratedPreview] =
+    useState<FeeAgreementPreview | null>(null);
+  const draftPreview = useFeeAgreementPreview(
+    feeAgreement?.id ?? null,
+    previewOpen && !generatedPreview,
+  );
+  const previewData = generatedPreview ?? draftPreview.data ?? null;
+  function closePreview() {
+    setPreviewOpen(false);
+    setGeneratedPreview(null);
+  }
 
   const [notes, setNotes] = useState<string | null>(null);
   const [now, setTime] = useState(() => Date.now());
@@ -646,6 +790,8 @@ function ConsultationCard({
     id: string;
     tab: "responses" | "documents";
   } | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -671,26 +817,21 @@ function ConsultationCard({
     ? formatIsoTime(consultation.scheduledAt)
     : "—";
   const consultStatusLabel = consultation
-    ? (
-        {
-          scheduled: "Scheduled",
-          in_progress: "In progress",
-          completed: "Completed",
-          cancelled: "Cancelled",
-          no_show: "No show",
-        } as const
-      )[consultation.status]
+    ? CONSULT_STATUS_LABEL[consultation.status]
     : null;
-  const consultStatusTone: "info" | "success" | "danger" =
-    consultation?.status === "cancelled" || consultation?.status === "no_show"
-      ? "danger"
-      : consultation?.status === "scheduled"
-        ? "info"
-        : "success";
+  const consultStatusTone: StatusTone = consultation
+    ? CONSULT_STATUS_TONE[consultation.status]
+    : "neutral";
 
   // A consultation can be marked complete once it exists, hasn't already been
   // completed/cancelled, and its scheduled start time has passed.
   const consultationCompleted = consultation?.status === "completed";
+  // The fee agreement unlocks once the lead has completed *any* consultation —
+  // a later follow-up being cancelled (which detaches the current consultation)
+  // must not hide it again.
+  const hasCompletedConsultation =
+    consultationCompleted ||
+    consultationHistory.some((c) => c.status === "completed");
   const isCompletable =
     consultation?.status === "scheduled" ||
     consultation?.status === "in_progress";
@@ -699,6 +840,13 @@ function ConsultationCard({
     ? now >= new Date(scheduledAt).getTime()
     : false;
   const canComplete = isCompletable && startTimeReached;
+
+  // A consultation can be cancelled at any pre-terminal stage.
+  const canCancel =
+    consultation?.status === "pending_payment" ||
+    consultation?.status === "awaiting_slot_selection" ||
+    consultation?.status === "scheduled" ||
+    consultation?.status === "in_progress";
 
   // ── Documents ──────────────────────────────────────────────────────────────
   // Staff can manually attach a document received outside the client portal.
@@ -799,7 +947,15 @@ function ConsultationCard({
     noShowMutation.mutate({ id: lead.id, data: { status: "no_show" } });
   }
   function handleFollowUp() {
+    if (!consultation) return;
+    // Record the outcome on the completed parent, then open the wizard to book
+    // the follow-up (admin can choose urgent or lead-driven).
     outcomesMutation.mutate({ id: lead.id, data: { outcome: "follow_up" } });
+    openFollowUp({
+      lead,
+      attorneyId: consultation.leadAttorneyId,
+      parentConsultationId: consultation.id,
+    });
   }
   function handleCloseNoCase() {
     outcomesMutation.mutate({
@@ -812,6 +968,17 @@ function ConsultationCard({
       id: lead.id,
       data: { outcome: "refer_elsewhere" },
     });
+  }
+  function handleCancelConsultation() {
+    cancelMutation.mutate(
+      { id: lead.id, reason: cancelReason.trim() || undefined },
+      {
+        onSuccess: () => {
+          setCancelOpen(false);
+          setCancelReason("");
+        },
+      },
+    );
   }
 
   const Container = bare ? BareCardBody : SurfaceCard;
@@ -842,6 +1009,22 @@ function ConsultationCard({
               {consultationDate} · {consultationTime} · {consultation.duration}{" "}
               min
             </MutedText>
+            {canCancel ? (
+              <chakra.button
+                type="button"
+                onClick={() => setCancelOpen(true)}
+                display="inline-flex"
+                alignItems="center"
+                gap="4px"
+                fontSize="12px"
+                fontWeight="500"
+                color="#b00020"
+                _hover={{ textDecoration: "underline" }}
+              >
+                <X size={12} />
+                Cancel
+              </chakra.button>
+            ) : null}
           </HStack>
         ) : (
           <HStack gap="8px" align="center">
@@ -1120,8 +1303,8 @@ function ConsultationCard({
         </Stack>
       </SectionRow>
 
-      {/* 4. Fee agreement — unlocks once the consultation is completed */}
-      {consultationCompleted ? (
+      {/* 4. Fee agreement — unlocks once any consultation has been completed */}
+      {hasCompletedConsultation ? (
         <SectionRow>
           <Stack gap="14px">
             <HStack justify="space-between" gap="12px" wrap="wrap">
@@ -1139,33 +1322,28 @@ function ConsultationCard({
                 </Text>
               </HStack>
             ) : !feeAgreement ? (
-              <HStack gap="8px" wrap="wrap">
-                <BrandButton
-                  loading={generateFee.isPending}
-                  onClick={() =>
-                    generateFee.mutate({
-                      id: lead.id,
-                      data: {
-                        agreementType: "retainer",
-                        generatedFrom: "manual",
+              <FeeAgreementForm
+                consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
+                generating={generateFee.isPending}
+                onSubmit={(data) =>
+                  generateFee.mutate(
+                    { id: lead.id, data },
+                    {
+                      onSuccess: (preview) => {
+                        setGeneratedPreview(preview);
+                        setPreviewOpen(true);
                       },
-                    })
-                  }
-                >
-                  <FileText size={14} />
-                  Generate fee agreement
-                </BrandButton>
-              </HStack>
+                    },
+                  )
+                }
+              />
             ) : feeAgreement.status === "draft" ? (
               <Stack gap="10px">
                 <MutedText>Agreement generated — ready to dispatch.</MutedText>
                 <HStack gap="8px" wrap="wrap">
-                  <BrandButton
-                    loading={sendFee.isPending}
-                    onClick={() => sendFee.mutate(feeAgreement.id)}
-                  >
-                    <Send size={14} />
-                    Send to client
+                  <BrandButton onClick={() => setPreviewOpen(true)}>
+                    <FileText size={14} />
+                    Preview &amp; send
                   </BrandButton>
                 </HStack>
               </Stack>
@@ -1265,6 +1443,13 @@ function ConsultationCard({
         </SectionRow>
       )}
 
+      {/* Past consultations (follow-ups / re-schedules) */}
+      {consultationHistory.length > 0 ? (
+        <SectionRow>
+          <PastConsultations items={consultationHistory} />
+        </SectionRow>
+      ) : null}
+
       {/* 5. Footer — outcomes are recorded against a consultation */}
       {hasConsultation ? (
         <HStack
@@ -1291,13 +1476,15 @@ function ConsultationCard({
             </MutedText>
           ) : (
             <HStack gap="8px" wrap="wrap" justify="flex-end">
-              <OutlineButton
-                loading={outcomesMutation.isPending}
-                onClick={handleFollowUp}
-              >
-                <CalendarDays size={14} />
-                Schedule follow-up
-              </OutlineButton>
+              {consultationCompleted ? (
+                <OutlineButton
+                  loading={outcomesMutation.isPending}
+                  onClick={handleFollowUp}
+                >
+                  <CalendarDays size={14} />
+                  Schedule follow-up
+                </OutlineButton>
+              ) : null}
               <OutlineButton
                 loading={outcomesMutation.isPending}
                 onClick={handleCloseNoCase}
@@ -1322,7 +1509,804 @@ function ConsultationCard({
         initialTab={docDialog?.tab ?? "responses"}
         onClose={() => setDocDialog(null)}
       />
+
+      <CancelConsultationDialog
+        open={cancelOpen}
+        leadName={lead.name}
+        reason={cancelReason}
+        onReasonChange={setCancelReason}
+        loading={cancelMutation.isPending}
+        onConfirm={handleCancelConsultation}
+        onClose={() => {
+          setCancelOpen(false);
+          setCancelReason("");
+        }}
+      />
+
+      <FeeAgreementPreviewModal
+        open={previewOpen}
+        loading={draftPreview.isLoading && !generatedPreview}
+        preview={previewData}
+        sending={sendFee.isPending}
+        onSend={() =>
+          previewData &&
+          sendFee.mutate(previewData.agreement.id, { onSuccess: closePreview })
+        }
+        onClose={closePreview}
+      />
     </Container>
+  );
+}
+
+function CancelConsultationDialog({
+  open,
+  leadName,
+  reason,
+  onReasonChange,
+  loading,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  leadName: string;
+  reason: string;
+  onReasonChange: (value: string) => void;
+  loading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(d) => {
+        if (!d.open) onClose();
+      }}
+    >
+      <Dialog.Backdrop bg="blackAlpha.500" />
+      <Dialog.Positioner>
+        <Dialog.Content
+          maxW="440px"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          overflow="hidden"
+        >
+          <Box p="20px 24px">
+            <Dialog.Title color="fg" fontSize="16px" fontWeight="600">
+              Cancel consultation
+            </Dialog.Title>
+            <MutedText fontSize="13px">
+              This cancels {leadName}'s consultation, revokes their booking link,
+              and notifies everyone involved. This can't be undone, but you can
+              schedule a new consultation afterwards.
+            </MutedText>
+            <Box mt="14px">
+              <Text m="0 0 6px" fontSize="12px" color="fg.muted">
+                Reason (optional)
+              </Text>
+              <Textarea
+                value={reason}
+                onChange={(e) => onReasonChange(e.currentTarget.value)}
+                placeholder="Shared with the client and staff in the cancellation email."
+                minH="72px"
+                resize="vertical"
+                {...fieldStyles}
+                h="auto"
+                py="10px"
+              />
+            </Box>
+          </Box>
+          <Flex
+            justify="flex-end"
+            gap="10px"
+            p="14px 24px"
+            borderTop="1px solid"
+            borderColor="border.subtle"
+          >
+            <OutlineButton onClick={onClose} disabled={loading}>
+              Keep consultation
+            </OutlineButton>
+            <BrandButton
+              onClick={onConfirm}
+              loading={loading}
+              bg="#b00020"
+              color="white"
+              _hover={{ bg: "#970019" }}
+            >
+              <X size={14} />
+              Cancel consultation
+            </BrandButton>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+// ── Fee agreement form + preview ──────────────────────────────────────────────
+
+const feeFormSchema = z
+  .object({
+    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly", "contingency"]),
+    flatRate: z.string(),
+    hourlyRate: z.string(),
+    // "Add settlement percentage" toggle for the upfront fee types; pure
+    // contingency always carries a percentage.
+    addContingency: z.boolean(),
+    contingencyPercent: z.string(),
+    governmentFees: z.array(
+      z.object({ name: z.string(), amount: z.string() }),
+    ),
+    governmentFeesPaidBy: z.enum(["client_upfront", "firm_advanced"]),
+    paymentPlan: z.enum(["pay_in_full", "two_payments", "installments"]),
+    applyConsultationCredit: z.boolean(),
+    operating: z.string(),
+    trust: z.string(),
+  })
+  .superRefine((val, ctx) => {
+    if (
+      (val.attorneyFeeType === "flat" || val.attorneyFeeType === "flat_hourly") &&
+      !val.flatRate.trim()
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["flatRate"],
+        message: "Enter the flat rate",
+      });
+    if (
+      (val.attorneyFeeType === "hourly" ||
+        val.attorneyFeeType === "flat_hourly") &&
+      !val.hourlyRate.trim()
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hourlyRate"],
+        message: "Enter the hourly rate",
+      });
+    if (val.attorneyFeeType === "contingency" || val.addContingency) {
+      const pct = Number(val.contingencyPercent);
+      if (!val.contingencyPercent.trim() || !(pct > 0) || pct > 100)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["contingencyPercent"],
+          message: "Enter a percentage between 0 and 100",
+        });
+    }
+    val.governmentFees.forEach((g, i) => {
+      if (!g.name.trim())
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["governmentFees", i, "name"],
+          message: "Name required",
+        });
+      if (!g.amount.trim())
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["governmentFees", i, "amount"],
+          message: "Amount required",
+        });
+    });
+  });
+
+type FeeForm = z.infer<typeof feeFormSchema>;
+
+const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] = [
+  { value: "flat", label: "Flat fee" },
+  { value: "hourly", label: "Hourly" },
+  { value: "flat_hourly", label: "Flat + hourly" },
+  { value: "contingency", label: "Contingency" },
+];
+const GOV_FEES_PAID_BY_OPTIONS: {
+  value: FeeForm["governmentFeesPaidBy"];
+  label: string;
+}[] = [
+  { value: "client_upfront", label: "Client pays upfront" },
+  { value: "firm_advanced", label: "Firm advances (from settlement)" },
+];
+const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] = [
+  { value: "pay_in_full", label: "Pay in full" },
+  { value: "two_payments", label: "2 payments" },
+  { value: "installments", label: "Instalment" },
+];
+
+function FeeFieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <Text
+      m="0 0 8px"
+      fontSize="11px"
+      fontWeight="600"
+      letterSpacing="0.04em"
+      textTransform="uppercase"
+      color="fg.muted"
+    >
+      {children}
+    </Text>
+  );
+}
+
+export function FeeAgreementForm({
+  consultationFeeAmount,
+  generating,
+  onSubmit,
+}: {
+  consultationFeeAmount: number | null;
+  generating: boolean;
+  onSubmit: (data: GenerateFeeAgreementInput) => void;
+}) {
+  const { control, register, handleSubmit, setValue } = useForm<FeeForm>({
+    resolver: zodResolver(feeFormSchema),
+    defaultValues: {
+      attorneyFeeType: "flat",
+      flatRate: "",
+      hourlyRate: "",
+      addContingency: false,
+      contingencyPercent: "",
+      governmentFees: [{ name: "", amount: "" }],
+      governmentFeesPaidBy: "client_upfront",
+      paymentPlan: "pay_in_full",
+      applyConsultationCredit: false,
+      operating: "",
+      trust: "",
+    },
+    mode: "onChange",
+  });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "governmentFees",
+  });
+
+  const attorneyFeeType = useWatch({ control, name: "attorneyFeeType" });
+  const paymentPlan = useWatch({ control, name: "paymentPlan" });
+  const applyCredit = useWatch({ control, name: "applyConsultationCredit" });
+  const flatRate = useWatch({ control, name: "flatRate" });
+  const addContingency = useWatch({ control, name: "addContingency" });
+  const govFees = useWatch({ control, name: "governmentFees" });
+  const governmentFeesPaidBy = useWatch({
+    control,
+    name: "governmentFeesPaidBy",
+  });
+  const operatingField = useWatch({ control, name: "operating" });
+  const trustField = useWatch({ control, name: "trust" });
+
+  const attorneyTotal =
+    attorneyFeeType === "hourly" || attorneyFeeType === "contingency"
+      ? 0
+      : Number(flatRate || 0);
+  const govTotal = (govFees ?? []).reduce(
+    (sum, g) => sum + Number(g?.amount || 0),
+    0,
+  );
+  const hasContingency =
+    attorneyFeeType === "contingency" || addContingency;
+  // Nothing due upfront: pure contingency and no client-paid government fees.
+  const noUpfrontDue =
+    attorneyFeeType === "contingency" &&
+    (govTotal === 0 || governmentFeesPaidBy === "firm_advanced");
+
+  // Account split auto-fills from the fees until the admin edits a field.
+  const [operatingTouched, setOperatingTouched] = useState(false);
+  const [trustTouched, setTrustTouched] = useState(false);
+  const operatingValue = operatingTouched
+    ? operatingField
+    : String(attorneyTotal);
+  const trustValue = trustTouched
+    ? trustField
+    : String(governmentFeesPaidBy === "client_upfront" ? govTotal : 0);
+
+  const onValid = (data: FeeForm) => {
+    const withContingency =
+      data.attorneyFeeType === "contingency" || data.addContingency;
+    onSubmit({
+      attorneyFee: {
+        type: data.attorneyFeeType,
+        flatRate:
+          data.attorneyFeeType !== "hourly" &&
+          data.attorneyFeeType !== "contingency"
+            ? Number(data.flatRate || 0)
+            : undefined,
+        hourlyRate:
+          data.attorneyFeeType !== "flat" &&
+          data.attorneyFeeType !== "contingency"
+            ? Number(data.hourlyRate || 0)
+            : undefined,
+        contingencyPercent: withContingency
+          ? Number(data.contingencyPercent)
+          : undefined,
+      },
+      governmentFees: data.governmentFees.map((g) => ({
+        name: g.name.trim(),
+        amount: Number(g.amount || 0),
+      })),
+      governmentFeesPaidBy: data.governmentFeesPaidBy,
+      // Payment plan and account split don't apply when nothing is due
+      // upfront — the backend defaults fill them.
+      paymentPlan: noUpfrontDue ? undefined : data.paymentPlan,
+      applyConsultationCredit: data.applyConsultationCredit,
+      accountSplit: noUpfrontDue
+        ? undefined
+        : {
+            operating: Number(operatingValue || 0),
+            trust: Number(trustValue || 0),
+          },
+    });
+  };
+
+  return (
+    <chakra.form onSubmit={handleSubmit(onValid)}>
+      <Box p="16px" borderRadius="10px" bg="bg.subtle">
+        <Stack gap="18px">
+          {/* Attorney fees */}
+          <Box>
+            <FeeFieldLabel>Attorney fees</FeeFieldLabel>
+            <HStack gap="8px" wrap="wrap" mb="10px">
+              {FEE_TYPE_OPTIONS.map((o) => (
+                <ChoiceChip
+                  key={o.value}
+                  active={attorneyFeeType === o.value}
+                  onClick={() => setValue("attorneyFeeType", o.value)}
+                >
+                  {o.label}
+                </ChoiceChip>
+              ))}
+            </HStack>
+            <HStack gap="10px" wrap="wrap">
+              {attorneyFeeType !== "hourly" &&
+              attorneyFeeType !== "contingency" ? (
+                <HStack gap="6px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    maxW="120px"
+                    {...fieldStyles}
+                    {...register("flatRate")}
+                  />
+                  <MutedText>flat rate</MutedText>
+                </HStack>
+              ) : null}
+              {attorneyFeeType !== "flat" &&
+              attorneyFeeType !== "contingency" ? (
+                <HStack gap="6px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    maxW="120px"
+                    {...fieldStyles}
+                    {...register("hourlyRate")}
+                  />
+                  <MutedText>/ hour</MutedText>
+                </HStack>
+              ) : null}
+              {hasContingency ? (
+                <HStack gap="6px">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    placeholder="0"
+                    maxW="90px"
+                    {...fieldStyles}
+                    {...register("contingencyPercent")}
+                  />
+                  <MutedText>% of settlement</MutedText>
+                </HStack>
+              ) : null}
+            </HStack>
+            {attorneyFeeType !== "contingency" ? (
+              <Box mt="10px">
+                <CheckOption
+                  checked={addContingency}
+                  onToggle={() =>
+                    setValue("addContingency", !addContingency)
+                  }
+                  label="Add settlement percentage (contingency)"
+                />
+              </Box>
+            ) : (
+              <MutedText>
+                No upfront attorney fee — the firm is paid the percentage of
+                the settlement above.
+              </MutedText>
+            )}
+          </Box>
+
+          {/* Government fees */}
+          <Box>
+            <FeeFieldLabel>Government fees</FeeFieldLabel>
+            <Stack gap="8px">
+              {fields.map((f, i) => (
+                <HStack key={f.id} gap="8px">
+                  <Input
+                    placeholder="Fee name (e.g. USCIS filing fee)"
+                    {...fieldStyles}
+                    {...register(`governmentFees.${i}.name` as const)}
+                  />
+                  <HStack gap="4px" flex="0 0 auto">
+                    <Text fontSize="14px" color="fg.muted">
+                      $
+                    </Text>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0.00"
+                      maxW="110px"
+                      textAlign="right"
+                      {...fieldStyles}
+                      {...register(`governmentFees.${i}.amount` as const)}
+                    />
+                  </HStack>
+                  <chakra.button
+                    type="button"
+                    aria-label="Remove fee"
+                    onClick={() => (fields.length > 1 ? remove(i) : undefined)}
+                    display="grid"
+                    placeItems="center"
+                    w="32px"
+                    h="32px"
+                    flex="0 0 auto"
+                    borderRadius="7px"
+                    color="fg.muted"
+                    opacity={fields.length > 1 ? 1 : 0.4}
+                    _hover={{ bg: "bg.muted" }}
+                  >
+                    <Trash2 size={14} />
+                  </chakra.button>
+                </HStack>
+              ))}
+            </Stack>
+            <chakra.button
+              type="button"
+              onClick={() => append({ name: "", amount: "" })}
+              mt="8px"
+              display="inline-flex"
+              alignItems="center"
+              gap="4px"
+              fontSize="12px"
+              fontWeight="500"
+              color="fg.muted"
+              border="1px solid"
+              borderColor="border"
+              borderRadius="7px"
+              px="10px"
+              h="30px"
+              _hover={{ bg: "bg.muted" }}
+            >
+              <Plus size={13} />
+              Add fee row
+            </chakra.button>
+            <Box mt="10px">
+              <MutedText>Paid by</MutedText>
+              <HStack gap="8px" wrap="wrap" mt="4px">
+                {GOV_FEES_PAID_BY_OPTIONS.map((o) => (
+                  <ChoiceChip
+                    key={o.value}
+                    active={governmentFeesPaidBy === o.value}
+                    onClick={() => setValue("governmentFeesPaidBy", o.value)}
+                  >
+                    {o.label}
+                  </ChoiceChip>
+                ))}
+              </HStack>
+            </Box>
+          </Box>
+
+          {noUpfrontDue ? (
+            <MutedText>
+              No upfront payment is required — payment plan and account split
+              do not apply.
+            </MutedText>
+          ) : (
+            /* Payment plan */
+            <Box>
+              <FeeFieldLabel>Payment plan</FeeFieldLabel>
+              <HStack gap="8px" wrap="wrap">
+                {PAYMENT_PLAN_OPTIONS.map((o) => (
+                  <ChoiceChip
+                    key={o.value}
+                    active={paymentPlan === o.value}
+                    onClick={() => setValue("paymentPlan", o.value)}
+                  >
+                    {o.label}
+                  </ChoiceChip>
+                ))}
+              </HStack>
+            </Box>
+          )}
+
+          {/* Apply consultation credit */}
+          <CheckOption
+            checked={applyCredit}
+            onToggle={() => setValue("applyConsultationCredit", !applyCredit)}
+            label={`Apply consultation fee${
+              consultationFeeAmount != null
+                ? ` ($${consultationFeeAmount})`
+                : ""
+            } as credit toward retainer`}
+          />
+
+          {/* Account split */}
+          <Box display={noUpfrontDue ? "none" : undefined}>
+            <FeeFieldLabel>Account split</FeeFieldLabel>
+            <HStack gap="10px" wrap="wrap" align="flex-start">
+              <Box flex="1" minW="180px">
+                <MutedText>Operating</MutedText>
+                <HStack gap="4px" mt="4px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={operatingValue}
+                    {...fieldStyles}
+                    onChange={(e) => {
+                      setOperatingTouched(true);
+                      setValue("operating", e.currentTarget.value);
+                    }}
+                  />
+                </HStack>
+              </Box>
+              <Box flex="1" minW="180px">
+                <MutedText>Trust (IOLTA)</MutedText>
+                <HStack gap="4px" mt="4px">
+                  <Text fontSize="14px" color="fg.muted">
+                    $
+                  </Text>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={trustValue}
+                    {...fieldStyles}
+                    onChange={(e) => {
+                      setTrustTouched(true);
+                      setValue("trust", e.currentTarget.value);
+                    }}
+                  />
+                </HStack>
+              </Box>
+            </HStack>
+          </Box>
+        </Stack>
+      </Box>
+
+      <HStack mt="14px">
+        <BrandButton type="submit" loading={generating}>
+          <FileText size={14} />
+          Generate fee agreement
+        </BrandButton>
+      </HStack>
+    </chakra.form>
+  );
+}
+
+export function FeeAgreementPreviewModal({
+  open,
+  loading,
+  preview,
+  sending,
+  onSend,
+  onClose,
+}: {
+  open: boolean;
+  loading: boolean;
+  preview: FeeAgreementPreview | null;
+  sending: boolean;
+  onSend: () => void;
+  onClose: () => void;
+}) {
+  function handleDownload() {
+    if (!preview) return;
+    const win = window.open("", "_blank", "width=820,height=1000");
+    if (!win) return;
+    win.document.write(
+      `<html><head><title>Fee agreement ${preview.document.docRef}</title></head><body style="margin:24px;">${buildFeeAgreementHtml(
+        preview.document,
+      )}</body></html>`,
+    );
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(d) => {
+        if (!d.open) onClose();
+      }}
+      placement="center"
+      lazyMount
+      unmountOnExit
+    >
+      <Dialog.Backdrop bg="rgba(0,0,0,0.46)" />
+      <Dialog.Positioner>
+        <Dialog.Content
+          maxW="760px"
+          w="calc(100vw - 48px)"
+          maxH="calc(100vh - 72px)"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          overflow="hidden"
+          display="flex"
+          flexDirection="column"
+        >
+          <Flex
+            align="center"
+            justify="space-between"
+            gap="12px"
+            p="14px 18px"
+            borderBottom="1px solid"
+            borderColor="border.subtle"
+            flex="0 0 auto"
+          >
+            <Dialog.Title color="fg" fontSize="15px" fontWeight="600">
+              Fee agreement preview
+            </Dialog.Title>
+            <HStack gap="8px">
+              <OutlineButton disabled title="Coming soon">
+                <Pencil size={14} />
+                Edit
+              </OutlineButton>
+              <OutlineButton disabled={!preview} onClick={handleDownload}>
+                <Download size={14} />
+                Download
+              </OutlineButton>
+              <BrandButton
+                disabled={!preview}
+                loading={sending}
+                onClick={onSend}
+              >
+                <Send size={14} />
+                Send to client
+              </BrandButton>
+              <chakra.button
+                type="button"
+                aria-label="Close preview"
+                onClick={onClose}
+                display="grid"
+                placeItems="center"
+                w="32px"
+                h="32px"
+                borderRadius="full"
+                color="fg.muted"
+                _hover={{ bg: "bg.muted" }}
+              >
+                <X size={16} />
+              </chakra.button>
+            </HStack>
+          </Flex>
+
+          <Box flex="1" overflowY="auto" p="24px" bg="bg.subtle">
+            {loading || !preview ? (
+              <MutedText>Loading preview…</MutedText>
+            ) : (
+              <Box
+                bg="bg"
+                borderRadius="10px"
+                p="28px"
+                border="1px solid"
+                borderColor="border"
+                dangerouslySetInnerHTML={{
+                  __html: buildFeeAgreementHtml(preview.document),
+                }}
+              />
+            )}
+          </Box>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+// Collapsed history of a lead's prior consultations (follow-ups / re-schedules).
+function PastConsultations({ items }: { items: Consultation[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Box>
+      <chakra.button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        display="flex"
+        alignItems="center"
+        gap="8px"
+        w="full"
+        textAlign="left"
+      >
+        <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+          Past consultations
+        </Text>
+        <MutedText>{items.length}</MutedText>
+        <Box ml="auto" color="fg.muted">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </Box>
+      </chakra.button>
+      {open ? (
+        <Stack gap="0" mt="8px">
+          {items.map((c) => (
+            <PastConsultationRow key={c.id} consultation={c} />
+          ))}
+        </Stack>
+      ) : null}
+    </Box>
+  );
+}
+
+function PastConsultationRow({ consultation: c }: { consultation: Consultation }) {
+  const [showNotes, setShowNotes] = useState(false);
+  const tone = CONSULT_STATUS_TONE[c.status];
+  const when = c.scheduledAt
+    ? `${formatReceivedDate(c.scheduledAt)} · ${formatIsoTime(c.scheduledAt)}`
+    : "Not scheduled";
+  const notes = c.attorneyNotes?.trim();
+  return (
+    <Box
+      py="8px"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+      _last={{ borderBottom: 0 }}
+    >
+      <HStack justify="space-between" gap="10px">
+        <HStack gap="8px" minW="0">
+          <Box
+            flex="0 0 auto"
+            w="7px"
+            h="7px"
+            borderRadius="full"
+            bg={TONE_DOT[tone]}
+          />
+          <Box minW="0">
+            <Text m="0" color="fg" fontSize="13px" truncate>
+              {consultationModeLabel(c.mode)} · {when}
+            </Text>
+            {c.outcome ? (
+              <MutedText>Outcome: {c.outcome.replace(/_/g, " ")}</MutedText>
+            ) : null}
+          </Box>
+        </HStack>
+        <StatusPill tone={tone}>{CONSULT_STATUS_LABEL[c.status]}</StatusPill>
+      </HStack>
+      {notes ? (
+        <Box pl="15px" mt="4px">
+          <chakra.button
+            type="button"
+            onClick={() => setShowNotes((v) => !v)}
+            color="brand.fg"
+            fontSize="12px"
+            fontWeight="500"
+          >
+            {showNotes ? "Hide attorney notes" : "View attorney notes"}
+          </chakra.button>
+          {showNotes ? (
+            <Text
+              m="6px 0 0"
+              p="8px 10px"
+              bg="bg.subtle"
+              borderRadius="6px"
+              color="fg"
+              fontSize="12px"
+              lineHeight="1.5"
+              whiteSpace="pre-wrap"
+            >
+              {notes}
+            </Text>
+          ) : null}
+        </Box>
+      ) : null}
+    </Box>
   );
 }
 
@@ -1540,6 +2524,8 @@ const scheduleSchema = z
     notes: z.string(),
     notifyEmail: z.boolean(),
     notifySms: z.boolean(),
+    // Urgent (admin fast-track): auto-scheduled ASAP, lead skips the slot queue.
+    urgent: z.boolean(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -1576,17 +2562,23 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   notes: "",
   notifyEmail: true,
   notifySms: false,
+  urgent: false,
 };
 
 function ScheduleConsultationDialog({
   open,
   onOpenChange,
-  presetLeadId,
+  presetLead,
+  presetAttorneyId,
+  parentConsultationId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  presetLeadId?: string | null;
+  presetLead?: ConsultationSummaryLead | null;
+  presetAttorneyId?: string | null;
+  parentConsultationId?: string;
 }) {
+  const presetLeadId = presetLead?.id ?? null;
   const [step, setStep] = useState<ScheduleStep>(1);
   const {
     control,
@@ -1611,6 +2603,7 @@ function ScheduleConsultationDialog({
   const notes = useWatch({ control, name: "notes" });
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
+  const urgent = useWatch({ control, name: "urgent" });
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -1649,12 +2642,20 @@ function ScheduleConsultationDialog({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      reset({ ...SCHEDULE_DEFAULTS, selectedLeadId: presetLeadId ?? "" });
+      reset({
+        ...SCHEDULE_DEFAULTS,
+        selectedLeadId: presetLeadId ?? "",
+        attorneyId: presetAttorneyId ?? "",
+      });
       setStep(presetLeadId ? 2 : 1);
     }
   }
 
-  const selectedLead = leads.find((l) => l.id === selectedLeadId);
+  // Fall back to the preset lead: a follow-up lead may have advanced past the
+  // consultation stage and so not appear in the candidate list.
+  const selectedLead =
+    leads.find((l) => l.id === selectedLeadId) ??
+    (presetLead && presetLead.id === selectedLeadId ? presetLead : undefined);
   const { data: questionnaire } = useLeadQuestionnaire(selectedLeadId);
   const language = questionnaire?.send?.language ?? "English";
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
@@ -1695,14 +2696,16 @@ function ScheduleConsultationDialog({
       return;
     }
     if (step === 2) {
-      if (await trigger(["customDuration", "attorneyId", "locationId"]))
+      if (
+        await trigger(["customDuration", "attorneyId", "locationId"])
+      )
         setStep(3);
     }
   }
 
+  const chargesFee = Boolean(feeSettings?.chargesFee);
   const chargesCustomFee =
-    Boolean(feeSettings?.chargesFee) &&
-    feeSettings?.feeStructure === "custom_per_case_type";
+    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
 
   const onValid = (data: ScheduleForm) => {
     const duration =
@@ -1715,6 +2718,12 @@ function ScheduleConsultationDialog({
       setStep(3);
       return;
     }
+
+    // Urgent bookings may override the fee (urgency surcharge) even when the
+    // structure isn't custom-per-case-type.
+    const feeEditable = chargesCustomFee || (data.urgent && chargesFee);
+    const feeAmount =
+      feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
 
     initiateConsultation.mutate(
       {
@@ -1730,12 +2739,14 @@ function ScheduleConsultationDialog({
             data.consultationType === "in_person"
               ? data.locationId || undefined
               : undefined,
-          feeAmount: chargesCustomFee ? Number(data.feeAmount) : undefined,
+          feeAmount,
           preConsultationNotes: data.notes || undefined,
           notifyChannels: [
             ...(data.notifyEmail ? (["email"] as const) : []),
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
+          urgent: data.urgent || undefined,
+          parentConsultationId: parentConsultationId || undefined,
         },
       },
       { onSuccess: () => closeDialog() },
@@ -1846,6 +2857,7 @@ function ScheduleConsultationDialog({
                   locations={locations}
                   notes={notes}
                   notifyEmail={notifyEmail}
+                  urgent={urgent}
                   touchedField={
                     errors.customDuration
                       ? "duration"
@@ -1855,6 +2867,7 @@ function ScheduleConsultationDialog({
                           ? "location"
                           : null
                   }
+                  onUrgentChange={(value) => setField("urgent", value)}
                   onDurationChoiceChange={(value) =>
                     setField("durationChoice", value)
                   }
@@ -1891,6 +2904,7 @@ function ScheduleConsultationDialog({
                   locationLabel={locationLabel}
                   notifyChannels={notifyChannels}
                   notes={notes}
+                  urgent={urgent}
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
@@ -2124,7 +3138,9 @@ function ScheduleDetailsStep({
   locations,
   notes,
   notifyEmail,
+  urgent,
   touchedField,
+  onUrgentChange,
   onDurationChoiceChange,
   onCustomDurationChange,
   onConsultationTypeChange,
@@ -2147,7 +3163,9 @@ function ScheduleDetailsStep({
   locations: ConsultationLocation[];
   notes: string;
   notifyEmail: boolean;
+  urgent: boolean;
   touchedField: "duration" | "attorney" | "location" | null;
+  onUrgentChange: (value: boolean) => void;
   onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
@@ -2221,8 +3239,8 @@ function ScheduleDetailsStep({
         <Box>
           <StepFieldLabel>Video call link</StepFieldLabel>
           <ModeNote icon={<Video size={14} />}>
-            A Google Meet link is generated automatically once the lead picks a
-            time.
+            A Google Meet link is generated automatically when the consultation
+            is confirmed.
           </ModeNote>
         </Box>
       ) : consultationType === "phone_call" ? (
@@ -2288,26 +3306,39 @@ function ScheduleDetailsStep({
         </Box>
       )}
 
-      {/* Available time slots — lead-driven (matches "Let client choose" on) */}
+      {/* Time — lead-driven by default; urgent is auto-scheduled ASAP */}
       <Box>
         <Flex align="center" justify="space-between" mb="8px">
-          <StepFieldLabel required>Available time slots</StepFieldLabel>
+          <StepFieldLabel required>
+            {urgent ? "Urgent scheduling" : "Available time slots"}
+          </StepFieldLabel>
           <HStack gap="8px">
             <Text fontSize="12px" color="fg.muted">
-              Let client choose
+              Urgent — schedule now
             </Text>
-            <Switch.Root checked disabled>
+            <Switch.Root
+              checked={urgent}
+              onCheckedChange={(e) => onUrgentChange(e.checked)}
+            >
               <Switch.HiddenInput />
-              <Switch.Control bg="brand.solid">
+              <Switch.Control bg={urgent ? "brand.solid" : undefined}>
                 <Switch.Thumb />
               </Switch.Control>
             </Switch.Root>
           </HStack>
         </Flex>
-        <ModeNote icon={<CalendarClock size={14} />}>
-          The lead chooses a time from the selected attorney's availability —
-          they'll receive a link to pick the slot that works for them.
-        </ModeNote>
+        {urgent ? (
+          <ModeNote icon={<CalendarClock size={14} />}>
+            The lead skips the slot queue. The consultation is scheduled
+            automatically for the earliest moment — if a fee applies, the time
+            is set when they pay and confirmation follows immediately.
+          </ModeNote>
+        ) : (
+          <ModeNote icon={<CalendarClock size={14} />}>
+            The lead chooses a time from the selected attorney's availability —
+            they'll receive a link to pick the slot that works for them.
+          </ModeNote>
+        )}
         <Box mt="12px">
           <StepFieldLabel>Consultation length</StepFieldLabel>
           <HStack gap="8px" wrap="wrap">
@@ -2505,11 +3536,12 @@ function ReviewStep({
   locationLabel,
   notifyChannels,
   notes,
+  urgent,
   feeSettings,
   feeAmount,
   onFeeAmountChange,
 }: {
-  lead: Lead;
+  lead: { name: string };
   duration: string;
   consultationType: string;
   mode: ConsultationMode;
@@ -2518,6 +3550,7 @@ function ReviewStep({
   locationLabel: string;
   notifyChannels: ("email" | "sms")[];
   notes: string;
+  urgent: boolean;
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
@@ -2529,6 +3562,9 @@ function ReviewStep({
 
   const charges = Boolean(feeSettings?.chargesFee);
   const structure = feeSettings?.feeStructure;
+  // Urgent bookings let the admin set the amount (urgency surcharge) even when
+  // the firm's structure isn't custom-per-case-type.
+  const feeEditable = structure === "custom_per_case_type" || urgent;
 
   return (
     <Stack gap="16px" pt="12px">
@@ -2541,6 +3577,15 @@ function ReviewStep({
         <SummaryItem label="Consultation type">{consultationType}</SummaryItem>
         {mode === "in_person" ? (
           <SummaryItem label="Location">{locationLabel}</SummaryItem>
+        ) : null}
+        <SummaryItem label="Scheduling">
+          {urgent ? "Urgent — schedule now" : "Lead picks a time"}
+        </SummaryItem>
+        {urgent ? (
+          <SummaryItem label="Scheduled time">
+            ASAP — set automatically{" "}
+            {charges ? "after payment" : "on confirmation"}
+          </SummaryItem>
         ) : null}
         <SummaryItem label="Duration">{duration}</SummaryItem>
         <SummaryItem label="Attorney">{attorney}</SummaryItem>
@@ -2594,7 +3639,7 @@ function ReviewStep({
                 <Text fontSize="14px" color="fg.muted">
                   $
                 </Text>
-                {structure === "custom_per_case_type" ? (
+                {feeEditable ? (
                   <Input
                     type="number"
                     min={0}
@@ -2639,8 +3684,9 @@ function ReviewStep({
             >
               <Info size={14} />
               <Text m="0">
-                A payment link will be included in the client confirmation email.
-                Payment goes to the firm's operating account.
+                {urgent
+                  ? "A payment link will be emailed to the client; as soon as they pay they'll be connected with the attorney. Payment goes to the firm's operating account."
+                  : "A payment link will be included in the client confirmation email. Payment goes to the firm's operating account."}
               </Text>
             </HStack>
           </>

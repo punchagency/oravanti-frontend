@@ -1,4 +1,5 @@
 import { API } from ".";
+import { dayjs, formatTime, guessTimezone } from "@/utils/date";
 
 export type LeadSource =
   | "education_flywheel"
@@ -97,14 +98,19 @@ export type ConflictCheck = {
 export type Consultation = {
   id: string;
   leadId: string;
-  scheduledAt: string;
+  parentConsultationId: string | null;
+  scheduledAt: string | null;
   duration: number;
   mode: "video" | "in_person" | "phone_call";
+  isUrgent: boolean;
   leadAttorneyId: string | null;
   videoLink: string | null;
-  status: "scheduled" | "in_progress" | "completed" | "cancelled" | "no_show";
+  status: ConsultationStatus;
+  feeStatus: "none" | "unpaid" | "paid" | "waived";
   preConsultationNotes: string | null;
   attorneyNotes: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
   outcome: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up" | null;
   createdAt: string;
   updatedAt: string;
@@ -127,6 +133,8 @@ export type FeeAgreement = {
 export type LeadDetail = Lead & {
   conflictCheck: ConflictCheck | null;
   consultation: Consultation | null;
+  // Prior consultations (follow-ups / re-schedules), newest first.
+  consultationHistory?: Consultation[];
   feeAgreement: FeeAgreement | null;
 };
 
@@ -267,6 +275,7 @@ export const createLead = async (data: {
   situationSummary?: string;
   intakeAdversePartyName?: string;
   intakeAdversePartyEmail?: string;
+  timezone?: string;
 }): Promise<Lead> => {
   const res = await API.post("/leads", data);
   return res.data.data;
@@ -329,10 +338,17 @@ export const initiateConsultation = async (
     feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
+    // Urgent (admin fast-track): auto-scheduled ASAP, skips the slot queue.
+    urgent?: boolean;
+    // Set when this consultation is a follow-up of a prior completed one.
+    parentConsultationId?: string;
   },
 ) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
-  return res.data.data as { consultation: Consultation; bookingToken: string };
+  return res.data.data as {
+    consultation: Consultation;
+    bookingToken: string;
+  };
 };
 
 export const updateConsultation = async (
@@ -352,11 +368,79 @@ export const updateConsultation = async (
   return res.data.data;
 };
 
+export const cancelConsultation = async (
+  id: string,
+  data: { reason?: string } = {},
+): Promise<Consultation> => {
+  const res = await API.post(`/leads/${id}/consultation/cancel`, data);
+  return res.data.data;
+};
+
+export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly" | "contingency";
+export type FeePaymentPlan = "pay_in_full" | "two_payments" | "installments";
+export type GovernmentFeesPaidBy = "client_upfront" | "firm_advanced";
+
+export type GenerateFeeAgreementInput = {
+  attorneyFee: {
+    type: AttorneyFeeType;
+    flatRate?: number;
+    hourlyRate?: number;
+    // Settlement percentage, combinable with any type; required for
+    // pure-contingency agreements.
+    contingencyPercent?: number;
+  };
+  governmentFees: { name: string; amount: number }[];
+  governmentFeesPaidBy: GovernmentFeesPaidBy;
+  // Optional: omitted when nothing is due upfront (backend defaults apply).
+  paymentPlan?: FeePaymentPlan;
+  applyConsultationCredit: boolean;
+  accountSplit?: { operating: number; trust: number };
+};
+
+export type FeeAgreementDocument = {
+  docRef: string;
+  datePrepared: string;
+  firm: {
+    name: string;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zipCode: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+  attorneyName: string;
+  client: { name: string; matterType: string };
+  // amount null renders as "—" (contingency line); deferred lines are excluded
+  // from totalDue.
+  feeLines: { description: string; amount: number | null; deferred?: boolean }[];
+  totalDue: number;
+  allocation: { operating: number; trust: number; total: number };
+  paymentPlan: FeePaymentPlan;
+  applyConsultationCredit: boolean;
+  consultationFeeAmount: number | null;
+  contingencyPercent: number | null;
+  governmentFeesPaidBy: GovernmentFeesPaidBy;
+  noUpfrontDue: boolean;
+};
+
+export type FeeAgreementPreview = {
+  agreement: FeeAgreement;
+  document: FeeAgreementDocument;
+};
+
 export const generateFeeAgreement = async (
   id: string,
-  data: { agreementType: string; generatedFrom?: "manual" | "questionnaire_auto" },
-): Promise<FeeAgreement> => {
+  data: GenerateFeeAgreementInput,
+): Promise<FeeAgreementPreview> => {
   const res = await API.post(`/leads/${id}/generate-agreement`, data);
+  return res.data.data;
+};
+
+export const getFeeAgreementPreview = async (
+  agreementId: string,
+): Promise<FeeAgreementPreview> => {
+  const res = await API.get(`/agreements/${agreementId}/preview`);
   return res.data.data;
 };
 
@@ -423,23 +507,10 @@ export const conflictStatusLabels: Record<ConflictCheck["status"], string> = {
 };
 
 export function formatReceivedDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  // Viewer-local date (stored value is UTC).
+  return dayjs.utc(dateStr).tz(guessTimezone()).format("MMMM D, YYYY");
 }
 
 export function formatReceivedDateDetail(dateStr: string): string {
-  const d = new Date(dateStr);
-  const date = d.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-  const time = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${date} - ${time}`;
+  return `${formatReceivedDate(dateStr)} - ${formatTime(dateStr)}`;
 }

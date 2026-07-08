@@ -1,9 +1,11 @@
 import {
   advanceLeadStage,
+  cancelConsultation,
   initiateConsultation,
   createLead,
   generateFeeAgreement,
   getConsultations,
+  getFeeAgreementPreview,
   getLeadById,
   getLeads,
   getLeadsStageCount,
@@ -196,10 +198,15 @@ export function useInitiateConsultation() {
       id: string;
       data: Parameters<typeof initiateConsultation>[1];
     }) => initiateConsultation(id, data),
-    onSuccess: (_, { id }) => {
-      toast.success("Consultation request sent to the lead");
+    onSuccess: (_res, { data, id }) => {
+      toast.success(
+        data.urgent
+          ? "Consultation booked"
+          : "Consultation request sent to the lead",
+      );
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["consultations"] });
       qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
     },
     onError: (err: APIError) => {
@@ -233,6 +240,26 @@ export function useUpdateConsultation() {
   });
 }
 
+export function useCancelConsultation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      cancelConsultation(id, { reason }),
+    onSuccess: (_, { id }) => {
+      toast.success("Consultation cancelled");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["consultations"] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to cancel consultation",
+      );
+    },
+  });
+}
+
 export function useGenerateFeeAgreement() {
   const qc = useQueryClient();
   return useMutation({
@@ -253,6 +280,17 @@ export function useGenerateFeeAgreement() {
         err.response?.data?.message ?? "Failed to generate fee agreement",
       );
     },
+  });
+}
+
+export function useFeeAgreementPreview(
+  agreementId: string | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["feeAgreementPreview", agreementId],
+    queryFn: () => getFeeAgreementPreview(agreementId as string),
+    enabled: enabled && Boolean(agreementId),
   });
 }
 

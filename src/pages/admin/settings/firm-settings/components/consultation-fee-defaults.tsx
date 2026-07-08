@@ -18,6 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { dayjs, formatDateTime } from "@/utils/date";
 
 const FEE_STRUCTURE_OPTIONS: {
   value: ConsultationFeeStructure;
@@ -29,10 +30,9 @@ const FEE_STRUCTURE_OPTIONS: {
 ];
 
 function formatLastSaved(updatedAt: string | null) {
-  if (!updatedAt) return "Never";
-  const date = new Date(updatedAt);
-  if (Number.isNaN(date.getTime())) return "Never";
-  return date.toLocaleString();
+  if (!updatedAt || !dayjs(updatedAt).isValid()) return "Never";
+  // Viewer-local timestamp with a zone label.
+  return formatDateTime(updatedAt);
 }
 
 export function ConsultationFeeDefaults() {

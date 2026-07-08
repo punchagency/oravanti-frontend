@@ -12,9 +12,12 @@ export type ConsultationSlot = {
 export type ConsultationBooking = {
   firmName: string | null;
   leadName: string | null;
+  firmTimezone: string;
+  leadTimezone: string | null;
   mode: ConsultationBookingMode;
   durationMinutes: number;
   requiresPayment: boolean;
+  isUrgent: boolean;
   fee: { status: ConsultationFeeStatus; amount: number | null };
   scheduledAt: string | null;
   bookingStatus: string | null;
@@ -37,4 +40,14 @@ export async function selectConsultationSlot(token: string, start: string) {
     { start },
   );
   return res.data.data as { success: boolean; scheduledAt: string };
+}
+
+// Reconcile the lead's stored timezone with their browser-detected one when the
+// lead confirms the prompt on the booking page.
+export async function updateBookingTimezone(token: string, timezone: string) {
+  const res = await httpClient.patch(
+    `/consultation-booking/${token}/timezone`,
+    { timezone },
+  );
+  return res.data.data as { timezone: string };
 }

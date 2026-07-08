@@ -1,3 +1,4 @@
+import { dayjs, guessTimezone } from "@/utils/date";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useInvitationsList } from "@/hooks/use-invitations-list";
@@ -77,11 +78,8 @@ function getInvitationStatusLabel(status: string): string {
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  // Viewer-local date (stored value is UTC).
+  return dayjs.utc(dateStr).tz(guessTimezone()).format("MMM D, YYYY");
 }
 
 export default function Invitations() {

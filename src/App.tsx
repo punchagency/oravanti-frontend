@@ -39,6 +39,7 @@ import Step3TosPage from "./pages/onboarding/step-3-tos";
 import ResetPassword from "./pages/reset-password";
 import { QuestionnairePortalPage } from "./pages/questionnaire-portal";
 import { ConsultationBookingPage } from "./pages/consultation-booking";
+import { AgreementSigningPage } from "./pages/agreement-signing";
 import VerifyEmailNoticePage from "./pages/verify-email";
 
 const router = createBrowserRouter(
@@ -66,6 +67,9 @@ const router = createBrowserRouter(
         path="/consultation-booking/:token"
         element={<ConsultationBookingPage />}
       />
+
+      {/* Public fee-agreement signing page (token-gated, no auth) */}
+      <Route path="/sign/:token" element={<AgreementSigningPage />} />
 
       <Route element={<AuthGuard />}>
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
