@@ -107,8 +107,8 @@ export function OverviewView() {
     ? allLeadsData
     : (allLeadsData?.leads ?? []);
 
-  const { data: casesData } = useCases();
-  const allCases = casesData ?? [];
+  const { data: casesResponse } = useCases();
+  const allCases = casesResponse?.data ?? [];
 
   const { data: staffData } = useStaff();
   const allStaff = staffData ?? [];

@@ -4,6 +4,8 @@ import { AdminDashboard } from "@/pages/admin/dashboard";
 import { IntakePipelinePage } from "@/pages/admin/intake";
 import { CasesPage } from "@/pages/admin/cases";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
+import { MyTasksPage } from "@/pages/admin/my-tasks";
+import { ReviewQueuePage } from "@/pages/admin/review-queue";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
 import { NotFoundPage } from "@/pages/not-found";
@@ -126,6 +128,8 @@ const router = createBrowserRouter(
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
 
           <Route path="cases" element={<CasesPage />} />
+          <Route path="cases/my-tasks" element={<MyTasksPage />} />
+          <Route path="cases/review-queue" element={<ReviewQueuePage />} />
 
           <Route path="staff-management" element={<StaffAndUsersPage />}>
             <Route index element={<Staff />} />
