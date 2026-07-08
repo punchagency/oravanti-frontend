@@ -1627,12 +1627,17 @@ function CancelConsultationDialog({
 
 const feeFormSchema = z
   .object({
-    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly"]),
+    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly", "contingency"]),
     flatRate: z.string(),
     hourlyRate: z.string(),
+    // "Add settlement percentage" toggle for the upfront fee types; pure
+    // contingency always carries a percentage.
+    addContingency: z.boolean(),
+    contingencyPercent: z.string(),
     governmentFees: z.array(
       z.object({ name: z.string(), amount: z.string() }),
     ),
+    governmentFeesPaidBy: z.enum(["client_upfront", "firm_advanced"]),
     paymentPlan: z.enum(["pay_in_full", "two_payments", "installments"]),
     applyConsultationCredit: z.boolean(),
     operating: z.string(),
@@ -1658,6 +1663,15 @@ const feeFormSchema = z
         path: ["hourlyRate"],
         message: "Enter the hourly rate",
       });
+    if (val.attorneyFeeType === "contingency" || val.addContingency) {
+      const pct = Number(val.contingencyPercent);
+      if (!val.contingencyPercent.trim() || !(pct > 0) || pct > 100)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["contingencyPercent"],
+          message: "Enter a percentage between 0 and 100",
+        });
+    }
     val.governmentFees.forEach((g, i) => {
       if (!g.name.trim())
         ctx.addIssue({
@@ -1680,6 +1694,14 @@ const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] =
   { value: "flat", label: "Flat fee" },
   { value: "hourly", label: "Hourly" },
   { value: "flat_hourly", label: "Flat + hourly" },
+  { value: "contingency", label: "Contingency" },
+];
+const GOV_FEES_PAID_BY_OPTIONS: {
+  value: FeeForm["governmentFeesPaidBy"];
+  label: string;
+}[] = [
+  { value: "client_upfront", label: "Client pays upfront" },
+  { value: "firm_advanced", label: "Firm advances (from settlement)" },
 ];
 const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] = [
   { value: "pay_in_full", label: "Pay in full" },
@@ -1717,7 +1739,10 @@ export function FeeAgreementForm({
       attorneyFeeType: "flat",
       flatRate: "",
       hourlyRate: "",
+      addContingency: false,
+      contingencyPercent: "",
       governmentFees: [{ name: "", amount: "" }],
+      governmentFeesPaidBy: "client_upfront",
       paymentPlan: "pay_in_full",
       applyConsultationCredit: false,
       operating: "",
@@ -1734,16 +1759,29 @@ export function FeeAgreementForm({
   const paymentPlan = useWatch({ control, name: "paymentPlan" });
   const applyCredit = useWatch({ control, name: "applyConsultationCredit" });
   const flatRate = useWatch({ control, name: "flatRate" });
+  const addContingency = useWatch({ control, name: "addContingency" });
   const govFees = useWatch({ control, name: "governmentFees" });
+  const governmentFeesPaidBy = useWatch({
+    control,
+    name: "governmentFeesPaidBy",
+  });
   const operatingField = useWatch({ control, name: "operating" });
   const trustField = useWatch({ control, name: "trust" });
 
   const attorneyTotal =
-    attorneyFeeType === "hourly" ? 0 : Number(flatRate || 0);
+    attorneyFeeType === "hourly" || attorneyFeeType === "contingency"
+      ? 0
+      : Number(flatRate || 0);
   const govTotal = (govFees ?? []).reduce(
     (sum, g) => sum + Number(g?.amount || 0),
     0,
   );
+  const hasContingency =
+    attorneyFeeType === "contingency" || addContingency;
+  // Nothing due upfront: pure contingency and no client-paid government fees.
+  const noUpfrontDue =
+    attorneyFeeType === "contingency" &&
+    (govTotal === 0 || governmentFeesPaidBy === "firm_advanced");
 
   // Account split auto-fills from the fees until the admin edits a field.
   const [operatingTouched, setOperatingTouched] = useState(false);
@@ -1751,31 +1789,45 @@ export function FeeAgreementForm({
   const operatingValue = operatingTouched
     ? operatingField
     : String(attorneyTotal);
-  const trustValue = trustTouched ? trustField : String(govTotal);
+  const trustValue = trustTouched
+    ? trustField
+    : String(governmentFeesPaidBy === "client_upfront" ? govTotal : 0);
 
   const onValid = (data: FeeForm) => {
+    const withContingency =
+      data.attorneyFeeType === "contingency" || data.addContingency;
     onSubmit({
       attorneyFee: {
         type: data.attorneyFeeType,
         flatRate:
-          data.attorneyFeeType !== "hourly"
+          data.attorneyFeeType !== "hourly" &&
+          data.attorneyFeeType !== "contingency"
             ? Number(data.flatRate || 0)
             : undefined,
         hourlyRate:
-          data.attorneyFeeType !== "flat"
+          data.attorneyFeeType !== "flat" &&
+          data.attorneyFeeType !== "contingency"
             ? Number(data.hourlyRate || 0)
             : undefined,
+        contingencyPercent: withContingency
+          ? Number(data.contingencyPercent)
+          : undefined,
       },
       governmentFees: data.governmentFees.map((g) => ({
         name: g.name.trim(),
         amount: Number(g.amount || 0),
       })),
-      paymentPlan: data.paymentPlan,
+      governmentFeesPaidBy: data.governmentFeesPaidBy,
+      // Payment plan and account split don't apply when nothing is due
+      // upfront — the backend defaults fill them.
+      paymentPlan: noUpfrontDue ? undefined : data.paymentPlan,
       applyConsultationCredit: data.applyConsultationCredit,
-      accountSplit: {
-        operating: Number(operatingValue || 0),
-        trust: Number(trustValue || 0),
-      },
+      accountSplit: noUpfrontDue
+        ? undefined
+        : {
+            operating: Number(operatingValue || 0),
+            trust: Number(trustValue || 0),
+          },
     });
   };
 
@@ -1798,7 +1850,8 @@ export function FeeAgreementForm({
               ))}
             </HStack>
             <HStack gap="10px" wrap="wrap">
-              {attorneyFeeType !== "hourly" ? (
+              {attorneyFeeType !== "hourly" &&
+              attorneyFeeType !== "contingency" ? (
                 <HStack gap="6px">
                   <Text fontSize="14px" color="fg.muted">
                     $
@@ -1815,7 +1868,8 @@ export function FeeAgreementForm({
                   <MutedText>flat rate</MutedText>
                 </HStack>
               ) : null}
-              {attorneyFeeType !== "flat" ? (
+              {attorneyFeeType !== "flat" &&
+              attorneyFeeType !== "contingency" ? (
                 <HStack gap="6px">
                   <Text fontSize="14px" color="fg.muted">
                     $
@@ -1832,7 +1886,38 @@ export function FeeAgreementForm({
                   <MutedText>/ hour</MutedText>
                 </HStack>
               ) : null}
+              {hasContingency ? (
+                <HStack gap="6px">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    placeholder="0"
+                    maxW="90px"
+                    {...fieldStyles}
+                    {...register("contingencyPercent")}
+                  />
+                  <MutedText>% of settlement</MutedText>
+                </HStack>
+              ) : null}
             </HStack>
+            {attorneyFeeType !== "contingency" ? (
+              <Box mt="10px">
+                <CheckOption
+                  checked={addContingency}
+                  onToggle={() =>
+                    setValue("addContingency", !addContingency)
+                  }
+                  label="Add settlement percentage (contingency)"
+                />
+              </Box>
+            ) : (
+              <MutedText>
+                No upfront attorney fee — the firm is paid the percentage of
+                the settlement above.
+              </MutedText>
+            )}
           </Box>
 
           {/* Government fees */}
@@ -1900,23 +1985,44 @@ export function FeeAgreementForm({
               <Plus size={13} />
               Add fee row
             </chakra.button>
+            <Box mt="10px">
+              <MutedText>Paid by</MutedText>
+              <HStack gap="8px" wrap="wrap" mt="4px">
+                {GOV_FEES_PAID_BY_OPTIONS.map((o) => (
+                  <ChoiceChip
+                    key={o.value}
+                    active={governmentFeesPaidBy === o.value}
+                    onClick={() => setValue("governmentFeesPaidBy", o.value)}
+                  >
+                    {o.label}
+                  </ChoiceChip>
+                ))}
+              </HStack>
+            </Box>
           </Box>
 
-          {/* Payment plan */}
-          <Box>
-            <FeeFieldLabel>Payment plan</FeeFieldLabel>
-            <HStack gap="8px" wrap="wrap">
-              {PAYMENT_PLAN_OPTIONS.map((o) => (
-                <ChoiceChip
-                  key={o.value}
-                  active={paymentPlan === o.value}
-                  onClick={() => setValue("paymentPlan", o.value)}
-                >
-                  {o.label}
-                </ChoiceChip>
-              ))}
-            </HStack>
-          </Box>
+          {noUpfrontDue ? (
+            <MutedText>
+              No upfront payment is required — payment plan and account split
+              do not apply.
+            </MutedText>
+          ) : (
+            /* Payment plan */
+            <Box>
+              <FeeFieldLabel>Payment plan</FeeFieldLabel>
+              <HStack gap="8px" wrap="wrap">
+                {PAYMENT_PLAN_OPTIONS.map((o) => (
+                  <ChoiceChip
+                    key={o.value}
+                    active={paymentPlan === o.value}
+                    onClick={() => setValue("paymentPlan", o.value)}
+                  >
+                    {o.label}
+                  </ChoiceChip>
+                ))}
+              </HStack>
+            </Box>
+          )}
 
           {/* Apply consultation credit */}
           <CheckOption
@@ -1930,7 +2036,7 @@ export function FeeAgreementForm({
           />
 
           {/* Account split */}
-          <Box>
+          <Box display={noUpfrontDue ? "none" : undefined}>
             <FeeFieldLabel>Account split</FeeFieldLabel>
             <HStack gap="10px" wrap="wrap" align="flex-start">
               <Box flex="1" minW="180px">
