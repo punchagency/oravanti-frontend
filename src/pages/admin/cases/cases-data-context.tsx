@@ -1,6 +1,10 @@
 import { useDebounce } from "@uidotdev/usehooks";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
-import { getPracticeAreaByValue } from "@/utils/practice-areas";
+import {
+  useCases,
+  type PaginationMeta,
+} from "@/hooks/use-cases";
+import { getPracticeAreaByValue, type SpecialtyType } from "@/utils/practice-areas";
 import { parseAsString, useQueryState } from "nuqs";
 import {
   createContext,
@@ -9,7 +13,39 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { mockCases } from "./components/cases-table";
+import type { CaseRow } from "@/api/cases";
+
+const SPECIALTY_MAP: Record<string, SpecialtyType> = {
+  "Family Law": "family",
+  "Business Law": "business",
+  "Estate Planning": "estate",
+  "Employment / Labor Law": "employment",
+  "Real Estate Law": "realestate",
+  "Criminal Defense": "criminal",
+  "Personal Injury": "personalinjury",
+  "Personal Injury Law": "personalinjury",
+};
+
+function mapPracticeArea(name: string): SpecialtyType {
+  for (const [key, val] of Object.entries(SPECIALTY_MAP)) {
+    if (name.toLowerCase().includes(key.toLowerCase())) return val;
+  }
+  return "immigration";
+}
+
+function toCase(row: CaseRow) {
+  return {
+    id: row.id,
+    clientName: row.client?.name ?? "",
+    caseRef: row.caseNumber,
+    caseType: row.caseType?.name ?? "",
+    stage: row.caseType?.subcategory?.name ?? "Filed",
+    assignedTeam: row.assignee?.name ?? row.practiceArea?.name ?? "",
+    deadline: row.filingDate ?? undefined,
+    status: row.status,
+    specialty: mapPracticeArea(row.practiceArea?.name ?? ""),
+  };
+}
 
 interface Counts {
   active: number;
@@ -19,9 +55,10 @@ interface Counts {
 }
 
 interface CasesDataContextValue {
-  filteredCases: typeof mockCases;
-  paginatedCases: typeof mockCases;
+  filteredCases: ReturnType<typeof toCase>[];
+  paginatedCases: ReturnType<typeof toCase>[];
   counts: Counts;
+  isLoading: boolean;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   statusFilter: string;
@@ -39,7 +76,7 @@ interface CasesDataContextValue {
   currentPage: number;
   pageLimit: number;
   setPagination: ReturnType<typeof usePaginationQueryStates>["setPagination"];
-  pagination: { total: number; limit: number; offset: number };
+  pagination: PaginationMeta;
 }
 
 const CasesDataContext = createContext<CasesDataContextValue | null>(null);
@@ -102,80 +139,56 @@ export function CasesDataProvider({ children }: { children: ReactNode }) {
     [setTeamFilter, setPagination],
   );
 
-  const filteredCases = useMemo(() => {
-    let result = [...mockCases];
+  // ── Server-side params (all filters + pagination sent to backend) ────
 
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.clientName.toLowerCase().includes(searchLower) ||
-          c.caseRef.toLowerCase().includes(searchLower) ||
-          c.caseType.toLowerCase().includes(searchLower),
-      );
-    }
+  const params = useMemo(() => {
+    const p: Record<string, string | number | undefined> = {
+      page: currentPage,
+      limit: pageLimit,
+    };
 
-    if (statusFilter) {
-      result = result.filter((c) => c.status === statusFilter);
-    }
+    if (debouncedSearch) p.search = debouncedSearch;
+    if (statusFilter) p.status = statusFilter;
 
     if (practiceAreaFilter) {
-      const practiceArea = getPracticeAreaByValue(practiceAreaFilter);
-      if (practiceArea) {
-        result = result.filter((c) => c.specialty === practiceArea.specialty);
-      }
+      const pa = getPracticeAreaByValue(practiceAreaFilter);
+      if (pa) p.practiceAreaName = pa.label;
     }
 
-    if (caseTypeFilter) {
-      result = result.filter((c) =>
-        c.caseType.toLowerCase().includes(caseTypeFilter.toLowerCase()),
-      );
-    }
+    if (caseTypeFilter) p.caseTypeName = caseTypeFilter;
+    if (stageFilter) p.subcategoryName = stageFilter;
+    if (teamFilter) p.assigneeName = teamFilter;
 
-    if (stageFilter) {
-      result = result.filter((c) =>
-        c.stage.toLowerCase().includes(stageFilter.toLowerCase()),
-      );
-    }
+    return p as any;
+  }, [debouncedSearch, statusFilter, practiceAreaFilter, caseTypeFilter, stageFilter, teamFilter, currentPage, pageLimit]);
 
-    if (teamFilter) {
-      result = result.filter((c) =>
-        c.assignedTeam.toLowerCase().includes(teamFilter.toLowerCase()),
-      );
-    }
+  const { data: response, isLoading: apiLoading } = useCases(params);
 
-    result.sort((a, b) => {
-      const comparison = a.clientName.localeCompare(b.clientName);
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
+  const apiCases = response?.data;
+  const pagination = response?.pagination ?? { total: 0, limit: pageLimit, offset: 0 };
 
-    return result;
-  }, [debouncedSearch, statusFilter, practiceAreaFilter, caseTypeFilter, stageFilter, teamFilter, sortDirection]);
+  const rawCases = apiCases ?? [];
 
-  const paginatedCases = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageLimit;
-    return filteredCases.slice(startIndex, startIndex + pageLimit);
-  }, [filteredCases, currentPage, pageLimit]);
+  const allCases = useMemo(() => rawCases.map(toCase), [rawCases]);
 
+  const isLoading = apiLoading && (!apiCases || apiCases.length === 0);
+
+  // Counts computed from full organization data (unfiltered)
+  // For now, we keep client-side counts since we don't have a dedicated counts endpoint
   const counts = useMemo(() => ({
-    active: mockCases.filter((c) => c.status === "Active").length,
-    rfe: mockCases.filter((c) => c.status === "RFE").length,
-    pending: mockCases.filter((c) => c.status === "Pending" || c.status === "Interview").length,
-    closed: mockCases.filter((c) => c.status === "Closed").length,
-  }), []);
-
-  const pagination = useMemo(() => ({
-    total: filteredCases.length,
-    limit: pageLimit,
-    offset: (currentPage - 1) * pageLimit,
-  }), [filteredCases.length, pageLimit, currentPage]);
+    active: allCases.filter((c) => c.status.toLowerCase() === "active").length,
+    rfe: allCases.filter((c) => c.status.toLowerCase() === "rfe").length,
+    pending: allCases.filter((c) => c.status.toLowerCase() === "pending" || c.status.toLowerCase() === "interview").length,
+    closed: allCases.filter((c) => c.status.toLowerCase() === "closed").length,
+  }), [allCases]);
 
   return (
     <CasesDataContext.Provider
       value={{
-        filteredCases,
-        paginatedCases,
+        filteredCases: allCases,
+        paginatedCases: allCases,
         counts,
+        isLoading,
         searchQuery,
         setSearchQuery: setSearchQueryAndResetPage,
         statusFilter,

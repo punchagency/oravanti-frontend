@@ -1,12 +1,12 @@
 import { Stack, Text } from "@chakra-ui/react";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { CasesFilters } from "../components/cases-filters";
 import { CasesTable } from "../components/cases-table";
 import { CasesMobileCard } from "../components/cases-mobile-card";
-import { PaginationControls } from "../components/pagination-controls";
 import { useCasesData } from "../cases-data-context";
 
 export function AllMattersTab() {
-  const { filteredCases, paginatedCases, currentPage, pageLimit, setPagination } =
+  const { paginatedCases, isLoading, currentPage, pageLimit, pagination, setPagination } =
     useCasesData();
 
   return (
@@ -14,7 +14,7 @@ export function AllMattersTab() {
       <CasesFilters />
 
       {/* Desktop table */}
-      <CasesTable cases={paginatedCases} />
+      <CasesTable cases={paginatedCases} isLoading={isLoading} />
 
       {/* Mobile cards */}
       <Stack gap={3} display={{ base: "flex", lg: "none" }}>
@@ -35,8 +35,8 @@ export function AllMattersTab() {
       </Stack>
 
       <PaginationControls
-        total={filteredCases.length}
-        page={currentPage}
+        total={pagination.total}
+        currentPage={currentPage}
         limit={pageLimit}
         onPageChange={(page) => setPagination({ currentPage: page })}
         onLimitChange={(newLimit) => {
