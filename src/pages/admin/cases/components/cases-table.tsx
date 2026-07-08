@@ -76,22 +76,7 @@ function CaseActionMenu({ caseItem }: { caseItem: Case }) {
 
   return (
     <CaseDetailsDrawer
-      caseData={{
-        id: caseItem.id,
-        clientName: caseItem.clientName,
-        caseRef: caseItem.caseRef,
-        caseType: { id: caseItem.id, code: caseItem.caseType, name: caseItem.caseType },
-        practiceArea: caseItem.specialty ?? "",
-        stage: caseItem.stage,
-        stageDetail: { phase: "", workflowTitle: "", stepTitle: caseItem.stage, stepStatus: "in_progress" },
-        status: caseItem.status,
-        assignedTeam: caseItem.assignedTeam ? { id: caseItem.id, name: caseItem.assignedTeam } : null,
-        assignedStaff: null,
-        filingDate: "",
-        deadline: caseItem.deadline ?? "",
-        courtRef: "",
-        caseProgress: 50,
-      }}
+      caseId={caseItem.id}
       open={open}
       onOpenChange={({ open }) => setOpen(open)}
     >
