@@ -39,6 +39,7 @@ export type Lead = {
   intakeAdversePartyEmail: string | null;
   status: LeadStatus;
   pipelineStage: PipelineStage;
+  language?: string | null;
   conflictCheckId: string | null;
   conflictMatches?: ConflictCheckMatch[];
   conflictCheckStatus?: string;
@@ -95,6 +96,8 @@ export type ConflictCheck = {
   supervisorOverrideNotes: string | null;
 };
 
+export type PaymentTiming = "pay_now" | "invoice_after" | "pay_in_person";
+
 export type Consultation = {
   id: string;
   leadId: string;
@@ -103,6 +106,11 @@ export type Consultation = {
   duration: number;
   mode: "video" | "in_person" | "phone_call";
   isUrgent: boolean;
+  isInstant: boolean;
+  paymentTiming: PaymentTiming | null;
+  isEmergency: boolean;
+  emergencyMultiplier: string | null;
+  autoSendQuestionnaire: boolean;
   leadAttorneyId: string | null;
   videoLink: string | null;
   status: ConsultationStatus;
@@ -276,6 +284,7 @@ export const createLead = async (data: {
   intakeAdversePartyName?: string;
   intakeAdversePartyEmail?: string;
   timezone?: string;
+  language?: string;
 }): Promise<Lead> => {
   const res = await API.post("/leads", data);
   return res.data.data;
@@ -288,7 +297,16 @@ export const updateLeadStatus = async (id: string, status: string): Promise<Lead
 
 export const updateLead = async (
   id: string,
-  data: { notes?: string },
+  data: Partial<{
+    name: string;
+    email: string;
+    phone: string;
+    practiceAreaId: string;
+    caseTypeId: string;
+    language: string;
+    notes: string;
+    timezone: string;
+  }>,
 ): Promise<Lead> => {
   const res = await API.patch(`/leads/${id}`, data);
   return res.data.data;
@@ -342,6 +360,12 @@ export const initiateConsultation = async (
     urgent?: boolean;
     // Set when this consultation is a follow-up of a prior completed one.
     parentConsultationId?: string;
+    // Instant consultation: begins now (or at payment time for pay_now).
+    startNow?: boolean;
+    paymentTiming?: PaymentTiming;
+    isEmergency?: boolean;
+    emergencyMultiplier?: number;
+    autoSendQuestionnaire?: boolean;
   },
 ) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
@@ -362,6 +386,8 @@ export const updateConsultation = async (
       | "cancelled"
       | "no_show";
     outcome?: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up";
+    // Staff marks a pay-in-person fee as received.
+    feeStatus?: "paid";
   },
 ): Promise<Consultation> => {
   const res = await API.patch(`/leads/${id}/consultation`, data);
