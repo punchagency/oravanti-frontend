@@ -4,8 +4,11 @@ import {
   CheckCircle,
   Circle,
   Play,
+  Send,
   Shuffle,
+  ThumbsUp,
   UserPlus,
+  XCircle,
 } from "lucide-react";
 
 const iconProps = { size: 13 };
@@ -20,6 +23,12 @@ export function EventIcon({ eventType }: { eventType: string }) {
       return <Shuffle {...iconProps} />;
     case "step_activated":
       return <ArrowRight {...iconProps} />;
+    case "step_submitted_for_review":
+      return <Send {...iconProps} />;
+    case "step_approved":
+      return <ThumbsUp {...iconProps} />;
+    case "step_rejected":
+      return <XCircle {...iconProps} />;
     case "step_completed":
       return <CheckCircle {...iconProps} />;
     case "module_activated":
@@ -38,10 +47,16 @@ export function eventColor(eventType: string): string {
     case "step_completed":
     case "module_completed":
       return "green.500";
+    case "step_approved":
+      return "green.500";
     case "step_assigned":
     case "step_assigned_override":
     case "step_reassigned":
       return "blue.500";
+    case "step_submitted_for_review":
+      return "yellow.500";
+    case "step_rejected":
+      return "red.500";
     case "step_activated":
     case "module_activated":
       return "purple.500";
