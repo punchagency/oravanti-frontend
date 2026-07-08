@@ -64,14 +64,11 @@ import type {
 } from "@/api/leads";
 import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
-import { dayjs, formatTime, wallClockToUtcIso } from "@/utils/date";
-import { useFirmTimezone } from "@/hooks/useTimezone";
+import { dayjs, formatTime } from "@/utils/date";
 import { formatReceivedDate } from "@/api/leads";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
-import { DateField } from "@/components/ui/date-field";
-import { TimeField } from "@/components/ui/time-field";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import {
   useAdvanceLeadStage,
@@ -1630,12 +1627,17 @@ function CancelConsultationDialog({
 
 const feeFormSchema = z
   .object({
-    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly"]),
+    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly", "contingency"]),
     flatRate: z.string(),
     hourlyRate: z.string(),
+    // "Add settlement percentage" toggle for the upfront fee types; pure
+    // contingency always carries a percentage.
+    addContingency: z.boolean(),
+    contingencyPercent: z.string(),
     governmentFees: z.array(
       z.object({ name: z.string(), amount: z.string() }),
     ),
+    governmentFeesPaidBy: z.enum(["client_upfront", "firm_advanced"]),
     paymentPlan: z.enum(["pay_in_full", "two_payments", "installments"]),
     applyConsultationCredit: z.boolean(),
     operating: z.string(),
@@ -1661,6 +1663,15 @@ const feeFormSchema = z
         path: ["hourlyRate"],
         message: "Enter the hourly rate",
       });
+    if (val.attorneyFeeType === "contingency" || val.addContingency) {
+      const pct = Number(val.contingencyPercent);
+      if (!val.contingencyPercent.trim() || !(pct > 0) || pct > 100)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["contingencyPercent"],
+          message: "Enter a percentage between 0 and 100",
+        });
+    }
     val.governmentFees.forEach((g, i) => {
       if (!g.name.trim())
         ctx.addIssue({
@@ -1683,6 +1694,14 @@ const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] =
   { value: "flat", label: "Flat fee" },
   { value: "hourly", label: "Hourly" },
   { value: "flat_hourly", label: "Flat + hourly" },
+  { value: "contingency", label: "Contingency" },
+];
+const GOV_FEES_PAID_BY_OPTIONS: {
+  value: FeeForm["governmentFeesPaidBy"];
+  label: string;
+}[] = [
+  { value: "client_upfront", label: "Client pays upfront" },
+  { value: "firm_advanced", label: "Firm advances (from settlement)" },
 ];
 const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] = [
   { value: "pay_in_full", label: "Pay in full" },
@@ -1720,7 +1739,10 @@ export function FeeAgreementForm({
       attorneyFeeType: "flat",
       flatRate: "",
       hourlyRate: "",
+      addContingency: false,
+      contingencyPercent: "",
       governmentFees: [{ name: "", amount: "" }],
+      governmentFeesPaidBy: "client_upfront",
       paymentPlan: "pay_in_full",
       applyConsultationCredit: false,
       operating: "",
@@ -1737,16 +1759,29 @@ export function FeeAgreementForm({
   const paymentPlan = useWatch({ control, name: "paymentPlan" });
   const applyCredit = useWatch({ control, name: "applyConsultationCredit" });
   const flatRate = useWatch({ control, name: "flatRate" });
+  const addContingency = useWatch({ control, name: "addContingency" });
   const govFees = useWatch({ control, name: "governmentFees" });
+  const governmentFeesPaidBy = useWatch({
+    control,
+    name: "governmentFeesPaidBy",
+  });
   const operatingField = useWatch({ control, name: "operating" });
   const trustField = useWatch({ control, name: "trust" });
 
   const attorneyTotal =
-    attorneyFeeType === "hourly" ? 0 : Number(flatRate || 0);
+    attorneyFeeType === "hourly" || attorneyFeeType === "contingency"
+      ? 0
+      : Number(flatRate || 0);
   const govTotal = (govFees ?? []).reduce(
     (sum, g) => sum + Number(g?.amount || 0),
     0,
   );
+  const hasContingency =
+    attorneyFeeType === "contingency" || addContingency;
+  // Nothing due upfront: pure contingency and no client-paid government fees.
+  const noUpfrontDue =
+    attorneyFeeType === "contingency" &&
+    (govTotal === 0 || governmentFeesPaidBy === "firm_advanced");
 
   // Account split auto-fills from the fees until the admin edits a field.
   const [operatingTouched, setOperatingTouched] = useState(false);
@@ -1754,31 +1789,45 @@ export function FeeAgreementForm({
   const operatingValue = operatingTouched
     ? operatingField
     : String(attorneyTotal);
-  const trustValue = trustTouched ? trustField : String(govTotal);
+  const trustValue = trustTouched
+    ? trustField
+    : String(governmentFeesPaidBy === "client_upfront" ? govTotal : 0);
 
   const onValid = (data: FeeForm) => {
+    const withContingency =
+      data.attorneyFeeType === "contingency" || data.addContingency;
     onSubmit({
       attorneyFee: {
         type: data.attorneyFeeType,
         flatRate:
-          data.attorneyFeeType !== "hourly"
+          data.attorneyFeeType !== "hourly" &&
+          data.attorneyFeeType !== "contingency"
             ? Number(data.flatRate || 0)
             : undefined,
         hourlyRate:
-          data.attorneyFeeType !== "flat"
+          data.attorneyFeeType !== "flat" &&
+          data.attorneyFeeType !== "contingency"
             ? Number(data.hourlyRate || 0)
             : undefined,
+        contingencyPercent: withContingency
+          ? Number(data.contingencyPercent)
+          : undefined,
       },
       governmentFees: data.governmentFees.map((g) => ({
         name: g.name.trim(),
         amount: Number(g.amount || 0),
       })),
-      paymentPlan: data.paymentPlan,
+      governmentFeesPaidBy: data.governmentFeesPaidBy,
+      // Payment plan and account split don't apply when nothing is due
+      // upfront — the backend defaults fill them.
+      paymentPlan: noUpfrontDue ? undefined : data.paymentPlan,
       applyConsultationCredit: data.applyConsultationCredit,
-      accountSplit: {
-        operating: Number(operatingValue || 0),
-        trust: Number(trustValue || 0),
-      },
+      accountSplit: noUpfrontDue
+        ? undefined
+        : {
+            operating: Number(operatingValue || 0),
+            trust: Number(trustValue || 0),
+          },
     });
   };
 
@@ -1801,7 +1850,8 @@ export function FeeAgreementForm({
               ))}
             </HStack>
             <HStack gap="10px" wrap="wrap">
-              {attorneyFeeType !== "hourly" ? (
+              {attorneyFeeType !== "hourly" &&
+              attorneyFeeType !== "contingency" ? (
                 <HStack gap="6px">
                   <Text fontSize="14px" color="fg.muted">
                     $
@@ -1818,7 +1868,8 @@ export function FeeAgreementForm({
                   <MutedText>flat rate</MutedText>
                 </HStack>
               ) : null}
-              {attorneyFeeType !== "flat" ? (
+              {attorneyFeeType !== "flat" &&
+              attorneyFeeType !== "contingency" ? (
                 <HStack gap="6px">
                   <Text fontSize="14px" color="fg.muted">
                     $
@@ -1835,7 +1886,38 @@ export function FeeAgreementForm({
                   <MutedText>/ hour</MutedText>
                 </HStack>
               ) : null}
+              {hasContingency ? (
+                <HStack gap="6px">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    placeholder="0"
+                    maxW="90px"
+                    {...fieldStyles}
+                    {...register("contingencyPercent")}
+                  />
+                  <MutedText>% of settlement</MutedText>
+                </HStack>
+              ) : null}
             </HStack>
+            {attorneyFeeType !== "contingency" ? (
+              <Box mt="10px">
+                <CheckOption
+                  checked={addContingency}
+                  onToggle={() =>
+                    setValue("addContingency", !addContingency)
+                  }
+                  label="Add settlement percentage (contingency)"
+                />
+              </Box>
+            ) : (
+              <MutedText>
+                No upfront attorney fee — the firm is paid the percentage of
+                the settlement above.
+              </MutedText>
+            )}
           </Box>
 
           {/* Government fees */}
@@ -1903,23 +1985,44 @@ export function FeeAgreementForm({
               <Plus size={13} />
               Add fee row
             </chakra.button>
+            <Box mt="10px">
+              <MutedText>Paid by</MutedText>
+              <HStack gap="8px" wrap="wrap" mt="4px">
+                {GOV_FEES_PAID_BY_OPTIONS.map((o) => (
+                  <ChoiceChip
+                    key={o.value}
+                    active={governmentFeesPaidBy === o.value}
+                    onClick={() => setValue("governmentFeesPaidBy", o.value)}
+                  >
+                    {o.label}
+                  </ChoiceChip>
+                ))}
+              </HStack>
+            </Box>
           </Box>
 
-          {/* Payment plan */}
-          <Box>
-            <FeeFieldLabel>Payment plan</FeeFieldLabel>
-            <HStack gap="8px" wrap="wrap">
-              {PAYMENT_PLAN_OPTIONS.map((o) => (
-                <ChoiceChip
-                  key={o.value}
-                  active={paymentPlan === o.value}
-                  onClick={() => setValue("paymentPlan", o.value)}
-                >
-                  {o.label}
-                </ChoiceChip>
-              ))}
-            </HStack>
-          </Box>
+          {noUpfrontDue ? (
+            <MutedText>
+              No upfront payment is required — payment plan and account split
+              do not apply.
+            </MutedText>
+          ) : (
+            /* Payment plan */
+            <Box>
+              <FeeFieldLabel>Payment plan</FeeFieldLabel>
+              <HStack gap="8px" wrap="wrap">
+                {PAYMENT_PLAN_OPTIONS.map((o) => (
+                  <ChoiceChip
+                    key={o.value}
+                    active={paymentPlan === o.value}
+                    onClick={() => setValue("paymentPlan", o.value)}
+                  >
+                    {o.label}
+                  </ChoiceChip>
+                ))}
+              </HStack>
+            </Box>
+          )}
 
           {/* Apply consultation credit */}
           <CheckOption
@@ -1933,7 +2036,7 @@ export function FeeAgreementForm({
           />
 
           {/* Account split */}
-          <Box>
+          <Box display={noUpfrontDue ? "none" : undefined}>
             <FeeFieldLabel>Account split</FeeFieldLabel>
             <HStack gap="10px" wrap="wrap" align="flex-start">
               <Box flex="1" minW="180px">
@@ -2421,10 +2524,8 @@ const scheduleSchema = z
     notes: z.string(),
     notifyEmail: z.boolean(),
     notifySms: z.boolean(),
-    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    // Urgent (admin fast-track): auto-scheduled ASAP, lead skips the slot queue.
     urgent: z.boolean(),
-    urgentDate: z.string(),
-    urgentTime: z.string(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -2445,20 +2546,6 @@ const scheduleSchema = z
         message: "Select a location for in-person consultations",
       });
     }
-    if (val.urgent && !val.urgentDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["urgentDate"],
-        message: "Pick a date",
-      });
-    }
-    if (val.urgent && !val.urgentTime) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["urgentTime"],
-        message: "Pick a time",
-      });
-    }
   });
 
 type ScheduleForm = z.infer<typeof scheduleSchema>;
@@ -2476,8 +2563,6 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   notifyEmail: true,
   notifySms: false,
   urgent: false,
-  urgentDate: "",
-  urgentTime: "",
 };
 
 function ScheduleConsultationDialog({
@@ -2519,10 +2604,6 @@ function ScheduleConsultationDialog({
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
-  const urgentDate = useWatch({ control, name: "urgentDate" });
-  const urgentTime = useWatch({ control, name: "urgentTime" });
-  // Admins enter the urgent time as the firm's local wall-clock time.
-  const firmTimezone = useFirmTimezone();
   const setField = <K extends keyof ScheduleForm>(
     key: K,
     value: ScheduleForm[K],
@@ -2616,13 +2697,7 @@ function ScheduleConsultationDialog({
     }
     if (step === 2) {
       if (
-        await trigger([
-          "customDuration",
-          "attorneyId",
-          "locationId",
-          "urgentDate",
-          "urgentTime",
-        ])
+        await trigger(["customDuration", "attorneyId", "locationId"])
       )
         setStep(3);
     }
@@ -2650,10 +2725,6 @@ function ScheduleConsultationDialog({
     const feeAmount =
       feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
 
-    const scheduledAt = data.urgent
-      ? wallClockToUtcIso(data.urgentDate, data.urgentTime, firmTimezone)
-      : undefined;
-
     initiateConsultation.mutate(
       {
         id: data.selectedLeadId,
@@ -2675,7 +2746,6 @@ function ScheduleConsultationDialog({
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
           urgent: data.urgent || undefined,
-          scheduledAt,
           parentConsultationId: parentConsultationId || undefined,
         },
       },
@@ -2686,13 +2756,7 @@ function ScheduleConsultationDialog({
   const onInvalid = () => {
     // Jump back to the step that holds the first error.
     if (errors.selectedLeadId) setStep(1);
-    else if (
-      errors.customDuration ||
-      errors.attorneyId ||
-      errors.locationId ||
-      errors.urgentDate ||
-      errors.urgentTime
-    )
+    else if (errors.customDuration || errors.attorneyId || errors.locationId)
       setStep(2);
   };
 
@@ -2794,8 +2858,6 @@ function ScheduleConsultationDialog({
                   notes={notes}
                   notifyEmail={notifyEmail}
                   urgent={urgent}
-                  urgentDate={urgentDate}
-                  urgentTime={urgentTime}
                   touchedField={
                     errors.customDuration
                       ? "duration"
@@ -2803,15 +2865,9 @@ function ScheduleConsultationDialog({
                         ? "attorney"
                         : errors.locationId
                           ? "location"
-                          : errors.urgentDate
-                            ? "urgentDate"
-                            : errors.urgentTime
-                              ? "urgentTime"
-                              : null
+                          : null
                   }
                   onUrgentChange={(value) => setField("urgent", value)}
-                  onUrgentDateChange={(value) => setField("urgentDate", value)}
-                  onUrgentTimeChange={(value) => setField("urgentTime", value)}
                   onDurationChoiceChange={(value) =>
                     setField("durationChoice", value)
                   }
@@ -2849,11 +2905,6 @@ function ScheduleConsultationDialog({
                   notifyChannels={notifyChannels}
                   notes={notes}
                   urgent={urgent}
-                  urgentAt={
-                    urgent && urgentDate && urgentTime
-                      ? `${urgentDate} ${urgentTime} (firm time)`
-                      : null
-                  }
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
@@ -3088,12 +3139,8 @@ function ScheduleDetailsStep({
   notes,
   notifyEmail,
   urgent,
-  urgentDate,
-  urgentTime,
   touchedField,
   onUrgentChange,
-  onUrgentDateChange,
-  onUrgentTimeChange,
   onDurationChoiceChange,
   onCustomDurationChange,
   onConsultationTypeChange,
@@ -3117,18 +3164,8 @@ function ScheduleDetailsStep({
   notes: string;
   notifyEmail: boolean;
   urgent: boolean;
-  urgentDate: string;
-  urgentTime: string;
-  touchedField:
-    | "duration"
-    | "attorney"
-    | "location"
-    | "urgentDate"
-    | "urgentTime"
-    | null;
+  touchedField: "duration" | "attorney" | "location" | null;
   onUrgentChange: (value: boolean) => void;
-  onUrgentDateChange: (value: string) => void;
-  onUrgentTimeChange: (value: string) => void;
   onDurationChoiceChange: (value: DurationChoice) => void;
   onCustomDurationChange: (value: string) => void;
   onConsultationTypeChange: (value: ConsultationMode) => void;
@@ -3269,11 +3306,11 @@ function ScheduleDetailsStep({
         </Box>
       )}
 
-      {/* Time — lead-driven by default; urgent lets the admin book now */}
+      {/* Time — lead-driven by default; urgent is auto-scheduled ASAP */}
       <Box>
         <Flex align="center" justify="space-between" mb="8px">
           <StepFieldLabel required>
-            {urgent ? "Scheduled time" : "Available time slots"}
+            {urgent ? "Urgent scheduling" : "Available time slots"}
           </StepFieldLabel>
           <HStack gap="8px">
             <Text fontSize="12px" color="fg.muted">
@@ -3291,33 +3328,11 @@ function ScheduleDetailsStep({
           </HStack>
         </Flex>
         {urgent ? (
-          <Stack gap="10px">
-            <ModeNote icon={<CalendarClock size={14} />}>
-              The lead skips the slot queue and is connected as soon as they pay
-              (if a fee applies). Times are in the firm's timezone.
-            </ModeNote>
-            <Grid templateColumns="1fr 1fr" gap="10px">
-              <Box>
-                <StepFieldLabel required>Date</StepFieldLabel>
-                <DateField
-                  ariaLabel="Consultation date"
-                  value={urgentDate}
-                  onChange={onUrgentDateChange}
-                  min={new Date().toISOString().slice(0, 10)}
-                  invalid={touchedField === "urgentDate"}
-                />
-              </Box>
-              <Box>
-                <StepFieldLabel required>Time (firm timezone)</StepFieldLabel>
-                <TimeField
-                  ariaLabel="Consultation time"
-                  value={urgentTime}
-                  onChange={onUrgentTimeChange}
-                  invalid={touchedField === "urgentTime"}
-                />
-              </Box>
-            </Grid>
-          </Stack>
+          <ModeNote icon={<CalendarClock size={14} />}>
+            The lead skips the slot queue. The consultation is scheduled
+            automatically for the earliest moment — if a fee applies, the time
+            is set when they pay and confirmation follows immediately.
+          </ModeNote>
         ) : (
           <ModeNote icon={<CalendarClock size={14} />}>
             The lead chooses a time from the selected attorney's availability —
@@ -3522,7 +3537,6 @@ function ReviewStep({
   notifyChannels,
   notes,
   urgent,
-  urgentAt,
   feeSettings,
   feeAmount,
   onFeeAmountChange,
@@ -3537,7 +3551,6 @@ function ReviewStep({
   notifyChannels: ("email" | "sms")[];
   notes: string;
   urgent: boolean;
-  urgentAt: string | null;
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
@@ -3568,8 +3581,11 @@ function ReviewStep({
         <SummaryItem label="Scheduling">
           {urgent ? "Urgent — schedule now" : "Lead picks a time"}
         </SummaryItem>
-        {urgent && urgentAt ? (
-          <SummaryItem label="Scheduled time">{urgentAt}</SummaryItem>
+        {urgent ? (
+          <SummaryItem label="Scheduled time">
+            ASAP — set automatically{" "}
+            {charges ? "after payment" : "on confirmation"}
+          </SummaryItem>
         ) : null}
         <SummaryItem label="Duration">{duration}</SummaryItem>
         <SummaryItem label="Attorney">{attorney}</SummaryItem>

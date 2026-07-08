@@ -24,7 +24,10 @@ function formatDate(iso: string): string {
 function paymentTermsText(
   plan: FeeAgreementDocument["paymentPlan"],
   firmName: string,
+  noUpfrontDue: boolean,
 ): string {
+  if (noUpfrontDue)
+    return "No payment is due upon signing this agreement. The firm's fees and any advanced costs are payable solely from the proceeds of a settlement, award, or judgment as described in this agreement.";
   const pay = `Payment may be made by ACH bank transfer, credit card (3% processing fee applies), or certified check payable to ${esc(
     firmName,
   )}.`;
@@ -66,12 +69,14 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
         <td style="padding:11px 14px;border-bottom:1px solid #eee;">${esc(
           l.description,
         )}</td>
-        <td style="padding:11px 14px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${money(
-          l.amount,
-        )}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${
+          l.amount == null ? "—" : money(l.amount)
+        }</td>
       </tr>`,
     )
     .join("");
+
+  const hasDeferred = doc.feeLines.some((l) => l.deferred);
 
   const consultationCredit = doc.applyConsultationCredit
     ? `
@@ -106,6 +111,61 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
 
   const label = (t: string) =>
     `<div style="font-size:11px;font-weight:600;letter-spacing:0.05em;color:#8a8577;text-transform:uppercase;">${t}</div>`;
+
+  const contingencySection =
+    doc.contingencyPercent != null
+      ? `
+    <div style="margin-top:20px;">${label("Contingency fee")}
+      <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">
+        In addition to any amounts stated above, Client agrees to pay ${esc(
+          firmName,
+        )} a contingency fee of ${doc.contingencyPercent}% of the gross amount of any settlement, award, or judgment obtained in this matter. If no recovery is obtained, no contingency fee is owed.${
+          doc.noUpfrontDue
+            ? " No upfront attorney fee is charged for this engagement."
+            : ""
+        }
+      </div>
+    </div>`
+      : "";
+
+  const advancedCostsSection =
+    doc.governmentFeesPaidBy === "firm_advanced" &&
+    doc.feeLines.some((l) => l.description.includes("advanced by firm"))
+      ? `
+    <div style="margin-top:20px;">${label("Advanced costs")}
+      <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">
+        ${esc(
+          firmName,
+        )} will advance the government filing fees and costs listed above on Client's behalf. Advanced amounts will be recovered from the proceeds of any settlement, award, or judgment prior to the calculation of the contingency fee. If no recovery is obtained, Client remains responsible for reimbursing advanced costs.
+      </div>
+    </div>`
+      : "";
+
+  const allocationSection = doc.noUpfrontDue
+    ? ""
+    : `
+    <div style="margin-top:20px;">${label("Account allocation")}
+      <div style="display:flex;border:1px solid #e6e3da;border-radius:8px;margin-top:8px;">
+        <div style="flex:1;padding:12px 16px;border-right:1px solid #e6e3da;">
+          <div style="font-size:11px;color:#8a8577;text-transform:uppercase;">Operating account</div>
+          <div style="font-size:15px;font-weight:600;margin-top:4px;">${money(
+            doc.allocation.operating,
+          )}</div>
+        </div>
+        <div style="flex:1;padding:12px 16px;border-right:1px solid #e6e3da;">
+          <div style="font-size:11px;color:#8a8577;text-transform:uppercase;">Trust (IOLTA)</div>
+          <div style="font-size:15px;font-weight:600;margin-top:4px;">${money(
+            doc.allocation.trust,
+          )}</div>
+        </div>
+        <div style="flex:1;padding:12px 16px;background:#f4f2ec;">
+          <div style="font-size:11px;color:#8a8577;text-transform:uppercase;">Total</div>
+          <div style="font-size:15px;font-weight:600;margin-top:4px;">${money(
+            doc.allocation.total,
+          )}</div>
+        </div>
+      </div>
+    </div>`;
 
   return `
   <div style="font-family:'Inter',-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a;max-width:660px;margin:0 auto;padding:8px 4px;">
@@ -166,41 +226,24 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
         </tr></thead>
         <tbody>
           ${feeRows}
-          <tr><td style="padding:11px 14px;font-weight:700;">Total due</td>
+          <tr><td style="padding:11px 14px;font-weight:700;">${
+            hasDeferred ? "Total due upfront" : "Total due"
+          }</td>
           <td style="padding:11px 14px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">${money(
             doc.totalDue,
           )}</td></tr>
         </tbody>
       </table>
     </div>
-
-    <div style="margin-top:20px;">${label("Account allocation")}
-      <div style="display:flex;border:1px solid #e6e3da;border-radius:8px;margin-top:8px;">
-        <div style="flex:1;padding:12px 16px;border-right:1px solid #e6e3da;">
-          <div style="font-size:11px;color:#8a8577;text-transform:uppercase;">Operating account</div>
-          <div style="font-size:15px;font-weight:600;margin-top:4px;">${money(
-            doc.allocation.operating,
-          )}</div>
-        </div>
-        <div style="flex:1;padding:12px 16px;border-right:1px solid #e6e3da;">
-          <div style="font-size:11px;color:#8a8577;text-transform:uppercase;">Trust (IOLTA)</div>
-          <div style="font-size:15px;font-weight:600;margin-top:4px;">${money(
-            doc.allocation.trust,
-          )}</div>
-        </div>
-        <div style="flex:1;padding:12px 16px;background:#f4f2ec;">
-          <div style="font-size:11px;color:#8a8577;text-transform:uppercase;">Total</div>
-          <div style="font-size:15px;font-weight:600;margin-top:4px;">${money(
-            doc.allocation.total,
-          )}</div>
-        </div>
-      </div>
-    </div>
+    ${contingencySection}
+    ${advancedCostsSection}
+    ${allocationSection}
 
     <div style="margin-top:20px;">${label("Payment terms")}
       <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">${paymentTermsText(
         doc.paymentPlan,
         firmName,
+        doc.noUpfrontDue,
       )}</div>
     </div>
     ${consultationCredit}

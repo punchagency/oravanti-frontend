@@ -198,16 +198,12 @@ export function useInitiateConsultation() {
       id: string;
       data: Parameters<typeof initiateConsultation>[1];
     }) => initiateConsultation(id, data),
-    onSuccess: (res, { data, id }) => {
+    onSuccess: (_res, { data, id }) => {
       toast.success(
         data.urgent
           ? "Consultation booked"
           : "Consultation request sent to the lead",
       );
-      // Surface non-blocking urgent conflict warnings (warn-but-allow).
-      for (const warning of res.warnings ?? []) {
-        toast.warning(warning);
-      }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
       qc.invalidateQueries({ queryKey: ["consultations"] });

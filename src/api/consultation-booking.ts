@@ -17,6 +17,7 @@ export type ConsultationBooking = {
   mode: ConsultationBookingMode;
   durationMinutes: number;
   requiresPayment: boolean;
+  isUrgent: boolean;
   fee: { status: ConsultationFeeStatus; amount: number | null };
   scheduledAt: string | null;
   bookingStatus: string | null;

@@ -266,8 +266,9 @@ export function ConsultationBookingPage() {
             Pay ${data.fee.amount ?? 0} now
           </Button>
           <Text fontSize="12px" color="fg.muted" textAlign="center">
-            This is a demo payment — no card details are required. After paying
-            you'll be able to choose a time.
+            {data.isUrgent
+              ? "This is a demo payment — no card details are required. After paying, your consultation is scheduled immediately and you'll receive a confirmation email with the time."
+              : "This is a demo payment — no card details are required. After paying you'll be able to choose a time."}
           </Text>
         </Stack>
       ) : groupedSlots.length === 0 ? (

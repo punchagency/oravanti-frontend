@@ -338,9 +338,8 @@ export const initiateConsultation = async (
     feeAmount?: number;
     preConsultationNotes?: string;
     notifyChannels?: ("email" | "sms")[];
-    // Urgent (admin fast-track): schedule now, lead skips the slot queue.
+    // Urgent (admin fast-track): auto-scheduled ASAP, skips the slot queue.
     urgent?: boolean;
-    scheduledAt?: string;
     // Set when this consultation is a follow-up of a prior completed one.
     parentConsultationId?: string;
   },
@@ -349,7 +348,6 @@ export const initiateConsultation = async (
   return res.data.data as {
     consultation: Consultation;
     bookingToken: string;
-    warnings?: string[];
   };
 };
 
@@ -378,19 +376,25 @@ export const cancelConsultation = async (
   return res.data.data;
 };
 
-export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly";
+export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly" | "contingency";
 export type FeePaymentPlan = "pay_in_full" | "two_payments" | "installments";
+export type GovernmentFeesPaidBy = "client_upfront" | "firm_advanced";
 
 export type GenerateFeeAgreementInput = {
   attorneyFee: {
     type: AttorneyFeeType;
     flatRate?: number;
     hourlyRate?: number;
+    // Settlement percentage, combinable with any type; required for
+    // pure-contingency agreements.
+    contingencyPercent?: number;
   };
   governmentFees: { name: string; amount: number }[];
-  paymentPlan: FeePaymentPlan;
+  governmentFeesPaidBy: GovernmentFeesPaidBy;
+  // Optional: omitted when nothing is due upfront (backend defaults apply).
+  paymentPlan?: FeePaymentPlan;
   applyConsultationCredit: boolean;
-  accountSplit: { operating: number; trust: number };
+  accountSplit?: { operating: number; trust: number };
 };
 
 export type FeeAgreementDocument = {
@@ -407,12 +411,17 @@ export type FeeAgreementDocument = {
   };
   attorneyName: string;
   client: { name: string; matterType: string };
-  feeLines: { description: string; amount: number }[];
+  // amount null renders as "—" (contingency line); deferred lines are excluded
+  // from totalDue.
+  feeLines: { description: string; amount: number | null; deferred?: boolean }[];
   totalDue: number;
   allocation: { operating: number; trust: number; total: number };
   paymentPlan: FeePaymentPlan;
   applyConsultationCredit: boolean;
   consultationFeeAmount: number | null;
+  contingencyPercent: number | null;
+  governmentFeesPaidBy: GovernmentFeesPaidBy;
+  noUpfrontDue: boolean;
 };
 
 export type FeeAgreementPreview = {
