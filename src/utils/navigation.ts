@@ -167,6 +167,16 @@ export const contextNavigation: Record<
               icon: "folder-open",
             },
             {
+              label: "My tasks",
+              path: "/cases/my-tasks",
+              icon: "clipboard",
+            },
+            {
+              label: "Review queue",
+              path: "/cases/review-queue",
+              icon: "shield",
+            },
+            {
               label: "Policy alerts",
               path: "/cases/policy-alerts",
               icon: "rss",
