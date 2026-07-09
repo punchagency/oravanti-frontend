@@ -1,6 +1,6 @@
 import { Box, HStack, Input, Stack, Text, chakra } from "@chakra-ui/react";
 import { Check, ChevronDown, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export type SearchableOption = {
@@ -8,6 +8,8 @@ export type SearchableOption = {
   label: string;
   sublabel?: string;
 };
+
+const PANEL_MAX_H = 260;
 
 /**
  * Single-select combobox: the trigger opens a panel with a debounced search
@@ -39,6 +41,31 @@ export function SearchableSelect({
   const [query, setQuery] = useState("");
   const debounced = useDebouncedValue(query, 200);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // The panel is position:fixed (viewport coords) so it can escape scrollable
+  // dialog bodies that would otherwise clip it against the footer. It stays in
+  // this component's DOM so dialog focus traps and the outside-click handler
+  // below keep working. Flips upward when there is no room below the trigger.
+  const [panelPos, setPanelPos] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const updatePanelPos = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const flipUp = spaceBelow < PANEL_MAX_H + 8 && r.top > spaceBelow;
+    setPanelPos(
+      flipUp
+        ? { bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width }
+        : { top: r.bottom + 4, left: r.left, width: r.width },
+    );
+  }, []);
 
   const selected = options.find((o) => o.value === value) ?? null;
 
@@ -56,6 +83,18 @@ export function SearchableSelect({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  // Keep the fixed panel glued to the trigger while any ancestor scrolls or
+  // the window resizes (capture catches scrolls inside dialog bodies).
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("scroll", updatePanelPos, true);
+    window.addEventListener("resize", updatePanelPos);
+    return () => {
+      window.removeEventListener("scroll", updatePanelPos, true);
+      window.removeEventListener("resize", updatePanelPos);
+    };
+  }, [open, updatePanelPos]);
+
   const q = debounced.trim().toLowerCase();
   const filtered = q
     ? options.filter(
@@ -68,19 +107,19 @@ export function SearchableSelect({
   return (
     <Box position="relative" ref={containerRef}>
       <chakra.button
+        ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
-        onClick={() =>
-          setOpen((v) => {
-            if (!v) {
-              setQuery("");
-            }
-            return !v;
-          })
-        }
+        onClick={() => {
+          if (!open) {
+            setQuery("");
+            updatePanelPos();
+          }
+          setOpen(!open);
+        }}
         display="flex"
         alignItems="center"
         justifyContent="space-between"
@@ -104,13 +143,17 @@ export function SearchableSelect({
         <ChevronDown size={15} />
       </chakra.button>
 
-      {open ? (
+      {open && panelPos ? (
         <Box
-          position="absolute"
+          position="fixed"
           zIndex={50}
-          mt="4px"
-          w="full"
-          maxH="260px"
+          style={{
+            top: panelPos.top,
+            bottom: panelPos.bottom,
+            left: panelPos.left,
+            width: panelPos.width,
+          }}
+          maxH={`${PANEL_MAX_H}px`}
           display="flex"
           flexDirection="column"
           border="1px solid"
