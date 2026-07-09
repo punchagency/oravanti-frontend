@@ -322,7 +322,8 @@ export function useMarkFeeAgreementReceived() {
   return useMutation({
     mutationFn: (agreementId: string) => markFeeAgreementReceived(agreementId),
     onSuccess: () => {
-      toast.success("Signed agreement received — lead advanced to case opening");
+      // The lead only advances once the payment gate is also satisfied.
+      toast.success("Signed agreement received");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead"] });
     },

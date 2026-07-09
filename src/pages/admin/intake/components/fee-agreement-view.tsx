@@ -11,6 +11,7 @@ import {
   useGenerateFeeAgreement,
   useAdvanceLeadStage,
   useFeeAgreementPreview,
+  useMarkFeeAgreementPaymentReceived,
   useSendFeeAgreement,
 } from "@/hooks/use-leads";
 import { useConsultationSettings } from "@/hooks/use-consultation-settings";
@@ -67,11 +68,19 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
   const generateAgreement = useGenerateFeeAgreement();
   const advanceStage = useAdvanceLeadStage();
   const sendFee = useSendFeeAgreement();
+  const markPayment = useMarkFeeAgreementPaymentReceived();
   const { data: firmFeeSettings } = useConsultationSettings();
 
   const agreement = leadDetail?.feeAgreement;
   const isSigned = agreement?.status === "signed";
   const isPending = agreement?.status === "pending_signature";
+  // Case-opening payment gate: standard agreements need payment recorded
+  // before advancing; contingency (and pre-tracking) agreements do not.
+  const awaitingPayment =
+    isSigned &&
+    agreement?.details != null &&
+    agreement.details.attorneyFee.type !== "contingency" &&
+    !agreement.details.paymentReceivedAt;
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [generatedPreview, setGeneratedPreview] =
@@ -105,9 +114,11 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
     }
   }
 
-  const statusTone = isSigned ? "success" : "warning";
+  const statusTone = isSigned ? (awaitingPayment ? "warning" : "success") : "warning";
   const statusLabel = isSigned
-    ? "Signed"
+    ? awaitingPayment
+      ? "Awaiting payment"
+      : "Signed"
     : isPending
     ? "Pending signature"
     : agreement
@@ -178,7 +189,23 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
           ) : (
             <OutlineButton disabled>Agreement signed</OutlineButton>
           )}
-          {isSigned ? (
+          {isSigned && awaitingPayment ? (
+            // Recording payment auto-advances the lead server-side. Advance
+            // stays available for the dev-mode gate bypass; without it the
+            // backend 409 surfaces as a toast.
+            <>
+              <BrandButton
+                loading={markPayment.isPending}
+                onClick={() => agreement?.id && markPayment.mutate(agreement.id)}
+              >
+                Mark payment received
+              </BrandButton>
+              <OutlineButton loading={advanceStage.isPending} onClick={handleAdvanceStage}>
+                <PenLine size={14} />
+                Advance to case opening
+              </OutlineButton>
+            </>
+          ) : isSigned ? (
             <BrandButton loading={advanceStage.isPending} onClick={handleAdvanceStage}>
               <PenLine size={14} />
               Advance to case opening

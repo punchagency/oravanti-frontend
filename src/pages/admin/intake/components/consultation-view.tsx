@@ -74,6 +74,7 @@ import {
   useGenerateFeeAgreement,
   useLeadById,
   useLeads,
+  useMarkFeeAgreementPaymentReceived,
   useMarkFeeAgreementReceived,
   useNudgeClient,
   useSendFeeAgreement,
@@ -752,6 +753,7 @@ function ConsultationCard({
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
+  const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
   const advanceStage = useAdvanceLeadStage();
   const requestMissing = useRequestMissingDocuments();
@@ -760,6 +762,12 @@ function ConsultationCard({
   const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
+  // Case-opening payment gate: standard agreements need payment recorded
+  // before advancing; contingency (and pre-tracking) agreements do not.
+  const awaitingPayment =
+    feeAgreement?.details != null &&
+    feeAgreement.details.attorneyFee.type !== "contingency" &&
+    !feeAgreement.details.paymentReceivedAt;
   const send = questionnaire?.send;
   const response = questionnaire?.response;
   const { data: firmFeeSettings } = useConsultationSettings();
@@ -1396,20 +1404,51 @@ function ConsultationCard({
               </Stack>
             ) : feeAgreement.status === "signed" ? (
               <Stack gap="10px">
-                <MutedText>Signed document received.</MutedText>
+                <MutedText>
+                  {awaitingPayment
+                    ? "Signed document received — awaiting payment. Standard agreements require payment before the case can be opened."
+                    : "Signed document received."}
+                </MutedText>
                 <HStack gap="8px" wrap="wrap">
-                  <BrandButton
-                    loading={advanceStage.isPending}
-                    onClick={() =>
-                      advanceStage.mutate({
-                        id: lead.id,
-                        stage: "case_opening",
-                      })
-                    }
-                  >
-                    <ExternalLink size={14} />
-                    Advance to case opening
-                  </BrandButton>
+                  {awaitingPayment ? (
+                    // Recording payment auto-advances the lead server-side.
+                    // Advance stays available for the dev-mode gate bypass;
+                    // without it the backend 409 surfaces as a toast.
+                    <>
+                      <BrandButton
+                        loading={markPayment.isPending}
+                        onClick={() => markPayment.mutate(feeAgreement.id)}
+                      >
+                        <Check size={14} />
+                        Mark payment received
+                      </BrandButton>
+                      <OutlineButton
+                        loading={advanceStage.isPending}
+                        onClick={() =>
+                          advanceStage.mutate({
+                            id: lead.id,
+                            stage: "case_opening",
+                          })
+                        }
+                      >
+                        <ExternalLink size={14} />
+                        Advance to case opening
+                      </OutlineButton>
+                    </>
+                  ) : (
+                    <BrandButton
+                      loading={advanceStage.isPending}
+                      onClick={() =>
+                        advanceStage.mutate({
+                          id: lead.id,
+                          stage: "case_opening",
+                        })
+                      }
+                    >
+                      <ExternalLink size={14} />
+                      Advance to case opening
+                    </BrandButton>
+                  )}
                 </HStack>
               </Stack>
             ) : null}
