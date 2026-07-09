@@ -141,24 +141,24 @@ export const getLeadQuestionnaire = async (
 
 export const getEligibleLeads = async (): Promise<EligibleLead[]> => {
   const res = await API.get("/questionnaires/eligible-leads");
-  return res.data;
+  return res.data.data;
 };
 
 export const getFirmName = async (): Promise<string | null> => {
   const res = await API.get("/settings/firm-info");
-  return res.data?.firmName ?? null;
+  return res.data.data?.firmName ?? null;
 };
 
 export const getQuestionBank = async (): Promise<QuestionBankEntry[]> => {
   const res = await API.get("/questionnaires/question-bank");
-  return res.data;
+  return res.data.data;
 };
 
 export const getCaseTypeQuestionnairePreview = async (
   caseTypeId: string,
 ): Promise<CaseTypeQuestionnairePreview> => {
   const res = await API.get(`/questionnaires/intake/case-type/${caseTypeId}`);
-  return res.data;
+  return res.data.data;
 };
 
 export const sendQuestionnaire = async (
@@ -173,21 +173,21 @@ export const getResponseDetail = async (
   responseId: string,
 ): Promise<QuestionnaireResponseDetail> => {
   const res = await API.get(`/questionnaires/responses/${responseId}/detail`);
-  return res.data;
+  return res.data.data;
 };
 
 export const acceptResponse = async (
   responseId: string,
 ): Promise<{ advanced: boolean; leadId: string | null }> => {
   const res = await API.post(`/questionnaires/responses/${responseId}/accept`);
-  return res.data;
+  return res.data.data;
 };
 
 export const sendReminder = async (
   sendId: string,
 ): Promise<{ reminderSentAt: string }> => {
   const res = await API.post(`/questionnaires/sends/${sendId}/remind`);
-  return res.data;
+  return res.data.data;
 };
 
 export const requestMissingDocuments = async (
@@ -196,7 +196,7 @@ export const requestMissingDocuments = async (
   const res = await API.post(
     `/questionnaires/sends/${sendId}/request-documents`,
   );
-  return res.data;
+  return res.data.data;
 };
 
 export const uploadResponseFileByStaff = async (
@@ -211,7 +211,7 @@ export const uploadResponseFileByStaff = async (
     `/questionnaires/responses/${responseId}/files`,
     form,
   );
-  return res.data;
+  return res.data.data;
 };
 
 const triggerBlobDownload = (blob: Blob, filename: string) => {
@@ -277,7 +277,7 @@ export const getQuestionnaireByToken = async (
   token: string,
 ): Promise<PortalQuestionnaire> => {
   const res = await httpClient.get(`/questionnaires/client/${token}`);
-  return res.data;
+  return res.data.data;
 };
 
 export const saveDraftByToken = async (
@@ -288,7 +288,7 @@ export const saveDraftByToken = async (
   },
 ): Promise<unknown> => {
   const res = await httpClient.put(`/questionnaires/client/${token}/draft`, data);
-  return res.data;
+  return res.data.data;
 };
 
 export const submitByToken = async (
@@ -302,7 +302,7 @@ export const submitByToken = async (
     `/questionnaires/client/${token}/submit`,
     data,
   );
-  return res.data;
+  return res.data.data;
 };
 
 export const uploadFileByToken = async (
@@ -323,5 +323,5 @@ export const uploadFileByToken = async (
     `/questionnaires/client/${token}/files`,
     form,
   );
-  return res.data;
+  return res.data.data;
 };

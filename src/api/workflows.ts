@@ -81,13 +81,13 @@ export interface UpdateCaseNoteParams {
 // ─── API Calls ───────────────────────────────────────────────────────────────────
 
 export async function getCaseWorkflow(caseId: string): Promise<CaseWorkflowInstance> {
-  const { data } = await API.get<CaseWorkflowInstance>(`/cases/${caseId}/workflow`);
-  return data;
+  const { data } = await API.get<{ data: CaseWorkflowInstance }>(`/cases/${caseId}/workflow`);
+  return data.data;
 }
 
 export async function getWorkflowSummary(caseId: string): Promise<WorkflowSummary> {
-  const { data } = await API.get<WorkflowSummary>(`/cases/${caseId}/workflow/summary`);
-  return data;
+  const { data } = await API.get<{ data: WorkflowSummary }>(`/cases/${caseId}/workflow/summary`);
+  return data.data;
 }
 
 export async function completeStep(
@@ -95,11 +95,11 @@ export async function completeStep(
   stepId: string,
   notes?: string,
 ): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<CaseWorkflowInstance>(
+  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
     `/cases/${caseId}/workflow/steps/${stepId}/complete`,
     { notes },
   );
-  return data;
+  return data.data;
 }
 
 export async function submitForReview(
@@ -107,11 +107,11 @@ export async function submitForReview(
   stepId: string,
   notes?: string,
 ): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<CaseWorkflowInstance>(
+  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
     `/cases/${caseId}/workflow/steps/${stepId}/submit-review`,
     { notes },
   );
-  return data;
+  return data.data;
 }
 
 export async function approveStep(
@@ -119,11 +119,11 @@ export async function approveStep(
   stepId: string,
   notes?: string,
 ): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<CaseWorkflowInstance>(
+  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
     `/cases/${caseId}/workflow/steps/${stepId}/approve`,
     { notes },
   );
-  return data;
+  return data.data;
 }
 
 export async function rejectStep(
@@ -131,11 +131,11 @@ export async function rejectStep(
   stepId: string,
   feedback?: string,
 ): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<CaseWorkflowInstance>(
+  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
     `/cases/${caseId}/workflow/steps/${stepId}/reject`,
     { feedback },
   );
-  return data;
+  return data.data;
 }
 
 export async function assignStep(
@@ -144,26 +144,26 @@ export async function assignStep(
   staffId: string,
   overrideRationale?: string,
 ): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<CaseWorkflowInstance>(
+  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
     `/cases/${caseId}/workflow/steps/${stepId}/assign`,
     { staffId, overrideRationale },
   );
-  return data;
+  return data.data;
 }
 
 export async function activateModule(
   caseId: string,
   moduleId: string,
 ): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<CaseWorkflowInstance>(
+  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
     `/cases/${caseId}/workflow/modules/${moduleId}/activate`,
   );
-  return data;
+  return data.data;
 }
 
 export async function getCaseTimeline(caseId: string): Promise<TimelineEvent[]> {
-  const { data } = await API.get<TimelineEvent[]>(`/cases/${caseId}/workflow/timeline`);
-  return data;
+  const { data } = await API.get<{ data: TimelineEvent[] }>(`/cases/${caseId}/workflow/timeline`);
+  return data.data;
 }
 
 export interface WorkflowLogEntry {
@@ -177,8 +177,8 @@ export interface WorkflowLogEntry {
 }
 
 export async function getWorkflowLogs(caseId: string): Promise<WorkflowLogEntry[]> {
-  const { data } = await API.get<WorkflowLogEntry[]>(`/cases/${caseId}/workflow/logs`);
-  return data;
+  const { data } = await API.get<{ data: WorkflowLogEntry[] }>(`/cases/${caseId}/workflow/logs`);
+  return data.data;
 }
 
 // ─── My Tasks & Review Queue ────────────────────────────────────────────────────
@@ -275,8 +275,8 @@ export async function getMyTasks(
   if (status) params.status = status;
   if (page) params.page = String(page);
   if (limit) params.limit = String(limit);
-  const { data } = await API.get<PaginatedTasksResponse>(`/cases/workflow/my-tasks`, { params });
-  return data;
+  const { data: res } = await API.get(`/cases/workflow/my-tasks`, { params });
+  return { data: res.data, counts: res.counts, pagination: res.pagination } as PaginatedTasksResponse;
 }
 
 export async function getReviewQueue(
@@ -288,23 +288,23 @@ export async function getReviewQueue(
   if (status) params.status = status;
   if (page) params.page = String(page);
   if (limit) params.limit = String(limit);
-  const { data } = await API.get<PaginatedReviewResponse>(`/cases/workflow/review-queue`, { params });
-  return data;
+  const { data: res } = await API.get(`/cases/workflow/review-queue`, { params });
+  return { data: res.data, counts: res.counts, pagination: res.pagination } as PaginatedReviewResponse;
 }
 
 // ─── Case Notes API ─────────────────────────────────────────────────────────────
 
 export async function getCaseNotes(caseId: string): Promise<CaseNote[]> {
-  const { data } = await API.get<CaseNote[]>(`/cases/${caseId}/workflow/notes`);
-  return data;
+  const { data } = await API.get<{ data: CaseNote[] }>(`/cases/${caseId}/workflow/notes`);
+  return data.data;
 }
 
 export async function createCaseNote(
   caseId: string,
   params: CreateCaseNoteParams,
 ): Promise<CaseNote> {
-  const { data } = await API.post<CaseNote>(`/cases/${caseId}/workflow/notes`, params);
-  return data;
+  const { data } = await API.post<{ data: CaseNote }>(`/cases/${caseId}/workflow/notes`, params);
+  return data.data;
 }
 
 export async function updateCaseNote(
@@ -312,11 +312,11 @@ export async function updateCaseNote(
   noteId: string,
   params: UpdateCaseNoteParams,
 ): Promise<CaseNote> {
-  const { data } = await API.patch<CaseNote>(
+  const { data } = await API.patch<{ data: CaseNote }>(
     `/cases/${caseId}/workflow/notes/${noteId}`,
     params,
   );
-  return data;
+  return data.data;
 }
 
 export async function deleteCaseNote(

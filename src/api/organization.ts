@@ -46,11 +46,11 @@ export async function getStaffList(
   params?: GetStaffListParams,
 ): Promise<GetStaffListResponse> {
   const response = await API.get("/organization/staff", { params });
-  return response.data;
+  return { data: response.data.data, counts: response.data.counts, pagination: response.data.pagination } as GetStaffListResponse;
 }
 
 export async function inviteStaff(data: InviteStaffPayload) {
-  return API.post("/organization/invite", data);
+  return (await API.post("/organization/invite", data)).data.data;
 }
 
 export interface InvitationDTO {
@@ -98,15 +98,15 @@ export async function getInvitations(
   params?: GetInvitationsParams,
 ): Promise<GetInvitationsResponse> {
   const response = await API.get("/organization/invitations", { params });
-  return response.data;
+  return { data: response.data.data, counts: response.data.counts, pagination: response.data.pagination } as GetInvitationsResponse;
 }
 
 export async function cancelInvitation(invitationId: string) {
-  return API.post("/organization/cancel-invitation", { invitationId });
+  return (await API.post("/organization/cancel-invitation", { invitationId })).data.data;
 }
 
 export async function resendInvitation(email: string, role: string) {
-  return API.post("/organization/resend-invitation", { email, role });
+  return (await API.post("/organization/resend-invitation", { email, role })).data.data;
 }
 
 export interface UpdateStaffPayload {
@@ -123,7 +123,7 @@ export interface UpdateStaffPayload {
 }
 
 export async function updateStaff(staffId: string, data: UpdateStaffPayload) {
-  return API.patch(`/organization/staff/${staffId}`, data);
+  return (await API.patch(`/organization/staff/${staffId}`, data)).data.data;
 }
 
 export interface PendingInvitation {
@@ -144,14 +144,14 @@ export async function getMyPendingInvitation(): Promise<{
   invitation: PendingInvitation | null;
 }> {
   const response = await API.get("/organization/my-pending-invitation");
-  return response.data;
+  return response.data.data;
 }
 
 export async function acceptInvitation(invitationId: string) {
   const response = await API.post("/organization/accept-invite", {
     invitationId,
   });
-  return response.data;
+  return response.data.data;
 }
 
 export async function setPassword(data: {
@@ -159,7 +159,7 @@ export async function setPassword(data: {
   newPassword: string;
 }) {
   const response = await API.post("/organization/set-password", data);
-  return response.data;
+  return response.data.data;
 }
 
 export interface NeedsSetupResponse {
@@ -169,7 +169,7 @@ export interface NeedsSetupResponse {
 
 export async function getNeedsSetup(): Promise<NeedsSetupResponse> {
   const response = await API.get("/organization/needs-setup");
-  return response.data;
+  return response.data.data;
 }
 
 export interface TeamListDTO {
@@ -224,7 +224,7 @@ export async function getTeamsList(
   params?: GetTeamsListParams,
 ): Promise<GetTeamsListResponse> {
   const response = await API.get("/organization/teams", { params });
-  return response.data;
+  return { data: response.data.data, counts: response.data.counts, pagination: response.data.pagination } as GetTeamsListResponse;
 }
 
 export async function updateStaffRole(
@@ -247,7 +247,7 @@ export async function createTeam(
   data: CreateTeamPayload,
 ): Promise<{ id: string; name: string }> {
   const response = await API.post("/organization/teams", data);
-  return response.data;
+  return response.data.data;
 }
 
 export async function deleteTeam(teamId: string): Promise<void> {
@@ -293,7 +293,7 @@ export async function getTeamDetails(
   teamId: string,
 ): Promise<TeamDetailsDTO> {
   const response = await API.get(`/organization/teams/${teamId}`);
-  return response.data;
+  return response.data.data;
 }
 
 export type StaffDetailsDTO = StaffMemberDTO;
@@ -302,5 +302,5 @@ export async function getStaffDetails(
   staffId: string,
 ): Promise<StaffDetailsDTO> {
   const response = await API.get(`/organization/staff/${staffId}`);
-  return response.data;
+  return response.data.data;
 }

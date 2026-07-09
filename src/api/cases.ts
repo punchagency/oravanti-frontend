@@ -81,11 +81,11 @@ export async function getCases(params: GetCasesParams = {}): Promise<GetCasesRes
   if (params.assigneeName) query.assigneeName = params.assigneeName;
   if (params.page) query.page = String(params.page);
   if (params.limit) query.limit = String(params.limit);
-  const { data } = await API.get<GetCasesResponse>("/cases", { params: query });
-  return data;
+  const { data: res } = await API.get("/cases", { params: query });
+  return { data: res.data, pagination: res.pagination } as GetCasesResponse;
 }
 
 export async function getCaseById(id: string): Promise<CaseRow> {
-  const { data } = await API.get<CaseRow>(`/cases/${id}`);
-  return data;
+  const { data } = await API.get<{ data: CaseRow }>(`/cases/${id}`);
+  return data.data;
 }

@@ -183,7 +183,7 @@ export const getLeads = async (
   if (params.limit) query.limit = String(params.limit);
   if (params.all) query.all = "true";
   const res = await API.get("/leads", { params: query });
-  return res.data.data;
+  return { leads: res.data.data, pagination: res.data.pagination } as LeadsResponse;
 };
 
 export const getLeadsStageCount =
@@ -261,7 +261,7 @@ export const getConsultations = async (
   if (params.page) query.page = String(params.page);
   if (params.limit) query.limit = String(params.limit);
   const res = await API.get("/leads/consultations", { params: query });
-  return res.data.data;
+  return { data: res.data.data, pagination: res.data.pagination } as ConsultationsResponse;
 };
 
 export const createLead = async (data: {

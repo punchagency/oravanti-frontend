@@ -51,52 +51,52 @@ export type ConsultationLocationInput = {
 };
 
 export async function getConsultationSettings() {
-  const { data } = await API.get<ConsultationSettings>(
+  const { data } = await API.get<{ data: ConsultationSettings }>(
     "/settings/consultation",
   );
-  return data;
+  return data.data;
 }
 
 export async function updateConsultationSettings(
   input: UpsertConsultationSettingsInput,
 ) {
-  const { data } = await API.put<{
-    message: string;
-    settings: ConsultationSettings;
-  }>("/settings/consultation", input);
-  return data.settings;
+  const { data } = await API.put<{ data: ConsultationSettings }>(
+    "/settings/consultation",
+    input,
+  );
+  return data.data;
 }
 
 export async function getConsultationLocations() {
-  const { data } = await API.get<ConsultationLocation[]>(
+  const { data } = await API.get<{ data: ConsultationLocation[] }>(
     "/settings/consultation/locations",
   );
-  return data;
+  return data.data;
 }
 
 export async function createConsultationLocation(
   input: ConsultationLocationInput,
 ) {
-  const { data } = await API.post<ConsultationLocation>(
+  const { data } = await API.post<{ data: ConsultationLocation }>(
     "/settings/consultation/locations",
     input,
   );
-  return data;
+  return data.data;
 }
 
 export async function updateConsultationLocation(
   id: string,
   input: Partial<ConsultationLocationInput> & { isActive?: boolean },
 ) {
-  const { data } = await API.patch<ConsultationLocation>(
+  const { data } = await API.patch<{ data: ConsultationLocation }>(
     `/settings/consultation/locations/${id}`,
     input,
   );
-  return data;
+  return data.data;
 }
 
 export async function deleteConsultationLocation(id: string) {
-  const { data } = await API.delete<{ message: string }>(
+  const { data } = await API.delete<{ data: null }>(
     `/settings/consultation/locations/${id}`,
   );
   return data;
