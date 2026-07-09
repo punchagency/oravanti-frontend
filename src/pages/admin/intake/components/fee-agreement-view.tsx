@@ -24,10 +24,8 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
-import {
-  FeeAgreementForm,
-  FeeAgreementPreviewModal,
-} from "./consultation-view";
+import { FeeAgreementPreviewModal } from "./consultation-view";
+import { FeeAgreementWizard } from "./fee-agreement-wizard";
 
 export function FeeAgreementView() {
   const { data, isLoading } = useLeads({ stage: "fee_agreement" });
@@ -194,7 +192,8 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
         </Box>
       ) : (
         <Box mt="14px">
-          <FeeAgreementForm
+          <FeeAgreementWizard
+            lead={lead}
             consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
             generating={generateAgreement.isPending}
             onSubmit={(data) =>
