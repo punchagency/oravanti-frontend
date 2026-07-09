@@ -162,9 +162,9 @@ export function ConsultationBookingPage() {
 
   const headerName = data.firmName ?? "Your consultation";
 
-  // Already confirmed (either just now or on a previous visit).
-  const confirmedAt = justBookedAt ?? data.scheduledAt;
-  if (confirmedAt && (justBookedAt || data.bookingStatus === "slot_selected")) {
+  // Instant consultation completed and settled (invoice-after paid): nothing
+  // left to do here — never show the slot picker for these.
+  if (data.status === "completed" && !data.requiresPayment) {
     return (
       <Shell>
         <CenterState
@@ -173,7 +173,34 @@ export function ConsultationBookingPage() {
               <CheckCircle2 size={48} />
             </Box>
           }
-          title="Your consultation is confirmed"
+          title={
+            data.fee.status === "paid"
+              ? "Payment received — thank you"
+              : "Your consultation is complete"
+          }
+          description="Your consultation is complete and there's nothing left to do here. You can close this window."
+        />
+      </Shell>
+    );
+  }
+
+  // Already confirmed (either just now or on a previous visit).
+  const confirmedAt = justBookedAt ?? data.scheduledAt;
+  if (confirmedAt && (justBookedAt || data.bookingStatus === "slot_selected")) {
+    const startingNow = data.status === "in_progress";
+    return (
+      <Shell>
+        <CenterState
+          icon={
+            <Box color="#1f9e75">
+              <CheckCircle2 size={48} />
+            </Box>
+          }
+          title={
+            startingNow
+              ? "Your consultation is starting now"
+              : "Your consultation is confirmed"
+          }
           description={`${formatDualZone(confirmedAt, {
             viewerTz,
             firmTz: data.firmTimezone,
@@ -232,7 +259,11 @@ export function ConsultationBookingPage() {
           {headerName}
         </Text>
         <Heading size="lg" color="fg">
-          {data.requiresPayment ? "Consultation fee" : "Pick a time"}
+          {data.requiresPayment
+            ? data.status === "completed"
+              ? "Pay for your consultation"
+              : "Consultation fee"
+            : "Pick a time"}
         </Heading>
         <Text fontSize="14px" color="fg.muted">
           {MODE_NOTE[data.mode]} ({data.durationMinutes} min)
@@ -266,9 +297,11 @@ export function ConsultationBookingPage() {
             Pay ${data.fee.amount ?? 0} now
           </Button>
           <Text fontSize="12px" color="fg.muted" textAlign="center">
-            {data.isUrgent
-              ? "This is a demo payment — no card details are required. After paying, your consultation is scheduled immediately and you'll receive a confirmation email with the time."
-              : "This is a demo payment — no card details are required. After paying you'll be able to choose a time."}
+            {data.status === "completed"
+              ? "This is a demo payment — no card details are required. This settles the fee for your completed consultation."
+              : data.isUrgent
+                ? "This is a demo payment — no card details are required. After paying, your consultation is scheduled immediately and you'll receive a confirmation email with the time."
+                : "This is a demo payment — no card details are required. After paying you'll be able to choose a time."}
           </Text>
         </Stack>
       ) : groupedSlots.length === 0 ? (

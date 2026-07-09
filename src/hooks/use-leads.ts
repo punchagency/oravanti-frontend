@@ -200,9 +200,14 @@ export function useInitiateConsultation() {
     }) => initiateConsultation(id, data),
     onSuccess: (_res, { data, id }) => {
       toast.success(
-        data.urgent
-          ? "Consultation booked"
-          : "Consultation request sent to the lead",
+        data.startNow
+          ? // Instant: pay_now with a fee waits on payment, otherwise it began.
+            data.paymentTiming === "pay_now" && data.feeAmount != null
+            ? "Payment link sent — the consultation begins as soon as the client pays"
+            : "Consultation started"
+          : data.urgent
+            ? "Consultation booked"
+            : "Consultation request sent to the lead",
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });

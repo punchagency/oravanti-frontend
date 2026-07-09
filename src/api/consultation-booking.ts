@@ -18,6 +18,14 @@ export type ConsultationBooking = {
   durationMinutes: number;
   requiresPayment: boolean;
   isUrgent: boolean;
+  status:
+    | "pending_payment"
+    | "awaiting_slot_selection"
+    | "scheduled"
+    | "in_progress"
+    | "completed"
+    | "cancelled"
+    | "no_show";
   fee: { status: ConsultationFeeStatus; amount: number | null };
   scheduledAt: string | null;
   bookingStatus: string | null;

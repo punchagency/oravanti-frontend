@@ -1,0 +1,1386 @@
+import {
+  Box,
+  Dialog,
+  Flex,
+  Grid,
+  HStack,
+  Input,
+  Stack,
+  Switch,
+  Text,
+  chakra,
+} from "@chakra-ui/react";
+import { Info, UserPlus, Users, X, Zap } from "lucide-react";
+import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { updateLead, type Lead, type PaymentTiming } from "@/api/leads";
+import type { ConsultationSettings } from "@/api/consultation-settings";
+import {
+  useCreateLead,
+  useInitiateConsultation,
+  useLeads,
+  useRunConflictCheck,
+} from "@/hooks/use-leads";
+import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
+import { useStaffList } from "@/hooks/use-staff-list";
+import {
+  useConsultationLocations,
+  useConsultationSettings,
+  useCreateConsultationLocation,
+} from "@/hooks/use-consultation-settings";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
+import type { APIError } from "@/hooks/types";
+import {
+  BrandButton,
+  MutedText,
+  OutlineButton,
+  StatusPill,
+} from "@/components/ui/intake-ui";
+import { FormSelect } from "@/components/ui/form-select";
+import {
+  CheckOption,
+  ScheduleDetailsStep,
+  SelectClientStep,
+  StepFieldLabel,
+  StepProgress,
+  SummaryItem,
+} from "./consultation-wizard-shared";
+import {
+  consultationModeLabel,
+  fieldStyles,
+  invalidColor,
+} from "./consultation-wizard-constants";
+
+// Instant consultation wizard ("Start consultation now"): the consultation
+// begins immediately (or as soon as the client pays, for "Pay now") instead of
+// being scheduled. Reuses the scheduling wizard's steps, with a client chooser
+// up front (existing lead vs brand-new client + inline conflict check) and a
+// "Fee & confirm" final step (emergency multiplier + payment timing).
+
+type InstantStep = 0 | 1 | 2 | 3;
+type ClientMode = "existing" | "new";
+type ConflictState =
+  | "idle"
+  | "running"
+  | "pass"
+  | "needs_review"
+  | "conflict_found";
+
+const LANGUAGE_OPTIONS = [
+  { value: "english", label: "English" },
+  { value: "spanish", label: "Spanish" },
+  { value: "french", label: "French" },
+  { value: "portuguese", label: "Portuguese" },
+  { value: "mandarin", label: "Mandarin" },
+];
+
+const PAYMENT_TIMING_OPTIONS: {
+  value: PaymentTiming;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "pay_now",
+    label: "Pay now",
+    description:
+      "Payment link sent to client immediately. Client pays before consultation begins.",
+  },
+  {
+    value: "invoice_after",
+    label: "Invoice after consultation",
+    description:
+      "Consultation starts immediately. Payment link sent after the call ends.",
+  },
+  {
+    value: "pay_in_person",
+    label: "Pay in person",
+    description:
+      "Client pays at the office. Staff marks payment received manually.",
+  },
+];
+
+function getCaseTypes(
+  practiceAreaId: string,
+  practiceAreas: PublicPracticeArea[] | undefined,
+): { id: string; name: string }[] {
+  if (!practiceAreaId || !practiceAreas) return [];
+  const area = practiceAreas.find((a) => a.id === practiceAreaId);
+  return area ? area.subcategories.flatMap((s) => s.caseTypes) : [];
+}
+
+const instantSchema = z
+  .object({
+    clientMode: z.enum(["existing", "new"]),
+    selectedLeadId: z.string(),
+    // New-client fields
+    newName: z.string(),
+    newEmail: z.string(),
+    newPhone: z.string(),
+    newLanguage: z.string(),
+    newPracticeAreaId: z.string(),
+    newCaseTypeId: z.string(),
+    // Details (same shape as the scheduling wizard, urgency implied)
+    durationChoice: z.union([
+      z.literal(30),
+      z.literal(45),
+      z.literal(60),
+      z.literal(90),
+      z.literal("custom"),
+    ]),
+    customDuration: z.string(),
+    consultationType: z.enum(["video", "in_person", "phone_call"]),
+    attorneyId: z.string().min(1, "Select an attorney"),
+    participantIds: z.array(z.string()),
+    locationId: z.string(),
+    feeAmount: z.string(),
+    notes: z.string(),
+    notifyEmail: z.boolean(),
+    // Fee & confirm
+    isEmergency: z.boolean(),
+    emergencyMultiplier: z.string(),
+    paymentTiming: z.enum(["pay_now", "invoice_after", "pay_in_person"]),
+    autoSendQuestionnaire: z.boolean(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.clientMode === "existing" && !val.selectedLeadId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["selectedLeadId"],
+        message: "Select a lead",
+      });
+    }
+    if (val.clientMode === "new") {
+      if (!val.newName.trim())
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["newName"],
+          message: "Full name is required",
+        });
+      if (!z.string().email().safeParse(val.newEmail.trim()).success)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["newEmail"],
+          message: "Enter a valid email address",
+        });
+      if (!val.newPracticeAreaId)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["newPracticeAreaId"],
+          message: "Select a practice area",
+        });
+      if (!val.newCaseTypeId)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["newCaseTypeId"],
+          message: "Select a case type",
+        });
+    }
+    const dur =
+      val.durationChoice === "custom"
+        ? parseInt(val.customDuration, 10)
+        : val.durationChoice;
+    if (!dur || dur <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customDuration"],
+        message: "Enter a duration in minutes",
+      });
+    }
+    if (val.consultationType === "in_person" && !val.locationId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["locationId"],
+        message: "Select a location for in-person consultations",
+      });
+    }
+    if (val.isEmergency) {
+      const multiplier = Number(val.emergencyMultiplier);
+      if (!multiplier || multiplier <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["emergencyMultiplier"],
+          message: "Enter a multiplier greater than zero",
+        });
+      }
+    }
+  });
+
+type InstantForm = z.infer<typeof instantSchema>;
+
+const INSTANT_DEFAULTS: InstantForm = {
+  clientMode: "existing",
+  selectedLeadId: "",
+  newName: "",
+  newEmail: "",
+  newPhone: "",
+  newLanguage: "english",
+  newPracticeAreaId: "",
+  newCaseTypeId: "",
+  durationChoice: 60,
+  customDuration: "",
+  consultationType: "video",
+  attorneyId: "",
+  participantIds: [],
+  locationId: "",
+  feeAmount: "",
+  notes: "",
+  notifyEmail: true,
+  isEmergency: false,
+  emergencyMultiplier: "2",
+  paymentTiming: "pay_now",
+  autoSendQuestionnaire: false,
+};
+
+export function InstantConsultationDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [step, setStep] = useState<InstantStep>(0);
+  const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
+  const [conflictState, setConflictState] = useState<ConflictState>("idle");
+
+  const {
+    control,
+    setValue,
+    reset,
+    trigger,
+    getValues,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<InstantForm>({
+    resolver: zodResolver(instantSchema),
+    defaultValues: INSTANT_DEFAULTS,
+    mode: "onChange",
+  });
+
+  const clientMode = useWatch({ control, name: "clientMode" });
+  const selectedLeadId = useWatch({ control, name: "selectedLeadId" });
+  const newName = useWatch({ control, name: "newName" });
+  const newEmail = useWatch({ control, name: "newEmail" });
+  const newPhone = useWatch({ control, name: "newPhone" });
+  const newLanguage = useWatch({ control, name: "newLanguage" });
+  const newPracticeAreaId = useWatch({ control, name: "newPracticeAreaId" });
+  const newCaseTypeId = useWatch({ control, name: "newCaseTypeId" });
+  const durationChoice = useWatch({ control, name: "durationChoice" });
+  const customDuration = useWatch({ control, name: "customDuration" });
+  const consultationType = useWatch({ control, name: "consultationType" });
+  const attorneyId = useWatch({ control, name: "attorneyId" });
+  const participantIds = useWatch({ control, name: "participantIds" });
+  const locationId = useWatch({ control, name: "locationId" });
+  const feeAmount = useWatch({ control, name: "feeAmount" });
+  const notes = useWatch({ control, name: "notes" });
+  const notifyEmail = useWatch({ control, name: "notifyEmail" });
+  const isEmergency = useWatch({ control, name: "isEmergency" });
+  const emergencyMultiplier = useWatch({
+    control,
+    name: "emergencyMultiplier",
+  });
+  const paymentTiming = useWatch({ control, name: "paymentTiming" });
+  const autoSendQuestionnaire = useWatch({
+    control,
+    name: "autoSendQuestionnaire",
+  });
+
+  const setField = <K extends keyof InstantForm>(
+    key: K,
+    value: InstantForm[K],
+  ) => setValue(key, value as never, { shouldValidate: true });
+
+  // Existing candidates: same pool as the scheduling wizard — conflict-cleared
+  // leads (questionnaire stage) plus consultation-stage leads without an
+  // active consultation.
+  const { data: questionnaireData } = useLeads({ stage: "questionnaire" });
+  const { data: consultationData } = useLeads({ stage: "consultation" });
+  const questionnaireLeads = Array.isArray(questionnaireData)
+    ? questionnaireData
+    : (questionnaireData?.leads ?? []);
+  const consultationLeads = Array.isArray(consultationData)
+    ? consultationData
+    : (consultationData?.leads ?? []);
+  const leads = [
+    ...questionnaireLeads,
+    ...consultationLeads.filter((l) => !l.consultationId),
+  ];
+
+  const { data: staffData } = useStaffList({ status: "active" });
+  const allStaff = staffData?.data ?? [];
+  const attorneys = allStaff.filter((s) => s.role === "attorney");
+
+  const { data: feeSettings } = useConsultationSettings();
+  const { data: locations = [] } = useConsultationLocations();
+  const createLocation = useCreateConsultationLocation();
+  const { data: practiceAreas } = usePublicPracticeAreas();
+
+  const createLead = useCreateLead();
+  const runCheck = useRunConflictCheck();
+  const initiateConsultation = useInitiateConsultation();
+
+  // Reset when (re)opened — adjust-state-on-prop-change, no effect needed.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      reset(INSTANT_DEFAULTS);
+      setStep(0);
+      setCreatedLeadId(null);
+      setConflictState("idle");
+    }
+  }
+
+  const selectedLead: Lead | undefined = leads.find(
+    (l) => l.id === selectedLeadId,
+  );
+  const { data: questionnaire } = useLeadQuestionnaire(
+    clientMode === "existing" ? selectedLeadId : "",
+  );
+  const existingLanguage = questionnaire?.send?.language ?? "English";
+
+  const caseTypeOptions = getCaseTypes(newPracticeAreaId, practiceAreas);
+  const matterType =
+    clientMode === "new"
+      ? (caseTypeOptions.find((c) => c.id === newCaseTypeId)?.name ??
+        "Not specified")
+      : (selectedLead?.caseTypeName ?? "Not specified");
+  const clientName =
+    clientMode === "new" ? newName.trim() || "—" : (selectedLead?.name ?? "—");
+  // A questionnaire can only be auto-sent if the lead never received one.
+  const questionnaireAlreadySent =
+    clientMode === "existing" && Boolean(selectedLead?.questionnaireSendId);
+
+  const durationLabel =
+    durationChoice === "custom"
+      ? customDuration
+        ? `${customDuration} minutes`
+        : "—"
+      : `${durationChoice} minutes`;
+  const attorneyName = (() => {
+    const a = attorneys.find((s) => s.id === attorneyId);
+    return a ? `${a.firstName} ${a.lastName}`.trim() : "Not assigned";
+  })();
+  const locationLabel = locations.find((l) => l.id === locationId)?.label ?? "—";
+
+  const chargesFee = Boolean(feeSettings?.chargesFee);
+  const chargesCustomFee =
+    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
+
+  // Fee math: the emergency fee is standard × multiplier; the multiplied
+  // amount is what gets charged (and persisted as feeAmount).
+  const standardFee = chargesCustomFee
+    ? Number(feeAmount) || 0
+    : (feeSettings?.defaultAmount ?? 0);
+  const multiplier = Number(emergencyMultiplier) || 0;
+  const emergencyFee = Math.round(standardFee * multiplier * 100) / 100;
+
+  function closeDialog() {
+    onOpenChange(false);
+    reset(INSTANT_DEFAULTS);
+    setStep(0);
+    setCreatedLeadId(null);
+    setConflictState("idle");
+  }
+
+  // Creates the lead on first run (a conflict check needs a lead id); re-runs
+  // first sync any edited fields onto the created lead.
+  async function handleRunConflictCheck() {
+    const ok = await trigger([
+      "newName",
+      "newEmail",
+      "newPracticeAreaId",
+      "newCaseTypeId",
+    ]);
+    if (!ok) return;
+    const values = getValues();
+    const fields = {
+      name: values.newName.trim(),
+      email: values.newEmail.trim(),
+      phone: values.newPhone.trim() || undefined,
+      language: values.newLanguage,
+      practiceAreaId: values.newPracticeAreaId,
+      caseTypeId: values.newCaseTypeId,
+    };
+    setConflictState("running");
+    try {
+      let leadId = createdLeadId;
+      if (!leadId) {
+        const lead = await createLead.mutateAsync({
+          ...fields,
+          source: "walk_in",
+        });
+        leadId = lead.id;
+        setCreatedLeadId(lead.id);
+      } else {
+        await updateLead(leadId, fields);
+      }
+      const check = await runCheck.mutateAsync(leadId);
+      setConflictState(check.status === "pending" ? "idle" : check.status);
+    } catch (error) {
+      setConflictState("idle");
+      toast.error(
+        (error as APIError).response?.data?.message ??
+          "Failed to run the conflict check",
+      );
+    }
+  }
+
+  async function handleContinue() {
+    if (step === 1) {
+      if (clientMode === "existing") {
+        if (await trigger(["selectedLeadId"])) setStep(2);
+      } else {
+        // New client: gated on a passing conflict check, not just field validity.
+        if (conflictState === "pass") setStep(2);
+      }
+      return;
+    }
+    if (step === 2) {
+      if (await trigger(["customDuration", "attorneyId", "locationId"]))
+        setStep(3);
+    }
+  }
+
+  const onValid = (data: InstantForm) => {
+    const leadId =
+      data.clientMode === "new" ? createdLeadId : data.selectedLeadId;
+    if (!leadId) {
+      toast.error("Select or create a client first");
+      setStep(data.clientMode === "new" ? 1 : 1);
+      return;
+    }
+    if (data.clientMode === "new" && conflictState !== "pass") {
+      toast.error("Run the conflict check before starting the consultation");
+      setStep(1);
+      return;
+    }
+
+    const duration =
+      data.durationChoice === "custom"
+        ? parseInt(data.customDuration, 10)
+        : data.durationChoice;
+
+    if (chargesCustomFee && !data.feeAmount.trim()) {
+      toast.error("Enter the consultation fee for this case type");
+      setStep(3);
+      return;
+    }
+
+    // Always send a concrete amount when charging so the backend records the
+    // exact (possibly emergency-multiplied) fee shown to the user.
+    const resolvedFee = !chargesFee
+      ? undefined
+      : data.isEmergency
+        ? emergencyFee
+        : chargesCustomFee && data.feeAmount.trim()
+          ? Number(data.feeAmount)
+          : (feeSettings?.defaultAmount ?? undefined);
+
+    initiateConsultation.mutate(
+      {
+        id: leadId,
+        data: {
+          leadAttorneyId: data.attorneyId,
+          participantStaffIds: data.participantIds.length
+            ? data.participantIds
+            : undefined,
+          mode: data.consultationType,
+          duration,
+          locationId:
+            data.consultationType === "in_person"
+              ? data.locationId || undefined
+              : undefined,
+          feeAmount: resolvedFee,
+          preConsultationNotes: data.notes || undefined,
+          notifyChannels: data.notifyEmail ? ["email"] : [],
+          urgent: true,
+          startNow: true,
+          paymentTiming: data.paymentTiming,
+          isEmergency: data.isEmergency || undefined,
+          emergencyMultiplier: data.isEmergency
+            ? Number(data.emergencyMultiplier) || undefined
+            : undefined,
+          autoSendQuestionnaire:
+            data.autoSendQuestionnaire && !questionnaireAlreadySent
+              ? true
+              : undefined,
+        },
+      },
+      { onSuccess: () => closeDialog() },
+    );
+  };
+
+  const onInvalid = () => {
+    if (errors.selectedLeadId || errors.newName || errors.newEmail) setStep(1);
+    else if (errors.customDuration || errors.attorneyId || errors.locationId)
+      setStep(2);
+    else if (errors.emergencyMultiplier) setStep(3);
+  };
+
+  const handleConfirm = handleSubmit(onValid, onInvalid);
+
+  const stepTitle =
+    step === 0
+      ? "Who is this consultation for?"
+      : step === 1
+        ? clientMode === "new"
+          ? "New client details"
+          : "Select client"
+        : step === 2
+          ? "Consultation details"
+          : "Fee & confirm";
+  const stepDescription =
+    step === 0
+      ? "Select to get started"
+      : step === 1
+        ? clientMode === "new"
+          ? "Enter details and run a conflict check"
+          : "Step 1 of 3 — Select lead"
+        : step === 2
+          ? "Step 2 of 3 — Consultation details"
+          : "Review and begin the consultation";
+
+  return (
+    <Dialog.Root
+      open={open}
+      lazyMount
+      unmountOnExit
+      onOpenChange={(details) => {
+        if (details.open) {
+          onOpenChange(true);
+        } else {
+          closeDialog();
+        }
+      }}
+      placement="center"
+    >
+      <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
+      <Dialog.Positioner px="16px">
+        <Dialog.Content
+          w="full"
+          maxW="560px"
+          maxH="calc(100vh - 72px)"
+          border="1px solid"
+          borderColor="border"
+          borderRadius="14px"
+          bg="bg"
+          p="0"
+          boxShadow="0 24px 70px rgba(0, 0, 0, 0.26)"
+        >
+          <Flex direction="column" maxH="calc(100vh - 72px)">
+            <Box p="24px 24px 12px">
+              <Flex align="flex-start" justify="space-between" gap="16px">
+                <Box minW="0">
+                  <Box mb="8px">
+                    <StatusPill tone="gold" icon={<Zap size={11} />}>
+                      Instant consultation
+                    </StatusPill>
+                  </Box>
+                  <Dialog.Title
+                    color="fg"
+                    fontSize="17px"
+                    fontWeight="600"
+                    lineHeight="1.2"
+                  >
+                    {stepTitle}
+                  </Dialog.Title>
+                  <Dialog.Description
+                    mt="6px"
+                    color="fg.muted"
+                    fontSize="12px"
+                    lineHeight="1.45"
+                  >
+                    {stepDescription}
+                  </Dialog.Description>
+                </Box>
+                <Dialog.CloseTrigger asChild>
+                  <chakra.button
+                    type="button"
+                    aria-label="Close instant consultation"
+                    display="grid"
+                    placeItems="center"
+                    flex="0 0 auto"
+                    w="34px"
+                    h="34px"
+                    border="1px solid"
+                    borderColor="border"
+                    borderRadius="full"
+                    bg="bg"
+                    color="fg.muted"
+                  >
+                    <X size={16} />
+                  </chakra.button>
+                </Dialog.CloseTrigger>
+              </Flex>
+
+              {step > 0 ? <StepProgress step={step} total={3} /> : null}
+            </Box>
+
+            <Box flex="1" minH="0" px="24px" pb="20px" overflowY="auto">
+              {step === 0 ? (
+                <ClientModeChooser
+                  onChoose={(mode) => {
+                    setField("clientMode", mode);
+                    setStep(1);
+                  }}
+                />
+              ) : null}
+              {step === 1 && clientMode === "existing" ? (
+                <SelectClientStep
+                  leads={leads}
+                  selectedLeadId={selectedLeadId}
+                  matterType={matterType}
+                  language={existingLanguage}
+                  touched={Boolean(errors.selectedLeadId)}
+                  onSelect={(leadId) => setField("selectedLeadId", leadId)}
+                />
+              ) : null}
+              {step === 1 && clientMode === "new" ? (
+                <NewClientStep
+                  name={newName}
+                  email={newEmail}
+                  phone={newPhone}
+                  language={newLanguage}
+                  practiceAreaId={newPracticeAreaId}
+                  caseTypeId={newCaseTypeId}
+                  practiceAreas={practiceAreas ?? []}
+                  caseTypeOptions={caseTypeOptions}
+                  conflictState={conflictState}
+                  errors={{
+                    name: Boolean(errors.newName),
+                    email: Boolean(errors.newEmail),
+                    practiceArea: Boolean(errors.newPracticeAreaId),
+                    caseType: Boolean(errors.newCaseTypeId),
+                  }}
+                  onNameChange={(v) => setField("newName", v)}
+                  onEmailChange={(v) => setField("newEmail", v)}
+                  onPhoneChange={(v) => setField("newPhone", v)}
+                  onLanguageChange={(v) => setField("newLanguage", v)}
+                  onPracticeAreaChange={(v) => {
+                    setField("newPracticeAreaId", v);
+                    setField("newCaseTypeId", "");
+                  }}
+                  onCaseTypeChange={(v) => setField("newCaseTypeId", v)}
+                  onRunConflictCheck={handleRunConflictCheck}
+                />
+              ) : null}
+              {step === 2 ? (
+                <ScheduleDetailsStep
+                  durationChoice={durationChoice}
+                  customDuration={customDuration}
+                  consultationType={consultationType}
+                  attorneyId={attorneyId}
+                  attorneys={attorneys}
+                  allStaff={allStaff}
+                  participantIds={participantIds}
+                  locationId={locationId}
+                  locations={locations}
+                  notes={notes}
+                  notifyEmail={notifyEmail}
+                  urgent
+                  hideUrgent
+                  touchedField={
+                    errors.customDuration
+                      ? "duration"
+                      : errors.attorneyId
+                        ? "attorney"
+                        : errors.locationId
+                          ? "location"
+                          : null
+                  }
+                  onUrgentChange={() => undefined}
+                  onDurationChoiceChange={(value) =>
+                    setField("durationChoice", value)
+                  }
+                  onCustomDurationChange={(value) =>
+                    setField("customDuration", value)
+                  }
+                  onConsultationTypeChange={(value) =>
+                    setField("consultationType", value)
+                  }
+                  onAttorneyChange={(value) => setField("attorneyId", value)}
+                  onParticipantsChange={(value) =>
+                    setField("participantIds", value)
+                  }
+                  onLocationChange={(value) => setField("locationId", value)}
+                  onCreateLocation={async (label) => {
+                    const created = await createLocation.mutateAsync({ label });
+                    setField("locationId", created.id);
+                  }}
+                  creatingLocation={createLocation.isPending}
+                  onNotesChange={(value) => setField("notes", value)}
+                  onNotifyEmailChange={(value) =>
+                    setField("notifyEmail", value)
+                  }
+                />
+              ) : null}
+              {step === 3 ? (
+                <InstantReviewStep
+                  clientName={clientName}
+                  matterType={matterType}
+                  attorney={attorneyName}
+                  consultationType={consultationModeLabel(consultationType)}
+                  mode={consultationType}
+                  locationLabel={locationLabel}
+                  duration={durationLabel}
+                  feeSettings={feeSettings ?? null}
+                  feeAmount={feeAmount}
+                  onFeeAmountChange={(value) => setField("feeAmount", value)}
+                  isEmergency={isEmergency}
+                  onEmergencyChange={(value) => setField("isEmergency", value)}
+                  emergencyMultiplier={emergencyMultiplier}
+                  onEmergencyMultiplierChange={(value) =>
+                    setField("emergencyMultiplier", value)
+                  }
+                  multiplierInvalid={Boolean(errors.emergencyMultiplier)}
+                  standardFee={standardFee}
+                  emergencyFee={emergencyFee}
+                  paymentTiming={paymentTiming}
+                  onPaymentTimingChange={(value) =>
+                    setField("paymentTiming", value)
+                  }
+                  autoSendQuestionnaire={autoSendQuestionnaire}
+                  onAutoSendQuestionnaireChange={(value) =>
+                    setField("autoSendQuestionnaire", value)
+                  }
+                  questionnaireAlreadySent={questionnaireAlreadySent}
+                />
+              ) : null}
+            </Box>
+
+            <Flex
+              align="center"
+              justify="space-between"
+              gap="12px"
+              p="14px 24px"
+              borderTop="1px solid"
+              borderColor="border.subtle"
+              borderBottomRadius="14px"
+              bg="bg"
+            >
+              {step > 0 ? (
+                <OutlineButton
+                  onClick={() => setStep((s) => (s - 1) as InstantStep)}
+                >
+                  Back
+                </OutlineButton>
+              ) : (
+                <Box />
+              )}
+              <HStack gap="10px">
+                <OutlineButton onClick={closeDialog}>Cancel</OutlineButton>
+                {step > 0 && step < 3 ? (
+                  <BrandButton
+                    minW="100px"
+                    disabled={
+                      step === 1 &&
+                      clientMode === "new" &&
+                      conflictState !== "pass"
+                    }
+                    onClick={handleContinue}
+                  >
+                    Next
+                  </BrandButton>
+                ) : null}
+                {step === 3 ? (
+                  <BrandButton
+                    minW="180px"
+                    loading={initiateConsultation.isPending}
+                    onClick={handleConfirm}
+                  >
+                    <Zap size={14} />
+                    Begin consultation
+                  </BrandButton>
+                ) : null}
+              </HStack>
+            </Flex>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+function ClientModeChooser({
+  onChoose,
+}: {
+  onChoose: (mode: ClientMode) => void;
+}) {
+  return (
+    <Grid
+      templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+      gap="12px"
+      pt="12px"
+    >
+      <ChooserCard
+        icon={<Users size={18} />}
+        title="Existing lead or client"
+        subtitle="Already in the system — search by name"
+        onClick={() => onChoose("existing")}
+      />
+      <ChooserCard
+        icon={<UserPlus size={18} />}
+        title="New client"
+        subtitle="Not yet in the system — new intake"
+        onClick={() => onChoose("new")}
+      />
+    </Grid>
+  );
+}
+
+function ChooserCard({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <chakra.button
+      type="button"
+      onClick={onClick}
+      p="28px 16px"
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      textAlign="center"
+      transition="border-color 0.15s ease, box-shadow 0.15s ease"
+      _hover={{
+        borderColor: "brand.solid",
+        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+      }}
+    >
+      <Stack gap="10px" align="center">
+        <Box
+          w="44px"
+          h="44px"
+          borderRadius="full"
+          bg="bg.subtle"
+          color="fg"
+          display="grid"
+          placeItems="center"
+        >
+          {icon}
+        </Box>
+        <Text m="0" color="fg" fontSize="14px" fontWeight="600">
+          {title}
+        </Text>
+        <Text m="0" color="fg.muted" fontSize="12px">
+          {subtitle}
+        </Text>
+      </Stack>
+    </chakra.button>
+  );
+}
+
+function NewClientStep({
+  name,
+  email,
+  phone,
+  language,
+  practiceAreaId,
+  caseTypeId,
+  practiceAreas,
+  caseTypeOptions,
+  conflictState,
+  errors,
+  onNameChange,
+  onEmailChange,
+  onPhoneChange,
+  onLanguageChange,
+  onPracticeAreaChange,
+  onCaseTypeChange,
+  onRunConflictCheck,
+}: {
+  name: string;
+  email: string;
+  phone: string;
+  language: string;
+  practiceAreaId: string;
+  caseTypeId: string;
+  practiceAreas: PublicPracticeArea[];
+  caseTypeOptions: { id: string; name: string }[];
+  conflictState: ConflictState;
+  errors: {
+    name: boolean;
+    email: boolean;
+    practiceArea: boolean;
+    caseType: boolean;
+  };
+  onNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onPhoneChange: (value: string) => void;
+  onLanguageChange: (value: string) => void;
+  onPracticeAreaChange: (value: string) => void;
+  onCaseTypeChange: (value: string) => void;
+  onRunConflictCheck: () => void;
+}) {
+  const blocked =
+    conflictState === "needs_review" || conflictState === "conflict_found";
+
+  return (
+    <Stack gap="14px" pt="8px">
+      <HStack
+        align="flex-start"
+        gap="10px"
+        p="12px"
+        border="1px solid"
+        borderColor="#377dff"
+        borderRadius="7px"
+        bg="#e8f1ff"
+        color="#0f4aa8"
+        fontSize="11px"
+        lineHeight="1.45"
+      >
+        <Info size={13} />
+        <Box>
+          This client is not in the system. After the consultation you can mark
+          it as completed — a questionnaire can be sent to their email and
+          their record is added to the intake pipeline automatically.
+        </Box>
+      </HStack>
+
+      <Grid
+        templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+        gap="12px"
+      >
+        <Box>
+          <StepFieldLabel required>Full name</StepFieldLabel>
+          <Input
+            value={name}
+            onChange={(e) => onNameChange(e.currentTarget.value)}
+            placeholder="Client full name"
+            {...fieldStyles}
+            borderColor={errors.name ? invalidColor : "border"}
+          />
+        </Box>
+        <Box>
+          <StepFieldLabel required>Email</StepFieldLabel>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.currentTarget.value)}
+            placeholder="client@email.com"
+            {...fieldStyles}
+            borderColor={errors.email ? invalidColor : "border"}
+          />
+        </Box>
+        <Box>
+          <StepFieldLabel>Phone</StepFieldLabel>
+          <Input
+            value={phone}
+            onChange={(e) => onPhoneChange(e.currentTarget.value)}
+            placeholder="+1 (000) 000-0000"
+            {...fieldStyles}
+          />
+        </Box>
+        <Box>
+          <StepFieldLabel>Language</StepFieldLabel>
+          <FormSelect
+            ariaLabel="Language"
+            value={language}
+            onChange={onLanguageChange}
+            options={LANGUAGE_OPTIONS}
+          />
+        </Box>
+      </Grid>
+
+      <Grid
+        templateColumns={{ base: "1fr", sm: "repeat(2, minmax(0, 1fr))" }}
+        gap="12px"
+      >
+        <Box>
+          <StepFieldLabel required>Practice area</StepFieldLabel>
+          <FormSelect
+            ariaLabel="Practice area"
+            value={practiceAreaId}
+            onChange={onPracticeAreaChange}
+            invalid={errors.practiceArea}
+            placeholder="Select practice area…"
+            options={practiceAreas.map((area) => ({
+              value: area.id,
+              label: area.name,
+            }))}
+          />
+        </Box>
+        <Box>
+          <StepFieldLabel required>Case type</StepFieldLabel>
+          <FormSelect
+            ariaLabel="Case type"
+            value={caseTypeId}
+            onChange={onCaseTypeChange}
+            invalid={errors.caseType}
+            disabled={!practiceAreaId}
+            placeholder={
+              practiceAreaId ? "Select case type…" : "Pick a practice area first"
+            }
+            options={caseTypeOptions.map((ct) => ({
+              value: ct.id,
+              label: ct.name,
+            }))}
+          />
+        </Box>
+      </Grid>
+
+      <Box borderTop="1px solid" borderColor="border.subtle" pt="12px">
+        {conflictState === "pass" ? (
+          <HStack
+            gap="8px"
+            p="10px 12px"
+            border="1px solid"
+            borderColor="#00785a"
+            borderRadius="8px"
+            bg="#d9f8ed"
+            color="#00785a"
+            fontSize="12px"
+          >
+            <Info size={14} />
+            <Text m="0">Conflict check passed — you can proceed.</Text>
+          </HStack>
+        ) : blocked ? (
+          <HStack
+            gap="8px"
+            p="10px 12px"
+            border="1px solid"
+            borderColor="#b00020"
+            borderRadius="8px"
+            bg="#ffe2e4"
+            color="#b00020"
+            fontSize="12px"
+            align="flex-start"
+          >
+            <Info size={14} />
+            <Text m="0">
+              {conflictState === "conflict_found"
+                ? "A conflict was found. This consultation cannot proceed until the conflict is resolved in the Conflict check tab."
+                : "The conflict check needs review. Resolve it in the Conflict check tab before starting this consultation."}
+            </Text>
+          </HStack>
+        ) : (
+          <MutedText>
+            A conflict check is required before proceeding. Enter the client
+            details above first.
+          </MutedText>
+        )}
+        <Box mt="10px">
+          <OutlineButton
+            w="full"
+            color="#00785a"
+            borderColor="#00785a"
+            loading={conflictState === "running"}
+            onClick={onRunConflictCheck}
+          >
+            {conflictState === "idle"
+              ? "Run conflict check"
+              : "Re-run conflict check"}
+          </OutlineButton>
+        </Box>
+      </Box>
+    </Stack>
+  );
+}
+
+function InstantReviewStep({
+  clientName,
+  matterType,
+  attorney,
+  consultationType,
+  mode,
+  locationLabel,
+  duration,
+  feeSettings,
+  feeAmount,
+  onFeeAmountChange,
+  isEmergency,
+  onEmergencyChange,
+  emergencyMultiplier,
+  onEmergencyMultiplierChange,
+  multiplierInvalid,
+  standardFee,
+  emergencyFee,
+  paymentTiming,
+  onPaymentTimingChange,
+  autoSendQuestionnaire,
+  onAutoSendQuestionnaireChange,
+  questionnaireAlreadySent,
+}: {
+  clientName: string;
+  matterType: string;
+  attorney: string;
+  consultationType: string;
+  mode: "video" | "in_person" | "phone_call";
+  locationLabel: string;
+  duration: string;
+  feeSettings: ConsultationSettings | null;
+  feeAmount: string;
+  onFeeAmountChange: (value: string) => void;
+  isEmergency: boolean;
+  onEmergencyChange: (value: boolean) => void;
+  emergencyMultiplier: string;
+  onEmergencyMultiplierChange: (value: string) => void;
+  multiplierInvalid: boolean;
+  standardFee: number;
+  emergencyFee: number;
+  paymentTiming: PaymentTiming;
+  onPaymentTimingChange: (value: PaymentTiming) => void;
+  autoSendQuestionnaire: boolean;
+  onAutoSendQuestionnaireChange: (value: boolean) => void;
+  questionnaireAlreadySent: boolean;
+}) {
+  const charges = Boolean(feeSettings?.chargesFee);
+  const structure = feeSettings?.feeStructure;
+  const chargedFee = isEmergency ? emergencyFee : standardFee;
+
+  return (
+    <Stack gap="16px" pt="12px">
+      <Box p="14px 16px" borderRadius="10px" bg="bg.subtle">
+        <SummaryItem label="Client">{clientName}</SummaryItem>
+        <SummaryItem label="Matter">{matterType}</SummaryItem>
+        <SummaryItem label="Attorney">{attorney}</SummaryItem>
+        <SummaryItem label="Type">{consultationType}</SummaryItem>
+        {mode === "in_person" ? (
+          <SummaryItem label="Location">{locationLabel}</SummaryItem>
+        ) : null}
+        <SummaryItem label="Duration">{duration}</SummaryItem>
+        <SummaryItem label="Fee">
+          {charges ? `$${chargedFee}` : "No fee"}
+        </SummaryItem>
+        <SummaryItem label="Started">Now</SummaryItem>
+      </Box>
+
+      {charges ? (
+        <Box
+          border="1px solid"
+          borderColor="brand.solid"
+          borderRadius="10px"
+          bg="brand.subtle"
+          p="14px 16px"
+        >
+          <Flex align="flex-start" justify="space-between" gap="12px">
+            <HStack gap="10px" align="flex-start">
+              <Box color="brand.fg" mt="2px">
+                <Zap size={14} />
+              </Box>
+              <Box>
+                <Text m="0" fontSize="13px" fontWeight="600" color="brand.fg">
+                  Mark as emergency consultation
+                </Text>
+                <Text m="2px 0 0" fontSize="12px" color="brand.fg">
+                  Applies an emergency rate multiplier to the consultation fee
+                </Text>
+              </Box>
+            </HStack>
+            <Switch.Root
+              checked={isEmergency}
+              onCheckedChange={(e) => onEmergencyChange(e.checked)}
+            >
+              <Switch.HiddenInput />
+              <Switch.Control bg={isEmergency ? "brand.solid" : undefined}>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Root>
+          </Flex>
+          {isEmergency ? (
+            <HStack
+              mt="12px"
+              pt="12px"
+              borderTop="1px solid"
+              borderColor="brand.solid"
+              gap="8px"
+              wrap="wrap"
+            >
+              <Text m="0" fontSize="12px" color="brand.fg">
+                Multiplier:
+              </Text>
+              <Input
+                type="number"
+                min={1}
+                step="0.5"
+                value={emergencyMultiplier}
+                onChange={(e) =>
+                  onEmergencyMultiplierChange(e.currentTarget.value)
+                }
+                maxW="64px"
+                textAlign="center"
+                {...fieldStyles}
+                w="64px"
+                borderColor={multiplierInvalid ? invalidColor : "border"}
+              />
+              <Text m="0" fontSize="12px" color="brand.fg">
+                × Standard fee: ${standardFee} → Emergency fee: $
+                {emergencyFee.toFixed(2)}
+              </Text>
+            </HStack>
+          ) : null}
+        </Box>
+      ) : null}
+
+      <Box>
+        <Text
+          textTransform="uppercase"
+          fontSize="11px"
+          fontWeight="600"
+          letterSpacing="0.04em"
+          color="fg.muted"
+          mb="12px"
+        >
+          Consultation fee
+        </Text>
+
+        <Flex align="flex-start" justify="space-between" gap="12px">
+          <Box>
+            <Text m="0" fontSize="13px" fontWeight="600" color="fg">
+              Charge consultation fee
+            </Text>
+            <Text m="2px 0 0" fontSize="12px" color="fg.muted">
+              Pre-set in firm settings
+            </Text>
+          </Box>
+          <Switch.Root checked={charges} disabled>
+            <Switch.HiddenInput />
+            <Switch.Control bg={charges ? "brand.solid" : "bg.muted"}>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Root>
+        </Flex>
+
+        {charges ? (
+          <>
+            <Flex align="center" justify="space-between" mt="16px">
+              <Text fontSize="13px" color="fg">
+                Fee amount
+              </Text>
+              <HStack gap="6px">
+                <Text fontSize="14px" color="fg.muted">
+                  $
+                </Text>
+                {isEmergency ? (
+                  <Text fontSize="14px" fontWeight="600" color="fg">
+                    {emergencyFee.toFixed(2)}
+                  </Text>
+                ) : structure === "custom_per_case_type" ? (
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={feeAmount}
+                    onChange={(e) => onFeeAmountChange(e.currentTarget.value)}
+                    placeholder={
+                      feeSettings?.defaultAmount?.toString() ?? "0.00"
+                    }
+                    maxW="96px"
+                    textAlign="right"
+                    {...fieldStyles}
+                  />
+                ) : (
+                  <Text fontSize="14px" fontWeight="600" color="fg">
+                    {feeSettings?.defaultAmount ?? 0}
+                  </Text>
+                )}
+                <Text fontSize="12px" color="fg.muted">
+                  per session
+                </Text>
+              </HStack>
+            </Flex>
+
+            {structure === "waived_if_retainer" ? (
+              <MutedText>
+                Waived if the client signs a retainer within{" "}
+                {feeSettings?.waiverWindowDays ?? 0} days.
+              </MutedText>
+            ) : null}
+
+            <Box mt="16px">
+              <Text m="0 0 10px" fontSize="13px" fontWeight="600" color="fg">
+                Payment timing
+              </Text>
+              <Stack gap="8px">
+                {PAYMENT_TIMING_OPTIONS.map((option) => {
+                  const active = paymentTiming === option.value;
+                  return (
+                    <chakra.button
+                      key={option.value}
+                      type="button"
+                      onClick={() => onPaymentTimingChange(option.value)}
+                      display="flex"
+                      alignItems="flex-start"
+                      gap="10px"
+                      p="12px 14px"
+                      border="1px solid"
+                      borderColor={active ? "brand.solid" : "border"}
+                      borderRadius="10px"
+                      bg={active ? "brand.subtle" : "bg"}
+                      textAlign="left"
+                    >
+                      <Box
+                        mt="2px"
+                        w="14px"
+                        h="14px"
+                        flex="0 0 auto"
+                        borderRadius="full"
+                        border="1px solid"
+                        borderColor={active ? "brand.solid" : "border"}
+                        bg="bg"
+                        display="grid"
+                        placeItems="center"
+                      >
+                        {active ? (
+                          <Box
+                            w="7px"
+                            h="7px"
+                            borderRadius="full"
+                            bg="brand.solid"
+                          />
+                        ) : null}
+                      </Box>
+                      <Box>
+                        <Text m="0" fontSize="13px" fontWeight="600" color="fg">
+                          {option.label}
+                        </Text>
+                        <Text m="2px 0 0" fontSize="12px" color="fg.muted">
+                          {option.description}
+                        </Text>
+                      </Box>
+                    </chakra.button>
+                  );
+                })}
+              </Stack>
+            </Box>
+          </>
+        ) : null}
+      </Box>
+
+      <Box borderTop="1px solid" borderColor="border.subtle" pt="12px">
+        {questionnaireAlreadySent ? (
+          <MutedText>
+            The intake questionnaire has already been sent to this client.
+          </MutedText>
+        ) : (
+          <CheckOption
+            checked={autoSendQuestionnaire}
+            onToggle={() =>
+              onAutoSendQuestionnaireChange(!autoSendQuestionnaire)
+            }
+            label={
+              <>
+                Send intake questionnaire when this consultation is completed{" "}
+                <chakra.span color="fg.muted">
+                  (uses the client's language)
+                </chakra.span>
+              </>
+            }
+          />
+        )}
+      </Box>
+    </Stack>
+  );
+}
