@@ -1,3 +1,4 @@
+import { getCaseById } from "@/api/cases";
 import {
   Badge,
   Box,
@@ -10,6 +11,7 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Archive,
@@ -18,8 +20,6 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getCaseById } from "@/api/cases";
 import { statusBadgeStyle } from "./shared";
 import { AuditLogTab } from "./tabs/audit-log";
 import { Documents } from "./tabs/documents";
@@ -47,6 +47,8 @@ export function CaseDetailsDrawer({
   const onOpenChange =
     controlledOnOpenChange ??
     ((details: { open: boolean }) => setInternalOpen(details.open));
+
+  const [tab, setTab] = useState("overview");
 
   const { data: caseRow } = useQuery({
     queryKey: ["case", caseId],
@@ -196,7 +198,8 @@ export function CaseDetailsDrawer({
               overflow="hidden"
             >
               <Tabs.Root
-                defaultValue="overview"
+                value={tab}
+                onValueChange={(e) => setTab(e.value)}
                 size="sm"
                 display="flex"
                 flexDir="column"
@@ -245,7 +248,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <Overview caseId={caseId} />
+                  <Overview caseId={caseId} isActive={tab === "overview"} />
                 </Tabs.Content>
 
                 <Tabs.Content
@@ -255,7 +258,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <WorkflowTab caseId={caseId} />
+                  <WorkflowTab caseId={caseId} isActive={tab === "workflow"} />
                 </Tabs.Content>
 
                 <Tabs.Content
@@ -285,7 +288,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <TimelineTab caseId={caseId} />
+                  <TimelineTab caseId={caseId} isActive={tab === "timeline"} />
                 </Tabs.Content>
 
                 <Tabs.Content
@@ -305,7 +308,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <AuditLogTab caseId={caseId} />
+                  <AuditLogTab caseId={caseId} isActive={tab === "audit log"} />
                 </Tabs.Content>
               </Tabs.Root>
             </Drawer.Body>

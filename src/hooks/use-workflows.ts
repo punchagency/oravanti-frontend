@@ -32,38 +32,38 @@ export const workflowKeys = {
 
 // ─── Queries ─────────────────────────────────────────────────────────────────────
 
-export function useCaseWorkflow(caseId: string) {
+export function useCaseWorkflow(caseId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: workflowKeys.instance(caseId),
     queryFn: () => getCaseWorkflow(caseId),
-    enabled: Boolean(caseId),
+    enabled: Boolean(caseId) && enabled,
     staleTime: 30_000,
   });
 }
 
-export function useWorkflowSummary(caseId: string) {
+export function useWorkflowSummary(caseId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: workflowKeys.summary(caseId),
     queryFn: () => getWorkflowSummary(caseId),
-    enabled: Boolean(caseId),
+    enabled: Boolean(caseId) && enabled,
     staleTime: 30_000,
   });
 }
 
-export function useCaseTimeline(caseId: string) {
+export function useCaseTimeline(caseId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: workflowKeys.timeline(caseId),
     queryFn: () => getCaseTimeline(caseId),
-    enabled: Boolean(caseId),
+    enabled: Boolean(caseId) && enabled,
     staleTime: 30_000,
   });
 }
 
-export function useWorkflowLogs(caseId: string) {
+export function useWorkflowLogs(caseId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: workflowKeys.logs(caseId),
     queryFn: () => getWorkflowLogs(caseId),
-    enabled: Boolean(caseId),
+    enabled: Boolean(caseId) && enabled,
     staleTime: 30_000,
   });
 }

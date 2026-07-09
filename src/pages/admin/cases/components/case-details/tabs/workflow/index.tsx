@@ -13,6 +13,7 @@ import type { CaseModuleInstance, WorkflowModule } from "./types";
 
 interface WorkflowTabProps {
   caseId: string;
+  isActive?: boolean;
 }
 
 interface MergedModule {
@@ -100,8 +101,8 @@ function mapBackendModule(mod: {
   return { definition, instance };
 }
 
-export function WorkflowTab({ caseId }: WorkflowTabProps) {
-  const { data: workflowInstance, isLoading, refetch } = useCaseWorkflow(caseId);
+export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
+  const { data: workflowInstance, isLoading, refetch } = useCaseWorkflow(caseId, isActive);
 
   const mergedModules: MergedModule[] = useMemo(() => {
     if (!workflowInstance) return [];

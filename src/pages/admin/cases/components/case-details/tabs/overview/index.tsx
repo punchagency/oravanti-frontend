@@ -10,12 +10,14 @@ import { PendingActions } from "./pending-actions";
 
 interface OverviewProps {
   caseId: string;
+  isActive?: boolean;
 }
 
-export function Overview({ caseId }: OverviewProps) {
+export function Overview({ caseId, isActive = true }: OverviewProps) {
   const { data: caseRow, isLoading } = useQuery({
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId),
+    enabled: Boolean(caseId) && isActive,
     staleTime: 60_000,
   });
 

@@ -4,6 +4,7 @@ import { SectionLabel } from "../../shared";
 
 interface AuditLogTabProps {
   caseId?: string;
+  isActive?: boolean;
 }
 
 const eventIcons: Record<string, string> = {
@@ -26,8 +27,8 @@ const eventLabels: Record<string, string> = {
   STEP_REJECTED: "Step rejected",
 };
 
-export function AuditLogTab({ caseId }: AuditLogTabProps) {
-  const { data: logs, isLoading } = useWorkflowLogs(caseId ?? "");
+export function AuditLogTab({ caseId, isActive = true }: AuditLogTabProps) {
+  const { data: logs, isLoading } = useWorkflowLogs(caseId ?? "", isActive);
 
   if (isLoading) {
     return (
