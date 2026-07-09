@@ -887,15 +887,16 @@ function WizardFormBody({
 
   return (
     <chakra.form
-      onSubmit={
-        step === 2
-          ? handleSubmit(onValid)
-          : (e) => {
-              // Enter on earlier steps must not generate the agreement.
-              e.preventDefault();
-              void next();
-            }
-      }
+      onSubmit={(e) => {
+        // Native submission is never used: none of the footer buttons are
+        // type="submit" (React reuses the same DOM node across steps, so a
+        // submit-type Generate button would receive the click's default
+        // action when "Next" morphs into it and auto-generate). This handler
+        // only serves the Enter key.
+        e.preventDefault();
+        if (step === 2) void handleSubmit(onValid)();
+        else void next();
+      }}
     >
       <Stack gap="16px">
         <WizardStepIndicator step={step} />
@@ -1923,9 +1924,10 @@ function WizardFormBody({
             </BrandButton>
           ) : (
             <BrandButton
-              type="submit"
+              type="button"
               loading={generating}
               disabled={isContingency && !abaAllChecked}
+              onClick={() => void handleSubmit(onValid)()}
             >
               <FileText size={14} />
               Generate fee agreement
