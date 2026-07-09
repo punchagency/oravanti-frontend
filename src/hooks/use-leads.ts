@@ -9,6 +9,7 @@ import {
   getLeadById,
   getLeads,
   getLeadsStageCount,
+  markFeeAgreementPaymentReceived,
   markFeeAgreementReceived,
   nudgeClient,
   sendFeeAgreement,
@@ -329,6 +330,22 @@ export function useMarkFeeAgreementReceived() {
       toast.error(
         err.response?.data?.message ?? "Failed to mark agreement as received",
       );
+    },
+  });
+}
+
+export function useMarkFeeAgreementPaymentReceived() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) =>
+      markFeeAgreementPaymentReceived(agreementId),
+    onSuccess: () => {
+      toast.success("Payment recorded");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to record payment");
     },
   });
 }
