@@ -1,8 +1,12 @@
 import { Box, HStack, Stack } from "@chakra-ui/react";
-import { FileText, Link2, PenLine } from "lucide-react";
+import { FileText, Link2, PenLine, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import type { FeeAgreementPreview, Lead } from "@/api/leads";
+import type {
+  FeeAgreementDetails,
+  FeeAgreementPreview,
+  Lead,
+} from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
 import {
   useLeads,
@@ -10,6 +14,7 @@ import {
   useNudgeClient,
   useGenerateFeeAgreement,
   useAdvanceLeadStage,
+  useDiscardFeeAgreement,
   useFeeAgreementPreview,
   useMarkFeeAgreementPaymentReceived,
   useSendFeeAgreement,
@@ -95,6 +100,22 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
     setGeneratedPreview(null);
   }
 
+  // Config of a discarded draft — seeds the wizard so the attorney can adjust
+  // and regenerate instead of starting over.
+  const discardDraft = useDiscardFeeAgreement();
+  const [reusedDetails, setReusedDetails] =
+    useState<FeeAgreementDetails | null>(null);
+  function handleDiscardDraft() {
+    if (!agreement) return;
+    const details = agreement.details;
+    discardDraft.mutate(agreement.id, {
+      onSuccess: () => {
+        setReusedDetails(details);
+        closePreview();
+      },
+    });
+  }
+
   function handleNudge() {
     if (!agreement?.id) return;
     nudge.mutate(agreement.id);
@@ -178,10 +199,19 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
           mt="14px"
         >
           {agreement.status === "draft" ? (
-            <BrandButton onClick={() => setPreviewOpen(true)}>
-              <FileText size={14} />
-              Preview &amp; send
-            </BrandButton>
+            <>
+              <BrandButton onClick={() => setPreviewOpen(true)}>
+                <FileText size={14} />
+                Preview &amp; send
+              </BrandButton>
+              <OutlineButton
+                loading={discardDraft.isPending}
+                onClick={handleDiscardDraft}
+              >
+                <Pencil size={14} />
+                Cancel &amp; edit
+              </OutlineButton>
+            </>
           ) : !isSigned ? (
             <OutlineButton loading={nudge.isPending} onClick={handleNudge}>
               Nudge client
@@ -223,6 +253,7 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
             lead={lead}
             consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
             generating={generateAgreement.isPending}
+            initialDetails={reusedDetails}
             onSubmit={(data) =>
               generateAgreement.mutate(
                 { id: lead.id, data },

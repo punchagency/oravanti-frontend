@@ -9,6 +9,7 @@ import {
   getLeadById,
   getLeads,
   getLeadsStageCount,
+  discardFeeAgreement,
   markFeeAgreementPaymentReceived,
   markFeeAgreementReceived,
   nudgeClient,
@@ -331,6 +332,21 @@ export function useMarkFeeAgreementReceived() {
       toast.error(
         err.response?.data?.message ?? "Failed to mark agreement as received",
       );
+    },
+  });
+}
+
+export function useDiscardFeeAgreement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) => discardFeeAgreement(agreementId),
+    onSuccess: () => {
+      toast.success("Draft discarded — adjust the configuration and regenerate");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to discard the draft");
     },
   });
 }

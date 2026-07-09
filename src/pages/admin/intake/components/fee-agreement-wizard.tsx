@@ -32,7 +32,11 @@ import type { FieldPath } from "react-hook-form";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { GenerateFeeAgreementInput, Lead } from "@/api/leads";
+import type {
+  FeeAgreementDetails,
+  GenerateFeeAgreementInput,
+  Lead,
+} from "@/api/leads";
 import { useFirmPracticeAreas } from "@/hooks/use-firm-practice-areas";
 import {
   BrandButton,
@@ -41,7 +45,11 @@ import {
 } from "@/components/ui/intake-ui";
 import { CheckOption, ChoiceChip } from "./consultation-wizard-shared";
 import { fieldStyles } from "./consultation-wizard-constants";
-import { getContingencyFit, getCostPreset } from "./fee-agreement-cost-presets";
+import {
+  getContingencyFit,
+  getCostPreset,
+  type CostPreset,
+} from "./fee-agreement-cost-presets";
 
 // ── Form schema (string-input pattern) ────────────────────────────────────────
 
@@ -226,6 +234,92 @@ const fmtMoney = (n: number): string =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
+const emptyFormValues = (preset: CostPreset): WizardForm => ({
+  feeType: null,
+  flatRate: "",
+  hourlyRate: "",
+  estimatedHours: "",
+  contingencyPercent: "",
+  coversCaseCosts: true,
+  coversExpertWitness: false,
+  ifLost: "client_owes_nothing",
+  governmentFees: preset.governmentFees,
+  otherCosts: preset.otherCosts,
+  paymentPlan: "pay_in_full",
+  twoPayFirst: "",
+  twoPaySecond: "",
+  twoPaySecondDate: "",
+  instMonthly: "",
+  instCount: "12",
+  instFirstDate: "",
+  allocationOrder: "fees_first",
+  customFeePercent: "50",
+  applyConsultationCredit: false,
+  abaCompliance: false,
+  abaFeeMethod: false,
+  abaAlternatives: false,
+});
+
+// Seeds the form from a discarded draft's stored details so the attorney can
+// adjust and regenerate. The ABA confirmations deliberately reset — they must
+// be re-affirmed for the regenerated agreement.
+const detailsToFormValues = (
+  details: FeeAgreementDetails,
+  preset: CostPreset,
+): WizardForm => {
+  const empty = emptyFormValues(preset);
+  const af = details.attorneyFee;
+  return {
+    ...empty,
+    feeType: af.type,
+    flatRate: af.flatRate != null ? String(af.flatRate) : "",
+    hourlyRate: af.hourlyRate != null ? String(af.hourlyRate) : "",
+    estimatedHours: af.estimatedHours != null ? String(af.estimatedHours) : "",
+    contingencyPercent:
+      af.contingencyPercent != null ? String(af.contingencyPercent) : "",
+    coversCaseCosts: details.contingencyTerms?.coversCaseCosts ?? true,
+    coversExpertWitness:
+      details.contingencyTerms?.coversExpertWitnessFees ?? false,
+    ifLost: details.contingencyTerms?.ifLost ?? "client_owes_nothing",
+    governmentFees: details.governmentFees.length
+      ? details.governmentFees.map((g) => ({
+          name: g.name,
+          amount: String(g.amount),
+        }))
+      : preset.governmentFees,
+    // Only rows the attorney included were persisted, so they all come back
+    // checked; unchecked preset rows from the original session are not kept.
+    otherCosts: details.otherCosts?.length
+      ? details.otherCosts.map((c) => ({
+          included: true,
+          name: c.name,
+          amount: String(c.amount),
+        }))
+      : preset.otherCosts,
+    paymentPlan: details.paymentPlan ?? "pay_in_full",
+    twoPayFirst: details.twoPaymentsSchedule
+      ? String(details.twoPaymentsSchedule.firstAmount)
+      : "",
+    twoPaySecond: details.twoPaymentsSchedule
+      ? String(details.twoPaymentsSchedule.secondAmount)
+      : "",
+    twoPaySecondDate: details.twoPaymentsSchedule?.secondDueDate ?? "",
+    instMonthly: details.installmentSchedule
+      ? String(details.installmentSchedule.monthlyAmount)
+      : "",
+    instCount: details.installmentSchedule
+      ? String(details.installmentSchedule.numberOfPayments)
+      : "12",
+    instFirstDate: details.installmentSchedule?.firstPaymentDate ?? "",
+    allocationOrder: details.paymentAllocation?.order ?? "fees_first",
+    customFeePercent:
+      details.paymentAllocation?.customFeePercent != null
+        ? String(details.paymentAllocation.customFeePercent)
+        : "50",
+    applyConsultationCredit: details.applyConsultationCredit,
+  };
+};
 
 // ── Small local UI pieces ─────────────────────────────────────────────────────
 
@@ -581,11 +675,14 @@ export function FeeAgreementWizard({
   lead,
   consultationFeeAmount,
   generating,
+  initialDetails,
   onSubmit,
 }: {
   lead: Lead;
   consultationFeeAmount: number | null;
   generating: boolean;
+  // Stored config of a discarded draft — seeds the wizard for regeneration.
+  initialDetails?: FeeAgreementDetails | null;
   onSubmit: (data: GenerateFeeAgreementInput) => void;
 }) {
   const { data: practiceAreas, isLoading } = useFirmPracticeAreas();
@@ -606,6 +703,7 @@ export function FeeAgreementWizard({
       practiceAreaName={practiceAreaName}
       consultationFeeAmount={consultationFeeAmount}
       generating={generating}
+      initialDetails={initialDetails ?? null}
       onSubmit={onSubmit}
     />
   );
@@ -615,11 +713,13 @@ function WizardFormBody({
   practiceAreaName,
   consultationFeeAmount,
   generating,
+  initialDetails,
   onSubmit,
 }: {
   practiceAreaName: string | null;
   consultationFeeAmount: number | null;
   generating: boolean;
+  initialDetails: FeeAgreementDetails | null;
   onSubmit: (data: GenerateFeeAgreementInput) => void;
 }) {
   const preset = getCostPreset(practiceAreaName);
@@ -636,31 +736,9 @@ function WizardFormBody({
     formState: { errors },
   } = useForm<WizardForm>({
     resolver: zodResolver(wizardSchema),
-    defaultValues: {
-      feeType: null,
-      flatRate: "",
-      hourlyRate: "",
-      estimatedHours: "",
-      contingencyPercent: "",
-      coversCaseCosts: true,
-      coversExpertWitness: false,
-      ifLost: "client_owes_nothing",
-      governmentFees: preset.governmentFees,
-      otherCosts: preset.otherCosts,
-      paymentPlan: "pay_in_full",
-      twoPayFirst: "",
-      twoPaySecond: "",
-      twoPaySecondDate: "",
-      instMonthly: "",
-      instCount: "12",
-      instFirstDate: "",
-      allocationOrder: "fees_first",
-      customFeePercent: "50",
-      applyConsultationCredit: false,
-      abaCompliance: false,
-      abaFeeMethod: false,
-      abaAlternatives: false,
-    },
+    defaultValues: initialDetails
+      ? detailsToFormValues(initialDetails, preset)
+      : emptyFormValues(preset),
     mode: "onChange",
   });
 

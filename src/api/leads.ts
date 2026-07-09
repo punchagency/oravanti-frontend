@@ -581,6 +581,21 @@ export const markFeeAgreementPaymentReceived = async (
   return res.data.data;
 };
 
+// Draft (never-dispatched) agreements only: deletes the draft and clears the
+// lead's pointer so the wizard can regenerate. Returns the stored details for
+// seeding the wizard with the previous configuration.
+export const discardFeeAgreement = async (
+  agreementId: string,
+): Promise<{
+  discarded: boolean;
+  agreementId: string;
+  leadId: string;
+  details: FeeAgreementDetails | null;
+}> => {
+  const res = await API.post(`/agreements/${agreementId}/discard`);
+  return res.data.data;
+};
+
 export const nudgeClient = async (
   agreementId: string,
 ): Promise<{ reminderSentAt: string }> => {

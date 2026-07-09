@@ -56,6 +56,7 @@ import type {
   ConsultationListItem,
   ConsultationSort,
   ConsultationStatus,
+  FeeAgreementDetails,
   FeeAgreementPreview,
   Lead,
 } from "@/api/leads";
@@ -69,6 +70,7 @@ import {
   useAdvanceLeadStage,
   useCancelConsultation,
   useConsultations,
+  useDiscardFeeAgreement,
   useInitiateConsultation,
   useFeeAgreementPreview,
   useGenerateFeeAgreement,
@@ -787,6 +789,22 @@ function ConsultationCard({
     setGeneratedPreview(null);
   }
 
+  // Config of a discarded draft — seeds the wizard so the attorney can adjust
+  // and regenerate instead of starting over.
+  const discardDraft = useDiscardFeeAgreement();
+  const [reusedDetails, setReusedDetails] =
+    useState<FeeAgreementDetails | null>(null);
+  function handleDiscardDraft() {
+    if (!feeAgreement) return;
+    const details = feeAgreement.details;
+    discardDraft.mutate(feeAgreement.id, {
+      onSuccess: () => {
+        setReusedDetails(details);
+        closePreview();
+      },
+    });
+  }
+
   const [notes, setNotes] = useState<string | null>(null);
   const [now, setTime] = useState(() => Date.now());
   const baseNotes = hasConsultation
@@ -1358,6 +1376,7 @@ function ConsultationCard({
                 lead={lead}
                 consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
                 generating={generateFee.isPending}
+                initialDetails={reusedDetails}
                 onSubmit={(data) =>
                   generateFee.mutate(
                     { id: lead.id, data },
@@ -1378,6 +1397,13 @@ function ConsultationCard({
                     <FileText size={14} />
                     Preview &amp; send
                   </BrandButton>
+                  <OutlineButton
+                    loading={discardDraft.isPending}
+                    onClick={handleDiscardDraft}
+                  >
+                    <Pencil size={14} />
+                    Cancel &amp; edit
+                  </OutlineButton>
                 </HStack>
               </Stack>
             ) : feeAgreement.status === "pending_signature" ? (
