@@ -1,12 +1,12 @@
-import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
-import { FormSelect } from "@/components/ui/form-select";
-import { leadSources } from "@/pages/admin/intake/data";
 import { sourceValues, type LeadSource } from "@/api/leads";
+import { FormSelect } from "@/components/ui/form-select";
+import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useCreateLead } from "@/hooks/use-leads";
-import { useFirmTimezone } from "@/hooks/useTimezone";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
-import { listTimezones } from "@/utils/timezones";
+import { useFirmTimezone } from "@/hooks/useTimezone";
+import { leadSources } from "@/pages/admin/intake/data";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
+import { listTimezones } from "@/utils/timezones";
 import {
   Box,
   Dialog,
@@ -18,10 +18,10 @@ import {
   VStack,
   chakra,
 } from "@chakra-ui/react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { UserPlus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 function getCaseTypes(
@@ -66,7 +66,10 @@ const LEAD_DEFAULTS: LeadForm = {
   adversePartyEmail: "",
 };
 
-const TIMEZONE_OPTIONS = listTimezones().map((tz) => ({ value: tz, label: tz }));
+const TIMEZONE_OPTIONS = listTimezones().map((tz) => ({
+  value: tz,
+  label: tz,
+}));
 
 export function AddLeadDialog({
   open,
@@ -105,12 +108,10 @@ export function AddLeadDialog({
   }
 
   const onSubmit = handleSubmit((data) => {
-    const name = [data.firstName.trim(), data.lastName.trim()]
-      .filter(Boolean)
-      .join(" ");
     createLead.mutate(
       {
-        name,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
         email: data.email.trim(),
         phone: data.phone || undefined,
         practiceAreaId: data.practiceAreaId || undefined,
@@ -314,10 +315,20 @@ export function AddLeadDialog({
               </FormField>
 
               <Box pt="4px">
-                <Text fontSize="11px" fontWeight="600" color="fg.muted" mb="4px">
+                <Text
+                  fontSize="11px"
+                  fontWeight="600"
+                  color="fg.muted"
+                  mb="4px"
+                >
                   Known opposing party (optional)
                 </Text>
-                <Text fontSize="12px" color="fg.muted" mb="10px" lineHeight="1.4">
+                <Text
+                  fontSize="12px"
+                  color="fg.muted"
+                  mb="10px"
+                  lineHeight="1.4"
+                >
                   Recording the opposing party now lets the conflict check flag
                   issues before the intake proceeds.
                 </Text>

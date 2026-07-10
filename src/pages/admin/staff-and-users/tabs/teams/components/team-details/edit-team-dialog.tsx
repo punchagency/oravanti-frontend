@@ -85,6 +85,7 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
       description: "",
       maxCaseload: "",
       leadId: "",
+      practiceAreas: [],
     },
     mode: "onChange",
   });

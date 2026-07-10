@@ -1,3 +1,50 @@
+import type {
+  ConsultationLocation,
+  ConsultationSettings,
+} from "@/api/consultation-settings";
+import type {
+  Consultation,
+  ConsultationListItem,
+  ConsultationSort,
+  ConsultationStatus,
+  FeeAgreementPreview,
+  GenerateFeeAgreementInput,
+  Lead,
+} from "@/api/leads";
+import { formatReceivedDate } from "@/api/leads";
+import { downloadResponseFile } from "@/api/questionnaires";
+import { FormSelect } from "@/components/ui/form-select";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
+import {
+  useConsultationLocations,
+  useConsultationSettings,
+  useCreateConsultationLocation,
+} from "@/hooks/use-consultation-settings";
+import {
+  useAdvanceLeadStage,
+  useCancelConsultation,
+  useConsultations,
+  useFeeAgreementPreview,
+  useGenerateFeeAgreement,
+  useInitiateConsultation,
+  useLeadById,
+  useLeads,
+  useMarkFeeAgreementReceived,
+  useNudgeClient,
+  useSendFeeAgreement,
+  useUpdateConsultation,
+  useUpdateLead,
+} from "@/hooks/use-leads";
+import {
+  useLeadQuestionnaire,
+  useRequestMissingDocuments,
+  useResponseDetail,
+  useUploadResponseFile,
+} from "@/hooks/use-questionnaires";
+import { useStaffList, type StaffMemberDTO } from "@/hooks/use-staff-list";
+import { dayjs, formatTime } from "@/utils/date";
 import {
   Box,
   Dialog,
@@ -14,6 +61,7 @@ import {
   chakra,
   createListCollection,
 } from "@chakra-ui/react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertTriangle,
   CalendarClock,
@@ -51,56 +99,8 @@ import {
   useState,
 } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import type {
-  Consultation,
-  ConsultationListItem,
-  ConsultationSort,
-  ConsultationStatus,
-  FeeAgreementPreview,
-  GenerateFeeAgreementInput,
-  Lead,
-} from "@/api/leads";
-import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
-import { dayjs, formatTime } from "@/utils/date";
-import { formatReceivedDate } from "@/api/leads";
-import { downloadResponseFile } from "@/api/questionnaires";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { FormSelect } from "@/components/ui/form-select";
-import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
-import {
-  useAdvanceLeadStage,
-  useCancelConsultation,
-  useConsultations,
-  useInitiateConsultation,
-  useFeeAgreementPreview,
-  useGenerateFeeAgreement,
-  useLeadById,
-  useLeads,
-  useMarkFeeAgreementReceived,
-  useNudgeClient,
-  useSendFeeAgreement,
-  useUpdateConsultation,
-  useUpdateLead,
-} from "@/hooks/use-leads";
-import {
-  useLeadQuestionnaire,
-  useRequestMissingDocuments,
-  useResponseDetail,
-  useUploadResponseFile,
-} from "@/hooks/use-questionnaires";
-import { useStaffList, type StaffMemberDTO } from "@/hooks/use-staff-list";
-import {
-  useConsultationLocations,
-  useConsultationSettings,
-  useCreateConsultationLocation,
-} from "@/hooks/use-consultation-settings";
-import type {
-  ConsultationLocation,
-  ConsultationSettings,
-} from "@/api/consultation-settings";
+import { z } from "zod";
 import {
   BrandButton,
   CardTitle,
@@ -110,7 +110,7 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
-import { PaginationControls } from "@/components/ui/pagination-controls";
+import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
 
 type ScheduleStep = 1 | 2 | 3;
@@ -567,16 +567,12 @@ function CollapsibleConsultation({
           />
           <Box minW="0">
             <HStack gap="8px" minW="0" wrap="wrap">
-              <Text
-                m="0"
-                color="fg"
-                fontSize="14px"
-                fontWeight="600"
-                truncate
-              >
+              <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
                 {lead.name}
               </Text>
-              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+              <MutedText>
+                {lead.caseTypeName ?? "Matter type not set"}
+              </MutedText>
             </HStack>
             <MutedText>
               {dateLabel} · {attorneyFullName(summary)}
@@ -650,7 +646,9 @@ function CollapsibleNoConsultation({
               <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
                 {lead.name}
               </Text>
-              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+              <MutedText>
+                {lead.caseTypeName ?? "Matter type not set"}
+              </MutedText>
             </HStack>
             <MutedText>No consultation scheduled yet</MutedText>
           </Box>
@@ -741,6 +739,7 @@ function ConsultationCard({
   const { data: staffData } = useStaffList({
     role: "attorney",
     status: "active",
+    limit: 1000,
   });
 
   const saveNotesMutation = useUpdateConsultation();
@@ -1576,9 +1575,9 @@ function CancelConsultationDialog({
               Cancel consultation
             </Dialog.Title>
             <MutedText fontSize="13px">
-              This cancels {leadName}'s consultation, revokes their booking link,
-              and notifies everyone involved. This can't be undone, but you can
-              schedule a new consultation afterwards.
+              This cancels {leadName}'s consultation, revokes their booking
+              link, and notifies everyone involved. This can't be undone, but
+              you can schedule a new consultation afterwards.
             </MutedText>
             <Box mt="14px">
               <Text m="0 0 6px" fontSize="12px" color="fg.muted">
@@ -1634,9 +1633,7 @@ const feeFormSchema = z
     // contingency always carries a percentage.
     addContingency: z.boolean(),
     contingencyPercent: z.string(),
-    governmentFees: z.array(
-      z.object({ name: z.string(), amount: z.string() }),
-    ),
+    governmentFees: z.array(z.object({ name: z.string(), amount: z.string() })),
     governmentFeesPaidBy: z.enum(["client_upfront", "firm_advanced"]),
     paymentPlan: z.enum(["pay_in_full", "two_payments", "installments"]),
     applyConsultationCredit: z.boolean(),
@@ -1645,7 +1642,8 @@ const feeFormSchema = z
   })
   .superRefine((val, ctx) => {
     if (
-      (val.attorneyFeeType === "flat" || val.attorneyFeeType === "flat_hourly") &&
+      (val.attorneyFeeType === "flat" ||
+        val.attorneyFeeType === "flat_hourly") &&
       !val.flatRate.trim()
     )
       ctx.addIssue({
@@ -1690,12 +1688,13 @@ const feeFormSchema = z
 
 type FeeForm = z.infer<typeof feeFormSchema>;
 
-const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] = [
-  { value: "flat", label: "Flat fee" },
-  { value: "hourly", label: "Hourly" },
-  { value: "flat_hourly", label: "Flat + hourly" },
-  { value: "contingency", label: "Contingency" },
-];
+const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] =
+  [
+    { value: "flat", label: "Flat fee" },
+    { value: "hourly", label: "Hourly" },
+    { value: "flat_hourly", label: "Flat + hourly" },
+    { value: "contingency", label: "Contingency" },
+  ];
 const GOV_FEES_PAID_BY_OPTIONS: {
   value: FeeForm["governmentFeesPaidBy"];
   label: string;
@@ -1703,11 +1702,12 @@ const GOV_FEES_PAID_BY_OPTIONS: {
   { value: "client_upfront", label: "Client pays upfront" },
   { value: "firm_advanced", label: "Firm advances (from settlement)" },
 ];
-const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] = [
-  { value: "pay_in_full", label: "Pay in full" },
-  { value: "two_payments", label: "2 payments" },
-  { value: "installments", label: "Instalment" },
-];
+const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] =
+  [
+    { value: "pay_in_full", label: "Pay in full" },
+    { value: "two_payments", label: "2 payments" },
+    { value: "installments", label: "Instalment" },
+  ];
 
 function FeeFieldLabel({ children }: { children: ReactNode }) {
   return (
@@ -1776,8 +1776,7 @@ export function FeeAgreementForm({
     (sum, g) => sum + Number(g?.amount || 0),
     0,
   );
-  const hasContingency =
-    attorneyFeeType === "contingency" || addContingency;
+  const hasContingency = attorneyFeeType === "contingency" || addContingency;
   // Nothing due upfront: pure contingency and no client-paid government fees.
   const noUpfrontDue =
     attorneyFeeType === "contingency" &&
@@ -1906,16 +1905,14 @@ export function FeeAgreementForm({
               <Box mt="10px">
                 <CheckOption
                   checked={addContingency}
-                  onToggle={() =>
-                    setValue("addContingency", !addContingency)
-                  }
+                  onToggle={() => setValue("addContingency", !addContingency)}
                   label="Add settlement percentage (contingency)"
                 />
               </Box>
             ) : (
               <MutedText>
-                No upfront attorney fee — the firm is paid the percentage of
-                the settlement above.
+                No upfront attorney fee — the firm is paid the percentage of the
+                settlement above.
               </MutedText>
             )}
           </Box>
@@ -2003,8 +2000,8 @@ export function FeeAgreementForm({
 
           {noUpfrontDue ? (
             <MutedText>
-              No upfront payment is required — payment plan and account split
-              do not apply.
+              No upfront payment is required — payment plan and account split do
+              not apply.
             </MutedText>
           ) : (
             /* Payment plan */
@@ -2245,7 +2242,11 @@ function PastConsultations({ items }: { items: Consultation[] }) {
   );
 }
 
-function PastConsultationRow({ consultation: c }: { consultation: Consultation }) {
+function PastConsultationRow({
+  consultation: c,
+}: {
+  consultation: Consultation;
+}) {
   const [showNotes, setShowNotes] = useState(false);
   const tone = CONSULT_STATUS_TONE[c.status];
   const when = c.scheduledAt
@@ -2625,7 +2626,7 @@ function ScheduleConsultationDialog({
     ...consultationLeads.filter((l) => !l.consultationId),
   ];
 
-  const { data: staffData } = useStaffList({ status: "active" });
+  const { data: staffData } = useStaffList({ status: "active", limit: 1000 });
   const allStaff = staffData?.data ?? [];
   const attorneys = allStaff.filter((s) => s.role === "attorney");
 
@@ -2696,9 +2697,7 @@ function ScheduleConsultationDialog({
       return;
     }
     if (step === 2) {
-      if (
-        await trigger(["customDuration", "attorneyId", "locationId"])
-      )
+      if (await trigger(["customDuration", "attorneyId", "locationId"]))
         setStep(3);
     }
   }
@@ -3107,7 +3106,13 @@ function CheckOption({
 
 // Note shown in place of mode-specific fields that our backend handles
 // automatically (video Meet link, phone number).
-function ModeNote({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+function ModeNote({
+  icon,
+  children,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <HStack
       gap="8px"
@@ -3182,7 +3187,8 @@ function ScheduleDetailsStep({
   const [attendeeQuery, setAttendeeQuery] = useState("");
 
   const participantOptions = allStaff.filter(
-    (s) => s.id !== attorneyId && (s.role === "attorney" || s.role === "paralegal"),
+    (s) =>
+      s.id !== attorneyId && (s.role === "attorney" || s.role === "paralegal"),
   );
   const addedParticipants = participantOptions.filter((s) =>
     participantIds.includes(s.id),
@@ -3369,7 +3375,9 @@ function ScheduleDetailsStep({
               placeholder="Minutes"
               mt="8px"
               {...fieldStyles}
-              borderColor={touchedField === "duration" ? invalidColor : "border"}
+              borderColor={
+                touchedField === "duration" ? invalidColor : "border"
+              }
             />
           ) : null}
         </Box>
@@ -3515,8 +3523,7 @@ function ScheduleDetailsStep({
             onToggle={() => undefined}
             label={
               <>
-                SMS{" "}
-                <chakra.span color="fg.subtle">(coming soon)</chakra.span>
+                SMS <chakra.span color="fg.subtle">(coming soon)</chakra.span>
               </>
             }
           />
@@ -3646,7 +3653,9 @@ function ReviewStep({
                     step="0.01"
                     value={feeAmount}
                     onChange={(e) => onFeeAmountChange(e.currentTarget.value)}
-                    placeholder={feeSettings?.defaultAmount?.toString() ?? "0.00"}
+                    placeholder={
+                      feeSettings?.defaultAmount?.toString() ?? "0.00"
+                    }
                     maxW="96px"
                     textAlign="right"
                     {...fieldStyles}
