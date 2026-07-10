@@ -1764,7 +1764,7 @@ function WizardFormBody({
                   )
                 }
                 label={
-                  <>
+                  <chakra.span display="flex" flexDirection="column" alignItems="start">
                     <chakra.span display="block" fontWeight="600">
                       Apply consultation fee credit
                     </chakra.span>
@@ -1779,7 +1779,7 @@ function WizardFormBody({
                         : ""}{" "}
                       applied as credit toward attorney fees
                     </chakra.span>
-                  </>
+                  </chakra.span>
                 }
               />
             </Box>
