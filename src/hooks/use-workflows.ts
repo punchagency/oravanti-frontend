@@ -88,6 +88,7 @@ export function useAssignStep(caseId: string) {
       queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
       queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to assign step");

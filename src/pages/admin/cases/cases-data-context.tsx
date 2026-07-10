@@ -39,9 +39,9 @@ function toCase(row: CaseRow) {
     clientName: row.client?.name ?? "",
     caseRef: row.caseNumber,
     caseType: row.caseType?.name ?? "",
-    stage: row.caseType?.subcategory?.name ?? "Filed",
-    assignedTeam: row.assignee?.name ?? row.practiceArea?.name ?? "",
-    deadline: row.filingDate ?? undefined,
+    stage: row.currentStep ?? "Filed",
+    assignedTeam: row.assignedTeam?.name ?? "",
+    deadline: row.estimatedCompletionDate ?? undefined,
     status: row.status,
     specialty: mapPracticeArea(row.practiceArea?.name ?? ""),
   };

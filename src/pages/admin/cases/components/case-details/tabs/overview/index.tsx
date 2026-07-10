@@ -1,12 +1,12 @@
-import { Center, Spinner, Separator } from "@chakra-ui/react";
+import { Center, Separator, Spinner } from "@chakra-ui/react";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCaseById } from "@/api/cases";
 import { type CaseData } from "../../shared";
-import { MatterDetails } from "./matter-details";
-import { PipelineProgress } from "./pipeline-progress";
 import { AiReview } from "./ai-review";
+import { MatterDetails } from "./matter-details";
 import { PendingActions } from "./pending-actions";
+import { PipelineProgress } from "./pipeline-progress";
 
 interface OverviewProps {
   caseId: string;
@@ -29,28 +29,15 @@ export function Overview({ caseId, isActive = true }: OverviewProps) {
       caseRef: caseRow.caseNumber,
       caseType: {
         id: caseRow.caseType?.id ?? "",
-        code: caseRow.caseType?.code ?? "",
         name: caseRow.caseType?.name ?? "",
       },
       practiceArea: caseRow.practiceArea?.name ?? "",
-      stage: caseRow.caseType?.subcategory?.name ?? "",
-      stageDetail: {
-        phase: "",
-        workflowTitle: "",
-        stepTitle: caseRow.caseType?.subcategory?.name ?? "",
-        stepStatus: "in_progress" as const,
-      },
       status: caseRow.status,
-      assignedTeam: caseRow.assignee
-        ? { id: caseRow.id, name: caseRow.assignee.name }
+      createdAt: caseRow.createdAt ?? "",
+      assignedTeam: caseRow.assignedTeam
+        ? { id: caseRow.assignedTeam.id, name: caseRow.assignedTeam.name }
         : null,
-      assignedStaff: caseRow.assignee
-        ? { name: caseRow.assignee.name, role: caseRow.assignee.role }
-        : null,
-      filingDate: caseRow.filingDate ?? "",
-      deadline: "",
-      courtRef: "",
-      caseProgress: caseRow.caseProgress ?? 50,
+      currentStep: caseRow.currentStep ?? null,
     };
   }, [caseRow]);
 

@@ -18,14 +18,12 @@ export function MatterDetails({ caseData }: MatterDetailsProps) {
       caseType: caseData.caseType?.name ?? "—",
       practiceArea: caseData.practiceArea || "—",
       caseRef: caseData.caseRef || "—",
-      filingDate: caseData.filingDate || "—",
-      assignedTeam: caseData.assignedTeam?.name ?? "—",
-      assignedStaff: caseData.assignedStaff?.name
-        ? `${caseData.assignedStaff.name} (${caseData.assignedStaff.role})`
+      createdAt: caseData.createdAt
+        ? new Date(caseData.createdAt).toLocaleDateString()
         : "—",
-      stage: caseData.stage || "—",
-      deadline: caseData.deadline || "—",
-      courtRef: caseData.courtRef || "—",
+      assignedTeam: caseData.assignedTeam?.name ?? "—",
+      currentStep: caseData.currentStep ?? "—",
+      status: caseData.status || "—",
     };
     return matterFields.map((f) => ({
       label: f.label,
