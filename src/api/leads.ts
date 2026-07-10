@@ -1,5 +1,5 @@
-import { API } from ".";
 import { dayjs, formatTime, guessTimezone } from "@/utils/date";
+import { API } from ".";
 
 export type LeadSource =
   | "education_flywheel"
@@ -183,7 +183,10 @@ export const getLeads = async (
   if (params.limit) query.limit = String(params.limit);
   if (params.all) query.all = "true";
   const res = await API.get("/leads", { params: query });
-  return { leads: res.data.data, pagination: res.data.pagination } as LeadsResponse;
+  return {
+    leads: res.data.data,
+    pagination: res.data.pagination,
+  } as LeadsResponse;
 };
 
 export const getLeadsStageCount =
@@ -261,11 +264,15 @@ export const getConsultations = async (
   if (params.page) query.page = String(params.page);
   if (params.limit) query.limit = String(params.limit);
   const res = await API.get("/leads/consultations", { params: query });
-  return { data: res.data.data, pagination: res.data.pagination } as ConsultationsResponse;
+  return {
+    data: res.data.data,
+    pagination: res.data.pagination,
+  } as ConsultationsResponse;
 };
 
 export const createLead = async (data: {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone?: string;
   entityType?: "individual" | "company";
@@ -281,10 +288,13 @@ export const createLead = async (data: {
   return res.data.data;
 };
 
-export const updateLeadStatus = async (id: string, status: string): Promise<Lead> => {
-  const res = await API.patch(`/leads/${id}/status`, { status })
-  return res.data.data
-}
+export const updateLeadStatus = async (
+  id: string,
+  status: string,
+): Promise<Lead> => {
+  const res = await API.patch(`/leads/${id}/status`, { status });
+  return res.data.data;
+};
 
 export const updateLead = async (
   id: string,
@@ -413,7 +423,11 @@ export type FeeAgreementDocument = {
   client: { name: string; matterType: string };
   // amount null renders as "—" (contingency line); deferred lines are excluded
   // from totalDue.
-  feeLines: { description: string; amount: number | null; deferred?: boolean }[];
+  feeLines: {
+    description: string;
+    amount: number | null;
+    deferred?: boolean;
+  }[];
   totalDue: number;
   allocation: { operating: number; trust: number; total: number };
   paymentPlan: FeePaymentPlan;
@@ -467,9 +481,23 @@ export const nudgeClient = async (
 
 export const openCase = async (
   id: string,
-  data: { assignedStaffId?: string; notes?: string },
+  data: { assignedTeamId?: string; assignedStaffId?: string; notes?: string },
 ): Promise<{ caseId: string; status: string; workflowSteps: unknown[] }> => {
   const res = await API.post(`/leads/${id}/open-case`, data);
+  return res.data.data;
+};
+
+export interface EligibleTeamDTO {
+  id: string;
+  name: string;
+  leadName: string | null;
+  memberCount: number;
+}
+
+export const getEligibleTeams = async (
+  id: string,
+): Promise<EligibleTeamDTO[]> => {
+  const res = await API.get(`/leads/${id}/eligible-teams`);
   return res.data.data;
 };
 
