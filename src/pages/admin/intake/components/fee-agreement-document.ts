@@ -21,21 +21,78 @@ function formatDate(iso: string): string {
   return dayjs.utc(iso).tz(guessTimezone()).format("MMMM D, YYYY");
 }
 
-function paymentTermsText(
-  plan: FeeAgreementDocument["paymentPlan"],
-  firmName: string,
-  noUpfrontDue: boolean,
-): string {
-  if (noUpfrontDue)
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+// "2026-08-01" → "August 1, 2026". Pure string math — never construct a Date
+// or use dayjs here, so the rendered day can't shift with the browser timezone
+// and the preview stays string-identical with the backend PDF.
+function formatDateOnly(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d || !MONTH_NAMES[m - 1]) return "—";
+  return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+}
+
+function paymentTermsText(doc: FeeAgreementDocument, firmName: string): string {
+  if (doc.noUpfrontDue)
     return "No payment is due upon signing this agreement. The firm's fees and any advanced costs are payable solely from the proceeds of a settlement, award, or judgment as described in this agreement.";
   const pay = `Payment may be made by ACH bank transfer, credit card (3% processing fee applies), or certified check payable to ${esc(
     firmName,
   )}.`;
-  if (plan === "two_payments")
+  if (doc.paymentPlan === "two_payments") {
+    // Concrete schedules exist only on wizard-era agreements; older rows keep
+    // the original generic sentence verbatim.
+    const s = doc.twoPaymentsSchedule;
+    if (s)
+      return `The total amount is payable in two payments: ${money(s.firstAmount)} due upon signing this agreement and ${money(s.secondAmount)} due by ${formatDateOnly(s.secondDueDate)}. ${pay}`;
     return `The total amount is payable in two equal installments: the first due upon signing this agreement and the second within 30 days. ${pay}`;
-  if (plan === "installments")
+  }
+  if (doc.paymentPlan === "installments") {
+    const s = doc.installmentSchedule;
+    if (s)
+      return `The total amount is payable in ${s.numberOfPayments} monthly installments of ${money(s.monthlyAmount)}, beginning ${formatDateOnly(s.firstPaymentDate)}. ${pay}`;
     return `The total amount is payable in monthly installments per a schedule agreed with the firm, beginning upon signing this agreement. ${pay}`;
+  }
   return `The total amount is due in full upon signing this agreement. ${pay} Failure to remit payment within 7 days of signing may result in withdrawal of representation.`;
+}
+
+function paymentAllocationText(
+  allocation: NonNullable<FeeAgreementDocument["paymentAllocation"]>,
+): string {
+  if (allocation.order === "fees_first")
+    return "Payments received are applied first to attorney fees, then to costs and disbursements.";
+  if (allocation.order === "costs_first")
+    return "Payments received are applied first to costs and disbursements, then to attorney fees.";
+  const feePct = allocation.customFeePercent ?? 0;
+  return `Payments received are allocated ${feePct}% to attorney fees and ${100 - feePct}% to costs and disbursements.`;
+}
+
+function contingencyTermsText(
+  terms: NonNullable<FeeAgreementDocument["contingencyTerms"]>,
+): string {
+  const covers = `The contingency percentage covers attorney fees${
+    terms.coversCaseCosts ? ", case costs and disbursements" : ""
+  }${terms.coversExpertWitnessFees ? ", and expert witness fees" : ""}.`;
+  const ifLost =
+    terms.ifLost === "client_owes_nothing"
+      ? "If the case is lost or no recovery is obtained, Client owes nothing and the firm absorbs all advanced costs."
+      : "If the case is lost or no recovery is obtained, Client remains responsible for reimbursing hard costs advanced by the firm.";
+  const aba = `The supervising attorney confirmed on ${formatDateOnly(
+    terms.abaConfirmedAt.slice(0, 10),
+  )} that this agreement complies with ABA Model Rule 1.5(c), states the method by which the fee is determined (including litigation and other expenses and post-judgment collection costs), and that alternative billing arrangements were discussed with the client.`;
+  return `${covers} ${ifLost} ${aba}`;
 }
 
 // Builds a self-contained, inline-styled HTML string for the fee-agreement
@@ -128,6 +185,22 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
     </div>`
       : "";
 
+  // Wizard-era agreements only; empty on rows generated before the wizard.
+  const contingencyTermsSection = doc.contingencyTerms
+    ? `
+    <div style="margin-top:20px;">${label("Contingency terms")}
+      <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">
+        ${contingencyTermsText(doc.contingencyTerms)}
+      </div>
+    </div>`
+    : "";
+
+  // When the wizard captured "client owes nothing", the closing sentence must
+  // not contradict it. Old rows (no contingencyTerms) keep the original text.
+  const advancedCostsClosing =
+    doc.contingencyTerms?.ifLost === "client_owes_nothing"
+      ? "If no recovery is obtained, the firm absorbs all advanced costs."
+      : "If no recovery is obtained, Client remains responsible for reimbursing advanced costs.";
   const advancedCostsSection =
     doc.governmentFeesPaidBy === "firm_advanced" &&
     doc.feeLines.some((l) => l.description.includes("advanced by firm"))
@@ -136,7 +209,7 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
       <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">
         ${esc(
           firmName,
-        )} will advance the government filing fees and costs listed above on Client's behalf. Advanced amounts will be recovered from the proceeds of any settlement, award, or judgment prior to the calculation of the contingency fee. If no recovery is obtained, Client remains responsible for reimbursing advanced costs.
+        )} will advance the government filing fees and costs listed above on Client's behalf. Advanced amounts will be recovered from the proceeds of any settlement, award, or judgment prior to the calculation of the contingency fee. ${advancedCostsClosing}
       </div>
     </div>`
       : "";
@@ -166,6 +239,16 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
         </div>
       </div>
     </div>`;
+
+  // Wizard-era agreements only; empty on rows generated before the wizard.
+  const paymentAllocationSection = doc.paymentAllocation
+    ? `
+    <div style="margin-top:20px;">${label("Payment allocation")}
+      <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">${paymentAllocationText(
+        doc.paymentAllocation,
+      )}</div>
+    </div>`
+    : "";
 
   return `
   <div style="font-family:'Inter',-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a;max-width:660px;margin:0 auto;padding:8px 4px;">
@@ -236,16 +319,17 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
       </table>
     </div>
     ${contingencySection}
+    ${contingencyTermsSection}
     ${advancedCostsSection}
     ${allocationSection}
 
     <div style="margin-top:20px;">${label("Payment terms")}
       <div style="font-size:13px;color:#333;line-height:1.6;margin-top:6px;">${paymentTermsText(
-        doc.paymentPlan,
+        doc,
         firmName,
-        doc.noUpfrontDue,
       )}</div>
     </div>
+    ${paymentAllocationSection}
     ${consultationCredit}
 
     <div style="margin-top:20px;">${label("Terms &amp; conditions")}

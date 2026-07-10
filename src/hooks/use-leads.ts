@@ -9,6 +9,8 @@ import {
   getLeadById,
   getLeads,
   getLeadsStageCount,
+  discardFeeAgreement,
+  markFeeAgreementPaymentReceived,
   markFeeAgreementReceived,
   nudgeClient,
   sendFeeAgreement,
@@ -321,7 +323,8 @@ export function useMarkFeeAgreementReceived() {
   return useMutation({
     mutationFn: (agreementId: string) => markFeeAgreementReceived(agreementId),
     onSuccess: () => {
-      toast.success("Signed agreement received — lead advanced to case opening");
+      // The lead only advances once the payment gate is also satisfied.
+      toast.success("Signed agreement received");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead"] });
     },
@@ -329,6 +332,37 @@ export function useMarkFeeAgreementReceived() {
       toast.error(
         err.response?.data?.message ?? "Failed to mark agreement as received",
       );
+    },
+  });
+}
+
+export function useDiscardFeeAgreement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) => discardFeeAgreement(agreementId),
+    onSuccess: () => {
+      toast.success("Draft discarded — adjust the configuration and regenerate");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to discard the draft");
+    },
+  });
+}
+
+export function useMarkFeeAgreementPaymentReceived() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) =>
+      markFeeAgreementPaymentReceived(agreementId),
+    onSuccess: () => {
+      toast.success("Payment recorded");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to record payment");
     },
   });
 }

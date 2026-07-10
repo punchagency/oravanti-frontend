@@ -30,11 +30,9 @@ import {
   MapPin,
   Pencil,
   Phone,
-  Plus,
   Scale,
   Search,
   Send,
-  Trash2,
   UserX,
   Video,
   X,
@@ -50,7 +48,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
@@ -58,8 +56,8 @@ import type {
   ConsultationListItem,
   ConsultationSort,
   ConsultationStatus,
+  FeeAgreementDetails,
   FeeAgreementPreview,
-  GenerateFeeAgreementInput,
   Lead,
 } from "@/api/leads";
 import { buildFeeAgreementHtml } from "./fee-agreement-document";
@@ -72,11 +70,13 @@ import {
   useAdvanceLeadStage,
   useCancelConsultation,
   useConsultations,
+  useDiscardFeeAgreement,
   useInitiateConsultation,
   useFeeAgreementPreview,
   useGenerateFeeAgreement,
   useLeadById,
   useLeads,
+  useMarkFeeAgreementPaymentReceived,
   useMarkFeeAgreementReceived,
   useNudgeClient,
   useSendFeeAgreement,
@@ -108,13 +108,12 @@ import {
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
 import {
-  CheckOption,
-  ChoiceChip,
   ScheduleDetailsStep,
   SelectClientStep,
   StepProgress,
   SummaryItem,
 } from "./consultation-wizard-shared";
+import { FeeAgreementWizard } from "./fee-agreement-wizard";
 import {
   consultationModeLabel,
   fieldStyles,
@@ -756,6 +755,7 @@ function ConsultationCard({
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
+  const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
   const advanceStage = useAdvanceLeadStage();
   const requestMissing = useRequestMissingDocuments();
@@ -764,6 +764,12 @@ function ConsultationCard({
   const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
+  // Case-opening payment gate: standard agreements need payment recorded
+  // before advancing; contingency (and pre-tracking) agreements do not.
+  const awaitingPayment =
+    feeAgreement?.details != null &&
+    feeAgreement.details.attorneyFee.type !== "contingency" &&
+    !feeAgreement.details.paymentReceivedAt;
   const send = questionnaire?.send;
   const response = questionnaire?.response;
   const { data: firmFeeSettings } = useConsultationSettings();
@@ -781,6 +787,22 @@ function ConsultationCard({
   function closePreview() {
     setPreviewOpen(false);
     setGeneratedPreview(null);
+  }
+
+  // Config of a discarded draft — seeds the wizard so the attorney can adjust
+  // and regenerate instead of starting over.
+  const discardDraft = useDiscardFeeAgreement();
+  const [reusedDetails, setReusedDetails] =
+    useState<FeeAgreementDetails | null>(null);
+  function handleDiscardDraft() {
+    if (!feeAgreement) return;
+    const details = feeAgreement.details;
+    discardDraft.mutate(feeAgreement.id, {
+      onSuccess: () => {
+        setReusedDetails(details);
+        closePreview();
+      },
+    });
   }
 
   const [notes, setNotes] = useState<string | null>(null);
@@ -1350,21 +1372,27 @@ function ConsultationCard({
                 </Text>
               </HStack>
             ) : !feeAgreement ? (
-              <FeeAgreementForm
-                consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
-                generating={generateFee.isPending}
-                onSubmit={(data) =>
-                  generateFee.mutate(
-                    { id: lead.id, data },
-                    {
-                      onSuccess: (preview) => {
-                        setGeneratedPreview(preview);
-                        setPreviewOpen(true);
+              // leadDetail is always loaded here — hasCompletedConsultation is
+              // derived from it — the guard only narrows the type.
+              leadDetail ? (
+                <FeeAgreementWizard
+                  lead={leadDetail}
+                  consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
+                  generating={generateFee.isPending}
+                  initialDetails={reusedDetails}
+                  onSubmit={(data) =>
+                    generateFee.mutate(
+                      { id: lead.id, data },
+                      {
+                        onSuccess: (preview) => {
+                          setGeneratedPreview(preview);
+                          setPreviewOpen(true);
+                        },
                       },
-                    },
-                  )
-                }
-              />
+                    )
+                  }
+                />
+              ) : null
             ) : feeAgreement.status === "draft" ? (
               <Stack gap="10px">
                 <MutedText>Agreement generated — ready to dispatch.</MutedText>
@@ -1373,6 +1401,13 @@ function ConsultationCard({
                     <FileText size={14} />
                     Preview &amp; send
                   </BrandButton>
+                  <OutlineButton
+                    loading={discardDraft.isPending}
+                    onClick={handleDiscardDraft}
+                  >
+                    <Pencil size={14} />
+                    Cancel &amp; edit
+                  </OutlineButton>
                 </HStack>
               </Stack>
             ) : feeAgreement.status === "pending_signature" ? (
@@ -1399,20 +1434,51 @@ function ConsultationCard({
               </Stack>
             ) : feeAgreement.status === "signed" ? (
               <Stack gap="10px">
-                <MutedText>Signed document received.</MutedText>
+                <MutedText>
+                  {awaitingPayment
+                    ? "Signed document received — awaiting payment. Standard agreements require payment before the case can be opened."
+                    : "Signed document received."}
+                </MutedText>
                 <HStack gap="8px" wrap="wrap">
-                  <BrandButton
-                    loading={advanceStage.isPending}
-                    onClick={() =>
-                      advanceStage.mutate({
-                        id: lead.id,
-                        stage: "case_opening",
-                      })
-                    }
-                  >
-                    <ExternalLink size={14} />
-                    Advance to case opening
-                  </BrandButton>
+                  {awaitingPayment ? (
+                    // Recording payment auto-advances the lead server-side.
+                    // Advance stays available for the dev-mode gate bypass;
+                    // without it the backend 409 surfaces as a toast.
+                    <>
+                      <BrandButton
+                        loading={markPayment.isPending}
+                        onClick={() => markPayment.mutate(feeAgreement.id)}
+                      >
+                        <Check size={14} />
+                        Mark payment received
+                      </BrandButton>
+                      <OutlineButton
+                        loading={advanceStage.isPending}
+                        onClick={() =>
+                          advanceStage.mutate({
+                            id: lead.id,
+                            stage: "case_opening",
+                          })
+                        }
+                      >
+                        <ExternalLink size={14} />
+                        Advance to case opening
+                      </OutlineButton>
+                    </>
+                  ) : (
+                    <BrandButton
+                      loading={advanceStage.isPending}
+                      onClick={() =>
+                        advanceStage.mutate({
+                          id: lead.id,
+                          stage: "case_opening",
+                        })
+                      }
+                    >
+                      <ExternalLink size={14} />
+                      Advance to case opening
+                    </BrandButton>
+                  )}
                 </HStack>
               </Stack>
             ) : null}
@@ -1651,474 +1717,8 @@ function CancelConsultationDialog({
   );
 }
 
-// ── Fee agreement form + preview ──────────────────────────────────────────────
-
-const feeFormSchema = z
-  .object({
-    attorneyFeeType: z.enum(["flat", "hourly", "flat_hourly", "contingency"]),
-    flatRate: z.string(),
-    hourlyRate: z.string(),
-    // "Add settlement percentage" toggle for the upfront fee types; pure
-    // contingency always carries a percentage.
-    addContingency: z.boolean(),
-    contingencyPercent: z.string(),
-    governmentFees: z.array(
-      z.object({ name: z.string(), amount: z.string() }),
-    ),
-    governmentFeesPaidBy: z.enum(["client_upfront", "firm_advanced"]),
-    paymentPlan: z.enum(["pay_in_full", "two_payments", "installments"]),
-    applyConsultationCredit: z.boolean(),
-    operating: z.string(),
-    trust: z.string(),
-  })
-  .superRefine((val, ctx) => {
-    if (
-      (val.attorneyFeeType === "flat" || val.attorneyFeeType === "flat_hourly") &&
-      !val.flatRate.trim()
-    )
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["flatRate"],
-        message: "Enter the flat rate",
-      });
-    if (
-      (val.attorneyFeeType === "hourly" ||
-        val.attorneyFeeType === "flat_hourly") &&
-      !val.hourlyRate.trim()
-    )
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["hourlyRate"],
-        message: "Enter the hourly rate",
-      });
-    if (val.attorneyFeeType === "contingency" || val.addContingency) {
-      const pct = Number(val.contingencyPercent);
-      if (!val.contingencyPercent.trim() || !(pct > 0) || pct > 100)
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["contingencyPercent"],
-          message: "Enter a percentage between 0 and 100",
-        });
-    }
-    val.governmentFees.forEach((g, i) => {
-      if (!g.name.trim())
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["governmentFees", i, "name"],
-          message: "Name required",
-        });
-      if (!g.amount.trim())
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["governmentFees", i, "amount"],
-          message: "Amount required",
-        });
-    });
-  });
-
-type FeeForm = z.infer<typeof feeFormSchema>;
-
-const FEE_TYPE_OPTIONS: { value: FeeForm["attorneyFeeType"]; label: string }[] = [
-  { value: "flat", label: "Flat fee" },
-  { value: "hourly", label: "Hourly" },
-  { value: "flat_hourly", label: "Flat + hourly" },
-  { value: "contingency", label: "Contingency" },
-];
-const GOV_FEES_PAID_BY_OPTIONS: {
-  value: FeeForm["governmentFeesPaidBy"];
-  label: string;
-}[] = [
-  { value: "client_upfront", label: "Client pays upfront" },
-  { value: "firm_advanced", label: "Firm advances (from settlement)" },
-];
-const PAYMENT_PLAN_OPTIONS: { value: FeeForm["paymentPlan"]; label: string }[] = [
-  { value: "pay_in_full", label: "Pay in full" },
-  { value: "two_payments", label: "2 payments" },
-  { value: "installments", label: "Instalment" },
-];
-
-function FeeFieldLabel({ children }: { children: ReactNode }) {
-  return (
-    <Text
-      m="0 0 8px"
-      fontSize="11px"
-      fontWeight="600"
-      letterSpacing="0.04em"
-      textTransform="uppercase"
-      color="fg.muted"
-    >
-      {children}
-    </Text>
-  );
-}
-
-export function FeeAgreementForm({
-  consultationFeeAmount,
-  generating,
-  onSubmit,
-}: {
-  consultationFeeAmount: number | null;
-  generating: boolean;
-  onSubmit: (data: GenerateFeeAgreementInput) => void;
-}) {
-  const { control, register, handleSubmit, setValue } = useForm<FeeForm>({
-    resolver: zodResolver(feeFormSchema),
-    defaultValues: {
-      attorneyFeeType: "flat",
-      flatRate: "",
-      hourlyRate: "",
-      addContingency: false,
-      contingencyPercent: "",
-      governmentFees: [{ name: "", amount: "" }],
-      governmentFeesPaidBy: "client_upfront",
-      paymentPlan: "pay_in_full",
-      applyConsultationCredit: false,
-      operating: "",
-      trust: "",
-    },
-    mode: "onChange",
-  });
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "governmentFees",
-  });
-
-  const attorneyFeeType = useWatch({ control, name: "attorneyFeeType" });
-  const paymentPlan = useWatch({ control, name: "paymentPlan" });
-  const applyCredit = useWatch({ control, name: "applyConsultationCredit" });
-  const flatRate = useWatch({ control, name: "flatRate" });
-  const addContingency = useWatch({ control, name: "addContingency" });
-  const govFees = useWatch({ control, name: "governmentFees" });
-  const governmentFeesPaidBy = useWatch({
-    control,
-    name: "governmentFeesPaidBy",
-  });
-  const operatingField = useWatch({ control, name: "operating" });
-  const trustField = useWatch({ control, name: "trust" });
-
-  const attorneyTotal =
-    attorneyFeeType === "hourly" || attorneyFeeType === "contingency"
-      ? 0
-      : Number(flatRate || 0);
-  const govTotal = (govFees ?? []).reduce(
-    (sum, g) => sum + Number(g?.amount || 0),
-    0,
-  );
-  const hasContingency =
-    attorneyFeeType === "contingency" || addContingency;
-  // Nothing due upfront: pure contingency and no client-paid government fees.
-  const noUpfrontDue =
-    attorneyFeeType === "contingency" &&
-    (govTotal === 0 || governmentFeesPaidBy === "firm_advanced");
-
-  // Account split auto-fills from the fees until the admin edits a field.
-  const [operatingTouched, setOperatingTouched] = useState(false);
-  const [trustTouched, setTrustTouched] = useState(false);
-  const operatingValue = operatingTouched
-    ? operatingField
-    : String(attorneyTotal);
-  const trustValue = trustTouched
-    ? trustField
-    : String(governmentFeesPaidBy === "client_upfront" ? govTotal : 0);
-
-  const onValid = (data: FeeForm) => {
-    const withContingency =
-      data.attorneyFeeType === "contingency" || data.addContingency;
-    onSubmit({
-      attorneyFee: {
-        type: data.attorneyFeeType,
-        flatRate:
-          data.attorneyFeeType !== "hourly" &&
-          data.attorneyFeeType !== "contingency"
-            ? Number(data.flatRate || 0)
-            : undefined,
-        hourlyRate:
-          data.attorneyFeeType !== "flat" &&
-          data.attorneyFeeType !== "contingency"
-            ? Number(data.hourlyRate || 0)
-            : undefined,
-        contingencyPercent: withContingency
-          ? Number(data.contingencyPercent)
-          : undefined,
-      },
-      governmentFees: data.governmentFees.map((g) => ({
-        name: g.name.trim(),
-        amount: Number(g.amount || 0),
-      })),
-      governmentFeesPaidBy: data.governmentFeesPaidBy,
-      // Payment plan and account split don't apply when nothing is due
-      // upfront — the backend defaults fill them.
-      paymentPlan: noUpfrontDue ? undefined : data.paymentPlan,
-      applyConsultationCredit: data.applyConsultationCredit,
-      accountSplit: noUpfrontDue
-        ? undefined
-        : {
-            operating: Number(operatingValue || 0),
-            trust: Number(trustValue || 0),
-          },
-    });
-  };
-
-  return (
-    <chakra.form onSubmit={handleSubmit(onValid)}>
-      <Box p="16px" borderRadius="10px" bg="bg.subtle">
-        <Stack gap="18px">
-          {/* Attorney fees */}
-          <Box>
-            <FeeFieldLabel>Attorney fees</FeeFieldLabel>
-            <HStack gap="8px" wrap="wrap" mb="10px">
-              {FEE_TYPE_OPTIONS.map((o) => (
-                <ChoiceChip
-                  key={o.value}
-                  active={attorneyFeeType === o.value}
-                  onClick={() => setValue("attorneyFeeType", o.value)}
-                >
-                  {o.label}
-                </ChoiceChip>
-              ))}
-            </HStack>
-            <HStack gap="10px" wrap="wrap">
-              {attorneyFeeType !== "hourly" &&
-              attorneyFeeType !== "contingency" ? (
-                <HStack gap="6px">
-                  <Text fontSize="14px" color="fg.muted">
-                    $
-                  </Text>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="0.00"
-                    maxW="120px"
-                    {...fieldStyles}
-                    {...register("flatRate")}
-                  />
-                  <MutedText>flat rate</MutedText>
-                </HStack>
-              ) : null}
-              {attorneyFeeType !== "flat" &&
-              attorneyFeeType !== "contingency" ? (
-                <HStack gap="6px">
-                  <Text fontSize="14px" color="fg.muted">
-                    $
-                  </Text>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="0.00"
-                    maxW="120px"
-                    {...fieldStyles}
-                    {...register("hourlyRate")}
-                  />
-                  <MutedText>/ hour</MutedText>
-                </HStack>
-              ) : null}
-              {hasContingency ? (
-                <HStack gap="6px">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.1"
-                    placeholder="0"
-                    maxW="90px"
-                    {...fieldStyles}
-                    {...register("contingencyPercent")}
-                  />
-                  <MutedText>% of settlement</MutedText>
-                </HStack>
-              ) : null}
-            </HStack>
-            {attorneyFeeType !== "contingency" ? (
-              <Box mt="10px">
-                <CheckOption
-                  checked={addContingency}
-                  onToggle={() =>
-                    setValue("addContingency", !addContingency)
-                  }
-                  label="Add settlement percentage (contingency)"
-                />
-              </Box>
-            ) : (
-              <MutedText>
-                No upfront attorney fee — the firm is paid the percentage of
-                the settlement above.
-              </MutedText>
-            )}
-          </Box>
-
-          {/* Government fees */}
-          <Box>
-            <FeeFieldLabel>Government fees</FeeFieldLabel>
-            <Stack gap="8px">
-              {fields.map((f, i) => (
-                <HStack key={f.id} gap="8px">
-                  <Input
-                    placeholder="Fee name (e.g. USCIS filing fee)"
-                    {...fieldStyles}
-                    {...register(`governmentFees.${i}.name` as const)}
-                  />
-                  <HStack gap="4px" flex="0 0 auto">
-                    <Text fontSize="14px" color="fg.muted">
-                      $
-                    </Text>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="0.00"
-                      maxW="110px"
-                      textAlign="right"
-                      {...fieldStyles}
-                      {...register(`governmentFees.${i}.amount` as const)}
-                    />
-                  </HStack>
-                  <chakra.button
-                    type="button"
-                    aria-label="Remove fee"
-                    onClick={() => (fields.length > 1 ? remove(i) : undefined)}
-                    display="grid"
-                    placeItems="center"
-                    w="32px"
-                    h="32px"
-                    flex="0 0 auto"
-                    borderRadius="7px"
-                    color="fg.muted"
-                    opacity={fields.length > 1 ? 1 : 0.4}
-                    _hover={{ bg: "bg.muted" }}
-                  >
-                    <Trash2 size={14} />
-                  </chakra.button>
-                </HStack>
-              ))}
-            </Stack>
-            <chakra.button
-              type="button"
-              onClick={() => append({ name: "", amount: "" })}
-              mt="8px"
-              display="inline-flex"
-              alignItems="center"
-              gap="4px"
-              fontSize="12px"
-              fontWeight="500"
-              color="fg.muted"
-              border="1px solid"
-              borderColor="border"
-              borderRadius="7px"
-              px="10px"
-              h="30px"
-              _hover={{ bg: "bg.muted" }}
-            >
-              <Plus size={13} />
-              Add fee row
-            </chakra.button>
-            <Box mt="10px">
-              <MutedText>Paid by</MutedText>
-              <HStack gap="8px" wrap="wrap" mt="4px">
-                {GOV_FEES_PAID_BY_OPTIONS.map((o) => (
-                  <ChoiceChip
-                    key={o.value}
-                    active={governmentFeesPaidBy === o.value}
-                    onClick={() => setValue("governmentFeesPaidBy", o.value)}
-                  >
-                    {o.label}
-                  </ChoiceChip>
-                ))}
-              </HStack>
-            </Box>
-          </Box>
-
-          {noUpfrontDue ? (
-            <MutedText>
-              No upfront payment is required — payment plan and account split
-              do not apply.
-            </MutedText>
-          ) : (
-            /* Payment plan */
-            <Box>
-              <FeeFieldLabel>Payment plan</FeeFieldLabel>
-              <HStack gap="8px" wrap="wrap">
-                {PAYMENT_PLAN_OPTIONS.map((o) => (
-                  <ChoiceChip
-                    key={o.value}
-                    active={paymentPlan === o.value}
-                    onClick={() => setValue("paymentPlan", o.value)}
-                  >
-                    {o.label}
-                  </ChoiceChip>
-                ))}
-              </HStack>
-            </Box>
-          )}
-
-          {/* Apply consultation credit */}
-          <CheckOption
-            checked={applyCredit}
-            onToggle={() => setValue("applyConsultationCredit", !applyCredit)}
-            label={`Apply consultation fee${
-              consultationFeeAmount != null
-                ? ` ($${consultationFeeAmount})`
-                : ""
-            } as credit toward retainer`}
-          />
-
-          {/* Account split */}
-          <Box display={noUpfrontDue ? "none" : undefined}>
-            <FeeFieldLabel>Account split</FeeFieldLabel>
-            <HStack gap="10px" wrap="wrap" align="flex-start">
-              <Box flex="1" minW="180px">
-                <MutedText>Operating</MutedText>
-                <HStack gap="4px" mt="4px">
-                  <Text fontSize="14px" color="fg.muted">
-                    $
-                  </Text>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={operatingValue}
-                    {...fieldStyles}
-                    onChange={(e) => {
-                      setOperatingTouched(true);
-                      setValue("operating", e.currentTarget.value);
-                    }}
-                  />
-                </HStack>
-              </Box>
-              <Box flex="1" minW="180px">
-                <MutedText>Trust (IOLTA)</MutedText>
-                <HStack gap="4px" mt="4px">
-                  <Text fontSize="14px" color="fg.muted">
-                    $
-                  </Text>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={trustValue}
-                    {...fieldStyles}
-                    onChange={(e) => {
-                      setTrustTouched(true);
-                      setValue("trust", e.currentTarget.value);
-                    }}
-                  />
-                </HStack>
-              </Box>
-            </HStack>
-          </Box>
-        </Stack>
-      </Box>
-
-      <HStack mt="14px">
-        <BrandButton type="submit" loading={generating}>
-          <FileText size={14} />
-          Generate fee agreement
-        </BrandButton>
-      </HStack>
-    </chakra.form>
-  );
-}
+// ── Fee agreement preview modal (the config form lives in
+// fee-agreement-wizard.tsx) ───────────────────────────────────────────────────
 
 export function FeeAgreementPreviewModal({
   open,
