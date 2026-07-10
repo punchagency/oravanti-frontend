@@ -39,6 +39,7 @@ export type Lead = {
   intakeAdversePartyEmail: string | null;
   status: LeadStatus;
   pipelineStage: PipelineStage;
+  language?: string | null;
   conflictCheckId: string | null;
   conflictMatches?: ConflictCheckMatch[];
   conflictCheckStatus?: string;
@@ -95,6 +96,8 @@ export type ConflictCheck = {
   supervisorOverrideNotes: string | null;
 };
 
+export type PaymentTiming = "pay_now" | "invoice_after" | "pay_in_person";
+
 export type Consultation = {
   id: string;
   leadId: string;
@@ -103,6 +106,11 @@ export type Consultation = {
   duration: number;
   mode: "video" | "in_person" | "phone_call";
   isUrgent: boolean;
+  isInstant: boolean;
+  paymentTiming: PaymentTiming | null;
+  isEmergency: boolean;
+  emergencyMultiplier: string | null;
+  autoSendQuestionnaire: boolean;
   leadAttorneyId: string | null;
   videoLink: string | null;
   status: ConsultationStatus;
@@ -122,6 +130,9 @@ export type FeeAgreement = {
   agreementType: string;
   generatedFrom: "questionnaire_auto" | "manual";
   status: "draft" | "pending_signature" | "signed" | "voided";
+  // Structured form data captured at generation (defined near the fee-agreement
+  // API section below). Null only on legacy rows.
+  details: FeeAgreementDetails | null;
   documentUrl: string | null;
   envelopeId: string | null;
   signingLink: string | null;
@@ -283,6 +294,7 @@ export const createLead = async (data: {
   intakeAdversePartyName?: string;
   intakeAdversePartyEmail?: string;
   timezone?: string;
+  language?: string;
 }): Promise<Lead> => {
   const res = await API.post("/leads", data);
   return res.data.data;
@@ -298,7 +310,16 @@ export const updateLeadStatus = async (
 
 export const updateLead = async (
   id: string,
-  data: { notes?: string },
+  data: Partial<{
+    name: string;
+    email: string;
+    phone: string;
+    practiceAreaId: string;
+    caseTypeId: string;
+    language: string;
+    notes: string;
+    timezone: string;
+  }>,
 ): Promise<Lead> => {
   const res = await API.patch(`/leads/${id}`, data);
   return res.data.data;
@@ -352,6 +373,12 @@ export const initiateConsultation = async (
     urgent?: boolean;
     // Set when this consultation is a follow-up of a prior completed one.
     parentConsultationId?: string;
+    // Instant consultation: begins now (or at payment time for pay_now).
+    startNow?: boolean;
+    paymentTiming?: PaymentTiming;
+    isEmergency?: boolean;
+    emergencyMultiplier?: number;
+    autoSendQuestionnaire?: boolean;
   },
 ) => {
   const res = await API.post(`/leads/${id}/consultation`, data);
@@ -372,6 +399,8 @@ export const updateConsultation = async (
       | "cancelled"
       | "no_show";
     outcome?: "proceed" | "close_no_case" | "refer_elsewhere" | "follow_up";
+    // Staff marks a pay-in-person fee as received.
+    feeStatus?: "paid";
   },
 ): Promise<Consultation> => {
   const res = await API.patch(`/leads/${id}/consultation`, data);
@@ -389,22 +418,89 @@ export const cancelConsultation = async (
 export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly" | "contingency";
 export type FeePaymentPlan = "pay_in_full" | "two_payments" | "installments";
 export type GovernmentFeesPaidBy = "client_upfront" | "firm_advanced";
+export type ContingencyIfLost =
+  | "client_owes_nothing"
+  | "client_reimburses_hard_costs";
+export type PaymentAllocationOrder = "fees_first" | "costs_first" | "custom";
+
+export type TwoPaymentsSchedule = {
+  // First payment is due at signing.
+  firstAmount: number;
+  secondAmount: number;
+  secondDueDate: string; // date-only "YYYY-MM-DD"
+};
+
+export type InstallmentSchedule = {
+  monthlyAmount: number;
+  numberOfPayments: number; // months
+  firstPaymentDate: string; // date-only "YYYY-MM-DD"
+};
+
+export type PaymentAllocation = {
+  order: PaymentAllocationOrder;
+  // Required when order === "custom"; the costs share is always 100 − this.
+  customFeePercent?: number;
+};
 
 export type GenerateFeeAgreementInput = {
   attorneyFee: {
     type: AttorneyFeeType;
     flatRate?: number;
     hourlyRate?: number;
+    // Estimated hours for hourly agreements (summary/prose only).
+    estimatedHours?: number;
     // Settlement percentage, combinable with any type; required for
     // pure-contingency agreements.
     contingencyPercent?: number;
   };
+  // Required for contingency agreements. abaConfirmed asserts the attorney
+  // checked all three ABA 1.5(c) boxes; the backend stamps the timestamp.
+  contingencyTerms?: {
+    coversCaseCosts: boolean;
+    coversExpertWitnessFees: boolean;
+    ifLost: ContingencyIfLost;
+    abaConfirmed: true;
+  };
   governmentFees: { name: string; amount: number }[];
+  otherCosts?: { name: string; amount: number }[];
   governmentFeesPaidBy: GovernmentFeesPaidBy;
   // Optional: omitted when nothing is due upfront (backend defaults apply).
   paymentPlan?: FeePaymentPlan;
+  twoPaymentsSchedule?: TwoPaymentsSchedule;
+  installmentSchedule?: InstallmentSchedule;
+  paymentAllocation?: PaymentAllocation;
   applyConsultationCredit: boolean;
   accountSplit?: { operating: number; trust: number };
+};
+
+// Mirror of the backend FeeAgreementDetails jsonb (fee-agreements.ts). Fields
+// introduced by the 3-step wizard are absent on older agreements.
+export type FeeAgreementDetails = {
+  attorneyFee: {
+    type: AttorneyFeeType;
+    flatRate?: number;
+    hourlyRate?: number;
+    estimatedHours?: number;
+    contingencyPercent?: number;
+  };
+  contingencyTerms?: {
+    coversCaseCosts: boolean;
+    coversExpertWitnessFees: boolean;
+    ifLost: ContingencyIfLost;
+    abaConfirmedAt: string;
+  };
+  governmentFees: { name: string; amount: number }[];
+  otherCosts?: { name: string; amount: number }[];
+  governmentFeesPaidBy?: GovernmentFeesPaidBy;
+  paymentPlan: FeePaymentPlan;
+  twoPaymentsSchedule?: TwoPaymentsSchedule;
+  installmentSchedule?: InstallmentSchedule;
+  paymentAllocation?: PaymentAllocation;
+  applyConsultationCredit: boolean;
+  accountSplit: { operating: number; trust: number };
+  consultationFeeAmount: number | null;
+  docRef: string;
+  paymentReceivedAt?: string;
 };
 
 export type FeeAgreementDocument = {
@@ -436,6 +532,21 @@ export type FeeAgreementDocument = {
   contingencyPercent: number | null;
   governmentFeesPaidBy: GovernmentFeesPaidBy;
   noUpfrontDue: boolean;
+  // Wizard-era fields — all null on agreements generated before the 3-step
+  // wizard, so every renderer branch keyed on them is a no-op for old rows.
+  estimatedHours: number | null;
+  twoPaymentsSchedule: TwoPaymentsSchedule | null;
+  installmentSchedule: InstallmentSchedule | null;
+  paymentAllocation: {
+    order: PaymentAllocationOrder;
+    customFeePercent: number | null;
+  } | null;
+  contingencyTerms: {
+    coversCaseCosts: boolean;
+    coversExpertWitnessFees: boolean;
+    ifLost: ContingencyIfLost;
+    abaConfirmedAt: string;
+  } | null;
 };
 
 export type FeeAgreementPreview = {
@@ -469,6 +580,33 @@ export const markFeeAgreementReceived = async (
   agreementId: string,
 ): Promise<{ received: boolean; agreementId: string; leadId: string }> => {
   const res = await API.post(`/agreements/${agreementId}/mark-received`);
+  return res.data.data;
+};
+
+export const markFeeAgreementPaymentReceived = async (
+  agreementId: string,
+): Promise<{
+  paymentReceived: boolean;
+  agreementId: string;
+  leadId: string;
+  paymentReceivedAt: string;
+}> => {
+  const res = await API.post(`/agreements/${agreementId}/mark-payment-received`);
+  return res.data.data;
+};
+
+// Draft (never-dispatched) agreements only: deletes the draft and clears the
+// lead's pointer so the wizard can regenerate. Returns the stored details for
+// seeding the wizard with the previous configuration.
+export const discardFeeAgreement = async (
+  agreementId: string,
+): Promise<{
+  discarded: boolean;
+  agreementId: string;
+  leadId: string;
+  details: FeeAgreementDetails | null;
+}> => {
+  const res = await API.post(`/agreements/${agreementId}/discard`);
   return res.data.data;
 };
 

@@ -1,8 +1,12 @@
 import { Box, HStack, Stack } from "@chakra-ui/react";
-import { FileText, Link2, PenLine } from "lucide-react";
+import { FileText, Link2, PenLine, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import type { FeeAgreementPreview, Lead } from "@/api/leads";
+import type {
+  FeeAgreementDetails,
+  FeeAgreementPreview,
+  Lead,
+} from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
 import {
   useLeads,
@@ -10,7 +14,9 @@ import {
   useNudgeClient,
   useGenerateFeeAgreement,
   useAdvanceLeadStage,
+  useDiscardFeeAgreement,
   useFeeAgreementPreview,
+  useMarkFeeAgreementPaymentReceived,
   useSendFeeAgreement,
 } from "@/hooks/use-leads";
 import { useConsultationSettings } from "@/hooks/use-consultation-settings";
@@ -24,10 +30,8 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
-import {
-  FeeAgreementForm,
-  FeeAgreementPreviewModal,
-} from "./consultation-view";
+import { FeeAgreementPreviewModal } from "./consultation-view";
+import { FeeAgreementWizard } from "./fee-agreement-wizard";
 
 export function FeeAgreementView() {
   const { data, isLoading } = useLeads({ stage: "fee_agreement" });
@@ -69,11 +73,19 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
   const generateAgreement = useGenerateFeeAgreement();
   const advanceStage = useAdvanceLeadStage();
   const sendFee = useSendFeeAgreement();
+  const markPayment = useMarkFeeAgreementPaymentReceived();
   const { data: firmFeeSettings } = useConsultationSettings();
 
   const agreement = leadDetail?.feeAgreement;
   const isSigned = agreement?.status === "signed";
   const isPending = agreement?.status === "pending_signature";
+  // Case-opening payment gate: standard agreements need payment recorded
+  // before advancing; contingency (and pre-tracking) agreements do not.
+  const awaitingPayment =
+    isSigned &&
+    agreement?.details != null &&
+    agreement.details.attorneyFee.type !== "contingency" &&
+    !agreement.details.paymentReceivedAt;
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [generatedPreview, setGeneratedPreview] =
@@ -86,6 +98,22 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
   function closePreview() {
     setPreviewOpen(false);
     setGeneratedPreview(null);
+  }
+
+  // Config of a discarded draft — seeds the wizard so the attorney can adjust
+  // and regenerate instead of starting over.
+  const discardDraft = useDiscardFeeAgreement();
+  const [reusedDetails, setReusedDetails] =
+    useState<FeeAgreementDetails | null>(null);
+  function handleDiscardDraft() {
+    if (!agreement) return;
+    const details = agreement.details;
+    discardDraft.mutate(agreement.id, {
+      onSuccess: () => {
+        setReusedDetails(details);
+        closePreview();
+      },
+    });
   }
 
   function handleNudge() {
@@ -107,9 +135,11 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
     }
   }
 
-  const statusTone = isSigned ? "success" : "warning";
+  const statusTone = isSigned ? (awaitingPayment ? "warning" : "success") : "warning";
   const statusLabel = isSigned
-    ? "Signed"
+    ? awaitingPayment
+      ? "Awaiting payment"
+      : "Signed"
     : isPending
     ? "Pending signature"
     : agreement
@@ -169,10 +199,19 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
           mt="14px"
         >
           {agreement.status === "draft" ? (
-            <BrandButton onClick={() => setPreviewOpen(true)}>
-              <FileText size={14} />
-              Preview &amp; send
-            </BrandButton>
+            <>
+              <BrandButton onClick={() => setPreviewOpen(true)}>
+                <FileText size={14} />
+                Preview &amp; send
+              </BrandButton>
+              <OutlineButton
+                loading={discardDraft.isPending}
+                onClick={handleDiscardDraft}
+              >
+                <Pencil size={14} />
+                Cancel &amp; edit
+              </OutlineButton>
+            </>
           ) : !isSigned ? (
             <OutlineButton loading={nudge.isPending} onClick={handleNudge}>
               Nudge client
@@ -180,7 +219,23 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
           ) : (
             <OutlineButton disabled>Agreement signed</OutlineButton>
           )}
-          {isSigned ? (
+          {isSigned && awaitingPayment ? (
+            // Recording payment auto-advances the lead server-side. Advance
+            // stays available for the dev-mode gate bypass; without it the
+            // backend 409 surfaces as a toast.
+            <>
+              <BrandButton
+                loading={markPayment.isPending}
+                onClick={() => agreement?.id && markPayment.mutate(agreement.id)}
+              >
+                Mark payment received
+              </BrandButton>
+              <OutlineButton loading={advanceStage.isPending} onClick={handleAdvanceStage}>
+                <PenLine size={14} />
+                Advance to case opening
+              </OutlineButton>
+            </>
+          ) : isSigned ? (
             <BrandButton loading={advanceStage.isPending} onClick={handleAdvanceStage}>
               <PenLine size={14} />
               Advance to case opening
@@ -194,9 +249,11 @@ function FeeAgreementCard({ lead }: { lead: Lead }) {
         </Box>
       ) : (
         <Box mt="14px">
-          <FeeAgreementForm
+          <FeeAgreementWizard
+            lead={lead}
             consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
             generating={generateAgreement.isPending}
+            initialDetails={reusedDetails}
             onSubmit={(data) =>
               generateAgreement.mutate(
                 { id: lead.id, data },
