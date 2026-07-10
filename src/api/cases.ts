@@ -1,18 +1,12 @@
 import { API } from "./index";
 
-export interface CaseAssignee {
-  name: string;
-  role: string;
-}
-
 export interface CaseClient {
   id: string;
   name: string;
 }
 
-export interface CaseSubcategory {
+export interface PracticeAreaInfo {
   id: string;
-  code: string;
   name: string;
 }
 
@@ -20,12 +14,9 @@ export interface CaseTypeInfo {
   id: string;
   code: string;
   name: string;
-  caseNumberPrefix: string;
-  jurisdiction: string;
-  subcategory: CaseSubcategory | null;
 }
 
-export interface PracticeAreaInfo {
+export interface AssignedTeam {
   id: string;
   name: string;
 }
@@ -36,11 +27,24 @@ export interface CaseRow {
   practiceArea: PracticeAreaInfo;
   caseType: CaseTypeInfo;
   status: string;
-  priority: string;
-  filingDate: string | null;
-  caseProgress: number | null;
+  createdAt: string;
+  estimatedCompletionDate: string | null;
   client: CaseClient;
-  assignee: CaseAssignee | null;
+  assignedTeam: AssignedTeam | null;
+  currentStep: string | null;
+}
+
+export interface CaseDetail {
+  id: string;
+  caseNumber: string;
+  status: string;
+  createdAt: string;
+  estimatedCompletionDate: string | null;
+  client: CaseClient | null;
+  practiceArea: PracticeAreaInfo | null;
+  caseType: { id: string; name: string } | null;
+  assignedTeam: AssignedTeam | null;
+  currentStep: string | null;
 }
 
 export interface PaginationMeta {
@@ -85,7 +89,7 @@ export async function getCases(params: GetCasesParams = {}): Promise<GetCasesRes
   return { data: res.data, pagination: res.pagination } as GetCasesResponse;
 }
 
-export async function getCaseById(id: string): Promise<CaseRow> {
-  const { data } = await API.get<{ data: CaseRow }>(`/cases/${id}`);
+export async function getCaseById(id: string): Promise<CaseDetail> {
+  const { data } = await API.get<{ data: CaseDetail }>(`/cases/${id}`);
   return data.data;
 }
