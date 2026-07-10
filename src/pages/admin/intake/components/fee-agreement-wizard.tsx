@@ -678,7 +678,9 @@ export function FeeAgreementWizard({
   initialDetails,
   onSubmit,
 }: {
-  lead: Lead;
+  // Only the fields needed to resolve cost presets / the contingency fit tag,
+  // so slimmer lead projections can be passed too.
+  lead: Pick<Lead, "practiceAreaId" | "caseTypeName">;
   consultationFeeAmount: number | null;
   generating: boolean;
   // Stored config of a discarded draft — seeds the wizard for regeneration.

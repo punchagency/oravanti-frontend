@@ -1372,23 +1372,27 @@ function ConsultationCard({
                 </Text>
               </HStack>
             ) : !feeAgreement ? (
-              <FeeAgreementWizard
-                lead={lead}
-                consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
-                generating={generateFee.isPending}
-                initialDetails={reusedDetails}
-                onSubmit={(data) =>
-                  generateFee.mutate(
-                    { id: lead.id, data },
-                    {
-                      onSuccess: (preview) => {
-                        setGeneratedPreview(preview);
-                        setPreviewOpen(true);
+              // leadDetail is always loaded here — hasCompletedConsultation is
+              // derived from it — the guard only narrows the type.
+              leadDetail ? (
+                <FeeAgreementWizard
+                  lead={leadDetail}
+                  consultationFeeAmount={firmFeeSettings?.defaultAmount ?? null}
+                  generating={generateFee.isPending}
+                  initialDetails={reusedDetails}
+                  onSubmit={(data) =>
+                    generateFee.mutate(
+                      { id: lead.id, data },
+                      {
+                        onSuccess: (preview) => {
+                          setGeneratedPreview(preview);
+                          setPreviewOpen(true);
+                        },
                       },
-                    },
-                  )
-                }
-              />
+                    )
+                  }
+                />
+              ) : null
             ) : feeAgreement.status === "draft" ? (
               <Stack gap="10px">
                 <MutedText>Agreement generated — ready to dispatch.</MutedText>
