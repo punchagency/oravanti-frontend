@@ -21,6 +21,7 @@ import { DateGroup } from "./date-group";
 
 interface TimelineTabProps {
   caseId?: string;
+  isActive?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,8 +38,8 @@ const staticEntries: { event: string; date: string }[] = [
 // Main TimelineTab
 // ---------------------------------------------------------------------------
 
-export function TimelineTab({ caseId }: TimelineTabProps) {
-  const { data: timelineEvents, isLoading } = useCaseTimeline(caseId ?? "");
+export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
+  const { data: timelineEvents, isLoading } = useCaseTimeline(caseId ?? "", isActive);
 
   // Group workflow events by date
   const grouped = (timelineEvents ?? []).reduce<

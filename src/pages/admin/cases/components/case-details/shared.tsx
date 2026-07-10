@@ -36,42 +36,14 @@ export function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export interface CaseTypeInfo {
-  id: string;
-  code: string;
-  name: string;
-}
-
-export interface TeamInfo {
-  id: string;
-  name: string;
-}
-
-export interface CaseStage {
-  phase: string;
-  workflowTitle: string;
-  stepTitle: string;
-  stepStatus: "pending" | "in_progress" | "completed" | "skipped";
-}
-
-export const pipelineSteps = [
-  { label: "Intake", stage: "Intake & Conflict Check", completed: true },
-  { label: "Consult", stage: "Questionnaire & Consultation", completed: true },
-  { label: "File", stage: "Document Prep & Filing", completed: true },
-  { label: "Review", stage: "USCIS / Court Review", completed: true },
-  { label: "Done", stage: "Case Resolution", completed: false },
-];
-
 export const matterFields = [
   { label: "Case type", key: "caseType" },
   { label: "Practice area", key: "practiceArea" },
   { label: "Case reference", key: "caseRef" },
-  { label: "Opened", key: "filingDate" },
+  { label: "Opened", key: "createdAt" },
   { label: "Team", key: "assignedTeam" },
-  { label: "Assigned staff", key: "assignedStaff" },
-  { label: "Current stage", key: "stage" },
-  { label: "Internal deadline", key: "deadline" },
-  { label: "Court / Agency ref", key: "courtRef" },
+  { label: "Current stage", key: "currentStep" },
+  { label: "Status", key: "status" },
 ];
 
 export const statusBadgeStyle: Record<string, { borderColor: string; textColor: string; bg: string }> = {
@@ -85,15 +57,10 @@ export interface CaseData {
   id: string;
   clientName: string;
   caseRef: string;
-  caseType: CaseTypeInfo;
+  caseType: { id: string; name: string };
   practiceArea: string;
-  stage: string;
-  stageDetail: CaseStage;
   status: string;
-  assignedTeam: TeamInfo | null;
-  assignedStaff: { name: string; role: string } | null;
-  filingDate: string;
-  deadline: string;
-  courtRef: string;
-  caseProgress: number;
+  createdAt: string;
+  assignedTeam: { id: string; name: string } | null;
+  currentStep: string | null;
 }

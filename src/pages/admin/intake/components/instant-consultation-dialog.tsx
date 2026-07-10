@@ -397,8 +397,11 @@ export function InstantConsultationDialog({
     ]);
     if (!ok) return;
     const values = getValues();
+    const [firstName = "", ...lastParts] = values.newName.trim().split(" ");
+    const lastName = lastParts.join(" ");
     const fields = {
-      name: values.newName.trim(),
+      firstName,
+      lastName,
       email: values.newEmail.trim(),
       phone: values.newPhone.trim() || undefined,
       language: values.newLanguage,

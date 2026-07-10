@@ -1,5 +1,10 @@
 import { useMemo } from "react";
-import { FieldRow, matterFields, SectionLabel, type CaseData } from "../../shared";
+import {
+  FieldRow,
+  matterFields,
+  SectionLabel,
+  type CaseData,
+} from "../../shared";
 
 interface MatterDetailsProps {
   caseData?: CaseData;
@@ -7,21 +12,23 @@ interface MatterDetailsProps {
 
 export function MatterDetails({ caseData }: MatterDetailsProps) {
   const values = useMemo(() => {
-    if (!caseData) return matterFields.map((f) => ({ label: f.label, value: "—" }));
+    if (!caseData)
+      return matterFields.map((f) => ({ label: f.label, value: "—" }));
     const map: Record<string, string> = {
       caseType: caseData.caseType?.name ?? "—",
       practiceArea: caseData.practiceArea || "—",
       caseRef: caseData.caseRef || "—",
-      filingDate: caseData.filingDate || "—",
-      assignedTeam: caseData.assignedTeam?.name ?? "—",
-      assignedStaff: caseData.assignedStaff?.name
-        ? `${caseData.assignedStaff.name} (${caseData.assignedStaff.role})`
+      createdAt: caseData.createdAt
+        ? new Date(caseData.createdAt).toLocaleDateString()
         : "—",
-      stage: caseData.stage || "—",
-      deadline: caseData.deadline || "—",
-      courtRef: caseData.courtRef || "—",
+      assignedTeam: caseData.assignedTeam?.name ?? "—",
+      currentStep: caseData.currentStep ?? "—",
+      status: caseData.status || "—",
     };
-    return matterFields.map((f) => ({ label: f.label, value: map[f.key] ?? "—" }));
+    return matterFields.map((f) => ({
+      label: f.label,
+      value: map[f.key] ?? "—",
+    }));
   }, [caseData]);
 
   return (

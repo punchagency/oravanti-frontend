@@ -77,7 +77,7 @@ export interface PracticeAreaTreeData {
 
 export const getPracticeAreaTreeData = async (): Promise<PracticeAreaTreeData> => {
   const response = await API.get("/practice-areas/tree-data");
-  return response.data;
+  return response.data.data;
 };
 
 const buildContractorSignupFormData = (data: ContractorSignupPayload) => {

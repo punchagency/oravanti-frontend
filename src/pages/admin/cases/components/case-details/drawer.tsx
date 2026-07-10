@@ -1,3 +1,4 @@
+import { getCaseById } from "@/api/cases";
 import {
   Badge,
   Box,
@@ -10,6 +11,7 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Archive,
@@ -18,24 +20,25 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { statusBadgeStyle, type CaseData } from "./shared";
-import { Overview } from "./tabs/overview";
-import { WorkflowTab } from "./tabs/workflow";
-import { People } from "./tabs/people";
+import { statusBadgeStyle } from "./shared";
+import { AuditLogTab } from "./tabs/audit-log";
 import { Documents } from "./tabs/documents";
-import { TimelineTab } from "./tabs/timeline";
 import { Notes } from "./tabs/notes";
+import { Overview } from "./tabs/overview";
+import { People } from "./tabs/people";
+import { TimelineTab } from "./tabs/timeline";
+import { WorkflowTab } from "./tabs/workflow";
 
 interface CaseDetailsDrawerProps {
   children: ReactNode;
-  caseData?: CaseData;
+  caseId: string;
   open?: boolean;
   onOpenChange?: (details: { open: boolean }) => void;
 }
 
 export function CaseDetailsDrawer({
   children,
-  caseData: _caseData,
+  caseId,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
 }: CaseDetailsDrawerProps) {
@@ -44,6 +47,15 @@ export function CaseDetailsDrawer({
   const onOpenChange =
     controlledOnOpenChange ??
     ((details: { open: boolean }) => setInternalOpen(details.open));
+
+  const [tab, setTab] = useState("overview");
+
+  const { data: caseRow } = useQuery({
+    queryKey: ["case", caseId],
+    queryFn: () => getCaseById(caseId),
+    enabled: open && Boolean(caseId),
+    staleTime: 60_000,
+  });
 
   return (
     <Drawer.Root
@@ -72,18 +84,14 @@ export function CaseDetailsDrawer({
                     lineHeight="18px"
                     truncate
                   >
-                    {_caseData?.caseRef ?? "ORV-2026-0135"}
+                    {caseRow?.caseNumber ?? "N/A"}
                   </Text>
-                  <Text
-                    color="fg.muted"
-                    fontSize="11px"
-                    mt={0.5}
-                  >
-                    {_caseData?.clientName ?? "David Kim"}
+                  <Text color="fg.muted" fontSize="11px" mt={0.5}>
+                    {caseRow?.client?.name ?? "N/A"}
                   </Text>
                   <HStack gap={1.5} mt={1.5} wrap="wrap">
                     {(() => {
-                      const s = _caseData?.status ?? "Filed";
+                      const s = caseRow?.status ?? "Filed";
                       const colors =
                         statusBadgeStyle[s as keyof typeof statusBadgeStyle] ??
                         statusBadgeStyle.Filed;
@@ -113,8 +121,13 @@ export function CaseDetailsDrawer({
                       px={1.5}
                       py={0.5}
                     >
-                      <Text color="brand.fg" fontSize="10px" fontWeight="500" lineHeight="12px">
-                        {_caseData?.practiceArea ?? "Immigration"}
+                      <Text
+                        color="brand.fg"
+                        fontSize="10px"
+                        fontWeight="500"
+                        lineHeight="12px"
+                      >
+                        {caseRow?.practiceArea?.name ?? "—"}
                       </Text>
                     </Box>
 
@@ -178,9 +191,15 @@ export function CaseDetailsDrawer({
               </HStack>
             </Drawer.Header>
 
-            <Drawer.Body p={0} display="flex" flexDir="column" overflow="hidden">
+            <Drawer.Body
+              p={0}
+              display="flex"
+              flexDir="column"
+              overflow="hidden"
+            >
               <Tabs.Root
-                defaultValue="overview"
+                value={tab}
+                onValueChange={(e) => setTab(e.value)}
                 size="sm"
                 display="flex"
                 flexDir="column"
@@ -193,7 +212,15 @@ export function CaseDetailsDrawer({
                   px={3}
                   flexShrink={0}
                 >
-                  {["Overview", "Workflow", "People", "Documents", "Timeline", "Notes"].map((tab) => (
+                  {[
+                    "Overview",
+                    "Workflow",
+                    "People",
+                    "Documents",
+                    "Timeline",
+                    "Notes",
+                    "Audit Log",
+                  ].map((tab) => (
                     <Tabs.Trigger
                       key={tab}
                       value={tab.toLowerCase()}
@@ -214,28 +241,74 @@ export function CaseDetailsDrawer({
                   ))}
                 </Tabs.List>
 
-                <Tabs.Content value="overview" px={5} pb={5} flex={1} overflow="auto">
-                  <Overview caseData={_caseData} />
+                <Tabs.Content
+                  value="overview"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
+                  <Overview caseId={caseId} isActive={tab === "overview"} />
                 </Tabs.Content>
 
-                <Tabs.Content value="workflow" px={5} pb={5} flex={1} overflow="auto">
-                  <WorkflowTab caseId={_caseData?.id ?? ""} />
+                <Tabs.Content
+                  value="workflow"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
+                  <WorkflowTab caseId={caseId} isActive={tab === "workflow"} />
                 </Tabs.Content>
 
-                <Tabs.Content value="people" px={5} pb={5} flex={1} overflow="auto">
+                <Tabs.Content
+                  value="people"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
                   <People />
                 </Tabs.Content>
 
-                <Tabs.Content value="documents" px={5} pb={5} flex={1} overflow="auto">
+                <Tabs.Content
+                  value="documents"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
                   <Documents />
                 </Tabs.Content>
 
-                <Tabs.Content value="timeline" px={5} pb={5} flex={1} overflow="auto">
-                  <TimelineTab caseId={_caseData?.id} />
+                <Tabs.Content
+                  value="timeline"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
+                  <TimelineTab caseId={caseId} isActive={tab === "timeline"} />
                 </Tabs.Content>
 
-                <Tabs.Content value="notes" px={5} pb={5} flex={1} overflow="auto">
+                <Tabs.Content
+                  value="notes"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
                   <Notes />
+                </Tabs.Content>
+
+                <Tabs.Content
+                  value="audit log"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
+                  <AuditLogTab caseId={caseId} isActive={tab === "audit log"} />
                 </Tabs.Content>
               </Tabs.Root>
             </Drawer.Body>

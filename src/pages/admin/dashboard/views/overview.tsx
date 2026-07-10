@@ -107,8 +107,8 @@ export function OverviewView() {
     ? allLeadsData
     : (allLeadsData?.leads ?? []);
 
-  const { data: casesData } = useCases();
-  const allCases = casesData ?? [];
+  const { data: casesResponse } = useCases();
+  const allCases = casesResponse?.data ?? [];
 
   const { data: staffData } = useStaff();
   const allStaff = staffData ?? [];
@@ -157,7 +157,7 @@ export function OverviewView() {
     name: c.client?.name || "—",
     matter: c.caseType?.name ?? c.caseType?.code ?? "—",
     status: caseStatusDisplay[c.status]?.label ?? c.status,
-    owner: c.assignee?.name ?? "Unassigned",
+    owner: c.assignedTeam?.name ?? "Unassigned",
     tone: (caseStatusDisplay[c.status]?.tone ?? "neutral") as Tone,
   }));
 

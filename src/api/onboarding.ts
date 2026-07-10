@@ -21,5 +21,5 @@ export const submitOnboardingData = async (data: {
     taxId: string;
   };
 }) => {
-  return (await API.post("/onboarding/submit", data)).data;
+  return (await API.post("/onboarding/submit", data)).data.data;
 };

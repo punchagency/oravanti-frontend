@@ -3,39 +3,80 @@ import type { TimelineEvent } from "../workflow/types";
 import { formatTime } from "./date-utils";
 import { EventIcon, eventColor } from "./event-icon";
 
+function formatDuration(ms: number | null | undefined): string | null {
+  if (ms == null) return null;
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 60) return `${minutes}m ${totalSeconds % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+}
+
 function actorLine(event: TimelineEvent): string | null {
+  const actorName = (event.metadata?.actorName as string | undefined) ?? event.createdBy?.name;
+  const assigneeName = event.metadata?.assigneeName as string | undefined;
+  const note = (event.metadata?.note as string | undefined) ?? event.description;
+  const timeTakenMs = event.metadata?.timeTakenMs as number | null | undefined;
+
   switch (event.eventType) {
     case "step_assigned":
     case "step_assigned_override": {
-      const assignee = event.metadata?.staffName as string | undefined;
       const role = event.metadata?.staffRole as string | undefined;
-      const actor = event.createdBy?.name;
       const due = event.metadata?.dueDate as string | undefined;
+      const assignee = assigneeName ?? (event.metadata?.staffName as string | undefined);
       if (!assignee) return null;
       const parts = [`Assigned to ${assignee}`];
       if (role) parts.push(`(${role})`);
-      if (actor) parts.push(`by ${actor}`);
+      if (actorName) parts.push(`by ${actorName}`);
       if (due) parts.push(`due ${new Date(due).toLocaleDateString()}`);
       return parts.join(" ");
     }
     case "step_reassigned": {
       const prev = event.metadata?.previousStaffName as string | undefined;
       const next = event.metadata?.newStaffName as string | undefined;
-      const actor = event.createdBy?.name;
       if (!prev || !next) return null;
       const parts = [`Reassigned from ${prev} to ${next}`];
-      if (actor) parts.push(`by ${actor}`);
+      if (actorName) parts.push(`by ${actorName}`);
+      return parts.join(" ");
+    }
+    case "step_submitted_for_review": {
+      if (!actorName && !note) return null;
+      const parts: string[] = [];
+      if (actorName) parts.push(`Submitted by ${actorName}`);
+      if (note) parts.push(`— "${note}"`);
+      return parts.join(" ");
+    }
+    case "step_approved": {
+      if (!actorName && !assigneeName) return null;
+      const parts: string[] = [];
+      if (actorName) parts.push(`Approved by ${actorName}`);
+      if (assigneeName) parts.push(`(was assigned to ${assigneeName})`);
+      if (note) parts.push(`— "${note}"`);
+      const dur = formatDuration(timeTakenMs);
+      if (dur) parts.push(`— took ${dur}`);
+      return parts.join(" ");
+    }
+    case "step_rejected": {
+      if (!actorName) return null;
+      const parts = [`Rejected by ${actorName}`];
+      if (assigneeName) parts.push(`(was assigned to ${assigneeName})`);
+      if (note) parts.push(`— "${note}"`);
       return parts.join(" ");
     }
     case "step_completed": {
-      const name = event.metadata?.completedByName as string | undefined;
-      const note = event.metadata?.notes as string | undefined;
-      const timeLabel = event.metadata?.timeTakenLabel as string | undefined;
+      const name =
+        actorName ??
+        (event.metadata?.completedByName as string | undefined);
       if (!name) return null;
-      let text = `Completed by ${name}`;
-      if (timeLabel) text += ` — took ${timeLabel}`;
-      if (note) text += ` — "${note}"`;
-      return text;
+      const parts = [`Completed by ${name}`];
+      if (assigneeName) parts.push(`(was assigned to ${assigneeName})`);
+      const dur = formatDuration(timeTakenMs);
+      if (dur) parts.push(`— took ${dur}`);
+      if (note) parts.push(`— "${note}"`);
+      return parts.join(" ");
     }
     default:
       return null;

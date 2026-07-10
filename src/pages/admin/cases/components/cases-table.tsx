@@ -1,11 +1,13 @@
 import {
   Badge,
   Box,
+  Center,
   HStack,
   IconButton,
   Menu,
   Portal,
   ScrollArea,
+  Spinner,
   Stack,
   Table,
   Text,
@@ -34,7 +36,7 @@ const specialtyLabelMap: Record<string, string> = {
   immigration: "Immigration",
 };
 
-interface Case {
+export interface Case {
   id: string;
   clientName: string;
   caseRef: string;
@@ -52,180 +54,6 @@ interface CasesTableProps {
   isLoading?: boolean;
 }
 
-export const mockCases: Case[] = [
-  {
-    id: "1",
-    clientName: "Aisha Patel",
-    caseRef: "ORV-2026-0131",
-    caseType: "I-485 Adjustment of Status",
-    stage: "Interview scheduled",
-    assignedTeam: "Immigration Team A",
-    deadline: "Jun 22, 2026",
-    status: "Interview",
-    matttersCount: 1,
-    specialty: "immigration",
-  },
-  {
-    id: "2",
-    clientName: "Amara Chen",
-    caseRef: "ORV-2026-0142",
-    caseType: "I-485 Adjustment of Status",
-    stage: "USCIS Review",
-    assignedTeam: "Immigration Team B",
-    deadline: "—",
-    status: "Active",
-    matttersCount: 2,
-    specialty: "immigration",
-  },
-  {
-    id: "3",
-    clientName: "Amara Chen",
-    caseRef: "ORV-2026-0143",
-    caseType: "I-765 Employment Authorization",
-    stage: "Filed",
-    assignedTeam: "Immigration Team B",
-    deadline: "—",
-    status: "Filed",
-    matttersCount: 2,
-    specialty: "immigration",
-  },
-  {
-    id: "4",
-    clientName: "Anna Kowalski",
-    caseRef: "ORV-2025-0241",
-    caseType: "Trust Document Generation",
-    stage: "Executed",
-    assignedTeam: "Estate Team",
-    deadline: "—",
-    status: "Closed",
-    specialty: "estate",
-  },
-  {
-    id: "5",
-    clientName: "Carlos Rivera",
-    caseRef: "ORV-2026-0128",
-    caseType: "Divorce Petition",
-    stage: "Discovery",
-    assignedTeam: "Family Team A",
-    deadline: "—",
-    status: "Active",
-    matttersCount: 2,
-    specialty: "family",
-  },
-  {
-    id: "6",
-    clientName: "Carlos Rivera",
-    caseRef: "ORV-2026-0144",
-    caseType: "Child Custody Agreement",
-    stage: "Finalized",
-    assignedTeam: "Family Team A",
-    deadline: "—",
-    status: "Filed",
-    matttersCount: 2,
-    specialty: "family",
-  },
-  {
-    id: "7",
-    clientName: "Chioma Okafor",
-    caseRef: "ORV-2026-0054",
-    caseType: "Guardianship Petition",
-    stage: "Pending hearing",
-    assignedTeam: "Family Team B",
-    deadline: "Jul 10, 2026",
-    status: "RFE",
-    specialty: "family",
-  },
-  {
-    id: "8",
-    clientName: "Daniel Park",
-    caseRef: "ORV-2026-0068",
-    caseType: "N-400 Naturalization",
-    stage: "Decision received",
-    assignedTeam: "Immigration Team A",
-    deadline: "—",
-    status: "Closed",
-    specialty: "immigration",
-  },
-  {
-    id: "9",
-    clientName: "David Kim",
-    caseRef: "ORV-2026-0135",
-    caseType: "Business Formation",
-    stage: "Articles filed",
-    assignedTeam: "Business Team",
-    deadline: "—",
-    status: "Filed",
-    specialty: "business",
-  },
-  {
-    id: "10",
-    clientName: "Emeka Eze",
-    caseRef: "ORV-2026-0087",
-    caseType: "I-589 Asylum",
-    stage: "Response due",
-    assignedTeam: "Immigration Team A",
-    deadline: "Jun 14, 2026",
-    status: "RFE",
-    specialty: "immigration",
-  },
-  {
-    id: "11",
-    clientName: "Fatima Diallo",
-    caseRef: "ORV-2026-0121",
-    caseType: "Settlement Agreement",
-    stage: "Negotiation",
-    assignedTeam: "Family Team A",
-    deadline: "—",
-    status: "Active",
-    specialty: "family",
-  },
-  {
-    id: "12",
-    clientName: "Grace Johnson",
-    caseRef: "ORV-2026-0095",
-    caseType: "Wrongful Termination",
-    stage: "Discovery",
-    assignedTeam: "Employment Team",
-    deadline: "Jul 15, 2026",
-    status: "Active",
-    matttersCount: 1,
-    specialty: "employment",
-  },
-  {
-    id: "13",
-    clientName: "Henry Martinez",
-    caseRef: "ORV-2026-0102",
-    caseType: "DUI Defense",
-    stage: "Trial Scheduled",
-    assignedTeam: "Criminal Team",
-    deadline: "Aug 5, 2026",
-    status: "Active",
-    specialty: "criminal",
-  },
-  {
-    id: "14",
-    clientName: "Isabel Santos",
-    caseRef: "ORV-2026-0089",
-    caseType: "Motor Vehicle Accident",
-    stage: "Settlement Negotiation",
-    assignedTeam: "PI Team A",
-    deadline: "—",
-    status: "Active",
-    matttersCount: 1,
-    specialty: "personalinjury",
-  },
-  {
-    id: "15",
-    clientName: "James Wilson",
-    caseRef: "ORV-2026-0156",
-    caseType: "Commercial Lease Review",
-    stage: "Document Review",
-    assignedTeam: "Real Estate Team",
-    deadline: "Jun 28, 2026",
-    status: "Active",
-    specialty: "realestate",
-  },
-];
 
 const statusColorMap: Record<
   string,
@@ -248,22 +76,7 @@ function CaseActionMenu({ caseItem }: { caseItem: Case }) {
 
   return (
     <CaseDetailsDrawer
-      caseData={{
-        id: caseItem.id,
-        clientName: caseItem.clientName,
-        caseRef: caseItem.caseRef,
-        caseType: { id: caseItem.id, code: caseItem.caseType, name: caseItem.caseType },
-        practiceArea: caseItem.specialty ?? "",
-        stage: caseItem.stage,
-        stageDetail: { phase: "", workflowTitle: "", stepTitle: caseItem.stage, stepStatus: "in_progress" },
-        status: caseItem.status,
-        assignedTeam: caseItem.assignedTeam ? { id: caseItem.id, name: caseItem.assignedTeam } : null,
-        assignedStaff: null,
-        filingDate: "",
-        deadline: caseItem.deadline ?? "",
-        courtRef: "",
-        caseProgress: 50,
-      }}
+      caseId={caseItem.id}
       open={open}
       onOpenChange={({ open }) => setOpen(open)}
     >
@@ -313,7 +126,7 @@ function CaseActionMenu({ caseItem }: { caseItem: Case }) {
   );
 }
 
-export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }: CasesTableProps) {
+export function CasesTable({ cases = [], isLoading = false }: CasesTableProps) {
   return (
     <Box
       w="full"
@@ -324,7 +137,11 @@ export function CasesTable({ cases = mockCases, isLoading: _isLoading = false }:
       bg="bg"
       display={{ base: "none", lg: "block" }}
     >
-      {cases.length === 0 ? (
+      {isLoading ? (
+        <Center py={16}>
+          <Spinner />
+        </Center>
+      ) : cases.length === 0 ? (
         <VStack py={16} gap={2} textAlign="center">
           <Text color="fg.muted" textStyle="lg" fontWeight="600">
             No cases found

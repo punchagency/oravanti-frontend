@@ -51,7 +51,7 @@ export function PipelineView() {
     : (allLeadsData?.leads ?? []);
 
   const { data: casesData } = useCases();
-  const allCases = casesData ?? [];
+  const allCases = casesData?.data ?? [];
 
   const stageCounts = PIPELINE_STAGE_DEFS.map((def) => ({
     ...def,

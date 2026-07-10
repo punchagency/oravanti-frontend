@@ -9,11 +9,11 @@ import {
 } from "@chakra-ui/react";
 import { useCaseWorkflow } from "./hooks";
 import { ModuleSection } from "./components/module-section";
-import { piTemplate } from "./data/pi-template";
 import type { CaseModuleInstance, WorkflowModule } from "./types";
 
 interface WorkflowTabProps {
   caseId: string;
+  isActive?: boolean;
 }
 
 interface MergedModule {
@@ -39,19 +39,74 @@ function groupByPhase(mergedModules: MergedModule[]): PhaseGroup[] {
   }));
 }
 
-export function WorkflowTab({ caseId }: WorkflowTabProps) {
-  const { data: workflowInstance, isLoading, refetch } = useCaseWorkflow(caseId);
+function mapBackendModule(mod: {
+  moduleId: string;
+  name: string;
+  phase: string;
+  orderIndex: number;
+  activationType: string;
+  activationCondition: string | null;
+  status: "locked" | "active" | "completed";
+  steps: {
+    stepId: string;
+    title: string;
+    status: "pending" | "in_progress" | "completed" | "skipped" | "in_review";
+    assignedTo: { id: string; name: string; role: string } | null;
+    dueDate: string | null;
+    completedAt: string | null;
+    notes: string;
+  }[];
+}): { definition: WorkflowModule; instance: CaseModuleInstance } {
+  const mappedSteps = mod.steps.map((s) => ({
+    stepId: s.stepId,
+    status: s.status === "completed" ? "complete" as const : s.status === "in_progress" ? "in_progress" as const : s.status === "in_review" ? "in_review" as const : "not_started" as const,
+    assignedTo: s.assignedTo,
+    assignedAt: null,
+    dueDate: s.dueDate,
+    completedAt: s.completedAt,
+    completedBy: null,
+    overrideRationale: null,
+    notes: s.notes,
+  }));
+
+  const definition: WorkflowModule = {
+    moduleId: mod.moduleId,
+    name: mod.name,
+    phase: mod.phase,
+    orderIndex: mod.orderIndex,
+    steps: mod.steps.map((s) => ({
+      stepId: s.stepId,
+      title: s.title,
+      description: "",
+      assignableTo: ["attorney", "paralegal"],
+      requiredCertification: null,
+      orderIndex: mod.steps.indexOf(s) + 1,
+      defaultDurationDays: 3,
+    })),
+    conditionalActivation:
+      mod.activationType !== "auto"
+        ? {
+            type: mod.activationType === "manual" ? "manual_trigger" : "condition_met",
+            label: mod.activationCondition ?? "Module requires activation",
+          }
+        : undefined,
+  };
+
+  const instance: CaseModuleInstance = {
+    moduleId: mod.moduleId,
+    status: mod.status,
+    steps: mappedSteps,
+  };
+
+  return { definition, instance };
+}
+
+export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
+  const { data: workflowInstance, isLoading, refetch } = useCaseWorkflow(caseId, isActive);
 
   const mergedModules: MergedModule[] = useMemo(() => {
     if (!workflowInstance) return [];
-    return piTemplate.modules
-      .map((def) => {
-        const inst = workflowInstance.modules.find(
-          (m) => m.moduleId === def.moduleId,
-        );
-        return inst ? { definition: def, instance: inst } : null;
-      })
-      .filter((m): m is MergedModule => m !== null);
+    return workflowInstance.modules.map(mapBackendModule);
   }, [workflowInstance]);
 
   const phaseGroups = useMemo(() => groupByPhase(mergedModules), [mergedModules]);

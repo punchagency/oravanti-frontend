@@ -1,3 +1,49 @@
+import type {
+  ConsultationSettings,
+} from "@/api/consultation-settings";
+import type {
+  Consultation,
+  ConsultationListItem,
+  ConsultationSort,
+  ConsultationStatus,
+  FeeAgreementDetails,
+  FeeAgreementPreview,
+  Lead,
+} from "@/api/leads";
+import { formatReceivedDate } from "@/api/leads";
+import { downloadResponseFile } from "@/api/questionnaires";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
+import {
+  useConsultationLocations,
+  useConsultationSettings,
+  useCreateConsultationLocation,
+} from "@/hooks/use-consultation-settings";
+import {
+  useAdvanceLeadStage,
+  useCancelConsultation,
+  useConsultations,
+  useDiscardFeeAgreement,
+  useFeeAgreementPreview,
+  useGenerateFeeAgreement,
+  useInitiateConsultation,
+  useLeadById,
+  useLeads,
+  useMarkFeeAgreementPaymentReceived,
+  useMarkFeeAgreementReceived,
+  useNudgeClient,
+  useSendFeeAgreement,
+  useUpdateConsultation,
+  useUpdateLead,
+} from "@/hooks/use-leads";
+import {
+  useLeadQuestionnaire,
+  useRequestMissingDocuments,
+  useResponseDetail,
+  useUploadResponseFile,
+} from "@/hooks/use-questionnaires";
+import { useStaffList } from "@/hooks/use-staff-list";
+import { dayjs, formatTime } from "@/utils/date";
 import {
   Box,
   Dialog,
@@ -13,6 +59,8 @@ import {
   chakra,
   createListCollection,
 } from "@chakra-ui/react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   AlertTriangle,
   CalendarClock,
@@ -49,53 +97,8 @@ import {
   useState,
 } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import type {
-  Consultation,
-  ConsultationListItem,
-  ConsultationSort,
-  ConsultationStatus,
-  FeeAgreementDetails,
-  FeeAgreementPreview,
-  Lead,
-} from "@/api/leads";
-import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { toast } from "sonner";
-import { dayjs, formatTime } from "@/utils/date";
-import { formatReceivedDate } from "@/api/leads";
-import { downloadResponseFile } from "@/api/questionnaires";
-import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
-import {
-  useAdvanceLeadStage,
-  useCancelConsultation,
-  useConsultations,
-  useDiscardFeeAgreement,
-  useInitiateConsultation,
-  useFeeAgreementPreview,
-  useGenerateFeeAgreement,
-  useLeadById,
-  useLeads,
-  useMarkFeeAgreementPaymentReceived,
-  useMarkFeeAgreementReceived,
-  useNudgeClient,
-  useSendFeeAgreement,
-  useUpdateConsultation,
-  useUpdateLead,
-} from "@/hooks/use-leads";
-import {
-  useLeadQuestionnaire,
-  useRequestMissingDocuments,
-  useResponseDetail,
-  useUploadResponseFile,
-} from "@/hooks/use-questionnaires";
-import { useStaffList } from "@/hooks/use-staff-list";
-import {
-  useConsultationLocations,
-  useConsultationSettings,
-  useCreateConsultationLocation,
-} from "@/hooks/use-consultation-settings";
-import type { ConsultationSettings } from "@/api/consultation-settings";
+
 import {
   BrandButton,
   CardTitle,
@@ -105,7 +108,7 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
-import { PaginationControls } from "@/components/ui/pagination-controls";
+import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
 import {
   ScheduleDetailsStep,
@@ -568,16 +571,12 @@ function CollapsibleConsultation({
           />
           <Box minW="0">
             <HStack gap="8px" minW="0" wrap="wrap">
-              <Text
-                m="0"
-                color="fg"
-                fontSize="14px"
-                fontWeight="600"
-                truncate
-              >
+              <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
                 {lead.name}
               </Text>
-              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+              <MutedText>
+                {lead.caseTypeName ?? "Matter type not set"}
+              </MutedText>
             </HStack>
             <MutedText>
               {dateLabel} · {attorneyFullName(summary)}
@@ -651,7 +650,9 @@ function CollapsibleNoConsultation({
               <Text m="0" color="fg" fontSize="14px" fontWeight="600" truncate>
                 {lead.name}
               </Text>
-              <MutedText>{lead.caseTypeName ?? "Matter type not set"}</MutedText>
+              <MutedText>
+                {lead.caseTypeName ?? "Matter type not set"}
+              </MutedText>
             </HStack>
             <MutedText>No consultation scheduled yet</MutedText>
           </Box>
@@ -742,6 +743,7 @@ function ConsultationCard({
   const { data: staffData } = useStaffList({
     role: "attorney",
     status: "active",
+    limit: 1000,
   });
 
   const saveNotesMutation = useUpdateConsultation();
@@ -1670,9 +1672,9 @@ function CancelConsultationDialog({
               Cancel consultation
             </Dialog.Title>
             <MutedText fontSize="13px">
-              This cancels {leadName}'s consultation, revokes their booking link,
-              and notifies everyone involved. This can't be undone, but you can
-              schedule a new consultation afterwards.
+              This cancels {leadName}'s consultation, revokes their booking
+              link, and notifies everyone involved. This can't be undone, but
+              you can schedule a new consultation afterwards.
             </MutedText>
             <Box mt="14px">
               <Text m="0 0 6px" fontSize="12px" color="fg.muted">
@@ -1873,7 +1875,11 @@ function PastConsultations({ items }: { items: Consultation[] }) {
   );
 }
 
-function PastConsultationRow({ consultation: c }: { consultation: Consultation }) {
+function PastConsultationRow({
+  consultation: c,
+}: {
+  consultation: Consultation;
+}) {
   const [showNotes, setShowNotes] = useState(false);
   const tone = CONSULT_STATUS_TONE[c.status];
   const when = c.scheduledAt
@@ -2253,7 +2259,7 @@ function ScheduleConsultationDialog({
     ...consultationLeads.filter((l) => !l.consultationId),
   ];
 
-  const { data: staffData } = useStaffList({ status: "active" });
+  const { data: staffData } = useStaffList({ status: "active", limit: 1000 });
   const allStaff = staffData?.data ?? [];
   const attorneys = allStaff.filter((s) => s.role === "attorney");
 
@@ -2324,9 +2330,7 @@ function ScheduleConsultationDialog({
       return;
     }
     if (step === 2) {
-      if (
-        await trigger(["customDuration", "attorneyId", "locationId"])
-      )
+      if (await trigger(["customDuration", "attorneyId", "locationId"]))
         setStep(3);
     }
   }
@@ -2583,6 +2587,7 @@ function ScheduleConsultationDialog({
   );
 }
 
+
 function ReviewStep({
   lead,
   duration,
@@ -2703,7 +2708,9 @@ function ReviewStep({
                     step="0.01"
                     value={feeAmount}
                     onChange={(e) => onFeeAmountChange(e.currentTarget.value)}
-                    placeholder={feeSettings?.defaultAmount?.toString() ?? "0.00"}
+                    placeholder={
+                      feeSettings?.defaultAmount?.toString() ?? "0.00"
+                    }
                     maxW="96px"
                     textAlign="right"
                     {...fieldStyles}

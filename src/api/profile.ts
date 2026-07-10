@@ -25,14 +25,14 @@ export type UpdateProfileInput = Partial<{
 }>;
 
 export async function getProfile() {
-  const { data } = await API.get<Profile>("/settings/profile");
-  return data;
+  const { data } = await API.get<{ data: Profile }>("/settings/profile");
+  return data.data;
 }
 
 export async function updateProfile(input: UpdateProfileInput) {
-  const { data } = await API.patch<{ message: string; profile: Profile }>(
+  const { data } = await API.patch<{ data: Profile }>(
     "/settings/profile",
     input,
   );
-  return data.profile;
+  return data.data;
 }

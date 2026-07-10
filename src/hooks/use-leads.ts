@@ -27,6 +27,8 @@ import {
 } from "@/api/leads";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/getErrorMessage";
+import { useFeedbackDialog } from "./useFeedbackDialog";
 import type { APIError } from "./types";
 
 export function useLeads(params: GetLeadsParams = {}) {
@@ -381,6 +383,7 @@ export function useNudgeClient() {
 
 export function useOpenCase() {
   const qc = useQueryClient();
+  const { showSuccess, showError } = useFeedbackDialog();
   return useMutation({
     mutationFn: ({
       id,
@@ -390,12 +393,15 @@ export function useOpenCase() {
       data: Parameters<typeof openCase>[1];
     }) => openCase(id, data),
     onSuccess: (_, { id }) => {
-      toast.success("Case opened successfully");
+      showSuccess({ title: "Case opened successfully" });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
     },
-    onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to open case");
+    onError: (error) => {
+      showError({
+        title: "Failed to open case",
+        description: getErrorMessage(error, "Please try again."),
+      });
     },
   });
 }

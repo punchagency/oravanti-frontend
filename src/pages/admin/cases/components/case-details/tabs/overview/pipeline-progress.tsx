@@ -1,5 +1,13 @@
 import { Box, Timeline } from "@chakra-ui/react";
-import { pipelineSteps, SectionLabel } from "../../shared";
+import { SectionLabel } from "../../shared";
+
+const pipelineSteps = [
+  { label: "Intake", stage: "Intake & Conflict Check", completed: true },
+  { label: "Consult", stage: "Questionnaire & Consultation", completed: true },
+  { label: "File", stage: "Document Prep & Filing", completed: true },
+  { label: "Review", stage: "USCIS / Court Review", completed: true },
+  { label: "Done", stage: "Case Resolution", completed: false },
+];
 
 export function PipelineProgress() {
   return (
