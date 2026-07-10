@@ -43,6 +43,7 @@ import {
   MutedText,
   OutlineButton,
 } from "@/components/ui/intake-ui";
+import { DateField } from "@/components/ui/date-field";
 import { CheckOption, ChoiceChip } from "./consultation-wizard-shared";
 import { fieldStyles } from "./consultation-wizard-constants";
 import {
@@ -72,7 +73,7 @@ const wizardSchema = z
     twoPayFirst: z.string(),
     twoPaySecond: z.string(),
     twoPaySecondDate: z.string(),
-    instMonthly: z.string(),
+    // The per-instalment amount is always derived (total ÷ count), never typed.
     instCount: z.string(),
     instFirstDate: z.string(),
     allocationOrder: z.enum(["fees_first", "costs_first", "custom"]),
@@ -136,10 +137,8 @@ const wizardSchema = z
       }
       if (val.paymentPlan === "installments") {
         const months = Number(val.instCount);
-        if (!(Number(val.instMonthly) > 0))
-          issue(["instMonthly"], "Enter the monthly amount");
-        if (!Number.isInteger(months) || months < 2)
-          issue(["instCount"], "At least 2 payments");
+        if (!Number.isInteger(months) || months < 1 || months > 120)
+          issue(["instCount"], "Enter between 1 and 120 payments");
         if (!val.instFirstDate)
           issue(["instFirstDate"], "Pick the first payment date");
       }
@@ -250,7 +249,6 @@ const emptyFormValues = (preset: CostPreset): WizardForm => ({
   twoPayFirst: "",
   twoPaySecond: "",
   twoPaySecondDate: "",
-  instMonthly: "",
   instCount: "12",
   instFirstDate: "",
   allocationOrder: "fees_first",
@@ -305,9 +303,8 @@ const detailsToFormValues = (
       ? String(details.twoPaymentsSchedule.secondAmount)
       : "",
     twoPaySecondDate: details.twoPaymentsSchedule?.secondDueDate ?? "",
-    instMonthly: details.installmentSchedule
-      ? String(details.installmentSchedule.monthlyAmount)
-      : "",
+    // The stored monthlyAmount is not restored — it re-derives from the count
+    // and the (possibly edited) totals.
     instCount: details.installmentSchedule
       ? String(details.installmentSchedule.numberOfPayments)
       : "12",
@@ -792,7 +789,13 @@ function WizardFormBody({
   const exCosts = govTotal + otherTotal;
   const exClient = exGross - exFee - exCosts;
 
-  const instTotal = Number(w.instMonthly || 0) * Number(w.instCount || 0);
+  // Instalments: the per-month amount is always total ÷ count (never typed).
+  const instCountNum = Number(w.instCount || 0);
+  const instMonthlyDerived =
+    Number.isInteger(instCountNum) && instCountNum >= 1
+      ? Math.round((totalCommitment / instCountNum) * 100) / 100
+      : 0;
+  const instTotal = instMonthlyDerived * instCountNum;
 
   const next = async () => {
     const ok = await trigger(STEP_FIELDS[step]);
@@ -803,6 +806,19 @@ function WizardFormBody({
     const half = (totalCommitment / 2).toFixed(2);
     setValue("twoPayFirst", half, { shouldValidate: true });
     setValue("twoPaySecond", half, { shouldValidate: true });
+  };
+
+  // The two payments always sum to the total commitment: editing one amount
+  // rebalances the other.
+  const balanceOtherPayment = (
+    other: "twoPayFirst" | "twoPaySecond",
+    edited: string,
+  ) => {
+    setValue(
+      other,
+      Math.max(0, totalCommitment - Number(edited || 0)).toFixed(2),
+      { shouldValidate: true },
+    );
   };
 
   const onValid = (data: WizardForm) => {
@@ -821,6 +837,12 @@ function WizardFormBody({
       name: c.name.trim(),
       amount: Number(c.amount || 0),
     }));
+    const credit = data.applyConsultationCredit ? (consultationFeeAmount ?? 0) : 0;
+    const commitmentTotal =
+      Math.max(upfront - credit, 0) +
+      gov.reduce((s, g) => s + g.amount, 0) +
+      other.reduce((s, c) => s + c.amount, 0);
+    const instalments = Math.max(1, Number(data.instCount || 1));
     onSubmit({
       attorneyFee: {
         type: data.feeType,
@@ -863,8 +885,9 @@ function WizardFormBody({
       installmentSchedule:
         !isCont && data.paymentPlan === "installments"
           ? {
-              monthlyAmount: Number(data.instMonthly),
-              numberOfPayments: Number(data.instCount),
+              monthlyAmount:
+                Math.round((commitmentTotal / instalments) * 100) / 100,
+              numberOfPayments: instalments,
               firstPaymentDate: data.instFirstDate,
             }
           : undefined,
@@ -1516,7 +1539,11 @@ function WizardFormBody({
                 />
                 <RadioRow
                   selected={w.paymentPlan === "two_payments"}
-                  onSelect={() => setValue("paymentPlan", "two_payments")}
+                  onSelect={() => {
+                    setValue("paymentPlan", "two_payments");
+                    // Default to an even split until an amount is edited.
+                    if (!w.twoPayFirst && !w.twoPaySecond) splitEvenly();
+                  }}
                   title="Two payments"
                   description="Split into two scheduled payments"
                 >
@@ -1536,7 +1563,13 @@ function WizardFormBody({
                           placeholder="0.00"
                           maxW="120px"
                           {...fieldStyles}
-                          {...register("twoPayFirst")}
+                          {...register("twoPayFirst", {
+                            onChange: (e) =>
+                              balanceOtherPayment(
+                                "twoPaySecond",
+                                (e.target as HTMLInputElement).value,
+                              ),
+                          })}
                         />
                       </HStack>
                       <MutedText>due at signing</MutedText>
@@ -1557,16 +1590,28 @@ function WizardFormBody({
                           placeholder="0.00"
                           maxW="120px"
                           {...fieldStyles}
-                          {...register("twoPaySecond")}
+                          {...register("twoPaySecond", {
+                            onChange: (e) =>
+                              balanceOtherPayment(
+                                "twoPayFirst",
+                                (e.target as HTMLInputElement).value,
+                              ),
+                          })}
                         />
                       </HStack>
                       <MutedText>due on</MutedText>
-                      <Input
-                        type="date"
-                        maxW="170px"
-                        {...fieldStyles}
-                        {...register("twoPaySecondDate")}
-                      />
+                      <Box w="180px">
+                        <DateField
+                          ariaLabel="Payment 2 due date"
+                          value={w.twoPaySecondDate ?? ""}
+                          invalid={Boolean(errors.twoPaySecondDate)}
+                          onChange={(v) =>
+                            setValue("twoPaySecondDate", v, {
+                              shouldValidate: true,
+                            })
+                          }
+                        />
+                      </Box>
                     </HStack>
                     <FieldError
                       msg={
@@ -1591,32 +1636,11 @@ function WizardFormBody({
                   <Stack gap="8px" mt="4px">
                     <HStack gap="8px" wrap="wrap">
                       <Text m="0" fontSize="12px" color="fg.muted" w="110px">
-                        Monthly amount
-                      </Text>
-                      <HStack gap="4px">
-                        <Text fontSize="14px" color="fg.muted">
-                          $
-                        </Text>
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          placeholder="0.00"
-                          maxW="120px"
-                          {...fieldStyles}
-                          {...register("instMonthly")}
-                        />
-                      </HStack>
-                      <MutedText>per month</MutedText>
-                    </HStack>
-                    <FieldError msg={errors.instMonthly?.message} />
-                    <HStack gap="8px" wrap="wrap">
-                      <Text m="0" fontSize="12px" color="fg.muted" w="110px">
                         No. of payments
                       </Text>
                       <Input
                         type="number"
-                        min={2}
+                        min={1}
                         step="1"
                         maxW="90px"
                         {...fieldStyles}
@@ -1627,14 +1651,31 @@ function WizardFormBody({
                     <FieldError msg={errors.instCount?.message} />
                     <HStack gap="8px" wrap="wrap">
                       <Text m="0" fontSize="12px" color="fg.muted" w="110px">
+                        Monthly amount
+                      </Text>
+                      <Text m="0" fontSize="13px" fontWeight="600" color="fg">
+                        {fmtMoney(instMonthlyDerived)}
+                      </Text>
+                      <MutedText>
+                        per month — total commitment ÷ number of payments
+                      </MutedText>
+                    </HStack>
+                    <HStack gap="8px" wrap="wrap">
+                      <Text m="0" fontSize="12px" color="fg.muted" w="110px">
                         First payment
                       </Text>
-                      <Input
-                        type="date"
-                        maxW="170px"
-                        {...fieldStyles}
-                        {...register("instFirstDate")}
-                      />
+                      <Box w="180px">
+                        <DateField
+                          ariaLabel="First payment date"
+                          value={w.instFirstDate ?? ""}
+                          invalid={Boolean(errors.instFirstDate)}
+                          onChange={(v) =>
+                            setValue("instFirstDate", v, {
+                              shouldValidate: true,
+                            })
+                          }
+                        />
+                      </Box>
                     </HStack>
                     <FieldError msg={errors.instFirstDate?.message} />
                     <HStack
@@ -1723,7 +1764,7 @@ function WizardFormBody({
                   )
                 }
                 label={
-                  <>
+                  <chakra.span display="flex" flexDirection="column" alignItems="start">
                     <chakra.span display="block" fontWeight="600">
                       Apply consultation fee credit
                     </chakra.span>
@@ -1738,7 +1779,7 @@ function WizardFormBody({
                         : ""}{" "}
                       applied as credit toward attorney fees
                     </chakra.span>
-                  </>
+                  </chakra.span>
                 }
               />
             </Box>
