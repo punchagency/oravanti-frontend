@@ -1,6 +1,7 @@
 import { ColorModeButton } from "@/components/ui/color-mode";
 import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-staff/dialog";
 import { useSignOut } from "@/hooks/useSignOut";
+import { useAuthStore } from "@/store/auth-store";
 import {
   contextNavigation,
   getSectionForPath,
@@ -149,6 +150,12 @@ export function PrimaryNavigation() {
   const activeSection = getSectionForPath(location.pathname);
   const topItems = primaryNavigation.slice(0, 5);
   const bottomItems = primaryNavigation.slice(5);
+  const userName = useAuthStore((s) => s.user?.name);
+  const initials = (userName ?? "")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <nav className="primary-nav" aria-label="Primary navigation">
@@ -195,8 +202,8 @@ export function PrimaryNavigation() {
           );
         })}
         <ColorModeButton className="primary-nav__theme-button" />
-        <div className="primary-nav__avatar" aria-label="Rachel Abubakar">
-          RA
+        <div className="primary-nav__avatar" aria-label={userName}>
+          {initials}
         </div>
       </div>
     </nav>
@@ -208,6 +215,13 @@ export function ContextNavigation() {
   const activeSection = getSectionForPath(location.pathname);
   const groups = contextNavigation[activeSection];
   const signOutMutation = useSignOut();
+  const user = useAuthStore((s) => s.user);
+  const memberRole = useAuthStore((s) => s.memberRole);
+  const initials = (user?.name ?? "")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
   const [collapsedState, setCollapsedState] = useState<{
     pathname: string;
     items: Set<string>;
@@ -238,7 +252,7 @@ export function ContextNavigation() {
     <aside className="context-nav" aria-label="Section navigation">
       <header className="context-nav__header">
         <h1 className="context-nav__title">Oravanti</h1>
-        <span className="context-nav__badge">Firm admin</span>
+        <span className="context-nav__badge">{memberRole ?? "Firm admin"}</span>
       </header>
 
       <div className="context-nav__scroll">
@@ -277,10 +291,10 @@ export function ContextNavigation() {
         </InviteStaffDialog>
 
         <div className="context-nav__user">
-          <div className="context-nav__avatar">RA</div>
+          <div className="context-nav__avatar">{initials || "?"}</div>
           <div>
-            <p>Rachel Abubakar</p>
-            <span>Managing partner</span>
+            <p>{user?.name ?? "User"}</p>
+            <span>{memberRole ?? ""}</span>
           </div>
         </div>
 
