@@ -275,7 +275,8 @@ export function InstantConsultationDialog({
   const participantIds = useWatch({ control, name: "participantIds" });
   const locationId = useWatch({ control, name: "locationId" });
   const feeAmount = useWatch({ control, name: "feeAmount" });
-  const notes = useWatch({ control, name: "notes" });
+  // Deliberately not watched: a subscription here would re-render the whole
+  // dialog on every keystroke. NotesField owns the value and writes through.
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const isEmergency = useWatch({ control, name: "isEmergency" });
   const emergencyMultiplier = useWatch({
@@ -379,6 +380,12 @@ export function InstantConsultationDialog({
   const handleCaseTypeChange = useCallback(
     (value: string) => setField("newCaseTypeId", value),
     [setField],
+  );
+  // No shouldValidate: notes has no rules, and running the resolver per
+  // keystroke would re-render the dialog through the formState subscription.
+  const handleNotesChange = useCallback(
+    (value: string) => setValue("notes", value),
+    [setValue],
   );
   const matterType =
     clientMode === "new"
@@ -716,7 +723,7 @@ export function InstantConsultationDialog({
                   participantIds={participantIds}
                   locationId={locationId}
                   locations={locations}
-                  notes={notes}
+                  defaultNotes={getValues("notes")}
                   notifyEmail={notifyEmail}
                   urgent
                   hideUrgent
@@ -749,7 +756,7 @@ export function InstantConsultationDialog({
                     setField("locationId", created.id);
                   }}
                   creatingLocation={createLocation.isPending}
-                  onNotesChange={(value) => setField("notes", value)}
+                  onNotesChange={handleNotesChange}
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }

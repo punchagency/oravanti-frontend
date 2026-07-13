@@ -2218,6 +2218,7 @@ function ScheduleConsultationDialog({
   const {
     control,
     setValue,
+    getValues,
     reset,
     trigger,
     handleSubmit,
@@ -2235,7 +2236,8 @@ function ScheduleConsultationDialog({
   const participantIds = useWatch({ control, name: "participantIds" });
   const locationId = useWatch({ control, name: "locationId" });
   const feeAmount = useWatch({ control, name: "feeAmount" });
-  const notes = useWatch({ control, name: "notes" });
+  // Deliberately not watched: a subscription here would re-render the whole
+  // dialog on every keystroke. NotesField owns the value and writes through.
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
@@ -2287,6 +2289,12 @@ function ScheduleConsultationDialog({
   const handleLocationChange = useCallback(
     (value: string) => setField("locationId", value),
     [setField],
+  );
+  // No shouldValidate: notes has no rules, and running the resolver per
+  // keystroke would re-render the dialog through the formState subscription.
+  const handleNotesChange = useCallback(
+    (value: string) => setValue("notes", value),
+    [setValue],
   );
 
   // Preselect the lead when the dialog is opened from a specific card, and skip
@@ -2507,7 +2515,7 @@ function ScheduleConsultationDialog({
                   participantIds={participantIds}
                   locationId={locationId}
                   locations={locations}
-                  notes={notes}
+                  defaultNotes={getValues("notes")}
                   notifyEmail={notifyEmail}
                   urgent={urgent}
                   touchedField={
@@ -2539,7 +2547,7 @@ function ScheduleConsultationDialog({
                     setField("locationId", created.id);
                   }}
                   creatingLocation={createLocation.isPending}
-                  onNotesChange={(value) => setField("notes", value)}
+                  onNotesChange={handleNotesChange}
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }
@@ -2555,7 +2563,7 @@ function ScheduleConsultationDialog({
                   mode={consultationType}
                   locationLabel={locationLabel}
                   notifyChannels={notifyChannels}
-                  notes={notes}
+                  notes={getValues("notes")}
                   urgent={urgent}
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
