@@ -23,7 +23,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDate, type DateValue } from "@internationalized/date";
 import { CalendarDays, Pencil, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import type { StaffMember } from "../../../../data";
@@ -93,6 +93,9 @@ function computeInitialValues(staff: StaffMember): FormValues {
 
 export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
   const [open, setOpen] = useState(false);
+  // Popups (select/date picker) must portal into the dialog content — a bare
+  // Portal to body stacks them behind the modal when it's nested in the drawer.
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const treeDataQuery = usePracticeAreaTreeData();
   const treeData = treeDataQuery.data;
@@ -174,6 +177,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />
         <Dialog.Positioner px="16px">
           <Dialog.Content
+            ref={contentRef}
             w="full"
             maxW="560px"
             border="1px solid"
@@ -335,7 +339,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                               <Select.Indicator />
                             </Select.IndicatorGroup>
                           </Select.Control>
-                          <Portal>
+                          <Portal container={contentRef}>
                             <Select.Positioner>
                               <Select.Content>
                                 {roleOptions.items.map((opt) => (
@@ -500,7 +504,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                             </DatePicker.IndicatorGroup>
                           </DatePicker.Control>
                           {staff.status !== "active" && (
-                            <Portal>
+                            <Portal container={contentRef}>
                               <DatePicker.Positioner>
                                 <DatePicker.Content>
                                   <DatePicker.View view="day">
