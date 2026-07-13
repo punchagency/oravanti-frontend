@@ -11,6 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, X } from "lucide-react";
+import { useEffect } from "react";
 import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { z } from "zod";
 import { inputStyles } from "../../../edit-staff/input-styles";
@@ -188,6 +189,10 @@ export function WorkingHoursDialog({
     defaultValues: computeInitialValues(windows),
   });
 
+  useEffect(() => {
+    if (open) reset(computeInitialValues(windows));
+  }, [open, windows, reset]);
+
   const mutation = useSetWeeklyAvailability();
 
   const onSubmit = (formData: FormValues) => {
@@ -208,13 +213,12 @@ export function WorkingHoursDialog({
     <Dialog.Root
       open={open}
       onOpenChange={(details) => {
-        if (!details.open) {
-          reset(computeInitialValues(windows));
-          onClose();
-        }
+        if (!details.open) onClose();
       }}
       placement="center"
       scrollBehavior="inside"
+      lazyMount
+      unmountOnExit
     >
       <Portal>
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />

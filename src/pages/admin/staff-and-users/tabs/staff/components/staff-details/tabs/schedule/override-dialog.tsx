@@ -157,6 +157,8 @@ export function OverrideDialog({
         if (!details.open) onClose();
       }}
       placement="center"
+      lazyMount
+      unmountOnExit
     >
       <Portal>
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />

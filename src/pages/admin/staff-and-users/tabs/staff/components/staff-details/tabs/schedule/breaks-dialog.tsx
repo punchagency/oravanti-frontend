@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, X } from "lucide-react";
+import { useEffect } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { inputStyles } from "../../../edit-staff/input-styles";
@@ -103,6 +104,10 @@ export function BreaksDialog({
     name: "breaks",
   });
 
+  useEffect(() => {
+    if (open) reset(computeInitialValues(breaks));
+  }, [open, breaks, reset]);
+
   const mutation = useSetBreaks();
 
   const onSubmit = (formData: FormValues) => {
@@ -122,13 +127,12 @@ export function BreaksDialog({
     <Dialog.Root
       open={open}
       onOpenChange={(details) => {
-        if (!details.open) {
-          reset(computeInitialValues(breaks));
-          onClose();
-        }
+        if (!details.open) onClose();
       }}
       placement="center"
       scrollBehavior="inside"
+      lazyMount
+      unmountOnExit
     >
       <Portal>
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />

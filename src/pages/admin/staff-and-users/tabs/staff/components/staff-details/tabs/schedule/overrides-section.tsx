@@ -143,7 +143,7 @@ export function OverridesSection({
         </Flex>
       )}
 
-      {canManage && dialogOpen && (
+      {canManage && (
         <OverrideDialog
           staffId={staffId}
           override={editing}

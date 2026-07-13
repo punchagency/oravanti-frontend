@@ -62,7 +62,7 @@ export function BreaksSection({
         </Flex>
       )}
 
-      {canManage && dialogOpen && (
+      {canManage && (
         <BreaksDialog
           staffId={staffId}
           breaks={breaks}

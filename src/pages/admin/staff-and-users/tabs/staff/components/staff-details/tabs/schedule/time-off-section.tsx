@@ -136,7 +136,7 @@ export function TimeOffSection({
         </Flex>
       )}
 
-      {canManage && dialogOpen && (
+      {canManage && (
         <TimeOffDialog
           staffId={staffId}
           timeOff={editing}

@@ -62,7 +62,7 @@ export function WorkingHoursSection({
         })}
       </Box>
 
-      {canManage && dialogOpen && (
+      {canManage && (
         <WorkingHoursDialog
           staffId={staffId}
           windows={windows}
