@@ -44,7 +44,7 @@ export function StaffDetailsDrawer({
   return (
     <Drawer.Root
       placement="end"
-      size="md"
+      size="lg"
       open={open}
       onOpenChange={onOpenChange}
     >
@@ -56,7 +56,6 @@ export function StaffDetailsDrawer({
             borderLeft="1px solid"
             borderColor="border"
             w="full"
-            maxW="calc(28rem + 48px)"
           >
             {isLoading ? (
               <StaffDetailsSkeleton />
