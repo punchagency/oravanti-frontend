@@ -1,14 +1,18 @@
 import { chakra, DatePicker, Portal } from "@chakra-ui/react";
 import type { DateValue } from "@internationalized/date";
 import { CalendarDays } from "lucide-react";
+import type { RefObject } from "react";
 
 interface DateFieldProps {
   value: DateValue | undefined;
   onChange: (value: DateValue | undefined) => void;
+  /** Portal target — pass the Dialog.Content ref when used inside a dialog
+   * so the popup stacks above the modal instead of behind it. */
+  portalRef?: RefObject<HTMLDivElement | null>;
 }
 
 /** Single-date picker styled like the edit-staff start date field. */
-export function DateField({ value, onChange }: DateFieldProps) {
+export function DateField({ value, onChange, portalRef }: DateFieldProps) {
   return (
     <DatePicker.Root
       value={value ? [value] : []}
@@ -44,7 +48,7 @@ export function DateField({ value, onChange }: DateFieldProps) {
           </DatePicker.Trigger>
         </DatePicker.IndicatorGroup>
       </DatePicker.Control>
-      <Portal>
+      <Portal container={portalRef}>
         <DatePicker.Positioner>
           <DatePicker.Content>
             <DatePicker.View view="day">

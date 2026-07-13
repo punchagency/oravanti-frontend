@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { inputStyles } from "../../../edit-staff/input-styles";
@@ -88,6 +88,7 @@ export function BreaksDialog({
   open,
   onClose,
 }: BreaksDialogProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
   const {
     register,
     handleSubmit,
@@ -138,6 +139,7 @@ export function BreaksDialog({
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />
         <Dialog.Positioner px="16px">
           <Dialog.Content
+            ref={contentRef}
             w="full"
             maxW="520px"
             border="1px solid"
@@ -240,7 +242,7 @@ export function BreaksDialog({
                                       <Select.Indicator />
                                     </Select.IndicatorGroup>
                                   </Select.Control>
-                                  <Portal>
+                                  <Portal container={contentRef}>
                                     <Select.Positioner>
                                       <Select.Content zIndex="popover">
                                         {dayOptions.items.map((opt) => (

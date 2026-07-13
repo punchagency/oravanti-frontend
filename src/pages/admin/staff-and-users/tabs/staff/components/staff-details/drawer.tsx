@@ -52,7 +52,12 @@ export function StaffDetailsDrawer({
       <Portal>
         <Drawer.Backdrop backdropFilter="blur(1.5px)" />
         <Drawer.Positioner>
-          <Drawer.Content borderLeft="1px solid" borderColor="border" w="full">
+          <Drawer.Content
+            borderLeft="1px solid"
+            borderColor="border"
+            w="full"
+            maxW="calc(28rem + 48px)"
+          >
             {isLoading ? (
               <StaffDetailsSkeleton />
             ) : staff ? (
