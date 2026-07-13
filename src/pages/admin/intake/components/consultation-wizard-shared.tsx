@@ -12,7 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { CalendarClock, Check, Info, Phone, Video, X, Zap } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { Lead } from "@/api/leads";
 import type { ConsultationLocation } from "@/api/consultation-settings";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -225,7 +225,7 @@ export function ScheduleDetailsStep({
   participantIds,
   locationId,
   locations,
-  notes,
+  defaultNotes,
   notifyEmail,
   urgent,
   hideUrgent,
@@ -251,7 +251,7 @@ export function ScheduleDetailsStep({
   participantIds: string[];
   locationId: string;
   locations: ConsultationLocation[];
-  notes: string;
+  defaultNotes: string;
   notifyEmail: boolean;
   urgent: boolean;
   // Instant consultations: urgency is implied, so the switch is hidden and a
@@ -274,22 +274,44 @@ export function ScheduleDetailsStep({
   const [newLocationLabel, setNewLocationLabel] = useState("");
   const [attendeeQuery, setAttendeeQuery] = useState("");
 
-  const participantOptions = allStaff.filter(
-    (s) =>
-      s.id !== attorneyId && (s.role === "attorney" || s.role === "paralegal"),
+  // This step re-renders on every keystroke in the notes/duration fields, so the
+  // dropdown option arrays are memoized: a fresh array would rebuild FormSelect's
+  // list collection and re-render every Select.Item each character typed.
+  const attorneyOptions = useMemo(
+    () =>
+      attorneys.map((attorney) => ({
+        value: attorney.id,
+        label: `${attorney.firstName} ${attorney.lastName}`.trim(),
+      })),
+    [attorneys],
   );
-  const addedParticipants = participantOptions.filter((s) =>
-    participantIds.includes(s.id),
+  const locationOptions = useMemo(
+    () => locations.map((loc) => ({ value: loc.id, label: loc.label })),
+    [locations],
   );
-  const attendeeMatches = attendeeQuery.trim()
-    ? participantOptions.filter(
+
+  const participantOptions = useMemo(
+    () =>
+      allStaff.filter(
         (s) =>
-          !participantIds.includes(s.id) &&
-          `${s.firstName} ${s.lastName}`
-            .toLowerCase()
-            .includes(attendeeQuery.toLowerCase()),
-      )
-    : [];
+          s.id !== attorneyId &&
+          (s.role === "attorney" || s.role === "paralegal"),
+      ),
+    [allStaff, attorneyId],
+  );
+  const addedParticipants = useMemo(
+    () => participantOptions.filter((s) => participantIds.includes(s.id)),
+    [participantOptions, participantIds],
+  );
+  const attendeeMatches = useMemo(() => {
+    const query = attendeeQuery.trim().toLowerCase();
+    if (!query) return [];
+    return participantOptions.filter(
+      (s) =>
+        !participantIds.includes(s.id) &&
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(query),
+    );
+  }, [participantOptions, participantIds, attendeeQuery]);
 
   const addParticipant = (id: string) => {
     onParticipantsChange([...participantIds, id]);
@@ -379,10 +401,7 @@ export function ScheduleDetailsStep({
                 onChange={onLocationChange}
                 invalid={touchedField === "location"}
                 placeholder="Select office location"
-                options={locations.map((loc) => ({
-                  value: loc.id,
-                  label: loc.label,
-                }))}
+                options={locationOptions}
               />
               <chakra.button
                 type="button"
@@ -492,10 +511,7 @@ export function ScheduleDetailsStep({
           onChange={onAttorneyChange}
           invalid={touchedField === "attorney"}
           placeholder="Select attorney"
-          options={attorneys.map((attorney) => ({
-            value: attorney.id,
-            label: `${attorney.firstName} ${attorney.lastName}`.trim(),
-          }))}
+          options={attorneyOptions}
         />
       </Box>
 
@@ -596,16 +612,7 @@ export function ScheduleDetailsStep({
             (optional — attorney only)
           </chakra.span>
         </StepFieldLabel>
-        <Textarea
-          value={notes}
-          onChange={(event) => onNotesChange(event.currentTarget.value)}
-          minH="92px"
-          resize="vertical"
-          placeholder="Add any notes for the attorney before the consultation."
-          {...fieldStyles}
-          h="auto"
-          py="10px"
-        />
+        <NotesField defaultValue={defaultNotes} onChange={onNotesChange} />
       </Box>
 
       {/* Notify */}
@@ -633,6 +640,41 @@ export function ScheduleDetailsStep({
     </Stack>
   );
 }
+
+/**
+ * The notes textarea keeps its own value and only writes through to the form.
+ * Both wizards subscribe to their form fields at the dialog level, so a
+ * controlled textarea re-rendered the entire dialog and step on every keystroke.
+ * Nothing else on this step reads notes, and the field has no validation, so
+ * the form is a write-only destination here — it's re-seeded from the form on
+ * mount, which is all a step you can navigate away from and back to needs.
+ */
+const NotesField = memo(function NotesField({
+  defaultValue,
+  onChange,
+}: {
+  defaultValue: string;
+  onChange: (value: string) => void;
+}) {
+  const [value, setValue] = useState(defaultValue);
+
+  return (
+    <Textarea
+      value={value}
+      onChange={(event) => {
+        const next = event.currentTarget.value;
+        setValue(next);
+        onChange(next);
+      }}
+      minH="92px"
+      resize="vertical"
+      placeholder="Add any notes for the attorney before the consultation."
+      {...fieldStyles}
+      h="auto"
+      py="10px"
+    />
+  );
+});
 
 export function ChoiceChip({
   active,

@@ -1,5 +1,5 @@
 import { Portal, Select, createListCollection } from "@chakra-ui/react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 export interface FormSelectOption {
   label: string;
@@ -23,8 +23,13 @@ interface FormSelectProps {
  * Chakra UI Select styled to match the intake/staff form controls. Wraps the
  * composed `Select.Root` API so forms don't repeat the trigger/positioner
  * markup for every dropdown.
+ *
+ * Memoized: rebuilding the collection and re-rendering every Select.Item is the
+ * expensive part of a dropdown, and these sit in forms that re-render on each
+ * keystroke. Callers get the benefit only by passing a stable `options` array
+ * (useMemo) and a stable `onChange` (useCallback).
  */
-export function FormSelect({
+export const FormSelect = memo(function FormSelect({
   options,
   value,
   onChange,
@@ -76,4 +81,4 @@ export function FormSelect({
       </Portal>
     </Select.Root>
   );
-}
+});
