@@ -90,6 +90,7 @@ import type { ChangeEvent, ReactNode } from "react";
 import {
   Fragment,
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -2238,36 +2239,55 @@ function ScheduleConsultationDialog({
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
-  const setField = <K extends keyof ScheduleForm>(
-    key: K,
-    value: ScheduleForm[K],
-  ) => setValue(key, value as never, { shouldValidate: true });
+  // Stable across renders so the memoized step components can skip re-rendering
+  // while the user types (setValue is a stable RHF reference).
+  const setField = useCallback(
+    <K extends keyof ScheduleForm>(key: K, value: ScheduleForm[K]) =>
+      setValue(key, value as never, { shouldValidate: true }),
+    [setValue],
+  );
 
   // Eligible candidates have cleared conflict check — that's everyone in the
   // questionnaire stage (regardless of completion) plus consultation-stage leads
   // who don't yet have a consultation booked.
   const { data: questionnaireData } = useLeads({ stage: "questionnaire" });
   const { data: consultationData } = useLeads({ stage: "consultation" });
-  const questionnaireLeads = Array.isArray(questionnaireData)
-    ? questionnaireData
-    : (questionnaireData?.leads ?? []);
-  const consultationLeads = Array.isArray(consultationData)
-    ? consultationData
-    : (consultationData?.leads ?? []);
-  const leads = [
-    ...questionnaireLeads,
-    ...consultationLeads.filter((l) => !l.consultationId),
-  ];
+  const leads = useMemo(() => {
+    const questionnaireLeads = Array.isArray(questionnaireData)
+      ? questionnaireData
+      : (questionnaireData?.leads ?? []);
+    const consultationLeads = Array.isArray(consultationData)
+      ? consultationData
+      : (consultationData?.leads ?? []);
+    return [
+      ...questionnaireLeads,
+      ...consultationLeads.filter((l) => !l.consultationId),
+    ];
+  }, [questionnaireData, consultationData]);
 
   const { data: staffData } = useStaffList({ status: "active", limit: 1000 });
-  const allStaff = staffData?.data ?? [];
-  const attorneys = allStaff.filter((s) => s.role === "attorney");
+  const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
+  const attorneys = useMemo(
+    () => allStaff.filter((s) => s.role === "attorney"),
+    [allStaff],
+  );
 
   const { data: feeSettings } = useConsultationSettings();
   const { data: locations = [] } = useConsultationLocations();
   const createLocation = useCreateConsultationLocation();
 
   const initiateConsultation = useInitiateConsultation();
+
+  // The dropdowns are memoized on their handler identity, so these two have to
+  // survive a keystroke unchanged.
+  const handleAttorneyChange = useCallback(
+    (value: string) => setField("attorneyId", value),
+    [setField],
+  );
+  const handleLocationChange = useCallback(
+    (value: string) => setField("locationId", value),
+    [setField],
+  );
 
   // Preselect the lead when the dialog is opened from a specific card, and skip
   // straight to step 2 since the lead is already chosen. Done during render
@@ -2509,11 +2529,11 @@ function ScheduleConsultationDialog({
                   onConsultationTypeChange={(value) =>
                     setField("consultationType", value)
                   }
-                  onAttorneyChange={(value) => setField("attorneyId", value)}
+                  onAttorneyChange={handleAttorneyChange}
                   onParticipantsChange={(value) =>
                     setField("participantIds", value)
                   }
-                  onLocationChange={(value) => setField("locationId", value)}
+                  onLocationChange={handleLocationChange}
                   onCreateLocation={async (label) => {
                     const created = await createLocation.mutateAsync({ label });
                     setField("locationId", created.id);

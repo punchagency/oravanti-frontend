@@ -11,7 +11,7 @@ import {
   chakra,
 } from "@chakra-ui/react";
 import { Info, UserPlus, Users, X, Zap } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -288,30 +288,38 @@ export function InstantConsultationDialog({
     name: "autoSendQuestionnaire",
   });
 
-  const setField = <K extends keyof InstantForm>(
-    key: K,
-    value: InstantForm[K],
-  ) => setValue(key, value as never, { shouldValidate: true });
+  // Stable across renders so the memoized step components can skip re-rendering
+  // while the user types (setValue is a stable RHF reference).
+  const setField = useCallback(
+    <K extends keyof InstantForm>(key: K, value: InstantForm[K]) =>
+      setValue(key, value as never, { shouldValidate: true }),
+    [setValue],
+  );
 
   // Existing candidates: same pool as the scheduling wizard — conflict-cleared
   // leads (questionnaire stage) plus consultation-stage leads without an
   // active consultation.
   const { data: questionnaireData } = useLeads({ stage: "questionnaire" });
   const { data: consultationData } = useLeads({ stage: "consultation" });
-  const questionnaireLeads = Array.isArray(questionnaireData)
-    ? questionnaireData
-    : (questionnaireData?.leads ?? []);
-  const consultationLeads = Array.isArray(consultationData)
-    ? consultationData
-    : (consultationData?.leads ?? []);
-  const leads = [
-    ...questionnaireLeads,
-    ...consultationLeads.filter((l) => !l.consultationId),
-  ];
+  const leads = useMemo(() => {
+    const questionnaireLeads = Array.isArray(questionnaireData)
+      ? questionnaireData
+      : (questionnaireData?.leads ?? []);
+    const consultationLeads = Array.isArray(consultationData)
+      ? consultationData
+      : (consultationData?.leads ?? []);
+    return [
+      ...questionnaireLeads,
+      ...consultationLeads.filter((l) => !l.consultationId),
+    ];
+  }, [questionnaireData, consultationData]);
 
   const { data: staffData } = useStaffList({ status: "active" });
-  const allStaff = staffData?.data ?? [];
-  const attorneys = allStaff.filter((s) => s.role === "attorney");
+  const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
+  const attorneys = useMemo(
+    () => allStaff.filter((s) => s.role === "attorney"),
+    [allStaff],
+  );
 
   const { data: feeSettings } = useConsultationSettings();
   const { data: locations = [] } = useConsultationLocations();
@@ -342,7 +350,36 @@ export function InstantConsultationDialog({
   );
   const existingLanguage = questionnaire?.send?.language ?? "English";
 
-  const caseTypeOptions = getCaseTypes(newPracticeAreaId, practiceAreas);
+  const caseTypeOptions = useMemo(
+    () => getCaseTypes(newPracticeAreaId, practiceAreas),
+    [newPracticeAreaId, practiceAreas],
+  );
+
+  // The dropdowns are memoized on their handler identity, so these have to
+  // survive a keystroke in the name/email/phone/notes fields unchanged.
+  const handleAttorneyChange = useCallback(
+    (value: string) => setField("attorneyId", value),
+    [setField],
+  );
+  const handleLocationChange = useCallback(
+    (value: string) => setField("locationId", value),
+    [setField],
+  );
+  const handleLanguageChange = useCallback(
+    (value: string) => setField("newLanguage", value),
+    [setField],
+  );
+  const handlePracticeAreaChange = useCallback(
+    (value: string) => {
+      setField("newPracticeAreaId", value);
+      setField("newCaseTypeId", "");
+    },
+    [setField],
+  );
+  const handleCaseTypeChange = useCallback(
+    (value: string) => setField("newCaseTypeId", value),
+    [setField],
+  );
   const matterType =
     clientMode === "new"
       ? (caseTypeOptions.find((c) => c.id === newCaseTypeId)?.name ??
@@ -662,12 +699,9 @@ export function InstantConsultationDialog({
                   onNameChange={(v) => setField("newName", v)}
                   onEmailChange={(v) => setField("newEmail", v)}
                   onPhoneChange={(v) => setField("newPhone", v)}
-                  onLanguageChange={(v) => setField("newLanguage", v)}
-                  onPracticeAreaChange={(v) => {
-                    setField("newPracticeAreaId", v);
-                    setField("newCaseTypeId", "");
-                  }}
-                  onCaseTypeChange={(v) => setField("newCaseTypeId", v)}
+                  onLanguageChange={handleLanguageChange}
+                  onPracticeAreaChange={handlePracticeAreaChange}
+                  onCaseTypeChange={handleCaseTypeChange}
                   onRunConflictCheck={handleRunConflictCheck}
                 />
               ) : null}
@@ -705,11 +739,11 @@ export function InstantConsultationDialog({
                   onConsultationTypeChange={(value) =>
                     setField("consultationType", value)
                   }
-                  onAttorneyChange={(value) => setField("attorneyId", value)}
+                  onAttorneyChange={handleAttorneyChange}
                   onParticipantsChange={(value) =>
                     setField("participantIds", value)
                   }
-                  onLocationChange={(value) => setField("locationId", value)}
+                  onLocationChange={handleLocationChange}
                   onCreateLocation={async (label) => {
                     const created = await createLocation.mutateAsync({ label });
                     setField("locationId", created.id);
@@ -930,6 +964,17 @@ function NewClientStep({
   const blocked =
     conflictState === "needs_review" || conflictState === "conflict_found";
 
+  // Memoized so typing the client's name/email doesn't rebuild these dropdowns'
+  // collections on every keystroke.
+  const practiceAreaOptions = useMemo(
+    () => practiceAreas.map((area) => ({ value: area.id, label: area.name })),
+    [practiceAreas],
+  );
+  const caseTypeSelectOptions = useMemo(
+    () => caseTypeOptions.map((ct) => ({ value: ct.id, label: ct.name })),
+    [caseTypeOptions],
+  );
+
   return (
     <Stack gap="14px" pt="8px">
       <HStack
@@ -1009,10 +1054,7 @@ function NewClientStep({
             onChange={onPracticeAreaChange}
             invalid={errors.practiceArea}
             placeholder="Select practice area…"
-            options={practiceAreas.map((area) => ({
-              value: area.id,
-              label: area.name,
-            }))}
+            options={practiceAreaOptions}
           />
         </Box>
         <Box>
@@ -1026,10 +1068,7 @@ function NewClientStep({
             placeholder={
               practiceAreaId ? "Select case type…" : "Pick a practice area first"
             }
-            options={caseTypeOptions.map((ct) => ({
-              value: ct.id,
-              label: ct.name,
-            }))}
+            options={caseTypeSelectOptions}
           />
         </Box>
       </Grid>
