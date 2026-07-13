@@ -18,6 +18,7 @@ import { StaffDetailsSkeleton } from "./skeleton";
 import { Activity } from "./tabs/activity";
 import { Certifications } from "./tabs/certifications";
 import { Overview } from "./tabs/overview";
+import { ScheduleTab } from "./tabs/schedule";
 
 interface StaffDetailsDrawerProps {
   staffId: string;
@@ -189,6 +190,22 @@ export function StaffDetailsDrawer({
                         Certifications
                       </Tabs.Trigger>
                       <Tabs.Trigger
+                        value="schedule"
+                        px={3.5}
+                        py={2.5}
+                        color="fg.muted"
+                        fontSize="12px"
+                        borderBottom="1px solid"
+                        borderColor="transparent"
+                        _selected={{
+                          color: "fg",
+                          borderColor: "brand.solid",
+                          fontWeight: "500",
+                        }}
+                      >
+                        Schedule
+                      </Tabs.Trigger>
+                      <Tabs.Trigger
                         value="activity"
                         px={3.5}
                         py={2.5}
@@ -216,6 +233,10 @@ export function StaffDetailsDrawer({
 
                     <Tabs.Content value="certifications">
                       <Certifications />
+                    </Tabs.Content>
+
+                    <Tabs.Content value="schedule">
+                      <ScheduleTab staffId={staff.id} />
                     </Tabs.Content>
 
                     <Tabs.Content value="activity">
