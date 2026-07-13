@@ -273,6 +273,13 @@ export type PortalQuestionnaire = {
   } | null;
 };
 
+// Saving is what creates the response row, so the saved response — and its id,
+// which file uploads must be attached to — comes back on every draft/submit.
+export type PortalSavedResponse = {
+  id: string;
+  status: "draft" | "submitted";
+};
+
 export const getQuestionnaireByToken = async (
   token: string,
 ): Promise<PortalQuestionnaire> => {
@@ -286,7 +293,7 @@ export const saveDraftByToken = async (
     currentSectionRef?: { source: string; id: string } | null;
     answers: { questionId: string; value: unknown }[];
   },
-): Promise<unknown> => {
+): Promise<PortalSavedResponse> => {
   const res = await httpClient.put(`/questionnaires/client/${token}/draft`, data);
   return res.data.data;
 };
@@ -297,7 +304,7 @@ export const submitByToken = async (
     currentSectionRef?: { source: string; id: string } | null;
     answers: { questionId: string; value: unknown }[];
   },
-): Promise<unknown> => {
+): Promise<PortalSavedResponse> => {
   const res = await httpClient.post(
     `/questionnaires/client/${token}/submit`,
     data,

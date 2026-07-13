@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Upload } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import {
@@ -21,6 +21,7 @@ import {
   type PortalQuestion,
 } from "@/api/questionnaires";
 import { DateField } from "@/components/ui/date-field";
+import type { APIError } from "@/hooks/types";
 
 const fieldStyles = {
   w: "full",
@@ -34,12 +35,20 @@ const fieldStyles = {
   fontSize: "14px",
 } as const;
 
+type Answers = Record<string, unknown>;
+
+const toFlatAnswers = (answers: Answers) =>
+  Object.entries(answers).map(([questionId, value]) => ({ questionId, value }));
+
 export function QuestionnairePortalPage() {
   const { token } = useParams<{ firmSlug: string; token: string }>();
   const qc = useQueryClient();
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [answers, setAnswers] = useState<Answers>({});
   const [submitted, setSubmitted] = useState(false);
-  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  // The response row is created lazily by the first draft save. Track the id we
+  // get back so uploads can proceed without waiting for a refetch.
+  const [savedResponseId, setSavedResponseId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["portal-questionnaire", token],
@@ -47,15 +56,16 @@ export function QuestionnairePortalPage() {
     enabled: Boolean(token),
   });
 
-  const responseId = data?.response?.id ?? null;
+  const responseId = data?.response?.id ?? savedResponseId;
   const sections = data?.questionnaire?.sections ?? [];
 
-  // Seed the form with previously-saved answers the first time the response loads
-  // (render-phase "adjust state on prop change" — keyed by response id so it runs
-  // once and never clobbers in-progress edits or the post-submit refetch).
-  if (data && responseId && hydratedFor !== responseId) {
-    setHydratedFor(responseId);
-    const seeded: Record<string, unknown> = {};
+  // Seed the form with previously-saved answers the first time the questionnaire
+  // loads (render-phase "adjust state on prop change"). Guarded on a one-shot flag
+  // rather than the response id so a later refetch — after the lazy save that a
+  // file upload triggers, or after submit — never clobbers in-progress edits.
+  if (data && !hydrated) {
+    setHydrated(true);
+    const seeded: Answers = {};
     for (const a of data.response?.answers ?? []) seeded[a.questionId] = a.value;
     setAnswers(seeded);
   }
@@ -68,37 +78,77 @@ export function QuestionnairePortalPage() {
     return map;
   }, [data?.response?.files]);
 
-  const flatAnswers = useMemo(
-    () =>
-      Object.entries(answers).map(([questionId, value]) => ({
-        questionId,
-        value,
-      })),
-    [answers],
-  );
+  // Event handlers below read the current answers/response id without being
+  // re-created on every keystroke — that stability is what lets QuestionField
+  // stay memoized so a keystroke only re-renders the field being typed into.
+  const answersRef = useRef(answers);
+  const responseIdRef = useRef(responseId);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+  useEffect(() => {
+    responseIdRef.current = responseId;
+  }, [responseId]);
 
   const saveDraft = useMutation({
     mutationFn: () =>
-      saveDraftByToken(token as string, { answers: flatAnswers }),
-    onSuccess: () => toast.success("Progress saved"),
+      saveDraftByToken(token as string, { answers: toFlatAnswers(answers) }),
+    onSuccess: (res) => {
+      setSavedResponseId(res.id);
+      responseIdRef.current = res.id;
+      toast.success("Progress saved");
+    },
     onError: () => toast.error("Could not save progress"),
   });
 
   const submit = useMutation({
-    mutationFn: () => submitByToken(token as string, { answers: flatAnswers }),
+    mutationFn: () =>
+      submitByToken(token as string, { answers: toFlatAnswers(answers) }),
     onSuccess: () => {
       setSubmitted(true);
       qc.invalidateQueries({ queryKey: ["portal-questionnaire", token] });
     },
-    onError: (err: { response?: { data?: { message?: string } } }) =>
+    onError: (err: APIError) =>
       toast.error(
         err.response?.data?.message ??
           "Please complete all required fields before submitting",
       ),
   });
 
-  const setAnswer = (questionId: string, value: unknown) =>
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  // A file can only be attached to an existing response, and the response row is
+  // only created by a save. So if nothing has been saved yet, save the answers
+  // filled in so far and use the response that comes back. The in-flight promise
+  // is shared so two uploads started at once don't create two responses.
+  const pendingSave = useRef<Promise<string> | null>(null);
+
+  const ensureResponseId = useCallback(async () => {
+    if (responseIdRef.current) return responseIdRef.current;
+
+    pendingSave.current ??= saveDraftByToken(token as string, {
+      answers: toFlatAnswers(answersRef.current),
+    })
+      .then((res) => {
+        responseIdRef.current = res.id;
+        setSavedResponseId(res.id);
+        return res.id;
+      })
+      .catch((err) => {
+        pendingSave.current = null;
+        throw err;
+      });
+
+    return pendingSave.current;
+  }, [token]);
+
+  const onFileUploaded = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ["portal-questionnaire", token] });
+  }, [qc, token]);
+
+  const setAnswer = useCallback(
+    (questionId: string, value: unknown) =>
+      setAnswers((prev) => ({ ...prev, [questionId]: value })),
+    [],
+  );
 
   if (isLoading) {
     return (
@@ -178,9 +228,10 @@ export function QuestionnairePortalPage() {
                     question={q}
                     value={answers[q.id]}
                     token={token as string}
-                    responseId={responseId}
                     uploadedFilename={uploadedFiles[q.id] ?? null}
-                    onChange={(v) => setAnswer(q.id, v)}
+                    ensureResponseId={ensureResponseId}
+                    onFileUploaded={onFileUploaded}
+                    onChange={setAnswer}
                   />
                 ))}
               </Stack>
@@ -225,21 +276,25 @@ export function QuestionnairePortalPage() {
   );
 }
 
-function QuestionField({
-  question,
-  value,
-  token,
-  responseId,
-  uploadedFilename,
-  onChange,
-}: {
+type QuestionFieldProps = {
   question: PortalQuestion;
   value: unknown;
   token: string;
-  responseId: string | null;
   uploadedFilename: string | null;
-  onChange: (value: unknown) => void;
-}) {
+  ensureResponseId: () => Promise<string>;
+  onFileUploaded: () => void;
+  onChange: (questionId: string, value: unknown) => void;
+};
+
+const QuestionField = memo(function QuestionField({
+  question,
+  value,
+  token,
+  uploadedFilename,
+  ensureResponseId,
+  onFileUploaded,
+  onChange,
+}: QuestionFieldProps) {
   const label = (
     <Text fontSize="14px" fontWeight="500" color="fg" mb="6px">
       {question.label}
@@ -257,7 +312,7 @@ function QuestionField({
           {...fieldStyles}
           minH="92px"
           value={(value as string) ?? ""}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(question.id, e.target.value)}
         />
       </Box>
     );
@@ -274,7 +329,7 @@ function QuestionField({
               <chakra.button
                 key={opt}
                 type="button"
-                onClick={() => onChange(opt)}
+                onClick={() => onChange(question.id, opt)}
                 px="18px"
                 py="8px"
                 borderRadius="8px"
@@ -300,9 +355,10 @@ function QuestionField({
         {label}
         <FileUploadField
           token={token}
-          responseId={responseId}
           questionId={question.id}
           initialFilename={uploadedFilename}
+          ensureResponseId={ensureResponseId}
+          onUploaded={onFileUploaded}
         />
       </Box>
     );
@@ -315,7 +371,7 @@ function QuestionField({
         <DateField
           ariaLabel={question.label}
           value={(value as string) ?? ""}
-          onChange={(next) => onChange(next)}
+          onChange={(next) => onChange(question.id, next)}
         />
       </Box>
     );
@@ -337,22 +393,24 @@ function QuestionField({
         {...fieldStyles}
         type={inputType}
         value={(value as string) ?? ""}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(question.id, e.target.value)}
       />
     </Box>
   );
-}
+});
 
 function FileUploadField({
   token,
-  responseId,
   questionId,
   initialFilename,
+  ensureResponseId,
+  onUploaded,
 }: {
   token: string;
-  responseId: string | null;
   questionId: string;
   initialFilename: string | null;
+  ensureResponseId: () => Promise<string>;
+  onUploaded: () => void;
 }) {
   const [uploadedName, setUploadedName] = useState<string | null>(
     initialFilename,
@@ -360,22 +418,21 @@ function FileUploadField({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const upload = useMutation({
-    mutationFn: (file: File) => {
-      if (!responseId) {
-        throw new Error(
-          "Please answer a question or save progress before uploading documents.",
-        );
-      }
+    mutationFn: async (file: File) => {
+      const responseId = await ensureResponseId();
       return uploadFileByToken(token, { responseId, questionId, file });
     },
     onSuccess: (_data, file) => {
       setUploadedName(file.name);
+      onUploaded();
       toast.success("Document uploaded");
     },
-    onError: (err: Error) => {
-      toast.error(err.message ?? "Upload failed — please try again");
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Upload failed — please try again",
+      );
       if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    },
   });
 
   return (
