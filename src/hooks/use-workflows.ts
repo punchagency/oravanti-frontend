@@ -112,6 +112,7 @@ export function useCompleteStep(caseId: string) {
       queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
       queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to complete step");
