@@ -3,6 +3,7 @@ import { Download, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link as RouterLink, useLocation } from "react-router";
+import { toast } from "sonner";
 import { intakeStages, intakeTabs } from "../data";
 import { BrandButton, OutlineButton } from "../../../../components/ui/intake-ui";
 import { AddLeadDialog } from "@/components/ui/add-lead";
@@ -52,7 +53,11 @@ export function PipelineFrame({
             <Plus size={15} />
             Add lead
           </BrandButton>
-          <OutlineButton>
+          <OutlineButton
+            onClick={() =>
+              toast.info("Feature currently unavailable. Coming soon")
+            }
+          >
             <Download size={14} />
             Export
           </OutlineButton>

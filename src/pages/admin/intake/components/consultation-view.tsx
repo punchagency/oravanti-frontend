@@ -2200,7 +2200,13 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   urgent: false,
 };
 
-function ScheduleConsultationDialog({
+/**
+ * Exported (rather than moved to its own module) so the CRM lead drawer can
+ * mount the same dialog. It closes over several helpers defined in this file —
+ * SCHEDULE_DEFAULTS, ReviewStep, NotesField — and relocating those to share it
+ * would mean reshuffling a large working file for no functional gain.
+ */
+export function ScheduleConsultationDialog({
   open,
   onOpenChange,
   presetLead,
