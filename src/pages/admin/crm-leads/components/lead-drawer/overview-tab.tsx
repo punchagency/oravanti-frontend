@@ -3,15 +3,13 @@ import {
   AlertTriangle,
   Archive,
   Check,
-  Eye,
   FolderOpen,
   RotateCcw,
   Search,
   Send,
   ShieldCheck,
-  CalendarClock,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   conflictStatusLabels,
   formatReceivedDateDetail,
@@ -40,7 +38,14 @@ import {
   MatchCard,
   ResolutionDialog,
 } from "@/pages/admin/intake/components/conflict-check-view";
-import { ScheduleConsultationDialog } from "@/pages/admin/intake/components/consultation-view";
+import {
+  ConsultationCard,
+  ScheduleConsultationDialog,
+} from "@/pages/admin/intake/components/consultation-view";
+import {
+  ScheduleFollowUpContext,
+  type FollowUpRequest,
+} from "@/pages/admin/intake/components/schedule-follow-up-context";
 import { QuestionnaireResponseDialog } from "@/pages/admin/intake/components/questionnaire-response-dialog";
 import { SendQuestionnaireDialog } from "@/pages/admin/intake/components/send-questionnaire-dialog";
 import { TeamSelectionModal } from "@/pages/admin/intake/components/team-selection-modal";
@@ -92,6 +97,14 @@ export function OverviewTab({
   const [responseId, setResponseId] = useState<string | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
+  // Set when ConsultationCard asks to book a follow-up of a completed
+  // consultation, so the wizard opens in follow-up mode rather than fresh.
+  const [followUpOf, setFollowUpOf] = useState<string | undefined>(undefined);
+
+  const handleFollowUp = useCallback((req: FollowUpRequest) => {
+    setFollowUpOf(req.parentConsultationId);
+    setScheduleOpen(true);
+  }, []);
 
   const runConflictCheck = useRunConflictCheck();
   const resolveConflictCheck = useResolveConflictCheck();
@@ -102,11 +115,16 @@ export function OverviewTab({
   const { data: questionnaire } = useLeadQuestionnaire(lead.id);
 
   const conflictCheck = lead.conflictCheck;
-  const consultation = lead.consultation;
-  const feeAgreement = lead.feeAgreement;
   const isArchived = lead.status === "archived";
   const isConverted = Boolean(lead.convertedCaseId);
   const isDeclined = lead.status === "declined";
+
+  const showConsultationCard =
+    Boolean(lead.questionnaireSendId) ||
+    Boolean(lead.consultationId) ||
+    lead.pipelineStage === "consultation" ||
+    lead.pipelineStage === "fee_agreement" ||
+    lead.pipelineStage === "case_opening";
 
   return (
     <Stack gap="18px">
@@ -242,113 +260,58 @@ export function OverviewTab({
       </SurfaceCard>
 
       {/* ── Questionnaire ─────────────────────────────────────────────────── */}
-      <SurfaceCard>
-        <CardTitle>Questionnaire</CardTitle>
-        <Box mt="12px">
-          {!lead.questionnaireSendId ? (
-            <Stack gap="10px">
-              <MutedText>No questionnaire has been sent.</MutedText>
-              <BrandButton
-                onClick={() => setQuestionnaireOpen(true)}
-                disabled={isDeclined || isArchived}
-              >
-                <Send size={14} />
-                Send questionnaire
-              </BrandButton>
-            </Stack>
-          ) : questionnaire?.response ? (
-            <Stack gap="10px">
-              <StatusPill icon={<Check size={11} />}>
-                Response received
-              </StatusPill>
-              <BrandButton
-                onClick={() => setResponseId(questionnaire.response!.id)}
-              >
-                <Eye size={14} />
-                View response
-              </BrandButton>
-            </Stack>
-          ) : (
-            <Stack gap="10px">
-              <StatusPill tone="warning">Awaiting response</StatusPill>
-              <OutlineButton onClick={() => setQuestionnaireOpen(true)}>
-                <Send size={14} />
-                Resend questionnaire
-              </OutlineButton>
-            </Stack>
-          )}
-        </Box>
-      </SurfaceCard>
-
-      {/* ── Consultation ──────────────────────────────────────────────────── */}
-      <SurfaceCard>
-        <CardTitle>Consultation</CardTitle>
-        <Box mt="12px">
-          {!consultation ? (
-            <Stack gap="10px">
-              <MutedText>No consultation scheduled.</MutedText>
-              <BrandButton
-                onClick={() => setScheduleOpen(true)}
-                disabled={isDeclined || isArchived}
-              >
-                <CalendarClock size={14} />
-                Schedule consultation
-              </BrandButton>
-            </Stack>
-          ) : (
-            <Stack gap="10px">
-              <Grid templateColumns="repeat(2, 1fr)" gap="12px">
-                <DetailRow
-                  label="Status"
-                  value={consultation.status.replace(/_/g, " ")}
-                />
-                <DetailRow
-                  label="Scheduled"
-                  value={
-                    consultation.scheduledAt
-                      ? formatReceivedDateDetail(consultation.scheduledAt)
-                      : null
-                  }
-                />
-                <DetailRow
-                  label="Mode"
-                  value={consultation.mode?.replace(/_/g, " ")}
-                />
-                <DetailRow label="Fee status" value={consultation.feeStatus} />
-              </Grid>
-
-              <OutlineButton
-                onClick={() => setScheduleOpen(true)}
-                disabled={isDeclined || isArchived}
-              >
-                <CalendarClock size={14} />
-                Schedule follow-up
-              </OutlineButton>
-            </Stack>
-          )}
-        </Box>
-      </SurfaceCard>
-
-      {/* ── Fee agreement ─────────────────────────────────────────────────── */}
-      {feeAgreement && (
+      {/* Only shown until one is sent. After that ConsultationCard below owns
+          the questionnaire row (status, responses, requested documents), and
+          two questionnaire blocks would just contradict each other. */}
+      {!lead.questionnaireSendId ? (
+        <SurfaceCard>
+          <CardTitle>Questionnaire</CardTitle>
+          <Stack gap="10px" mt="12px">
+            <MutedText>No questionnaire has been sent.</MutedText>
+            <BrandButton
+              onClick={() => setQuestionnaireOpen(true)}
+              disabled={isDeclined || isArchived}
+            >
+              <Send size={14} />
+              Send questionnaire
+            </BrandButton>
+          </Stack>
+        </SurfaceCard>
+      ) : !questionnaire?.response ? (
         <SurfaceCard>
           <HStack justify="space-between" align="center" gap="12px">
-            <CardTitle>Fee agreement</CardTitle>
-            <StatusPill
-              tone={feeAgreement.status === "signed" ? "success" : "warning"}
-            >
-              {feeAgreement.status.replace(/_/g, " ")}
-            </StatusPill>
+            <Box>
+              <CardTitle>Questionnaire</CardTitle>
+              <MutedText>Awaiting the lead's response.</MutedText>
+            </Box>
+            <OutlineButton onClick={() => setQuestionnaireOpen(true)}>
+              <Send size={14} />
+              Resend
+            </OutlineButton>
           </HStack>
-          <Box mt="10px">
-            <MutedText>
-              {/* The agreement wizard is a multi-step flow tied to the
-                  consultation stage; the drawer surfaces state and defers
-                  generation to that view rather than half-reimplementing it. */}
-              Generate and send agreements from the consultation stage of the
-              intake pipeline.
-            </MutedText>
-          </Box>
+        </SurfaceCard>
+      ) : null}
+
+      {/* ── Consultation, documents, notes and fee agreement ──────────────── */}
+      {/* The intake pipeline's own card, mounted verbatim. It carries the full
+          action set — complete, no-show, outcome, attorney notes, cancel,
+          generate/send/mark-received the fee agreement — so the drawer has
+          parity with intake by construction rather than by imitation.
+          Gated on the lead actually having reached this part of the pipeline:
+          the card reports "Awaiting response" for a questionnaire that was
+          never sent, which would be a lie on a brand-new lead. */}
+      {showConsultationCard && (
+        <SurfaceCard>
+          <ScheduleFollowUpContext.Provider value={handleFollowUp}>
+            <ConsultationCard
+              lead={lead}
+              bare
+              onSchedule={() => {
+                setFollowUpOf(undefined);
+                setScheduleOpen(true);
+              }}
+            />
+          </ScheduleFollowUpContext.Provider>
         </SurfaceCard>
       )}
 
@@ -434,11 +397,12 @@ export function OverviewTab({
 
       <ScheduleConsultationDialog
         open={scheduleOpen}
-        onOpenChange={setScheduleOpen}
+        onOpenChange={(open) => {
+          setScheduleOpen(open);
+          if (!open) setFollowUpOf(undefined);
+        }}
         presetLead={lead}
-        parentConsultationId={
-          consultation?.status === "completed" ? consultation.id : undefined
-        }
+        parentConsultationId={followUpOf}
       />
 
       <TeamSelectionModal
