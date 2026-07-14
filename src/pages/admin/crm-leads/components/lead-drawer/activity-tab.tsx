@@ -47,6 +47,21 @@ const EVENT_TONES: Partial<Record<LeadEventType, string>> = {
   payment_received: "#00785a",
 };
 
+const FIELD_LABELS: Record<string, string> = {
+  firstName: "First name",
+  lastName: "Last name",
+  email: "Email",
+  phone: "Phone",
+  source: "Source",
+  situationSummary: "Summary",
+  entityType: "Entity",
+  language: "Language",
+  practiceArea: "Practice area",
+  caseType: "Matter type",
+  intakeAdversePartyName: "Adverse party",
+  intakeAdversePartyEmail: "Adverse party email",
+};
+
 /** Extra context worth a line of its own, drawn only from what was recorded. */
 function eventDetail(event: LeadEvent): string | null {
   const meta = event.metadata ?? {};
@@ -77,7 +92,32 @@ function eventDetail(event: LeadEvent): string | null {
       else if (meta.isUrgent) parts.push("Urgent");
       if (meta.isFollowUp) parts.push("Follow-up");
       if (meta.mode) parts.push(String(meta.mode).replace(/_/g, " "));
+
+      // Who the consultation is *with* — the attorney assigned to it, plus any
+      // additional attendees.
+      const attorney = meta.leadAttorneyName as string | undefined;
+      if (attorney) parts.push(`with ${attorney}`);
+
+      const others = (meta.participantNames as string[] | undefined) ?? [];
+      if (others.length) parts.push(`+ ${others.join(", ")}`);
+
       return parts.length ? parts.join(" · ") : null;
+    }
+    case "lead_updated": {
+      const changes = meta.changes as
+        | Record<string, { from: unknown; to: unknown }>
+        | undefined;
+      if (!changes) return null;
+
+      const show = (v: unknown) =>
+        v === null || v === "" ? "empty" : String(v);
+
+      return Object.entries(changes)
+        .map(
+          ([field, { from, to }]) =>
+            `${FIELD_LABELS[field] ?? field}: ${show(from)} → ${show(to)}`,
+        )
+        .join(" · ");
     }
     case "consultation_cancelled":
       return (meta.reason as string | undefined) ?? null;

@@ -476,18 +476,31 @@ export const updateLeadStatus = async (
   return res.data.data;
 };
 
+/**
+ * Mirrors the columns the server will actually persist. It previously declared
+ * `name`, which is not a column (the server stores firstName/lastName), so a
+ * rename silently did nothing.
+ *
+ * `notes` is not a column either — the server appends it to the lead's
+ * append-only notes trail.
+ */
+export type UpdateLeadInput = Partial<{
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  source: LeadSource;
+  situationSummary: string;
+  entityType: "individual" | "company";
+  practiceAreaId: string;
+  caseTypeId: string;
+  language: string;
+  notes: string;
+}>;
+
 export const updateLead = async (
   id: string,
-  data: Partial<{
-    name: string;
-    email: string;
-    phone: string;
-    practiceAreaId: string;
-    caseTypeId: string;
-    language: string;
-    notes: string;
-    timezone: string;
-  }>,
+  data: UpdateLeadInput,
 ): Promise<Lead> => {
   const res = await API.patch(`/leads/${id}`, data);
   return res.data.data;

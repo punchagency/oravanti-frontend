@@ -30,6 +30,7 @@ import {
   type GetConsultationsParams,
   type GetLeadsParams,
   type LeadNoteType,
+  type UpdateLeadInput,
   type MetricsPeriod,
   type PipelineStage,
 } from "@/api/leads";
@@ -199,6 +200,29 @@ export function useUpdateLead() {
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to save notes");
+    },
+  });
+}
+
+/**
+ * Same endpoint as useUpdateLead, but for editing the lead's details rather
+ * than appending a note — useUpdateLead is wired for the notes path and always
+ * toasts "Notes saved", which would be a lie here.
+ */
+export function useEditLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateLeadInput }) =>
+      updateLead(id, data),
+    onSuccess: (_, { id }) => {
+      toast.success("Lead updated");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      // Prefix-invalidates the detail, activity trail and notes.
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to update lead");
     },
   });
 }

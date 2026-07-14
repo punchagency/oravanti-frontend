@@ -4,6 +4,7 @@ import {
   Archive,
   Check,
   FolderOpen,
+  Pencil,
   RotateCcw,
   Search,
   Send,
@@ -50,6 +51,7 @@ import { QuestionnaireResponseDialog } from "@/pages/admin/intake/components/que
 import { SendQuestionnaireDialog } from "@/pages/admin/intake/components/send-questionnaire-dialog";
 import { TeamSelectionModal } from "@/pages/admin/intake/components/team-selection-modal";
 import { stageLabel, stageTone } from "../../data";
+import { EditLeadDialog } from "./edit-lead-dialog";
 
 /**
  * The lead's current state plus the actions available at its stage — the same
@@ -97,6 +99,7 @@ export function OverviewTab({
   const [responseId, setResponseId] = useState<string | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   // Set when ConsultationCard asks to book a follow-up of a completed
   // consultation, so the wizard opens in follow-up mode rather than fresh.
   const [followUpOf, setFollowUpOf] = useState<string | undefined>(undefined);
@@ -135,9 +138,22 @@ export function OverviewTab({
             <CardTitle>{lead.name}</CardTitle>
             <MutedText>{lead.email}</MutedText>
           </Box>
-          <PracticePill tone={stageTone[lead.pipelineStage]}>
-            {stageLabel[lead.pipelineStage]}
-          </PracticePill>
+          <HStack gap="8px">
+            <PracticePill tone={stageTone[lead.pipelineStage]}>
+              {stageLabel[lead.pipelineStage]}
+            </PracticePill>
+            <OutlineButton
+              h="28px"
+              minH="28px"
+              px="10px"
+              fontSize="12px"
+              onClick={() => setEditOpen(true)}
+              disabled={isConverted}
+            >
+              <Pencil size={12} />
+              Edit
+            </OutlineButton>
+          </HStack>
         </HStack>
 
         <Grid templateColumns="repeat(2, 1fr)" gap="14px">
@@ -404,6 +420,8 @@ export function OverviewTab({
         presetLead={lead}
         parentConsultationId={followUpOf}
       />
+
+      <EditLeadDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} />
 
       <TeamSelectionModal
         leadId={lead.id}
