@@ -48,9 +48,14 @@ export function LeadDrawer({
 
   const areaName = useMemo(() => {
     if (!lead) return null;
-    return practiceAreaName(
-      buildPracticeAreaMap(practiceAreas ?? []),
-      lead.practiceAreaId,
+    // Joined server-side; the map is only a fallback for a lead whose practice
+    // area no longer exists.
+    return (
+      lead.practiceAreaName ??
+      practiceAreaName(
+        buildPracticeAreaMap(practiceAreas ?? []),
+        lead.practiceAreaId,
+      )
     );
   }, [lead, practiceAreas]);
 

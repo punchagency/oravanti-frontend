@@ -32,6 +32,8 @@ export type Lead = {
   entityType: "individual" | "company";
   practiceAreaId: string | null;
   caseTypeId: string | null;
+  /** Joined server-side from the practice_areas table. */
+  practiceAreaName: string | null;
   source: LeadSource;
   situationSummary: string | null;
   notes: string | null;

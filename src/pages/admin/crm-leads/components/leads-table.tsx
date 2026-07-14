@@ -157,10 +157,11 @@ export function LeadsTable({
             </Table.Row>
           ) : (
             leads.map((lead) => {
-              const areaName = practiceAreaName(
-                practiceAreas,
-                lead.practiceAreaId,
-              );
+              // The server joins the name in; the client-side map is only a
+              // fallback for a lead whose practice area was deleted.
+              const areaName =
+                lead.practiceAreaName ??
+                practiceAreaName(practiceAreas, lead.practiceAreaId);
 
               return (
                 <Table.Row key={lead.id}>
