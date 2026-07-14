@@ -12,7 +12,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { CheckCircle } from "lucide-react";
-import { Link as RouterLink, Navigate, useLocation } from "react-router";
+import { Navigate, Link as RouterLink, useLocation } from "react-router";
 
 const ForgotPasswordSuccess = () => {
   const location = useLocation();
@@ -105,19 +105,13 @@ const ForgotPasswordSuccess = () => {
           </Text>
           <Text textStyle="subheadline" color="fg.muted" mb="8">
             We sent a password reset link to{" "}
-            <Span fontWeight="semibold">{email}</Span>. Click the link to
-            choose a new password. Can't find it? Check your Spam, Junk, or
-            Promotions folders.
+            <Span fontWeight="semibold">{email}</Span>. Click the link to choose
+            a new password. Can't find it? Check your Spam, Junk, or Promotions
+            folders.
           </Text>
 
           <VStack gap="5" align="stretch">
-            <Button
-              layerStyle="brand-button"
-              size="lg"
-              w="full"
-              h="12"
-              asChild
-            >
+            <Button layerStyle="brand-button" size="lg" w="full" h="12" asChild>
               <RouterLink to="/login">Back to login</RouterLink>
             </Button>
           </VStack>
@@ -133,7 +127,6 @@ const ForgotPasswordSuccess = () => {
             >
               <Text
                 as="button"
-                type="button"
                 cursor={
                   isResending || resendTimer > 0 ? "not-allowed" : "pointer"
                 }
