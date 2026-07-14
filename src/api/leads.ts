@@ -333,6 +333,17 @@ export type LeadMetrics = {
   convertedLeads: number;
   conversionRate: number;
   avgDaysToConvert: Measurable<number>;
+  /**
+   * The equal-length window immediately before this one. Returned raw rather
+   * than as a delta so the UI can distinguish "no change" from "there was no
+   * previous period" — a firm's first month must not report a triumphant +100%.
+   */
+  previous: {
+    totalLeads: number;
+    convertedLeads: number;
+    conversionRate: number;
+    avgDaysToConvert: Measurable<number>;
+  };
   funnel: { stage: PipelineStage; reached: number; droppedOff: number }[];
   avgDaysInStage: Record<PipelineStage, Measurable<number>>;
   leadsBySource: {
