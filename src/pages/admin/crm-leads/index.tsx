@@ -10,7 +10,6 @@ import { ArchivedLeadsTab } from "./components/archived-leads-tab";
 import { ConversionMetricsTab } from "./components/conversion-metrics-tab";
 import { EducationFlywheelTab } from "./components/education-flywheel-tab";
 import { PipelineTab } from "./components/pipeline-tab";
-import { CrmLeadsDataProvider } from "./crm-leads-data-context";
 import { type CrmTab, crmTabs } from "./data";
 
 export function CrmLeadsPage() {
@@ -173,11 +172,7 @@ export function CrmLeadsPage() {
         })}
       </HStack>
 
-      {activeTab === "Pipeline" && (
-        <CrmLeadsDataProvider>
-          <PipelineTab />
-        </CrmLeadsDataProvider>
-      )}
+      {activeTab === "Pipeline" && <PipelineTab />}
       {activeTab === "Conversion metrics" && <ConversionMetricsTab />}
       {activeTab === "Education flywheel" && <EducationFlywheelTab />}
       {activeTab === "Archived leads" && <ArchivedLeadsTab />}

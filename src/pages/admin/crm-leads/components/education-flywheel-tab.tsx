@@ -31,7 +31,7 @@ export function EducationFlywheelTab() {
         <Text m="0" maxW="440px" color="fg.muted" fontSize="13px">
           Content tiers, attribution and nurture tracking for education-sourced
           leads will appear here once the flywheel is configured. Leads from this
-          source are already captured and are visible in the Pipeline tab.
+          source are already captured and move through the Intake pipeline.
         </Text>
       </Stack>
     </Box>
