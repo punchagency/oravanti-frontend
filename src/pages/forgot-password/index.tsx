@@ -1,17 +1,21 @@
+import { useColorMode } from "@/hooks/use-color-mode";
 import useSendOtp from "@/hooks/useSendOtp";
 import {
   Box,
   Button,
+  Center,
   Field,
-  Fieldset,
   IconButton,
+  Image,
   Input,
-  Stack,
+  Link,
+  Text,
+  VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
+import { Link as RouterLink, useNavigate } from "react-router";
 import { z } from "zod";
 
 const emailSchema = z.object({
@@ -23,6 +27,7 @@ type EmailFormData = z.infer<typeof emailSchema>;
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const { mutate: sendOtp, isPending } = useSendOtp();
+  const { colorMode, toggleColorMode } = useColorMode();
 
   const {
     register,
@@ -38,7 +43,6 @@ const ForgotPassword = () => {
       { email: data.email, type: "forget-password" },
       {
         onSuccess: () => {
-          // Navigates directly into the nested sub-route layout path
           navigate("/forgot-password/verify-otp", {
             state: { email: data.email },
           });
@@ -48,50 +52,139 @@ const ForgotPassword = () => {
   };
 
   return (
-    <Box mt={"72px"} px={4}>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Fieldset.Root
-          maxW="md"
-          mx="auto"
-          px={4}
-          py={8}
-          rounded={"lg"}
-          bg={"bg.subtle"}
-          borderWidth={1}
-          borderColor={"border.muted"}
+    <Box minH="100vh" bg="bg.subtle" position="relative">
+      <Box position="absolute" top="4" right="4" zIndex="sticky">
+        <IconButton
+          onClick={toggleColorMode}
+          variant="ghost"
+          aria-label="Toggle color mode"
+          borderRadius="full"
+          color="fg.muted"
+          _hover={{ bg: "bg.muted", color: "fg" }}
         >
-          <Link to={"/login"}>
-            <IconButton size="sm" variant="outline" type="button">
-              <CircleArrowLeft />
+          {colorMode === "light" ? (
+            <svg
+              stroke="currentColor"
+              fill="none"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              height="1.2em"
+              width="1.2em"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          ) : (
+            <svg
+              stroke="currentColor"
+              fill="none"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              height="1.2em"
+              width="1.2em"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          )}
+        </IconButton>
+      </Box>
+
+      <Center minH="100vh" padding={{ base: 4, sm: 6 }} py={{ base: 8, md: 4 }}>
+        <Box
+          layerStyle="surface-card"
+          p={{ base: 4, sm: 6, md: 10 }}
+          w="full"
+          maxW="540px"
+          textAlign="center"
+          position="relative"
+        >
+          <RouterLink to="/login">
+            <IconButton
+              size="sm"
+              variant="ghost"
+              position="absolute"
+              top="4"
+              left="4"
+              aria-label="Back to login"
+              color="fg.muted"
+              _hover={{ bg: "bg.muted", color: "fg" }}
+            >
+              <ArrowLeft />
             </IconButton>
-          </Link>
-          <Stack mt={6}>
-            <Fieldset.Legend>Forgot Password</Fieldset.Legend>
-            <Fieldset.HelperText>
-              Enter your email below to request a security verification code.
-            </Fieldset.HelperText>
-          </Stack>
+          </RouterLink>
 
-          <Stack gap={4} mt={6}>
-            <Field.Root invalid={"email" in errors}>
-              <Field.Label>
-                Email Address <Field.RequiredIndicator />
-              </Field.Label>
-              <Input
-                type="email"
-                colorPalette="blue"
-                placeholder="name@domain.com"
-                {...register("email")}
-              />
-              <Field.ErrorText>{errors.email?.message}</Field.ErrorText>
-            </Field.Root>
+          <Image
+            src="/oravanti_logo.png"
+            alt="Oravanti Logo"
+            w={10}
+            mx="auto"
+            mb={4}
+          />
 
-            <Button size={"md"} w={"full"} type="submit" loading={isPending}>
-              Send Verification Code
-            </Button>
-          </Stack>
-        </Fieldset.Root>
-      </form>
+          <Text textStyle="heading" color="fg" mb="1">
+            Forgot password
+          </Text>
+          <Text textStyle="subheadline" color="fg.muted" mb="8">
+            Enter your email to receive a verification code.
+          </Text>
+
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <VStack gap="5" align="stretch">
+              <Field.Root invalid={!!errors.email} textAlign="left">
+                <Field.Label textStyle="label" color="fg.muted">
+                  Email address
+                </Field.Label>
+                <Input
+                  type="email"
+                  bg="bg.input"
+                  borderColor="border.input"
+                  focusRingColor="brand.focusRing"
+                  placeholder="e.g. attorney@firm.com"
+                  size="lg"
+                  {...register("email")}
+                />
+                <Field.ErrorText>{errors.email?.message}</Field.ErrorText>
+              </Field.Root>
+
+              <Button
+                type="submit"
+                loading={isPending}
+                layerStyle="brand-button"
+                size="lg"
+                w="full"
+                mt="2"
+                h="12"
+              >
+                Send Verification Code
+              </Button>
+            </VStack>
+          </form>
+
+          <Text
+            textStyle="body-sm"
+            fontWeight="500"
+            mt="4"
+          >
+            Remember your password?{" "}
+            <Link textDecoration="underline" color="brand.500" asChild>
+              <RouterLink to="/login">Log in</RouterLink>
+            </Link>
+          </Text>
+        </Box>
+      </Center>
     </Box>
   );
 };
