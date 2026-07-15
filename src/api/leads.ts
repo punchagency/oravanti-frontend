@@ -42,6 +42,7 @@ export type Lead = {
   status: LeadStatus;
   pipelineStage: PipelineStage;
   language?: string | null;
+  timezone?: string | null;
   conflictCheckId: string | null;
   conflictMatches?: ConflictCheckMatch[];
   conflictCheckStatus?: string;
