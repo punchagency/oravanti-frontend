@@ -1,65 +1,92 @@
-import {
-  Box,
-  Flex,
-  Grid,
-  HStack,
-  Input,
-  Table,
-  Text,
-} from "@chakra-ui/react";
-import { Info, Search } from "lucide-react";
+import { Box, Flex, Grid, HStack, Text } from "@chakra-ui/react";
+import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
-import { OutlineButton, PracticePill } from "@/components/ui/intake-ui";
-import { formatReceivedDate, sourceLabels, type PipelineStage } from "@/api/leads";
-import { useLeads } from "@/hooks/use-leads";
+import { useDebounce } from "@uidotdev/usehooks";
+import type { Lead } from "@/api/leads";
+import { OutlineButton } from "@/components/ui/intake-ui";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { useLeads, useRestoreLead } from "@/hooks/use-leads";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
-import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
+import { buildPracticeAreaMap } from "../data";
+import { LeadDrawer } from "./lead-drawer";
+import { LeadsSearchBox, LeadsTable } from "./leads-table";
 
-const archiveSummary = [
-  {
-    label: "DECLINED (CONFLICT)",
-    count: "—",
-    color: "#b00020",
-    note: "ABA conflict of interest",
-  },
-  {
-    label: "UNRESPONSIVE",
-    count: "—",
-    color: "#1a1a1a",
-    note: "No response after 3 reminders",
-  },
-  {
-    label: "WITHDRAWN",
-    count: "—",
-    color: "#534AB7",
-    note: "Client withdrew enquiry",
-  },
-] as const;
+const COLUMNS = [
+  "CLIENT / LEAD",
+  "PRACTICE AREA",
+  "STAGE AT ARCHIVE",
+  "SOURCE",
+  "RECEIVED",
+  "ACTION",
+];
 
-const stageLabel: Record<PipelineStage, string> = {
-  lead_inbox: "New lead",
-  conflict_check: "Conflict check",
-  questionnaire: "Questionnaire",
-  consultation: "Consultation",
-  fee_agreement: "Fee agreement",
-  case_opening: "Case opening",
-};
+const PAGE_SIZE = 10;
 
-function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
-  const map = new Map<string, string>();
-  for (const area of areas) {
-    map.set(area.id, area.name);
-  }
-  return map;
+function SummaryCard({
+  label,
+  count,
+  note,
+  color,
+}: {
+  label: string;
+  count: number | string;
+  note: string;
+  color: string;
+}) {
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border"
+      borderRadius="10px"
+      bg="bg"
+      p="16px 18px"
+    >
+      <Text
+        m="0 0 4px"
+        color="fg.muted"
+        fontSize="10px"
+        fontWeight="500"
+        textTransform="uppercase"
+        letterSpacing="0.04em"
+      >
+        {label}
+      </Text>
+      <Text
+        m="0 0 4px"
+        color={color}
+        fontSize="28px"
+        fontWeight="600"
+        lineHeight="1.1"
+      >
+        {count}
+      </Text>
+      <Text m="0" color="fg.muted" fontSize="11px">
+        {note}
+      </Text>
+    </Box>
+  );
 }
 
 export function ArchivedLeadsTab() {
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null);
+
+  const debouncedQuery = useDebounce(query, 300);
 
   const { data, isLoading } = useLeads({
     status: "archived",
-    search: query || undefined,
+    search: debouncedQuery || undefined,
+    page,
+    limit,
   });
+
+  // Declined leads are a separate terminal state from archived, and the two
+  // were previously conflated behind a "—" placeholder.
+  const { data: declinedData } = useLeads({ status: "declined", limit: 1 });
+
+  const restoreLead = useRestoreLead();
 
   const { data: practiceAreas } = usePublicPracticeAreas();
   const practiceAreaMap = useMemo(
@@ -68,6 +95,12 @@ export function ArchivedLeadsTab() {
   );
 
   const leads = data?.leads ?? [];
+  // The total comes from the server, not leads.length — that was only ever the
+  // count of rows on the current page.
+  const total = data?.pagination?.total ?? 0;
+  const declinedTotal = declinedData?.pagination?.total ?? 0;
+
+  const convertedCount = leads.filter((l: Lead) => l.convertedCaseId).length;
 
   return (
     <Box mt="20px">
@@ -76,39 +109,24 @@ export function ArchivedLeadsTab() {
         gap="14px"
         mb="24px"
       >
-        {archiveSummary.map((item) => (
-          <Box
-            key={item.label}
-            border="1px solid"
-            borderColor="border"
-            borderRadius="10px"
-            bg="bg"
-            p="16px 18px"
-          >
-            <Text
-              m="0 0 4px"
-              color="fg.muted"
-              fontSize="10px"
-              fontWeight="500"
-              textTransform="uppercase"
-              letterSpacing="0.04em"
-            >
-              {item.label}
-            </Text>
-            <Text
-              m="0 0 4px"
-              color={item.color}
-              fontSize="28px"
-              fontWeight="600"
-              lineHeight="1.1"
-            >
-              {item.count}
-            </Text>
-            <Text m="0" color="fg.muted" fontSize="11px">
-              {item.note}
-            </Text>
-          </Box>
-        ))}
+        <SummaryCard
+          label="Archived"
+          count={total}
+          note="Removed from the active pipeline"
+          color="#6b6252"
+        />
+        <SummaryCard
+          label="Declined"
+          count={declinedTotal}
+          note="Terminated for conflict — cannot be restored"
+          color="#b00020"
+        />
+        <SummaryCard
+          label="Converted before archive"
+          count={convertedCount}
+          note="On this page"
+          color="#1D9E75"
+        />
       </Grid>
 
       <Flex
@@ -118,176 +136,77 @@ export function ArchivedLeadsTab() {
         mb="16px"
         wrap="wrap"
       >
-        <HStack
-          gap="8px"
-          h="34px"
-          minW="240px"
-          px="12px"
-          border="1px solid"
-          borderColor="border"
-          borderRadius="7px"
-          bg="bg"
-          color="fg.muted"
-        >
-          <Search size={14} />
-          <Input
-            aria-label="Search archived leads"
-            placeholder="Search archived leads..."
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            p="0"
-            h="auto"
-            border="0"
-            bg="transparent"
-            color="fg"
-            fontSize="13px"
-            _focus={{ boxShadow: "none", outline: "0" }}
-          />
-        </HStack>
+        <LeadsSearchBox
+          value={query}
+          onChange={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
+          placeholder="Search archived leads..."
+        />
 
         <Text m="0" color="fg.muted" fontSize="11px">
-          {isLoading ? "Loading…" : `${leads.length} archived`}
+          {isLoading
+            ? "Loading…"
+            : `${total} archived ${total === 1 ? "lead" : "leads"}`}
         </Text>
       </Flex>
 
-      <Box
-        overflowX="auto"
-        border="1px solid"
-        borderColor="border"
-        borderRadius="10px"
-        bg="bg"
-        mb="16px"
-      >
-        <Table.Root minW="700px">
-          <Table.Header>
-            <Table.Row bg="bg.subtle">
-              {[
-                "NAME / EMAIL",
-                "PRACTICE AREA",
-                "STAGE AT ARCHIVE",
-                "SOURCE",
-                "RECEIVED",
-                "ACTION",
-              ].map((h) => (
-                <Table.ColumnHeader
-                  key={h}
-                  h="36px"
-                  px="16px"
-                  color="fg.muted"
-                  fontSize="10px"
-                  fontWeight="500"
-                  textTransform="uppercase"
-                  letterSpacing="0.04em"
-                >
-                  {h}
-                </Table.ColumnHeader>
-              ))}
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {isLoading ? (
-              <Table.Row>
-                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
-                  Loading…
-                </Table.Cell>
-              </Table.Row>
-            ) : leads.length === 0 ? (
-              <Table.Row>
-                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
-                  No archived leads.
-                </Table.Cell>
-              </Table.Row>
-            ) : (
-              leads.map((lead) => (
-                <Table.Row key={lead.id}>
-                  <Table.Cell
-                    px="16px"
-                    py="10px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                  >
-                    <Text m="0" color="fg" fontSize="13px" fontWeight="500">
-                      {lead.name}
-                    </Text>
-                    <Text m="0" color="fg.muted" fontSize="11px">
-                      {lead.email}
-                    </Text>
-                  </Table.Cell>
+      <LeadsTable
+        leads={leads}
+        isLoading={isLoading}
+        practiceAreas={practiceAreaMap}
+        columns={COLUMNS}
+        emptyMessage="No archived leads."
+        renderAction={(lead) => (
+          <HStack gap="6px">
+            <OutlineButton
+              h="28px"
+              minH="28px"
+              px="12px"
+              fontSize="12px"
+              onClick={() => setOpenLeadId(lead.id)}
+            >
+              View
+            </OutlineButton>
+            <OutlineButton
+              h="28px"
+              minH="28px"
+              px="12px"
+              fontSize="12px"
+              loading={
+                restoreLead.isPending && restoreLead.variables === lead.id
+              }
+              onClick={() => restoreLead.mutate(lead.id)}
+            >
+              <RotateCcw size={12} />
+              Restore
+            </OutlineButton>
+          </HStack>
+        )}
+      />
 
-                  <Table.Cell
-                    px="16px"
-                    py="10px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                  >
-                    {lead.practiceAreaId ? (
-                      <PracticePill tone="neutral">
-                        {practiceAreaMap.get(lead.practiceAreaId) ?? "—"}
-                      </PracticePill>
-                    ) : (
-                      <Text m="0" color="fg.muted" fontSize="13px">—</Text>
-                    )}
-                  </Table.Cell>
+      {total > 0 && (
+        <PaginationControls
+          total={total}
+          currentPage={page}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={(next) => {
+            setLimit(next);
+            setPage(1);
+          }}
+          pageSizeOptions={[10, 15, 20, 50]}
+        />
+      )}
 
-                  <Table.Cell
-                    px="16px"
-                    py="10px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                  >
-                    <PracticePill tone="neutral">
-                      {stageLabel[lead.pipelineStage]}
-                    </PracticePill>
-                  </Table.Cell>
-
-                  <Table.Cell
-                    px="16px"
-                    py="10px"
-                    color="fg.muted"
-                    fontSize="13px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                  >
-                    {sourceLabels[lead.source]}
-                  </Table.Cell>
-
-                  <Table.Cell
-                    px="16px"
-                    py="10px"
-                    color="fg.muted"
-                    fontSize="13px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                  >
-                    {formatReceivedDate(lead.receivedAt)}
-                  </Table.Cell>
-
-                  <Table.Cell
-                    px="16px"
-                    py="10px"
-                    borderBottom="1px solid"
-                    borderColor="border.subtle"
-                  >
-                    <OutlineButton h="28px" minH="28px" px="12px" fontSize="12px" disabled>
-                      Restore
-                    </OutlineButton>
-                  </Table.Cell>
-                </Table.Row>
-              ))
-            )}
-          </Table.Body>
-        </Table.Root>
-      </Box>
-
-      <HStack gap="8px" color="fg.muted">
-        <Info size={13} />
-        <Text m="0" fontSize="12px" lineHeight="1.5">
-          Archived leads are retained for 24 months in compliance with ABA
-          recordkeeping guidelines. Conflict-of-interest declines are logged
-          permanently in the audit trail.
-        </Text>
-      </HStack>
+      <LeadDrawer
+        leadId={openLeadId}
+        open={openLeadId !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpenLeadId(null);
+        }}
+      />
     </Box>
   );
 }

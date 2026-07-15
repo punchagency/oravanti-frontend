@@ -32,6 +32,8 @@ export type Lead = {
   entityType: "individual" | "company";
   practiceAreaId: string | null;
   caseTypeId: string | null;
+  /** Joined server-side from the practice_areas table. */
+  practiceAreaName: string | null;
   source: LeadSource;
   situationSummary: string | null;
   notes: string | null;
@@ -40,6 +42,7 @@ export type Lead = {
   status: LeadStatus;
   pipelineStage: PipelineStage;
   language?: string | null;
+  timezone?: string | null;
   conflictCheckId: string | null;
   conflictMatches?: ConflictCheckMatch[];
   conflictCheckStatus?: string;
@@ -176,6 +179,12 @@ export type GetLeadsParams = {
   source?: LeadSource;
   practiceAreaId?: string;
   search?: string;
+  /**
+   * Leads that became a case. Keyed server-side on convertedCaseId, not on a
+   * status value — case opening writes status "reviewed", never "converted",
+   * so `status: "converted"` would always match nothing.
+   */
+  converted?: boolean;
   page?: number;
   limit?: number;
   all?: boolean;
@@ -190,6 +199,8 @@ export const getLeads = async (
   if (params.source) query.source = params.source;
   if (params.practiceAreaId) query.practiceAreaId = params.practiceAreaId;
   if (params.search) query.search = params.search;
+  if (params.converted !== undefined)
+    query.converted = String(params.converted);
   if (params.page) query.page = String(params.page);
   if (params.limit) query.limit = String(params.limit);
   if (params.all) query.all = "true";
@@ -208,6 +219,166 @@ export const getLeadsStageCount =
 
 export const getLeadById = async (id: string): Promise<LeadDetail> => {
   const res = await API.get(`/leads/${id}`);
+  return res.data.data;
+};
+
+// ─── Activity trail ──────────────────────────────────────────────────────────
+// Append-only on the server: there is no update or delete endpoint, and the UI
+// must not offer one.
+
+export type LeadEventType =
+  | "lead_received"
+  | "lead_updated"
+  | "stage_changed"
+  | "lead_assigned"
+  | "lead_archived"
+  | "lead_restored"
+  | "note_added"
+  | "conflict_check_run"
+  | "conflict_check_approved"
+  | "conflict_check_declined"
+  | "conflict_overridden"
+  | "questionnaire_sent"
+  | "questionnaire_response_received"
+  | "consultation_scheduled"
+  | "consultation_rescheduled"
+  | "consultation_cancelled"
+  | "consultation_completed"
+  | "fee_agreement_generated"
+  | "fee_agreement_sent"
+  | "fee_agreement_signed"
+  | "payment_received"
+  | "case_opened";
+
+export type LeadEvent = {
+  id: string;
+  type: LeadEventType;
+  actorId: string | null;
+  /**
+   * Null where the actor is genuinely unknown: a system/lead-driven event, or
+   * an event reconstructed by the backfill for a lead that predates the trail.
+   * Render the absence — never substitute a name.
+   */
+  actorName: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export const getLeadActivity = async (id: string): Promise<LeadEvent[]> => {
+  const res = await API.get(`/leads/${id}/activity`);
+  return res.data.data;
+};
+
+// ─── Notes (append-only) ─────────────────────────────────────────────────────
+
+export type LeadNoteType =
+  | "general"
+  | "phone_call"
+  | "email"
+  | "voicemail"
+  | "system_log"
+  | "pre_consultation"
+  | "post_consultation";
+
+export type LeadNote = {
+  id: string;
+  type: LeadNoteType;
+  content: string;
+  authorId: string;
+  authorName: string | null;
+  createdAt: string;
+};
+
+export const getLeadNotes = async (id: string): Promise<LeadNote[]> => {
+  const res = await API.get(`/leads/${id}/notes`);
+  return res.data.data;
+};
+
+export const addLeadNote = async (
+  id: string,
+  data: { type?: LeadNoteType; content: string },
+): Promise<LeadNote> => {
+  const res = await API.post(`/leads/${id}/notes`, data);
+  return res.data.data;
+};
+
+// ─── Archive / restore ───────────────────────────────────────────────────────
+
+export const archiveLead = async (
+  id: string,
+  reason?: string,
+): Promise<Lead> => {
+  const res = await API.post(`/leads/${id}/archive`, reason ? { reason } : {});
+  return res.data.data;
+};
+
+export const restoreLead = async (id: string): Promise<Lead> => {
+  const res = await API.post(`/leads/${id}/restore`);
+  return res.data.data;
+};
+
+// ─── Conversion metrics ──────────────────────────────────────────────────────
+
+export type MetricsPeriod = "30d" | "90d" | "12mo";
+
+/**
+ * A metric the backend could not compute. It is never zero-filled: a zero would
+ * read as a real measurement. Render the reason instead.
+ */
+export type Measurable<T> =
+  | { status: "ok"; value: T }
+  | { status: "insufficient_data"; reason: string };
+
+export type LeadMetrics = {
+  period: MetricsPeriod;
+  since: string;
+  totalLeads: number;
+  convertedLeads: number;
+  conversionRate: number;
+  avgDaysToConvert: Measurable<number>;
+  /**
+   * The equal-length window immediately before this one. Returned raw rather
+   * than as a delta so the UI can distinguish "no change" from "there was no
+   * previous period" — a firm's first month must not report a triumphant +100%.
+   */
+  previous: {
+    totalLeads: number;
+    convertedLeads: number;
+    conversionRate: number;
+    avgDaysToConvert: Measurable<number>;
+  };
+  funnel: { stage: PipelineStage; reached: number; droppedOff: number }[];
+  avgDaysInStage: Record<PipelineStage, Measurable<number>>;
+  leadsBySource: {
+    source: LeadSource;
+    total: number;
+    converted: number;
+    conversionRate: number;
+  }[];
+  conversionByPracticeArea: {
+    practiceAreaId: string;
+    practiceAreaName: string;
+    total: number;
+    converted: number;
+    conversionRate: number;
+  }[];
+  /**
+   * What clients have agreed to pay on signed agreements — not what the firm
+   * has collected. Hourly and contingency agreements are excluded because the
+   * agreement itself does not fix their value; they are counted separately so a
+   * partial total reads as partial.
+   */
+  contractedValue: {
+    total: number;
+    agreementsCounted: number;
+    agreementsExcluded: { hourly: number; contingency: number };
+  };
+};
+
+export const getLeadMetrics = async (
+  period: MetricsPeriod = "30d",
+): Promise<LeadMetrics> => {
+  const res = await API.get("/leads/metrics", { params: { period } });
   return res.data.data;
 };
 
@@ -308,18 +479,31 @@ export const updateLeadStatus = async (
   return res.data.data;
 };
 
+/**
+ * Mirrors the columns the server will actually persist. It previously declared
+ * `name`, which is not a column (the server stores firstName/lastName), so a
+ * rename silently did nothing.
+ *
+ * `notes` is not a column either — the server appends it to the lead's
+ * append-only notes trail.
+ */
+export type UpdateLeadInput = Partial<{
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  source: LeadSource;
+  situationSummary: string;
+  entityType: "individual" | "company";
+  practiceAreaId: string;
+  caseTypeId: string;
+  language: string;
+  notes: string;
+}>;
+
 export const updateLead = async (
   id: string,
-  data: Partial<{
-    name: string;
-    email: string;
-    phone: string;
-    practiceAreaId: string;
-    caseTypeId: string;
-    language: string;
-    notes: string;
-    timezone: string;
-  }>,
+  data: UpdateLeadInput,
 ): Promise<Lead> => {
   const res = await API.patch(`/leads/${id}`, data);
   return res.data.data;

@@ -1,18 +1,24 @@
 import {
+  addLeadNote,
   advanceLeadStage,
+  archiveLead,
   cancelConsultation,
   initiateConsultation,
   createLead,
   generateFeeAgreement,
   getConsultations,
   getFeeAgreementPreview,
+  getLeadActivity,
   getLeadById,
+  getLeadMetrics,
+  getLeadNotes,
   getLeads,
   getLeadsStageCount,
   discardFeeAgreement,
   markFeeAgreementPaymentReceived,
   markFeeAgreementReceived,
   nudgeClient,
+  restoreLead,
   sendFeeAgreement,
   openCase,
   resolveConflictCheck,
@@ -23,6 +29,9 @@ import {
   updateLeadStatus,
   type GetConsultationsParams,
   type GetLeadsParams,
+  type LeadNoteType,
+  type UpdateLeadInput,
+  type MetricsPeriod,
   type PipelineStage,
 } from "@/api/leads";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +66,88 @@ export function useConsultations(params: GetConsultationsParams = {}) {
   return useQuery({
     queryKey: ["consultations", params],
     queryFn: () => getConsultations(params),
+  });
+}
+
+// Keyed under ["lead", id] so that every existing mutation — all of which
+// already invalidate that prefix — refreshes the trail for free. React Query
+// matches query keys by prefix, so a conflict check or a sent questionnaire
+// shows up in Activity without each hook having to know the trail exists.
+export function useLeadActivity(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ["lead", id, "activity"],
+    queryFn: () => getLeadActivity(id),
+    enabled: Boolean(id) && enabled,
+  });
+}
+
+export function useLeadNotes(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ["lead", id, "notes"],
+    queryFn: () => getLeadNotes(id),
+    enabled: Boolean(id) && enabled,
+  });
+}
+
+export function useLeadMetrics(period: MetricsPeriod) {
+  return useQuery({
+    queryKey: ["lead-metrics", period],
+    queryFn: () => getLeadMetrics(period),
+  });
+}
+
+export function useAddLeadNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { type?: LeadNoteType; content: string };
+    }) => addLeadNote(id, data),
+    onSuccess: (_, params) => {
+      toast.success("Note added");
+      // Prefix-invalidates both the notes list and the activity trail, since a
+      // note also lands there as "Note added by X".
+      qc.invalidateQueries({ queryKey: ["lead", params.id] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to add note");
+    },
+  });
+}
+
+export function useArchiveLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      archiveLead(id, reason),
+    onSuccess: (_, params) => {
+      toast.success("Lead archived");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead", params.id] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to archive lead");
+    },
+  });
+}
+
+export function useRestoreLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => restoreLead(id),
+    onSuccess: (_, id) => {
+      toast.success("Lead restored");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to restore lead");
+    },
   });
 }
 
@@ -109,6 +200,29 @@ export function useUpdateLead() {
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to save notes");
+    },
+  });
+}
+
+/**
+ * Same endpoint as useUpdateLead, but for editing the lead's details rather
+ * than appending a note — useUpdateLead is wired for the notes path and always
+ * toasts "Notes saved", which would be a lie here.
+ */
+export function useEditLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateLeadInput }) =>
+      updateLead(id, data),
+    onSuccess: (_, { id }) => {
+      toast.success("Lead updated");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      // Prefix-invalidates the detail, activity trail and notes.
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to update lead");
     },
   });
 }

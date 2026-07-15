@@ -89,7 +89,6 @@ import {
 import type { ChangeEvent, ReactNode } from "react";
 import {
   Fragment,
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -111,6 +110,10 @@ import {
 } from "../../../../components/ui/intake-ui";
 import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
+import {
+  ScheduleFollowUpContext,
+  type FollowUpRequest,
+} from "./schedule-follow-up-context";
 import {
   ScheduleDetailsStep,
   SelectClientStep,
@@ -215,17 +218,7 @@ function attorneyFullName(item: ConsultationListItem): string {
   return name || "Unassigned";
 }
 
-type FollowUpRequest = {
-  lead: ConsultationSummaryLead;
-  attorneyId?: string | null;
-  parentConsultationId: string;
-};
 
-// Lets a ConsultationCard (rendered deep in the collapsible list) open the
-// scheduling wizard as a follow-up without prop-drilling through the list.
-const ScheduleFollowUpContext = createContext<(req: FollowUpRequest) => void>(
-  () => {},
-);
 
 type WizardPreset = {
   lead: ConsultationSummaryLead | null;
@@ -727,7 +720,12 @@ function FilterSelect({
   );
 }
 
-function ConsultationCard({
+/**
+ * Exported so the CRM lead drawer renders the identical card, with the same
+ * complete / no-show / outcome / attorney-notes / cancel / fee-agreement
+ * actions, rather than a thinner reimplementation that would drift from it.
+ */
+export function ConsultationCard({
   lead,
   onSchedule,
   bare = false,
@@ -1321,6 +1319,28 @@ function ConsultationCard({
                 </HStack>
               ) : null}
             </>
+          ) : null}
+
+          {/* Written when the consultation was booked, and previously displayed
+              nowhere at all — the note went into the DB and vanished. */}
+          {consultation?.preConsultationNotes ? (
+            <Box>
+              <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+                Pre-consultation notes
+              </Text>
+              <MutedText>Captured when the consultation was booked.</MutedText>
+              <Box
+                mt="8px"
+                p="12px"
+                borderRadius="7px"
+                bg="bg.muted"
+                color="fg.muted"
+                fontSize="13px"
+                whiteSpace="pre-wrap"
+              >
+                {consultation.preConsultationNotes}
+              </Box>
+            </Box>
           ) : null}
 
           <Box>
@@ -2200,7 +2220,13 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   urgent: false,
 };
 
-function ScheduleConsultationDialog({
+/**
+ * Exported (rather than moved to its own module) so the CRM lead drawer can
+ * mount the same dialog. It closes over several helpers defined in this file —
+ * SCHEDULE_DEFAULTS, ReviewStep, NotesField — and relocating those to share it
+ * would mean reshuffling a large working file for no functional gain.
+ */
+export function ScheduleConsultationDialog({
   open,
   onOpenChange,
   presetLead,
