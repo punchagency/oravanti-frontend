@@ -133,12 +133,14 @@ function ResponseContent({
   // the questionnaire, the accept action is shown as done; reminders are pointless
   // (and rejected by the backend) once the questionnaire has been submitted.
   const { data: lead } = useLeadById(detail.response.leadId ?? "");
-  const alreadyAccepted = lead
-    ? ["consultation", "fee_agreement", "case_opening"].includes(
-        lead.pipelineStage,
-      )
-    : false;
   const questionnaireSubmitted = detail.response.status === "submitted";
+  const alreadyAccepted =
+    questionnaireSubmitted &&
+    (lead
+      ? ["consultation", "fee_agreement", "case_opening"].includes(
+          lead.pipelineStage,
+        )
+      : true);
 
   const answerMap = useMemo(
     () => new Map(detail.answers.map((a) => [a.questionId, a.value])),

@@ -1,6 +1,5 @@
 import {
   Box,
-  Dialog,
   Flex,
   HStack,
   Input,
@@ -8,13 +7,9 @@ import {
   Select,
   Skeleton,
   Table,
-  Text,
-  VStack,
-  chakra,
   createListCollection,
 } from "@chakra-ui/react";
-import { Archive, Search, ShieldCheck, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { leadSources, leadStatuses } from "../data";
 import {
@@ -28,17 +23,16 @@ import {
   sourceValues,
   statusLabels,
   formatReceivedDate,
-  formatReceivedDateDetail,
   type Lead,
   type LeadSource,
   type LeadStatus,
 } from "@/api/leads";
 import {
   useLeads,
-  useRunConflictCheck,
   useUpdateLeadStatus,
 } from "@/hooks/use-leads";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { LeadDetailsDrawer } from "./lead-details/drawer";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
@@ -70,7 +64,7 @@ export function LeadInboxView() {
       : (status.toLowerCase() as LeadStatus | undefined);
 
   const { data, isLoading } = useLeads({
-    stage: "lead_inbox",
+    stage: undefined,
     source: sourceFilter,
     status: statusFilter,
     search: query || undefined,
@@ -370,253 +364,18 @@ export function LeadInboxView() {
         />
       )}
 
-      <LeadReviewDrawer
-        lead={selectedLead}
-        practiceAreaMap={practiceAreaMap}
-        onClose={() => setSelectedLead(null)}
-      />
+      <LeadDetailsDrawer
+        leadId={selectedLead?.id ?? ""}
+        open={Boolean(selectedLead)}
+        onOpenChange={(details) => { if (!details.open) setSelectedLead(null); }}
+      >
+        <span />
+      </LeadDetailsDrawer>
     </>
   );
 }
 
-function LeadReviewDrawer({
-  lead,
-  practiceAreaMap,
-  onClose,
-}: {
-  lead: Lead | null;
-  practiceAreaMap: Map<string, string>;
-  onClose: () => void;
-}) {
-  const runCheck = useRunConflictCheck();
-  const updateLeadStatus = useUpdateLeadStatus();
 
-  function handleRunConflictCheck() {
-    if (!lead) return;
-    runCheck.mutate(lead.id, {
-      onSuccess: () => onClose(),
-    });
-  }
-
-  function handleArchive() {
-    if (!lead) return;
-    updateLeadStatus.mutate(
-      {
-        id: lead.id,
-        status: lead.status === "archived" ? "reviewed" : "archived",
-      },
-      {
-        onSuccess: () => onClose(),
-      },
-    );
-  }
-
-  return (
-    <Dialog.Root
-      open={Boolean(lead)}
-      onOpenChange={(details) => {
-        if (!details.open) {
-          onClose();
-        }
-      }}
-    >
-      <Dialog.Backdrop bg="transparent" />
-      <Dialog.Positioner
-        alignItems="stretch"
-        justifyContent="flex-end"
-        w="100vw"
-        h="100vh"
-        p="0"
-      >
-        <Dialog.Content
-          w="340px"
-          maxW="calc(100vw - 24px)"
-          h="100vh"
-          maxH="100vh"
-          m="0"
-          borderLeft="1px solid"
-          borderColor="border.subtle"
-          borderRadius="0"
-          bg="bg"
-          boxShadow="-12px 0 28px rgba(0, 0, 0, 0.12)"
-          p="0"
-          _open={{
-            animationName: "slide-from-right, fade-in",
-            animationDuration: "180ms",
-          }}
-          _closed={{
-            animationName: "slide-to-right, fade-out",
-            animationDuration: "140ms",
-          }}
-        >
-          {lead ? (
-            <Flex direction="column" h="full">
-              <Box p="22px 20px 14px">
-                <Flex align="flex-start" justify="space-between" gap="14px">
-                  <Box minW="0">
-                    <Dialog.Title
-                      color="fg"
-                      fontSize="16px"
-                      fontWeight="600"
-                      lineHeight="1.15"
-                    >
-                      {lead.name}
-                    </Dialog.Title>
-                    <PracticePill>{sourceLabels[lead.source]}</PracticePill>
-                  </Box>
-                  <chakra.button
-                    type="button"
-                    aria-label="Close lead review panel"
-                    display="grid"
-                    placeItems="center"
-                    flex="0 0 auto"
-                    w="34px"
-                    h="34px"
-                    border="1px solid"
-                    borderColor="border"
-                    borderRadius="full"
-                    bg="bg"
-                    color="fg.muted"
-                    onClick={onClose}
-                  >
-                    <X size={16} />
-                  </chakra.button>
-                </Flex>
-              </Box>
-
-              <VStack
-                align="stretch"
-                gap="18px"
-                flex="1"
-                overflowY="auto"
-                px="20px"
-                pb="16px"
-              >
-                <LeadDetail label="Full name">{lead.name}</LeadDetail>
-                <LeadDetail label="Email">{lead.email}</LeadDetail>
-                <LeadDetail label="Phone">{lead.phone ?? "—"}</LeadDetail>
-                <LeadDetail label="Practice area interest">
-                  {lead.practiceAreaId ? (
-                    <PracticePill tone="neutral">
-                      {practiceAreaMap.get(lead.practiceAreaId) ?? "Unknown"}
-                    </PracticePill>
-                  ) : (
-                    "—"
-                  )}
-                </LeadDetail>
-                <LeadDetail label="Source">
-                  {sourceLabels[lead.source]}
-                </LeadDetail>
-                <LeadDetail label="Status">
-                  {statusLabels[lead.status]}
-                </LeadDetail>
-                <LeadDetail label="Received">
-                  {formatReceivedDateDetail(lead.receivedAt)}
-                </LeadDetail>
-                {lead.situationSummary ? (
-                  <LeadDetail label="Situation summary">
-                    <Box
-                      mt="6px"
-                      p="10px"
-                      borderRadius="7px"
-                      bg="bg.subtle"
-                      color="fg"
-                      fontSize="13px"
-                      lineHeight="1.45"
-                      maxH="96px"
-                      overflowY="auto"
-                      overscrollBehavior="contain"
-                    >
-                      {lead.situationSummary}
-                    </Box>
-                  </LeadDetail>
-                ) : null}
-                {(lead.intakeAdversePartyName || lead.intakeAdversePartyEmail) ? (
-                  <LeadDetail label="Declared opposing party">
-                    <Box
-                      mt="6px"
-                      p="10px"
-                      borderRadius="7px"
-                      border="1px solid"
-                      borderColor="#fde68a"
-                      bg="#fffbeb"
-                      color="#92400e"
-                      fontSize="13px"
-                      lineHeight="1.45"
-                    >
-                      {[lead.intakeAdversePartyName, lead.intakeAdversePartyEmail]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </Box>
-                  </LeadDetail>
-                ) : null}
-              </VStack>
-
-              <Box
-                px="20px"
-                py="16px"
-                borderTop="1px solid"
-                borderColor="border.subtle"
-              >
-                <Text m="0 0 12px" color="fg" fontSize="12px" fontWeight="600">
-                  Move this lead to
-                </Text>
-                <VStack align="stretch" gap="8px">
-                  <OutlineButton
-                    h="36px"
-                    minH="36px"
-                    layerStyle="brand-button"
-                    borderColor="brand.solid"
-                    loading={runCheck.isPending}
-                    onClick={handleRunConflictCheck}
-                  >
-                    <ShieldCheck size={14} />
-                    Run conflict check
-                  </OutlineButton>
-                  <OutlineButton
-                    h="36px"
-                    minH="36px"
-                    loading={updateLeadStatus.isPending}
-                    onClick={handleArchive}
-                  >
-                    <Archive size={14} />
-                    {lead.status === "archived" ? "Unarchive" : "Archive"} lead
-                  </OutlineButton>
-                </VStack>
-              </Box>
-            </Flex>
-          ) : null}
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
-  );
-}
-
-function LeadDetail({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <Box>
-      <Text
-        m="0 0 7px"
-        color="fg.muted"
-        fontSize="10px"
-        fontWeight="600"
-        lineHeight="1"
-        textTransform="uppercase"
-      >
-        {label}
-      </Text>
-      <Box color="fg" fontSize="13px" fontWeight="500" lineHeight="1.25">
-        {children}
-      </Box>
-    </Box>
-  );
-}
 
 function FilterSelect({
   ariaLabel,

@@ -215,7 +215,7 @@ function attorneyFullName(item: ConsultationListItem): string {
   return name || "Unassigned";
 }
 
-type FollowUpRequest = {
+export type FollowUpRequest = {
   lead: ConsultationSummaryLead;
   attorneyId?: string | null;
   parentConsultationId: string;
@@ -335,7 +335,7 @@ export function ConsultationView() {
   );
 }
 
-type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
+export type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
 
 type ConsultationRow = {
   lead: ConsultationSummaryLead;
@@ -2200,7 +2200,7 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   urgent: false,
 };
 
-function ScheduleConsultationDialog({
+export function ScheduleConsultationDialog({
   open,
   onOpenChange,
   presetLead,
