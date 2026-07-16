@@ -15,7 +15,6 @@ import {
   Clock,
   ExternalLink,
   ListChecks,
-  MessageSquare,
   XCircle,
 } from "lucide-react";
 import { useCallback, useState } from "react";

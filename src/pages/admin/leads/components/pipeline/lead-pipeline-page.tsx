@@ -94,11 +94,12 @@ function useActiveStep() {
 }
 
 const STAGE_ORDER: Record<PipelineStage, number> = {
-  conflict_check: 0,
-  questionnaire: 1,
-  consultation: 2,
-  fee_agreement: 3,
-  case_opening: 4,
+  lead_inbox: 0,
+  conflict_check: 1,
+  questionnaire: 2,
+  consultation: 3,
+  fee_agreement: 4,
+  case_opening: 5,
 };
 
 const STEP_REQUIRED_STAGE: Record<string, PipelineStage> = {

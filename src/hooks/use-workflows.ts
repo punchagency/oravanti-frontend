@@ -25,6 +25,8 @@ export const workflowKeys = {
   summary: (caseId: string) => ["workflow", "summary", caseId] as const,
   timeline: (caseId: string) => ["workflow", "timeline", caseId] as const,
   logs: (caseId: string) => ["workflow", "logs", caseId] as const,
+  documents: (caseId: string) => ["workflow", "documents", caseId] as const,
+  notes: (caseId: string) => ["workflow", "notes", caseId] as const,
   myTasks: (status?: string, page?: number, limit?: number) =>
     ["workflow", "my-tasks", ...(status ? [status] : []), ...(page ? [`p${page}`] : []), ...(limit ? [`l${limit}`] : [])] as const,
   reviewQueue: (status?: string, page?: number, limit?: number) =>
@@ -231,7 +233,7 @@ export function useReviewQueue(status?: string, page?: number, limit?: number) {
 
 export function useCaseDocuments(caseId: string, page?: number, limit?: number) {
   return useQuery({
-    queryKey: workflowKeys.all.concat("documents", caseId),
+    queryKey: workflowKeys.documents(caseId),
     queryFn: () => getCaseDocuments(caseId, page, limit),
     enabled: Boolean(caseId),
     staleTime: 30_000,
@@ -250,7 +252,7 @@ import type { CreateCaseNoteParams, UpdateCaseNoteParams } from "../api/workflow
 
 export function useCaseNotes(caseId: string) {
   return useQuery({
-    queryKey: workflowKeys.all.concat("notes", caseId),
+    queryKey: workflowKeys.notes(caseId),
     queryFn: () => getCaseNotes(caseId),
     enabled: Boolean(caseId),
     staleTime: 30_000,
@@ -262,7 +264,7 @@ export function useCreateCaseNote(caseId: string) {
   return useMutation({
     mutationFn: (params: CreateCaseNoteParams) => createCaseNote(caseId, params),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: workflowKeys.all.concat("notes", caseId) });
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
       toast.success("Note added");
     },
     onError: (err: APIError) => {
@@ -277,7 +279,7 @@ export function useUpdateCaseNote(caseId: string) {
     mutationFn: ({ noteId, ...params }: { noteId: string } & UpdateCaseNoteParams) =>
       updateCaseNote(caseId, noteId, params),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: workflowKeys.all.concat("notes", caseId) });
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
       toast.success("Note updated");
     },
     onError: (err: APIError) => {
@@ -291,7 +293,7 @@ export function useDeleteCaseNote(caseId: string) {
   return useMutation({
     mutationFn: (noteId: string) => deleteCaseNote(caseId, noteId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: workflowKeys.all.concat("notes", caseId) });
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
       toast.success("Note deleted");
     },
     onError: (err: APIError) => {

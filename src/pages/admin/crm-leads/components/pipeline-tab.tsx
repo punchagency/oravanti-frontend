@@ -36,6 +36,7 @@ const stageOptions: Array<{ label: string; value: PipelineStage | "" }> = [
 ];
 
 const stageLabel: Record<PipelineStage, string> = {
+  lead_inbox: "New lead",
   conflict_check: "Conflict check",
   questionnaire: "Questionnaire sent",
   consultation: "Consultation",
@@ -47,6 +48,7 @@ const stageTone: Record<
   PipelineStage,
   "neutral" | "warning" | "info" | "brand" | "gold" | "success"
 > = {
+  lead_inbox: "neutral",
   conflict_check: "warning",
   questionnaire: "info",
   consultation: "brand",

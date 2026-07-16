@@ -198,15 +198,11 @@ export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) 
                       <TaskRow
                         key={task.id}
                         task={task}
-                        staffList={staffList ?? []}
                         onStatusChange={(status) =>
                           updateStatus.mutate({ taskId: task.id, status })
                         }
                         onComplete={() => completeTask.mutate(task.id)}
                         onAction={() => handleAction(task)}
-                        onAssign={(staffId) =>
-                          assignTask.mutate({ taskId: task.id, assignedToId: staffId })
-                        }
                         onOpenAssignDialog={() => {
                           setAssignTaskId(task.id);
                           setAssignTaskTitle(task.title);
@@ -224,15 +220,11 @@ export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) 
                   <MobileTaskCard
                     key={task.id}
                     task={task}
-                    staffList={staffList ?? []}
                     onStatusChange={(status) =>
                       updateStatus.mutate({ taskId: task.id, status })
                     }
                     onComplete={() => completeTask.mutate(task.id)}
                     onAction={() => handleAction(task)}
-                    onAssign={(staffId) =>
-                      assignTask.mutate({ taskId: task.id, assignedToId: staffId })
-                    }
                     onOpenAssignDialog={() => {
                       setAssignTaskId(task.id);
                       setAssignTaskTitle(task.title);
@@ -267,19 +259,15 @@ export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) 
 
 function TaskRow({
   task,
-  staffList,
   onStatusChange,
   onComplete,
   onAction,
-  onAssign,
   onOpenAssignDialog,
 }: {
   task: LeadTask;
-  staffList: { id: string; firstName: string; lastName: string }[];
   onStatusChange: (status: LeadTaskStatus) => void;
   onComplete: () => void;
   onAction: () => void;
-  onAssign: (staffId: string) => void;
   onOpenAssignDialog: () => void;
 }) {
   const colors = taskStatusColors[task.status] ?? taskStatusColors.pending;
@@ -377,19 +365,15 @@ function TaskRow({
 
 function MobileTaskCard({
   task,
-  staffList,
   onStatusChange,
   onComplete,
   onAction,
-  onAssign,
   onOpenAssignDialog,
 }: {
   task: LeadTask;
-  staffList: { id: string; firstName: string; lastName: string }[];
   onStatusChange: (status: LeadTaskStatus) => void;
   onComplete: () => void;
   onAction: () => void;
-  onAssign: (staffId: string) => void;
   onOpenAssignDialog: () => void;
 }) {
   const colors = taskStatusColors[task.status] ?? taskStatusColors.pending;

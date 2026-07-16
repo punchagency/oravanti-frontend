@@ -1,13 +1,11 @@
 import {
   Badge,
   Box,
-  Center,
   HStack,
   IconButton,
   ScrollArea,
   Table,
   Text,
-  VStack,
 } from "@chakra-ui/react";
 import { Download, Eye, FileText } from "lucide-react";
 import { useCaseDocuments } from "@/hooks/use-workflows";

@@ -17,7 +17,7 @@ export type LeadStatus =
   | "overridden";
 
 export type PipelineStage =
-  // | "lead_inbox"
+  | "lead_inbox"
   | "conflict_check"
   | "questionnaire"
   | "consultation"
