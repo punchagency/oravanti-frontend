@@ -13,6 +13,7 @@ import {
   getMyTasks,
   getReviewQueue,
   getWorkflowLogs,
+  getCaseDocuments,
 } from "../api/workflows";
 import type { APIError } from "./types";
 
@@ -223,5 +224,78 @@ export function useReviewQueue(status?: string, page?: number, limit?: number) {
     queryKey: workflowKeys.reviewQueue(status, page, limit),
     queryFn: () => getReviewQueue(status, page, limit),
     staleTime: 15_000,
+  });
+}
+
+// ─── Case Documents ──────────────────────────────────────────────────────────
+
+export function useCaseDocuments(caseId: string, page?: number, limit?: number) {
+  return useQuery({
+    queryKey: workflowKeys.all.concat("documents", caseId),
+    queryFn: () => getCaseDocuments(caseId, page, limit),
+    enabled: Boolean(caseId),
+    staleTime: 30_000,
+  });
+}
+
+// ─── Case Notes ──────────────────────────────────────────────────────────────
+
+import {
+  getCaseNotes,
+  createCaseNote,
+  updateCaseNote,
+  deleteCaseNote,
+} from "../api/workflows";
+import type { CreateCaseNoteParams, UpdateCaseNoteParams } from "../api/workflows";
+
+export function useCaseNotes(caseId: string) {
+  return useQuery({
+    queryKey: workflowKeys.all.concat("notes", caseId),
+    queryFn: () => getCaseNotes(caseId),
+    enabled: Boolean(caseId),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateCaseNote(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: CreateCaseNoteParams) => createCaseNote(caseId, params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.all.concat("notes", caseId) });
+      toast.success("Note added");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to add note");
+    },
+  });
+}
+
+export function useUpdateCaseNote(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ noteId, ...params }: { noteId: string } & UpdateCaseNoteParams) =>
+      updateCaseNote(caseId, noteId, params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.all.concat("notes", caseId) });
+      toast.success("Note updated");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to update note");
+    },
+  });
+}
+
+export function useDeleteCaseNote(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (noteId: string) => deleteCaseNote(caseId, noteId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.all.concat("notes", caseId) });
+      toast.success("Note deleted");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to delete note");
+    },
   });
 }

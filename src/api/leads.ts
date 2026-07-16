@@ -17,7 +17,6 @@ export type LeadStatus =
   | "overridden";
 
 export type PipelineStage =
-  | "lead_inbox"
   | "conflict_check"
   | "questionnaire"
   | "consultation"
@@ -31,7 +30,9 @@ export type Lead = {
   phone: string | null;
   entityType: "individual" | "company";
   practiceAreaId: string | null;
+  practiceAreaName: string | null;
   caseTypeId: string | null;
+  caseTypeName: string | null;
   source: LeadSource;
   situationSummary: string | null;
   notes: string | null;
@@ -50,7 +51,6 @@ export type Lead = {
   convertedCaseId: string | null;
   convertedAt: string | null;
   assignedStaffId: string | null;
-  caseTypeName: string | null;
   receivedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -162,7 +162,6 @@ export type LeadsResponse = {
 };
 
 export type LeadsStageCountResponse = {
-  lead_inbox: number;
   conflict_check: number;
   questionnaire: number;
   consultation: number;
@@ -174,7 +173,7 @@ export type GetLeadsParams = {
   stage?: PipelineStage;
   status?: LeadStatus;
   source?: LeadSource;
-  practiceAreaId?: string;
+  practiceAreaName?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -188,7 +187,7 @@ export const getLeads = async (
   if (params.stage) query.stage = params.stage;
   if (params.status) query.status = params.status;
   if (params.source) query.source = params.source;
-  if (params.practiceAreaId) query.practiceAreaId = params.practiceAreaId;
+  if (params.practiceAreaName) query.practiceAreaName = params.practiceAreaName;
   if (params.search) query.search = params.search;
   if (params.page) query.page = String(params.page);
   if (params.limit) query.limit = String(params.limit);

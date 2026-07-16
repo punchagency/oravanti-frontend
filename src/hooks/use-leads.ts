@@ -80,14 +80,17 @@ export function useUpdateLeadStatus() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateLeadStatus(id, status),
     onSuccess: (_, params) => {
-      if (params.status === "archived") {
-        toast.success(`Lead ${params.status}`);
-      }
+      const messages: Record<string, string> = {
+        archived: "Lead archived",
+        reviewed: "Lead marked as reviewed",
+        new: "Lead unarchived",
+      };
+      toast.success(messages[params.status] ?? `Lead ${params.status}`);
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", params.id] });
     },
     onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to archive lead");
+      toast.error(err.response?.data?.message ?? "Failed to update lead status");
     },
   });
 }
@@ -370,10 +373,13 @@ export function useMarkFeeAgreementPaymentReceived() {
 }
 
 export function useNudgeClient() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (agreementId: string) => nudgeClient(agreementId),
     onSuccess: () => {
       toast.success("Reminder sent to client");
+      qc.invalidateQueries({ queryKey: ["lead"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to send reminder");
