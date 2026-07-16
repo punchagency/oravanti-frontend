@@ -9,7 +9,7 @@ import { Plus, Upload } from "lucide-react";
 import { AlertSection } from "./alert-card";
 import { DocumentTable } from "./document-table";
 
-export function Documents() {
+export function Documents({ caseId }: { caseId: string }) {
   return (
     <>
       {/* Header */}
@@ -60,7 +60,7 @@ export function Documents() {
 
       <AlertSection />
 
-      <DocumentTable />
+      <DocumentTable caseId={caseId} />
     </>
   );
 }
