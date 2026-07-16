@@ -28,7 +28,6 @@ const PAGE_SIZE = 10;
 
 const stageOptions: Array<{ label: string; value: PipelineStage | "" }> = [
   { label: "All stages", value: "" },
-  { label: "New lead", value: "lead_inbox" },
   { label: "Conflict check", value: "conflict_check" },
   { label: "Questionnaire sent", value: "questionnaire" },
   { label: "Consultation", value: "consultation" },
@@ -37,7 +36,6 @@ const stageOptions: Array<{ label: string; value: PipelineStage | "" }> = [
 ];
 
 const stageLabel: Record<PipelineStage, string> = {
-  lead_inbox: "New lead",
   conflict_check: "Conflict check",
   questionnaire: "Questionnaire sent",
   consultation: "Consultation",
@@ -49,7 +47,6 @@ const stageTone: Record<
   PipelineStage,
   "neutral" | "warning" | "info" | "brand" | "gold" | "success"
 > = {
-  lead_inbox: "neutral",
   conflict_check: "warning",
   questionnaire: "info",
   consultation: "brand",
@@ -72,20 +69,20 @@ export function PipelineTab() {
   const [source, setSource] = useState<LeadSource | "">("");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useLeads({
-    stage: stage || undefined,
-    practiceAreaId: practiceAreaId || undefined,
-    source: source || undefined,
-    search: query || undefined,
-    page,
-    limit: PAGE_SIZE,
-  });
-
   const { data: practiceAreas } = usePublicPracticeAreas();
   const practiceAreaMap = useMemo(
     () => buildPracticeAreaMap(practiceAreas ?? []),
     [practiceAreas],
   );
+
+  const { data, isLoading } = useLeads({
+    stage: stage || undefined,
+    practiceAreaName: practiceAreaMap.get(practiceAreaId) ?? undefined,
+    source: source || undefined,
+    search: query || undefined,
+    page,
+    limit: PAGE_SIZE,
+  });
 
   const leads = data?.leads ?? [];
   const total = data?.pagination.total ?? 0;
@@ -243,7 +240,6 @@ export function PipelineTab() {
                   ? (practiceAreaMap.get(lead.practiceAreaId) ?? "—")
                   : "—";
                 const isPrimary =
-                  lead.pipelineStage === "lead_inbox" ||
                   lead.pipelineStage === "case_opening";
 
                 return (

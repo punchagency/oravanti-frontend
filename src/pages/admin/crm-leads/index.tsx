@@ -23,11 +23,6 @@ export function CrmLeadsPage() {
 
   const crmStats = [
     {
-      label: "NEW LEADS",
-      count: allLeads.filter((l) => l.pipelineStage === "lead_inbox").length,
-      color: "#1a1a1a",
-    },
-    {
       label: "CONFLICT CHECK",
       count: allLeads.filter((l) => l.pipelineStage === "conflict_check").length,
       color: "#d18400",

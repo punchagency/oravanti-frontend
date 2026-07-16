@@ -55,17 +55,17 @@ export function EducationFlywheelTab() {
   const [query, setQuery] = useState("");
   const [practiceAreaId, setPracticeAreaId] = useState("");
 
-  const { data, isLoading } = useLeads({
-    source: "education_flywheel",
-    practiceAreaId: practiceAreaId || undefined,
-    search: query || undefined,
-  });
-
   const { data: practiceAreas } = usePublicPracticeAreas();
   const practiceAreaMap = useMemo(
     () => buildPracticeAreaMap(practiceAreas ?? []),
     [practiceAreas],
   );
+
+  const { data, isLoading } = useLeads({
+    source: "education_flywheel",
+    practiceAreaName: practiceAreaMap.get(practiceAreaId) ?? undefined,
+    search: query || undefined,
+  });
 
   const leads = data?.leads ?? [];
 

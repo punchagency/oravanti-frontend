@@ -37,7 +37,6 @@ const archiveSummary = [
 ] as const;
 
 const stageLabel: Record<PipelineStage, string> = {
-  lead_inbox: "New lead",
   conflict_check: "Conflict check",
   questionnaire: "Questionnaire",
   consultation: "Consultation",

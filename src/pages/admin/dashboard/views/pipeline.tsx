@@ -14,7 +14,6 @@ const PIPELINE_STAGE_DEFS: Array<{
   stage: PipelineStage;
   color: string;
 }> = [
-  { label: "Lead inbox", stage: "lead_inbox", color: "#8c8f87" },
   { label: "Conflict check", stage: "conflict_check", color: "#d18400" },
   { label: "Questionnaire", stage: "questionnaire", color: "#4b78dd" },
   { label: "Consultation", stage: "consultation", color: "#6a00c7" },
@@ -97,7 +96,7 @@ export function PipelineView() {
           <h2 className="section-heading">Intake pipeline</h2>
           <Link
             className="section-card__footer-link"
-            to="/intake/pipeline/lead-inbox"
+            to="/leads"
           >
             Go to intake →
           </Link>
