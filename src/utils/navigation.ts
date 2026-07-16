@@ -61,9 +61,9 @@ export type ContextNavigationGroup = {
 export const primaryNavigation: PrimaryNavigationItem[] = [
   { label: "Overview", section: "overview", path: "/", icon: "dashboard" },
   {
-    label: "Intake",
+    label: "Leads",
     section: "intake",
-    path: "/intake/pipeline/lead-inbox",
+    path: "/leads",
     icon: "intake",
   },
   {
@@ -110,39 +110,22 @@ export const contextNavigation: Record<
   ],
   intake: [
     {
-      label: "Client intake",
+      label: "Leads",
       items: [
         {
-          label: "Intake pipeline",
-          path: "/intake/pipeline/lead-inbox",
+          label: "All leads",
+          path: "/leads",
           icon: "intake",
-          children: [
-            {
-              label: "Lead inbox",
-              path: "/intake/pipeline/lead-inbox",
-              icon: "mail",
-            },
-            {
-              label: "Conflict check",
-              path: "/intake/pipeline/conflict-check",
-              icon: "shield",
-            },
-            {
-              label: "Questionnaire",
-              path: "/intake/pipeline/questionnaire",
-              icon: "clipboard",
-            },
-            {
-              label: "Consultation & notes",
-              path: "/intake/pipeline/consultation",
-              icon: "file",
-            },
-            {
-              label: "Case opening",
-              path: "/intake/pipeline/case-opening",
-              icon: "folder",
-            },
-          ],
+        },
+        {
+          label: "My tasks",
+          path: "/leads/my-tasks",
+          icon: "clipboard",
+        },
+        {
+          label: "Review queue",
+          path: "/leads/review-queue",
+          icon: "clipboard",
         },
         {
           label: "CRM & leads",
@@ -353,7 +336,7 @@ export const contextNavigation: Record<
 };
 
 export function getSectionForPath(pathname: string): PrimarySection {
-  if (pathname.startsWith("/intake")) return "intake";
+  if (pathname.startsWith("/intake") || pathname.startsWith("/leads")) return "intake";
   if (pathname.startsWith("/cases")) return "cases";
   if (pathname.startsWith("/staff")) return "staff";
   if (pathname.startsWith("/finance")) return "finance";

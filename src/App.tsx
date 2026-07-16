@@ -1,9 +1,31 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { CasesPage } from "@/pages/admin/cases";
+import { CasesPage, CaseDetailPage } from "@/pages/admin/cases";
+import {
+  CaseOverviewTabRoute,
+  CaseWorkflowTabRoute,
+  CasePeopleTabRoute,
+  CaseDocumentsTabRoute,
+  CaseTimelineTabRoute,
+  CaseNotesTabRoute,
+  CaseAuditLogTabRoute,
+} from "@/pages/admin/cases/components/case-details/tab-routes";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
 import { AdminDashboard } from "@/pages/admin/dashboard";
-import { IntakePipelinePage } from "@/pages/admin/intake";
+import {
+  LeadsPage,
+  LeadDetailPage,
+  MyLeadsTasksPage,
+  LeadPipelinePage,
+} from "@/pages/admin/leads";
+import {
+  DocumentsTabRoute,
+  IntakePipelineTabRoute,
+  LeadOverviewTabRoute,
+  NotesTabRoute,
+  TimelineTabRoute,
+} from "@/pages/admin/leads/components/lead-details/tab-routes";
 import { MyTasksPage } from "@/pages/admin/my-tasks";
+import { LeadReviewQueuePage } from "@/pages/admin/lead-review-queue";
 import { ReviewQueuePage } from "@/pages/admin/review-queue";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
@@ -100,29 +122,32 @@ const router = createBrowserRouter(
             <Route path="firm-settings" element={<FirmSettingsPage />} />
           </Route>
 
-          <Route
-            path="intake/pipeline/lead-inbox"
-            element={<IntakePipelinePage />}
-          />
-          <Route
-            path="intake/pipeline/conflict-check"
-            element={<IntakePipelinePage />}
-          />
-          <Route
-            path="intake/pipeline/questionnaire"
-            element={<IntakePipelinePage />}
-          />
-          <Route
-            path="intake/pipeline/consultation"
-            element={<IntakePipelinePage />}
-          />
-          <Route
-            path="intake/pipeline/case-opening"
-            element={<IntakePipelinePage />}
-          />
+          <Route path="leads" element={<LeadsPage />} />
+          <Route path="leads/my-tasks" element={<MyLeadsTasksPage />} />
+          <Route path="leads/review-queue" element={<LeadReviewQueuePage />} />
+          <Route path="leads/:leadId" element={<LeadDetailPage />}>
+            <Route index element={<LeadOverviewTabRoute />} />
+            <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />
+            <Route path="documents" element={<DocumentsTabRoute />} />
+            <Route path="timeline" element={<TimelineTabRoute />} />
+            <Route path="notes" element={<NotesTabRoute />} />
+          </Route>
+          <Route path="leads/:leadId/conflict-check" element={<LeadPipelinePage />} />
+          <Route path="leads/:leadId/questionnaire" element={<LeadPipelinePage />} />
+          <Route path="leads/:leadId/consultation" element={<LeadPipelinePage />} />
+          <Route path="leads/:leadId/case-opening" element={<LeadPipelinePage />} />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
 
           <Route path="cases" element={<CasesPage />} />
+          <Route path="cases/:caseId" element={<CaseDetailPage />}>
+            <Route index element={<CaseOverviewTabRoute />} />
+            <Route path="workflow" element={<CaseWorkflowTabRoute />} />
+            <Route path="people" element={<CasePeopleTabRoute />} />
+            <Route path="documents" element={<CaseDocumentsTabRoute />} />
+            <Route path="timeline" element={<CaseTimelineTabRoute />} />
+            <Route path="notes" element={<CaseNotesTabRoute />} />
+            <Route path="audit-log" element={<CaseAuditLogTabRoute />} />
+          </Route>
           <Route path="cases/my-tasks" element={<MyTasksPage />} />
           <Route path="cases/review-queue" element={<ReviewQueuePage />} />
 
