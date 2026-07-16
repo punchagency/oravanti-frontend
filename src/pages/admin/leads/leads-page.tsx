@@ -46,6 +46,7 @@ import {
   useRunConflictCheck,
   useUpdateLeadStatus,
 } from "@/hooks/use-leads";
+import { useAuthStore } from "@/store/auth-store";
 import { pipelineStageLabels } from "./components/lead-details/constants";
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { LeadsDataProvider, useLeadsData } from "./leads-data-context";
@@ -85,6 +86,7 @@ function LeadsPageContent() {
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const updateLeadStatus = useUpdateLeadStatus();
   const runConflictCheck = useRunConflictCheck();
+  const currentUser = useAuthStore((s) => s.user);
 
   function handleQueryChange(value: string) {
     setSearchQuery(value);
@@ -129,7 +131,7 @@ function LeadsPageContent() {
 
   function viewLead(lead: Lead) {
     if (lead.status === "new") {
-      updateLeadStatus.mutate({ id: lead.id, status: "reviewed" });
+      updateLeadStatus.mutate({ id: lead.id, status: "reviewed", actorId: currentUser?.id });
     }
     navigate(`/leads/${lead.id}`);
   }
@@ -521,7 +523,7 @@ function LeadsPageContent() {
                                 <Menu.Item
                                   value="mark-reviewed"
                                   onClick={() =>
-                                    updateLeadStatus.mutate({ id: lead.id, status: "reviewed" })
+                                    updateLeadStatus.mutate({ id: lead.id, status: "reviewed", actorId: currentUser?.id })
                                   }
                                 >
                                   <RotateCcw size={13} />
@@ -532,7 +534,7 @@ function LeadsPageContent() {
                                 <Menu.Item
                                   value="unarchive"
                                   onClick={() =>
-                                    updateLeadStatus.mutate({ id: lead.id, status: "new" })
+                                    updateLeadStatus.mutate({ id: lead.id, status: "new", actorId: currentUser?.id })
                                   }
                                 >
                                   <Undo2 size={13} />
@@ -542,7 +544,7 @@ function LeadsPageContent() {
                                 <Menu.Item
                                   value="archive"
                                   onClick={() =>
-                                    updateLeadStatus.mutate({ id: lead.id, status: "archived" })
+                                    updateLeadStatus.mutate({ id: lead.id, status: "archived", actorId: currentUser?.id })
                                   }
                                 >
                                   <Trash2 size={13} />
@@ -674,7 +676,7 @@ function LeadsPageContent() {
                             <Menu.Item
                               value="mark-reviewed"
                               onClick={() =>
-                                updateLeadStatus.mutate({ id: lead.id, status: "reviewed" })
+                                updateLeadStatus.mutate({ id: lead.id, status: "reviewed", actorId: currentUser?.id })
                               }
                             >
                               <RotateCcw size={13} />
@@ -685,7 +687,7 @@ function LeadsPageContent() {
                             <Menu.Item
                               value="unarchive"
                               onClick={() =>
-                                updateLeadStatus.mutate({ id: lead.id, status: "new" })
+                                updateLeadStatus.mutate({ id: lead.id, status: "new", actorId: currentUser?.id })
                               }
                             >
                               <Undo2 size={13} />
@@ -695,7 +697,7 @@ function LeadsPageContent() {
                             <Menu.Item
                               value="archive"
                               onClick={() =>
-                                updateLeadStatus.mutate({ id: lead.id, status: "archived" })
+                                updateLeadStatus.mutate({ id: lead.id, status: "archived", actorId: currentUser?.id })
                               }
                             >
                               <Trash2 size={13} />

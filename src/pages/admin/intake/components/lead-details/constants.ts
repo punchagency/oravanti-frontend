@@ -17,6 +17,7 @@ export const pipelineStageColors: Record<string, string> = {
 export const taskStatusColors: Record<string, { borderColor: string; textColor: string; bg: string }> = {
   pending: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },
   in_progress: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  in_review: { borderColor: "#8a641d", textColor: "#8a641d", bg: "#fdf6e3" },
   completed: { borderColor: "green.emphasized", textColor: "green.fg", bg: "green.subtle" },
   skipped: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },
 };

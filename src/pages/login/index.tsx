@@ -159,6 +159,19 @@ export const LoginPage = () => {
                 <Field.ErrorText>{errors.password?.message}</Field.ErrorText>
               </Field.Root>
 
+              <Link
+                textStyle="body-sm"
+                color="brand.500"
+                textDecoration="underline"
+                alignSelf="flex-end"
+                mt="-2"
+                asChild
+              >
+                <RouterLink to="/forgot-password">
+                  Forgot password?
+                </RouterLink>
+              </Link>
+
               <Button
                 type="submit"
                 loading={isSubmitting}

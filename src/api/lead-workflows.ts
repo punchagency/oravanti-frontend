@@ -159,7 +159,7 @@ export async function getLeadQuestionnaireFiles(leadId: string): Promise<Questio
 
 // ─── Lead Notes ──────────────────────────────────────────────────────────────
 
-export type LeadNoteType = "general" | "phone_call" | "email" | "voicemail" | "system_log";
+export type LeadNoteType = "general" | "phone_call" | "email" | "voicemail" | "system_log" | "pre_consultation" | "post_consultation";
 
 export interface LeadNote {
   id: string;

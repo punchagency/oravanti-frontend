@@ -1,49 +1,53 @@
 import { Box, Flex, Grid, HStack, Text, chakra } from "@chakra-ui/react";
 import { Download, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { AddLeadDialog } from "@/components/ui/add-lead";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { useLeads } from "@/hooks/use-leads";
+import { useLeads, useLeadsStageCount } from "@/hooks/use-leads";
 import { ArchivedLeadsTab } from "./components/archived-leads-tab";
 import { ConversionMetricsTab } from "./components/conversion-metrics-tab";
 import { EducationFlywheelTab } from "./components/education-flywheel-tab";
 import { PipelineTab } from "./components/pipeline-tab";
 import { type CrmTab, crmTabs } from "./data";
-import { AddLeadDialog } from "@/components/ui/add-lead";
 
 export function CrmLeadsPage() {
   useDocumentTitle("CRM & leads - Oravanti");
   const [activeTab, setActiveTab] = useState<CrmTab>("Pipeline");
   const [addLeadOpen, setAddLeadOpen] = useState(false);
 
-  const { data: allLeadsData } = useLeads({ all: true });
-  const allLeads = Array.isArray(allLeadsData)
-    ? allLeadsData
-    : (allLeadsData?.leads ?? []);
+  // Counts come from the API rather than being derived client-side from every
+  // lead in the firm, which is what the previous `useLeads({ all: true })` +
+  // five .filter() passes did.
+  const { data: stageCounts } = useLeadsStageCount();
+
+  // "Active clients" is not a pipeline stage — it counts leads that converted
+  // to a case — so it isn't in stage-counts and needs its own query. Mapping it
+  // onto case_opening would quietly report a different thing.
+  const { data: convertedData } = useLeads({ limit: 1, converted: true });
 
   const crmStats = [
     {
+
       label: "CONFLICT CHECK",
-      count: allLeads.filter((l) => l.pipelineStage === "conflict_check").length,
+      count: stageCounts?.conflict_check ?? 0,
       color: "#d18400",
     },
     {
       label: "QUESTIONNAIRE",
-      count: allLeads.filter((l) => l.pipelineStage === "questionnaire").length,
+      count: stageCounts?.questionnaire ?? 0,
       color: "#377dff",
     },
     {
       label: "PROSPECTIVE",
-      count: allLeads.filter(
-        (l) =>
-          l.pipelineStage === "consultation" ||
-          l.pipelineStage === "fee_agreement",
-      ).length,
+      count:
+        (stageCounts?.consultation ?? 0) + (stageCounts?.fee_agreement ?? 0),
       color: "#534AB7",
     },
     {
       label: "ACTIVE CLIENTS",
-      count: allLeads.filter((l) => l.convertedCaseId !== null).length,
+      count: convertedData?.pagination?.total ?? 0,
       color: "#1D9E75",
     },
   ];
@@ -69,7 +73,7 @@ export function CrmLeadsPage() {
             fontWeight="500"
             lineHeight="1.2"
           >
-            CRM & leads
+            CRM &amp; leads
           </Text>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
             Full pipeline from first contact to active client
@@ -80,7 +84,11 @@ export function CrmLeadsPage() {
             <Plus size={15} />
             Add lead
           </BrandButton>
-          <OutlineButton>
+          <OutlineButton
+            onClick={() =>
+              toast.info("Feature currently unavailable. Coming soon")
+            }
+          >
             <Download size={14} />
             Export
           </OutlineButton>

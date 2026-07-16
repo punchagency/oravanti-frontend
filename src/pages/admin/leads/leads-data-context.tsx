@@ -118,7 +118,7 @@ export function LeadsDataProvider({ children }: { children: ReactNode }) {
 
   const { data, isLoading } = useLeads({
     source: sourceFilter,
-    practiceAreaName: practiceAreaFilter,
+    practiceAreaId: practiceAreaFilter,
     stage: stageFilter,
     search: debouncedSearch || undefined,
     page: currentPage,

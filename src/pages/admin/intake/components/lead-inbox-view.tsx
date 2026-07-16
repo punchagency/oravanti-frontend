@@ -1,4 +1,18 @@
 import {
+  formatReceivedDate,
+  sourceLabels,
+  sourceValues,
+  statusLabels,
+  type Lead,
+  type LeadSource,
+  type LeadStatus,
+} from "@/api/leads";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { useLeads, useUpdateLeadStatus } from "@/hooks/use-leads";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
+import { useAuthStore } from "@/store/auth-store";
+import {
   Box,
   Flex,
   HStack,
@@ -11,29 +25,13 @@ import {
 } from "@chakra-ui/react";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { leadSources, leadStatuses } from "../data";
 import {
   MutedText,
   OutlineButton,
   PracticePill,
 } from "../../../../components/ui/intake-ui";
-import { PaginationControls } from "@/components/ui/pagination-controls";
-import {
-  sourceLabels,
-  sourceValues,
-  statusLabels,
-  formatReceivedDate,
-  type Lead,
-  type LeadSource,
-  type LeadStatus,
-} from "@/api/leads";
-import {
-  useLeads,
-  useUpdateLeadStatus,
-} from "@/hooks/use-leads";
-import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { leadSources, leadStatuses } from "../data";
 import { LeadDetailsDrawer } from "./lead-details/drawer";
-import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
   const map = new Map<string, string>();
@@ -53,6 +51,7 @@ export function LeadInboxView() {
   const [limit, setLimit] = useState(20);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const updateLeadStatus = useUpdateLeadStatus();
+  const currentUser = useAuthStore((s) => s.user);
 
   const sourceFilter =
     source === "All sources"
@@ -104,7 +103,11 @@ export function LeadInboxView() {
   }
 
   function handleLeadStatusUpdate(leadId: string) {
-    updateLeadStatus.mutate({ id: leadId, status: "reviewed" });
+    updateLeadStatus.mutate({
+      id: leadId,
+      status: "reviewed",
+      actorId: currentUser?.id,
+    });
   }
 
   const total = data?.pagination?.total ?? 0;
@@ -367,15 +370,15 @@ export function LeadInboxView() {
       <LeadDetailsDrawer
         leadId={selectedLead?.id ?? ""}
         open={Boolean(selectedLead)}
-        onOpenChange={(details) => { if (!details.open) setSelectedLead(null); }}
+        onOpenChange={(details) => {
+          if (!details.open) setSelectedLead(null);
+        }}
       >
         <span />
       </LeadDetailsDrawer>
     </>
   );
 }
-
-
 
 function FilterSelect({
   ariaLabel,

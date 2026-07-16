@@ -340,7 +340,8 @@ function ConflictCheckCard({ lead }: { lead: Lead }) {
   );
 }
 
-function ResolutionDialog({
+/** Exported so the CRM lead drawer can resolve a conflict with the same dialog. */
+export function ResolutionDialog({
   mode,
   leadName,
   isPending,
@@ -527,7 +528,8 @@ function ResolutionDialog({
   );
 }
 
-function MatchCard({ match }: { match: ConflictCheckMatch }) {
+/** Exported so the CRM lead drawer renders conflict matches identically. */
+export function MatchCard({ match }: { match: ConflictCheckMatch }) {
   const tone = matchTypeTone[match.type] ?? "neutral";
   const typeLabel =
     matchTypeLabels[match.type] ?? match.type.replace(/_/g, " ");

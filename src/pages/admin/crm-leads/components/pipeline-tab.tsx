@@ -1,4 +1,18 @@
 import {
+  formatReceivedDate,
+  sourceLabels,
+  type LeadSource,
+  type PipelineStage,
+} from "@/api/leads";
+import {
+  BrandButton,
+  OutlineButton,
+  PracticePill,
+} from "@/components/ui/intake-ui";
+import { useLeads } from "@/hooks/use-leads";
+import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
+import {
   Box,
   Flex,
   HStack,
@@ -9,20 +23,6 @@ import {
 } from "@chakra-ui/react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import {
-  BrandButton,
-  OutlineButton,
-  PracticePill,
-} from "@/components/ui/intake-ui";
-import {
-  sourceLabels,
-  formatReceivedDate,
-  type LeadSource,
-  type PipelineStage,
-} from "@/api/leads";
-import { useLeads } from "@/hooks/use-leads";
-import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
-import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 const PAGE_SIZE = 10;
 
@@ -62,6 +62,28 @@ function buildPracticeAreaMap(areas: PublicPracticeArea[]) {
   return map;
 }
 
+function buildPageRange(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (
+    let i = Math.max(2, current - 1);
+    i <= Math.min(total - 1, current + 1);
+    i++
+  ) {
+    pages.push(i);
+  }
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
+/**
+ * Coming soon. The pipeline view was descoped after a client review; the lead
+ * table, filters and detail drawer live on in git history and can be restored
+ * from the CrmLeadsDataProvider / LeadDrawer components if the decision is
+ * revisited.
+ */
 export function PipelineTab() {
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<PipelineStage | "">("");
@@ -77,7 +99,7 @@ export function PipelineTab() {
 
   const { data, isLoading } = useLeads({
     stage: stage || undefined,
-    practiceAreaName: practiceAreaMap.get(practiceAreaId) ?? undefined,
+    practiceAreaId: practiceAreaId || undefined,
     source: source || undefined,
     search: query || undefined,
     page,
@@ -184,7 +206,9 @@ export function PipelineTab() {
         </HStack>
 
         <Text m="0" color="fg.muted" fontSize="11px">
-          {isLoading ? "Loading…" : `${total} ${total === 1 ? "record" : "records"}`}
+          {isLoading
+            ? "Loading…"
+            : `${total} ${total === 1 ? "record" : "records"}`}
         </Text>
       </Flex>
 
@@ -224,13 +248,23 @@ export function PipelineTab() {
           <Table.Body>
             {isLoading ? (
               <Table.Row>
-                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
+                <Table.Cell
+                  px="16px"
+                  py="24px"
+                  color="fg.muted"
+                  fontSize="13px"
+                >
                   Loading…
                 </Table.Cell>
               </Table.Row>
             ) : leads.length === 0 ? (
               <Table.Row>
-                <Table.Cell px="16px" py="24px" color="fg.muted" fontSize="13px">
+                <Table.Cell
+                  px="16px"
+                  py="24px"
+                  color="fg.muted"
+                  fontSize="13px"
+                >
                   No leads found.
                 </Table.Cell>
               </Table.Row>
@@ -239,8 +273,7 @@ export function PipelineTab() {
                 const practiceAreaName = lead.practiceAreaId
                   ? (practiceAreaMap.get(lead.practiceAreaId) ?? "—")
                   : "—";
-                const isPrimary =
-                  lead.pipelineStage === "case_opening";
+                const isPrimary = lead.pipelineStage === "case_opening";
 
                 return (
                   <Table.Row key={lead.id}>
@@ -265,9 +298,13 @@ export function PipelineTab() {
                       borderColor="border.subtle"
                     >
                       {lead.practiceAreaId ? (
-                        <PracticePill tone="neutral">{practiceAreaName}</PracticePill>
+                        <PracticePill tone="neutral">
+                          {practiceAreaName}
+                        </PracticePill>
                       ) : (
-                        <Text m="0" color="fg.muted" fontSize="13px">—</Text>
+                        <Text m="0" color="fg.muted" fontSize="13px">
+                          —
+                        </Text>
                       )}
                     </Table.Cell>
 
@@ -311,11 +348,21 @@ export function PipelineTab() {
                       borderColor="border.subtle"
                     >
                       {isPrimary ? (
-                        <BrandButton h="28px" minH="28px" px="12px" fontSize="12px">
+                        <BrandButton
+                          h="28px"
+                          minH="28px"
+                          px="12px"
+                          fontSize="12px"
+                        >
                           Review
                         </BrandButton>
                       ) : (
-                        <OutlineButton h="28px" minH="28px" px="12px" fontSize="12px">
+                        <OutlineButton
+                          h="28px"
+                          minH="28px"
+                          px="12px"
+                          fontSize="12px"
+                        >
                           View
                         </OutlineButton>
                       )}
@@ -329,7 +376,13 @@ export function PipelineTab() {
       </Box>
 
       {totalPages > 1 || total > 0 ? (
-        <Flex align="center" justify="space-between" mt="16px" wrap="wrap" gap="10px">
+        <Flex
+          align="center"
+          justify="space-between"
+          mt="16px"
+          wrap="wrap"
+          gap="10px"
+        >
           <Text m="0" color="fg.muted" fontSize="12px">
             {total === 0
               ? "No records"
@@ -406,7 +459,7 @@ function FilterSelect({
       bg="bg"
       color="fg"
       fontSize="13px"
-      cursor="pointer"
+      _focus={{ boxShadow: "none", outline: "0" }}
     >
       {children}
     </chakra.select>
@@ -418,7 +471,7 @@ function PageButton({
   active,
   disabled,
   onClick,
-  "aria-label": ariaLabel,
+  ...rest
 }: {
   children: React.ReactNode;
   active?: boolean;
@@ -429,33 +482,25 @@ function PageButton({
   return (
     <chakra.button
       type="button"
-      aria-label={ariaLabel}
-      onClick={onClick}
       disabled={disabled}
+      onClick={onClick}
       display="grid"
       placeItems="center"
-      minW="30px"
-      h="30px"
-      px="6px"
+      w="28px"
+      h="28px"
+      borderRadius="6px"
       border="1px solid"
       borderColor={active ? "brand.solid" : "border"}
-      borderRadius="6px"
       bg={active ? "brand.solid" : "bg"}
-      color={active ? "brand.fg" : disabled ? "fg.subtle" : "fg"}
+      color={active ? "brand.fg" : "fg.muted"}
       fontSize="12px"
-      fontWeight={active ? "500" : "400"}
+      fontWeight={active ? "600" : "400"}
       cursor={disabled ? "not-allowed" : "pointer"}
-      opacity={disabled ? 0.5 : 1}
+      opacity={disabled ? 0.4 : 1}
+      _hover={disabled ? undefined : { bg: "bg.subtle" }}
+      {...rest}
     >
       {children}
     </chakra.button>
   );
-}
-
-function buildPageRange(current: number, total: number): (number | "...")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
-  if (current >= total - 3)
-    return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
-  return [1, "...", current - 1, current, current + 1, "...", total];
 }
