@@ -1,10 +1,12 @@
 import {
   Box,
+  HStack,
   Separator,
   Text,
   Timeline,
   VStack,
 } from "@chakra-ui/react";
+import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
 import {
   Clock,
   FileText,
@@ -64,11 +66,25 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
 
   if (isLoading) {
     return (
-      <Box py={8} textAlign="center">
-        <Text fontSize="12px" color="fg.muted">
-          Loading timeline...
-        </Text>
-      </Box>
+      <VStack align="stretch" gap={4} py={4}>
+        {Array.from({ length: 3 }, (_, i) => (
+          <Box key={i}>
+            <ThemeSkeleton h="12px" w={`${80 + i * 15}px`} borderRadius="4px" mb={3} />
+            {Array.from({ length: 2 }, (_, j) => (
+              <HStack key={j} gap={3} mb={3} pl={2}>
+                <VStack gap={0} align="center">
+                  <ThemeSkeleton h="12px" w="12px" borderRadius="full" />
+                  <ThemeSkeleton h="30px" w="2px" borderRadius="full" />
+                </VStack>
+                <Box flex={1}>
+                  <ThemeSkeleton h="12px" w={`${140 + j * 25}px`} borderRadius="4px" mb={1} />
+                  <ThemeSkeleton h="10px" w="60px" borderRadius="4px" />
+                </Box>
+              </HStack>
+            ))}
+          </Box>
+        ))}
+      </VStack>
     );
   }
 

@@ -1,11 +1,5 @@
 export const intakeStages = [
   {
-    label: "Lead inbox",
-    path: "/intake/pipeline/lead-inbox",
-    stage: "lead_inbox" as const,
-    color: "#8c8f87",
-  },
-  {
     label: "Conflict check",
     path: "/intake/pipeline/conflict-check",
     stage: "conflict_check" as const,
@@ -32,11 +26,11 @@ export const intakeStages = [
 ] as const;
 
 export const intakeTabs = [
-  ["Lead inbox", "/intake/pipeline/lead-inbox"],
   ["Conflict check", "/intake/pipeline/conflict-check"],
   ["Questionnaire", "/intake/pipeline/questionnaire"],
   ["Consultation & notes", "/intake/pipeline/consultation"],
   ["Case opening", "/intake/pipeline/case-opening"],
+  ["My tasks", "/intake/my-tasks"],
 ] as const;
 
 export const leadSources = [

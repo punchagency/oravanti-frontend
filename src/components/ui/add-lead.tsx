@@ -366,7 +366,7 @@ export function AddLeadDialog({
                 loading={createLead.isPending}
               >
                 <UserPlus size={15} />
-                Add to lead inbox
+                Add lead
               </BrandButton>
             </Flex>
           </Box>

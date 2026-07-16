@@ -7,6 +7,7 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
+import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
 import { useCaseWorkflow } from "./hooks";
 import { ModuleSection } from "./components/module-section";
 import type { CaseModuleInstance, WorkflowModule } from "./types";
@@ -137,11 +138,37 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
 
   if (isLoading) {
     return (
-      <Box py={8} textAlign="center">
-        <Text fontSize="12px" color="fg.muted">
-          Loading workflow...
-        </Text>
-      </Box>
+      <VStack align="stretch" gap={4} py={4}>
+        <Box>
+          <HStack justify="space-between" mb={1}>
+            <ThemeSkeleton h="12px" w="100px" borderRadius="4px" />
+            <ThemeSkeleton h="12px" w="40px" borderRadius="4px" />
+          </HStack>
+          <ThemeSkeleton h="6px" w="100%" borderRadius="full" />
+        </Box>
+        {Array.from({ length: 2 }, (_, i) => (
+          <Box key={i} border="1px solid" borderColor="border" borderRadius="8px" p={4}>
+            <HStack justify="space-between" mb={3}>
+              <HStack gap={2}>
+                <ThemeSkeleton h="20px" w="20px" borderRadius="full" />
+                <ThemeSkeleton h="14px" w={`${120 + i * 30}px`} borderRadius="4px" />
+              </HStack>
+              <ThemeSkeleton h="18px" w="50px" borderRadius="full" />
+            </HStack>
+            <VStack align="stretch" gap={2}>
+              {Array.from({ length: 2 + i }, (_, j) => (
+                <HStack key={j} justify="space-between" p={2} border="1px solid" borderColor="border.subtle" borderRadius="6px">
+                  <HStack gap={2}>
+                    <ThemeSkeleton h="16px" w="16px" borderRadius="full" />
+                    <ThemeSkeleton h="12px" w={`${140 + j * 20}px`} borderRadius="4px" />
+                  </HStack>
+                  <ThemeSkeleton h="18px" w="60px" borderRadius="full" />
+                </HStack>
+              ))}
+            </VStack>
+          </Box>
+        ))}
+      </VStack>
     );
   }
 

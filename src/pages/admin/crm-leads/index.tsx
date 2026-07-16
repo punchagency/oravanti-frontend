@@ -29,11 +29,7 @@ export function CrmLeadsPage() {
 
   const crmStats = [
     {
-      label: "NEW LEADS",
-      count: stageCounts?.lead_inbox ?? 0,
-      color: "#1a1a1a",
-    },
-    {
+
       label: "CONFLICT CHECK",
       count: stageCounts?.conflict_check ?? 0,
       color: "#d18400",

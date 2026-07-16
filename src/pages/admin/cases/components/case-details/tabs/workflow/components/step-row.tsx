@@ -1,20 +1,13 @@
-import { useState } from "react";
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  Separator,
-  Text,
-} from "@chakra-ui/react";
-import { CheckCircle } from "lucide-react";
-import { useCompleteStep } from "../hooks";
 import { useAuthStore } from "@/store/auth-store";
-import { CertificationGate } from "../certification-gate";
-import { StepIcon } from "./step-icon";
-import { CompleteStepDialog } from "./complete-step-dialog";
-import type { CaseStepInstance } from "../types";
 import { dayjs, guessTimezone } from "@/utils/date";
+import { Badge, Box, Button, Flex, Separator, Text } from "@chakra-ui/react";
+import { CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { CertificationGate } from "../certification-gate";
+import { useCompleteStep } from "../hooks";
+import type { CaseStepInstance } from "../types";
+import { CompleteStepDialog } from "./complete-step-dialog";
+import { StepIcon } from "./step-icon";
 
 interface StepRowProps {
   step: CaseStepInstance;
@@ -162,7 +155,13 @@ export function StepRow({
 
   return (
     <>
-      <Box w="full" border="1px solid" borderColor="border.muted" borderRadius="md" _hover={{ bg: "bg.subtle" }}>
+      <Box
+        w="full"
+        border="1px solid"
+        borderColor="border.muted"
+        borderRadius="md"
+        _hover={{ bg: "bg.subtle" }}
+      >
         {/* ── Top row: icon + title + badges ──────────────────────── */}
         <Flex
           align="center"
@@ -173,13 +172,7 @@ export function StepRow({
           flexWrap="wrap"
         >
           <StepIcon status={step.status} />
-          <Text
-            fontSize="11px"
-            color="fg"
-            lineHeight="140%"
-            flex={1}
-            minW={0}
-          >
+          <Text fontSize="11px" color="fg" lineHeight="140%" flex={1} minW={0}>
             {stepTitle}
           </Text>
           <Flex gap={1.5} flexWrap="wrap">

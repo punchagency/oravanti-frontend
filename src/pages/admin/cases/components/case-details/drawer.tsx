@@ -278,7 +278,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <Documents />
+                  <Documents caseId={caseId} />
                 </Tabs.Content>
 
                 <Tabs.Content
@@ -298,7 +298,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <Notes />
+                  <Notes caseId={caseId} />
                 </Tabs.Content>
 
                 <Tabs.Content

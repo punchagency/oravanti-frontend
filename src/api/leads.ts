@@ -31,9 +31,10 @@ export type Lead = {
   phone: string | null;
   entityType: "individual" | "company";
   practiceAreaId: string | null;
-  caseTypeId: string | null;
-  /** Joined server-side from the practice_areas table. */
   practiceAreaName: string | null;
+  caseTypeId: string | null;
+  caseTypeName: string | null;
+  /** Joined server-side from the practice_areas table. */
   source: LeadSource;
   situationSummary: string | null;
   notes: string | null;
@@ -53,7 +54,6 @@ export type Lead = {
   convertedCaseId: string | null;
   convertedAt: string | null;
   assignedStaffId: string | null;
-  caseTypeName: string | null;
   receivedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -165,7 +165,6 @@ export type LeadsResponse = {
 };
 
 export type LeadsStageCountResponse = {
-  lead_inbox: number;
   conflict_check: number;
   questionnaire: number;
   consultation: number;
@@ -474,8 +473,9 @@ export const createLead = async (data: {
 export const updateLeadStatus = async (
   id: string,
   status: string,
+  actorId?: string,
 ): Promise<Lead> => {
-  const res = await API.patch(`/leads/${id}/status`, { status });
+  const res = await API.patch(`/leads/${id}/status`, { status, actorId });
   return res.data.data;
 };
 
@@ -775,7 +775,9 @@ export const markFeeAgreementPaymentReceived = async (
   leadId: string;
   paymentReceivedAt: string;
 }> => {
-  const res = await API.post(`/agreements/${agreementId}/mark-payment-received`);
+  const res = await API.post(
+    `/agreements/${agreementId}/mark-payment-received`,
+  );
   return res.data.data;
 };
 

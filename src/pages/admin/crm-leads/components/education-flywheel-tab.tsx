@@ -9,6 +9,7 @@ import { GraduationCap } from "lucide-react";
  * feature that does not exist.
  */
 export function EducationFlywheelTab() {
+
   return (
     <Box
       mt="24px"

@@ -1,12 +1,9 @@
 import { Box, Flex, HStack, Link, Text, VStack } from "@chakra-ui/react";
-import { Download, Plus } from "lucide-react";
+import { Download } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { Link as RouterLink, useLocation } from "react-router";
-import { toast } from "sonner";
 import { intakeStages, intakeTabs } from "../data";
-import { BrandButton, OutlineButton } from "../../../../components/ui/intake-ui";
-import { AddLeadDialog } from "@/components/ui/add-lead";
+import { OutlineButton } from "../../../../components/ui/intake-ui";
 import { useLeadsStageCount } from "@/hooks/use-leads";
 
 export function PipelineFrame({
@@ -17,7 +14,6 @@ export function PipelineFrame({
   headerActions?: ReactNode;
 }) {
   const location = useLocation();
-  const [addLeadOpen, setAddLeadOpen] = useState(false);
   const { data: stageCounts } = useLeadsStageCount();
 
   return (
@@ -49,15 +45,7 @@ export function PipelineFrame({
         </Box>
         <HStack gap="8px">
           {headerActions}
-          <BrandButton onClick={() => setAddLeadOpen(true)}>
-            <Plus size={15} />
-            Add lead
-          </BrandButton>
-          <OutlineButton
-            onClick={() =>
-              toast.info("Feature currently unavailable. Coming soon")
-            }
-          >
+          <OutlineButton>
             <Download size={14} />
             Export
           </OutlineButton>
@@ -202,8 +190,6 @@ export function PipelineFrame({
       </HStack>
 
       {children}
-
-      <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
     </>
   );
 }

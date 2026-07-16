@@ -68,12 +68,6 @@ const pipelineDefs: Array<{
   tone: Tone;
 }> = [
   {
-    title: "Lead inbox",
-    meta: "Awaiting review",
-    stage: "lead_inbox",
-    tone: "neutral",
-  },
-  {
     title: "Conflict check",
     meta: "Attorney review pending",
     stage: "conflict_check",
@@ -274,7 +268,7 @@ export function OverviewView() {
               </HStack>
             ))}
           </Stack>
-          <FooterLink to="/intake/pipeline/conflict-check">
+          <FooterLink to="/leads">
             View all alerts →
           </FooterLink>
         </SurfaceCard>
@@ -283,11 +277,11 @@ export function OverviewView() {
           <SectionTitle>Intake pipeline</SectionTitle>
           <SectionSubtitle>Active leads by stage</SectionSubtitle>
           <Stack mt="18px" gap="0">
-            {pipelineItems.map(({ title, meta, stage, tone, count }) => (
+            {pipelineItems.map(({ title, meta, tone, count }) => (
               <Link key={title} asChild textDecoration="none">
-                <RouterLink
-                  to={`/intake/pipeline/${stage.replace(/_/g, "-")}`}
-                >
+            <RouterLink
+              to="/leads"
+            >
                   <HStack
                     justify="space-between"
                     gap="12px"
@@ -306,7 +300,7 @@ export function OverviewView() {
               </Link>
             ))}
           </Stack>
-          <FooterLink to="/intake/pipeline/lead-inbox">
+          <FooterLink to="/leads">
             Go to intake pipeline →
           </FooterLink>
         </SurfaceCard>

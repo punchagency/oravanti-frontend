@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import type {
   CustomDocumentInput,
   CustomQuestionInput,
+  EligibleLead,
   SendQuestionnaireConfig,
 } from "@/api/questionnaires";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -86,10 +87,12 @@ export function SendQuestionnaireDialog({
   open,
   onOpenChange,
   presetLeadId,
+  presetLead,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   presetLeadId?: string | null;
+  presetLead?: EligibleLead | null;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
   const {
@@ -121,7 +124,10 @@ export function SendQuestionnaireDialog({
     if (open) resetForm({ ...RECIPIENT_DEFAULTS, leadId: presetLeadId ?? "" });
   }
 
-  const { data: leads = [], isLoading: leadsLoading } = useEligibleLeads(open);
+  const { data: eligibleLeads = [], isLoading: leadsLoading } = useEligibleLeads(open);
+  const leads = presetLead && !eligibleLeads.find((l) => l.id === presetLead.id)
+    ? [presetLead, ...eligibleLeads]
+    : eligibleLeads;
   const selectedLead = leads.find((l) => l.id === leadId) ?? null;
   const { data: firmName } = useFirmName(open);
   const send = useSendQuestionnaireConfigured();

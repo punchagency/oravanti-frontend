@@ -39,3 +39,6 @@ skills-lock.json
 
 CLAUDE.md
 AGENTS.md
+WORKFLOW_STATE.md
+.opencode/
+.serena/

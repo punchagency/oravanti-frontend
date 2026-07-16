@@ -14,12 +14,11 @@ import {
   Archive,
   Download,
   Ellipsis,
-  Eye,
+  ExternalLink,
   UserPlus,
 } from "lucide-react";
-import { useState } from "react";
 import { getSpecialtyColors } from "@/utils/specialty-colors";
-import { CaseDetailsDrawer } from "./case-details/drawer";
+import { Link } from "react-router";
 
 const specialtyLabelMap: Record<string, string> = {
   family: "Family law",
@@ -44,58 +43,54 @@ const statusColorMap: Record<
   Pending: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
 };
 
+import { useNavigate } from "react-router";
+
 function CaseActionMenu({ caseItem }: { caseItem: CaseMobile }) {
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
-    <CaseDetailsDrawer
-      caseId={caseItem.id}
-      open={open}
-      onOpenChange={({ open }) => setOpen(open)}
-    >
-      <Menu.Root>
-        <Menu.Trigger asChild>
-          <IconButton
-            variant="ghost"
-            size="xs"
-            color="fg.muted"
-            _hover={{ color: "fg", bg: "bg.muted" }}
-          >
-            <Ellipsis size={15} />
-          </IconButton>
-        </Menu.Trigger>
-        <Portal>
-          <Menu.Positioner>
-            <Menu.Content minW="170px">
-              <Menu.Item value="view" onClick={() => setOpen(true)}>
-                <Eye size={14} />
-                <Box flex="1">View details</Box>
-              </Menu.Item>
-              <Menu.Item value="reassign-team">
-                <UserPlus size={14} />
-                <Box flex="1">Reassign team</Box>
-              </Menu.Item>
-              <Menu.Item value="export">
-                <Download size={14} />
-                <Box flex="1">Export case file</Box>
-              </Menu.Item>
-              <Menu.Item value="close">
-                <Archive size={14} />
-                <Box flex="1">Close case</Box>
-              </Menu.Item>
-              <Menu.Item
-                value="flag"
-                color="fg.error"
-                _hover={{ bg: "bg.error", color: "fg.error" }}
-              >
-                <AlertTriangle size={14} />
-                <Box flex="1">Flag as urgent</Box>
-              </Menu.Item>
-            </Menu.Content>
-          </Menu.Positioner>
-        </Portal>
-      </Menu.Root>
-    </CaseDetailsDrawer>
+    <Menu.Root>
+      <Menu.Trigger asChild>
+        <IconButton
+          variant="ghost"
+          size="xs"
+          color="fg.muted"
+          _hover={{ color: "fg", bg: "bg.muted" }}
+        >
+          <Ellipsis size={15} />
+        </IconButton>
+      </Menu.Trigger>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content minW="170px">
+            <Menu.Item value="view" onClick={() => navigate(`/cases/${caseItem.id}`)}>
+              <ExternalLink size={14} />
+              <Box flex="1">View details</Box>
+            </Menu.Item>
+            <Menu.Item value="reassign-team">
+              <UserPlus size={14} />
+              <Box flex="1">Reassign team</Box>
+            </Menu.Item>
+            <Menu.Item value="export">
+              <Download size={14} />
+              <Box flex="1">Export case file</Box>
+            </Menu.Item>
+            <Menu.Item value="close">
+              <Archive size={14} />
+              <Box flex="1">Close case</Box>
+            </Menu.Item>
+            <Menu.Item
+              value="flag"
+              color="fg.error"
+              _hover={{ bg: "bg.error", color: "fg.error" }}
+            >
+              <AlertTriangle size={14} />
+              <Box flex="1">Flag as urgent</Box>
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
   );
 }
 
@@ -132,9 +127,21 @@ export function CasesMobileCard({ caseItem }: CasesMobileCardProps) {
     >
       <Flex justify="space-between" align="flex-start" mb={3}>
         <Box minW={0} flex={1}>
-          <Text fontWeight="600" color="fg" truncate fontSize="sm">
-            {caseItem.clientName}
-          </Text>
+          <Link
+            to={`/cases/${caseItem.id}`}
+            style={{ textDecoration: "none" }}
+          >
+            <Text
+              fontWeight="600"
+              color="fg"
+              truncate
+              fontSize="sm"
+              _hover={{ color: "brand.solid" }}
+              cursor="pointer"
+            >
+              {caseItem.clientName}
+            </Text>
+          </Link>
           <HStack gap={1.5} mt={0.5}>
             <Text textStyle="body-sm" color="fg.muted" truncate>
               {caseItem.caseRef}

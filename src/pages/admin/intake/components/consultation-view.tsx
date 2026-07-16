@@ -218,8 +218,6 @@ function attorneyFullName(item: ConsultationListItem): string {
   return name || "Unassigned";
 }
 
-
-
 type WizardPreset = {
   lead: ConsultationSummaryLead | null;
   attorneyId?: string | null;
@@ -328,7 +326,7 @@ export function ConsultationView() {
   );
 }
 
-type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
+export type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
 
 type ConsultationRow = {
   lead: ConsultationSummaryLead;

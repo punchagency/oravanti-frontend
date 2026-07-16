@@ -62,6 +62,8 @@ export interface CaseNote {
   createdByUserId: string;
   createdAt: string;
   updatedAt: string;
+  authorName: string | null;
+  authorRole: string | null;
 }
 
 export interface CreateCaseNoteParams {
@@ -290,6 +292,52 @@ export async function getReviewQueue(
   if (limit) params.limit = String(limit);
   const { data: res } = await API.get(`/cases/workflow/review-queue`, { params });
   return { data: res.data, counts: res.counts, pagination: res.pagination } as PaginatedReviewResponse;
+}
+
+// ─── Case Documents API ──────────────────────────────────────────────────────
+
+export interface CaseDocument {
+  id: string;
+  title: string;
+  name: string;
+  category: string | null;
+  status: string;
+  permission: string | null;
+  createdAt: string;
+  updatedAt: string;
+  currentVersion: {
+    id: string;
+    versionNumber: number;
+    fileSize: number;
+    mimeType: string;
+    originalFileName: string;
+    scanStatus: string | null;
+  } | null;
+  case: {
+    id: string;
+    caseType: string;
+  } | null;
+  client: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export interface PaginatedDocumentsResponse {
+  data: CaseDocument[];
+  pagination: { total: number; limit: number; offset: number };
+}
+
+export async function getCaseDocuments(
+  caseId: string,
+  page?: number,
+  limit?: number,
+): Promise<PaginatedDocumentsResponse> {
+  const params: Record<string, string> = {};
+  if (page) params.page = String(page);
+  if (limit) params.limit = String(limit);
+  const { data: res } = await API.get(`/cases/${caseId}/documents`, { params });
+  return { data: res.data, pagination: res.pagination };
 }
 
 // ─── Case Notes API ─────────────────────────────────────────────────────────────

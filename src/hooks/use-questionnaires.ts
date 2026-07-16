@@ -76,11 +76,13 @@ export function useSendQuestionnaireConfigured() {
       leadId: string;
       config: SendQuestionnaireConfig;
     }) => sendQuestionnaire(leadId, config),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("Questionnaire sent to lead");
+      qc.invalidateQueries({ queryKey: ["lead"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
       qc.invalidateQueries({ queryKey: ["questionnaire-eligible-leads"] });
+      qc.invalidateQueries({ queryKey: ["lead-questionnaire", variables.leadId] });
     },
     onError: (err: APIError) => {
       toast.error(
@@ -96,6 +98,7 @@ export function useAcceptResponse() {
     mutationFn: (responseId: string) => acceptResponse(responseId),
     onSuccess: () => {
       toast.success("Lead advanced to consultation");
+      qc.invalidateQueries({ queryKey: ["lead"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leadsStageCount"] });
     },
