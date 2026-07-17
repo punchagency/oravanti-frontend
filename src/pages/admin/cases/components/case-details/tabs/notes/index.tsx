@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { Pencil, Pin, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { useCurrentStaff } from "@/hooks/use-current-staff";
 import {
   useCaseNotes,
   useCreateCaseNote,
@@ -206,9 +207,11 @@ export function Notes({ caseId }: { caseId: string }) {
 }
 
 function NoteCard({ note, caseId }: { note: CaseNote; caseId: string }) {
+  const { data: currentStaff } = useCurrentStaff();
   const deleteNote = useDeleteCaseNote(caseId);
   const updateNote = useUpdateCaseNote(caseId);
   const [editing, setEditing] = useState(false);
+  const isAuthor = currentStaff?.id === note.createdByUserId;
   const [editText, setEditText] = useState(note.content);
 
   const rc = roleColor(note.authorRole);
@@ -316,29 +319,31 @@ function NoteCard({ note, caseId }: { note: CaseNote; caseId: string }) {
           <Text fontSize="13px" color="fg" lineHeight="160%" whiteSpace="pre-wrap">
             {note.content}
           </Text>
-          <Flex gap={2} mt={2.5}>
-            <IconButton
-              variant="outline"
-              borderColor="border"
-              size="sm"
-              color="fg.muted"
-              onClick={() => setEditing(true)}
-              aria-label="Edit note"
-            >
-              <Pencil size={13} />
-            </IconButton>
-            <IconButton
-              variant="outline"
-              borderColor="border"
-              size="sm"
-              color="fg.muted"
-              onClick={() => deleteNote.mutate(note.id)}
-              loading={deleteNote.isPending}
-              aria-label="Delete note"
-            >
-              <Trash2 size={13} />
-            </IconButton>
-          </Flex>
+          {isAuthor && (
+            <Flex gap={2} mt={2.5}>
+              <IconButton
+                variant="outline"
+                borderColor="border"
+                size="sm"
+                color="fg.muted"
+                onClick={() => setEditing(true)}
+                aria-label="Edit note"
+              >
+                <Pencil size={13} />
+              </IconButton>
+              <IconButton
+                variant="outline"
+                borderColor="border"
+                size="sm"
+                color="fg.muted"
+                onClick={() => deleteNote.mutate(note.id)}
+                loading={deleteNote.isPending}
+                aria-label="Delete note"
+              >
+                <Trash2 size={13} />
+              </IconButton>
+            </Flex>
+          )}
         </>
       )}
     </Box>
