@@ -97,7 +97,7 @@ function LeadsPageContent() {
   }
 
   function handlePracticeAreaChange(value: string) {
-    setPracticeArea(value === "All practice areas" ? "" : value);
+    setPracticeArea(value === "" ? "" : value);
   }
 
   function handleStageChange(value: string) {
@@ -265,9 +265,9 @@ function LeadsPageContent() {
           />
           <FilterSelect
             ariaLabel="Filter by practice area"
-            value={practiceArea === "" ? "All practice areas" : practiceArea}
+            value={practiceArea}
             onChange={handlePracticeAreaChange}
-            options={["All practice areas", ...practiceAreas.map((pa) => pa.name)]}
+            options={[{ label: "All practice areas", value: "" }, ...practiceAreas.map((pa) => ({ label: pa.name, value: pa.id }))]}
           />
           <FilterSelect
             ariaLabel="Filter by pipeline stage"
@@ -748,12 +748,16 @@ function FilterSelect({
   ariaLabel: string;
   value: string;
   onChange: (value: string) => void;
-  options: readonly string[];
+  options: readonly (string | { label: string; value: string })[];
 }) {
   const collection = useMemo(
     () =>
       createListCollection({
-        items: options.map((option) => ({ label: option, value: option })),
+        items: options.map((option) =>
+          typeof option === "string"
+            ? { label: option, value: option }
+            : option,
+        ),
       }),
     [options],
   );
