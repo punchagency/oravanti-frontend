@@ -30,6 +30,7 @@ import {
   type GetConsultationsParams,
   type GetLeadsParams,
   type LeadNoteType,
+  type LeadNoteContext,
   type UpdateLeadInput,
   type MetricsPeriod,
   type PipelineStage,
@@ -83,7 +84,7 @@ export function useLeadActivity(id: string, enabled = true) {
 
 export function useLeadNotes(id: string, enabled = true) {
   return useQuery({
-    queryKey: ["lead", id, "notes"],
+    queryKey: ["leadNotes", id],
     queryFn: () => getLeadNotes(id),
     enabled: Boolean(id) && enabled,
   });
@@ -104,7 +105,7 @@ export function useAddLeadNote() {
       data,
     }: {
       id: string;
-      data: { type?: LeadNoteType; content: string };
+      data: { type?: LeadNoteType; context?: LeadNoteContext; content: string };
     }) => addLeadNote(id, data),
     onSuccess: (_, params) => {
       toast.success("Note added");
@@ -200,6 +201,9 @@ export function useUpdateLead() {
       toast.success("Notes saved");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leadNotes", id] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", id] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", id] });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to save notes");
@@ -357,6 +361,9 @@ export function useUpdateConsultation() {
       toast.success("Consultation updated");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["leadNotes", id] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", id] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", id] });
     },
     onError: (err: APIError) => {
       toast.error(

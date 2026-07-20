@@ -200,11 +200,18 @@ export async function getLeadQuestionnaireFiles(leadId: string): Promise<Questio
 
 export type LeadNoteType = "general" | "phone_call" | "email" | "voicemail" | "system_log" | "pre_consultation" | "post_consultation";
 
+export type LeadNoteContext = "manual" | "consultation" | "lead_update" | "intake" | "system";
+
+export type LeadNoteVisibility = "all_staff" | "attorneys_only" | "admins_only";
+
 export interface LeadNote {
   id: string;
   leadId: string;
   authorId: string;
   type: LeadNoteType;
+  context: LeadNoteContext;
+  visibility: LeadNoteVisibility;
+  isPinned: boolean;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -215,11 +222,26 @@ export interface LeadNote {
 export interface CreateLeadNoteParams {
   content: string;
   type?: LeadNoteType;
+  context?: LeadNoteContext;
+  visibility?: LeadNoteVisibility;
+  isPinned?: boolean;
 }
 
-export async function getLeadNotes(leadId: string): Promise<LeadNote[]> {
-  const { data } = await API.get<{ data: LeadNote[] }>(`/leads/${leadId}/notes`);
-  return data.data;
+export async function getLeadNotes(
+  leadId: string,
+  opts?: { context?: string; authorId?: string; pinnedOnly?: boolean; page?: number; limit?: number },
+): Promise<PaginatedResponse<LeadNote>> {
+  const params: Record<string, string> = {};
+  if (opts?.context) params.context = opts.context;
+  if (opts?.authorId) params.authorId = opts.authorId;
+  if (opts?.pinnedOnly) params.pinned = "true";
+  if (opts?.page) params.page = String(opts.page);
+  if (opts?.limit) params.limit = String(opts.limit);
+  const { data } = await API.get<{ data: LeadNote[]; pagination: PaginatedResponse<LeadNote>["pagination"] }>(
+    `/leads/${leadId}/notes`,
+    { params },
+  );
+  return { data: data.data, pagination: data.pagination };
 }
 
 export async function createLeadNote(leadId: string, params: CreateLeadNoteParams): Promise<LeadNote> {
@@ -227,13 +249,18 @@ export async function createLeadNote(leadId: string, params: CreateLeadNoteParam
   return data.data;
 }
 
-export async function updateLeadNote(leadId: string, noteId: string, params: { content?: string; type?: LeadNoteType }): Promise<LeadNote> {
+export async function updateLeadNote(leadId: string, noteId: string, params: { content?: string; type?: LeadNoteType; visibility?: LeadNoteVisibility; isPinned?: boolean }): Promise<LeadNote> {
   const { data } = await API.patch<{ data: LeadNote }>(`/leads/${leadId}/notes/${noteId}`, params);
   return data.data;
 }
 
 export async function deleteLeadNote(leadId: string, noteId: string): Promise<void> {
   await API.delete(`/leads/${leadId}/notes/${noteId}`);
+}
+
+export async function toggleLeadNotePin(leadId: string, noteId: string): Promise<LeadNote> {
+  const { data } = await API.post<{ data: LeadNote }>(`/leads/${leadId}/notes/${noteId}/toggle-pin`);
+  return data.data;
 }
 
 // ─── Lead Task Review ─────────────────────────────────────────────────────────

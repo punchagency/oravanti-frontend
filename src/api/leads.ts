@@ -279,9 +279,16 @@ export type LeadNoteType =
   | "pre_consultation"
   | "post_consultation";
 
+export type LeadNoteContext = "manual" | "consultation" | "lead_update" | "intake" | "system";
+
+export type LeadNoteVisibility = "all_staff" | "attorneys_only" | "admins_only";
+
 export type LeadNote = {
   id: string;
   type: LeadNoteType;
+  context: LeadNoteContext;
+  visibility: LeadNoteVisibility;
+  isPinned: boolean;
   content: string;
   authorId: string;
   authorName: string | null;
@@ -295,7 +302,7 @@ export const getLeadNotes = async (id: string): Promise<LeadNote[]> => {
 
 export const addLeadNote = async (
   id: string,
-  data: { type?: LeadNoteType; content: string },
+  data: { type?: LeadNoteType; context?: LeadNoteContext; content: string },
 ): Promise<LeadNote> => {
   const res = await API.post(`/leads/${id}/notes`, data);
   return res.data.data;
@@ -499,6 +506,7 @@ export type UpdateLeadInput = Partial<{
   caseTypeId: string;
   language: string;
   notes: string;
+  noteContext: "manual" | "consultation" | "lead_update" | "intake" | "system";
 }>;
 
 export const updateLead = async (
