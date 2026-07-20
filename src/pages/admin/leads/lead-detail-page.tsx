@@ -11,8 +11,9 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Download, UserPlus } from "lucide-react";
+import { useEffect } from "react";
 import { Link as RouterLink, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { getLeadById } from "@/api/leads";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -24,6 +25,7 @@ const TAB_CONFIG = [
   { value: "intake-pipeline", label: "Intake Pipeline" },
   { value: "documents", label: "Documents" },
   { value: "timeline", label: "Timeline" },
+  { value: "audit-log", label: "Audit Log" },
   { value: "notes", label: "Notes" },
 ] as const;
 
@@ -33,10 +35,18 @@ export function LeadDetailPage() {
   const { leadId } = useParams<{ leadId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
 
   const segments = location.pathname.replace(/\/+$/, "").split("/");
   const last = segments[segments.length - 1];
   const currentTab = TAB_CONFIG.some((t) => t.value === last) ? last : DEFAULT_TAB;
+
+  useEffect(() => {
+    if (leadId) {
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
+    }
+  }, [leadId, qc]);
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", leadId],
