@@ -37,14 +37,24 @@ export interface LeadTaskInput {
 
 export interface LeadTimelineEvent {
   id: string;
-  leadId: string;
   eventType: string;
   title: string;
   description: string | null;
   metadata: Record<string, unknown> | null;
-  createdById: string | null;
+  ipAddress: string | null;
+  createdBy: { id: string; name: string } | null;
   createdAt: string;
-  staff: { id: string; name: string } | null;
+}
+
+export interface LeadAuditLogEntry {
+  id: string;
+  eventType: string;
+  title: string;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  ipAddress: string | null;
+  performedBy: { id: string; name: string } | null;
+  createdAt: string;
 }
 
 export interface LeadDocumentLink {
@@ -108,9 +118,38 @@ export async function deleteLeadTask(leadId: string, taskId: string): Promise<vo
   await API.delete(`/leads/${leadId}/tasks/${taskId}`);
 }
 
-export async function getLeadTimeline(leadId: string): Promise<LeadTimelineEvent[]> {
-  const { data } = await API.get<{ data: LeadTimelineEvent[] }>(`/leads/${leadId}/timeline`);
-  return data.data;
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export async function getLeadTimeline(
+  leadId: string,
+  page = 1,
+  limit = 20,
+): Promise<PaginatedResponse<LeadTimelineEvent>> {
+  const { data } = await API.get<{ data: LeadTimelineEvent[]; pagination: PaginatedResponse<LeadTimelineEvent>["pagination"] }>(
+    `/leads/${leadId}/timeline`,
+    { params: { page, limit } },
+  );
+  return { data: data.data, pagination: data.pagination };
+}
+
+export async function getLeadAuditLog(
+  leadId: string,
+  page = 1,
+  limit = 20,
+): Promise<PaginatedResponse<LeadAuditLogEntry>> {
+  const { data } = await API.get<{ data: LeadAuditLogEntry[]; pagination: PaginatedResponse<LeadAuditLogEntry>["pagination"] }>(
+    `/leads/${leadId}/audit-log`,
+    { params: { page, limit } },
+  );
+  return { data: data.data, pagination: data.pagination };
 }
 
 export async function createLeadTimelineEvent(leadId: string, input: { eventType: string; title: string; description?: string; metadata?: Record<string, unknown> }): Promise<LeadTimelineEvent> {

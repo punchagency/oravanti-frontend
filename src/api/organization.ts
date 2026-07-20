@@ -298,6 +298,11 @@ export async function getTeamDetails(
 
 export type StaffDetailsDTO = StaffMemberDTO;
 
+export async function getCurrentStaff(): Promise<StaffDetailsDTO> {
+  const response = await API.get("/organization/staff/me");
+  return response.data.data;
+}
+
 export async function getStaffDetails(
   staffId: string,
 ): Promise<StaffDetailsDTO> {

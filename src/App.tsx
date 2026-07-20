@@ -21,6 +21,7 @@ import {
   DocumentsTabRoute,
   IntakePipelineTabRoute,
   LeadOverviewTabRoute,
+  LeadAuditLogTabRoute,
   NotesTabRoute,
   TimelineTabRoute,
 } from "@/pages/admin/leads/components/lead-details/tab-routes";
@@ -130,6 +131,7 @@ const router = createBrowserRouter(
             <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />
             <Route path="documents" element={<DocumentsTabRoute />} />
             <Route path="timeline" element={<TimelineTabRoute />} />
+            <Route path="audit-log" element={<LeadAuditLogTabRoute />} />
             <Route path="notes" element={<NotesTabRoute />} />
           </Route>
           <Route path="leads/:leadId/conflict-check" element={<LeadPipelinePage />} />

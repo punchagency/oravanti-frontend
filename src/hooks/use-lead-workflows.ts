@@ -8,6 +8,7 @@ import {
   createLeadTask,
   deleteLeadNote,
   deleteLeadTask,
+  getLeadAuditLog,
   getLeadDocuments,
   getLeadNotes,
   getLeadQuestionnaireFiles,
@@ -49,6 +50,8 @@ export function useInitializePipeline() {
     onSuccess: (_data, leadId) => {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Pipeline steps initialized");
     },
     onError: (err: APIError) => {
@@ -63,6 +66,8 @@ export function useCreateLeadTask(leadId: string) {
     mutationFn: (input: LeadTaskInput) => createLeadTask(leadId, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task created");
     },
     onError: (err: APIError) => {
@@ -78,6 +83,8 @@ export function useUpdateLeadTask(leadId: string) {
       updateLeadTask(leadId, taskId, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
     },
     onError: (err: APIError) => {
       toast.error(err?.response?.data?.message ?? "Failed to update task");
@@ -94,6 +101,8 @@ export function useUpdateLeadTaskStatus(leadId: string) {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
       qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
     },
   });
 }
@@ -106,6 +115,8 @@ export function useAssignLeadTask(leadId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task assigned");
     },
     onError: (err: APIError) => {
@@ -122,6 +133,8 @@ export function useCompleteLeadTask(leadId: string) {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
       qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task completed");
     },
     onError: (err: APIError) => {
@@ -136,6 +149,8 @@ export function useDeleteLeadTask(leadId: string) {
     mutationFn: (taskId: string) => deleteLeadTask(leadId, taskId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task deleted");
     },
     onError: (err: APIError) => {
@@ -144,11 +159,21 @@ export function useDeleteLeadTask(leadId: string) {
   });
 }
 
-export function useLeadTimeline(leadId: string) {
+export function useLeadTimeline(leadId: string, enabled = true, page = 1, limit = 20) {
   return useQuery({
-    queryKey: ["leadTimeline", leadId],
-    queryFn: () => getLeadTimeline(leadId),
-    enabled: Boolean(leadId),
+    queryKey: ["leadTimeline", leadId, page, limit],
+    queryFn: () => getLeadTimeline(leadId, page, limit),
+    enabled: Boolean(leadId) && enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useLeadAuditLog(leadId: string, enabled = true, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: ["leadAuditLog", leadId, page, limit],
+    queryFn: () => getLeadAuditLog(leadId, page, limit),
+    enabled: Boolean(leadId) && enabled,
+    staleTime: 30_000,
   });
 }
 
@@ -168,6 +193,8 @@ export function useCreateLeadNote(leadId: string) {
     mutationFn: (params: CreateLeadNoteParams) => createLeadNote(leadId, params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadNotes", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Note added");
     },
     onError: (err: APIError) => {
@@ -183,6 +210,8 @@ export function useUpdateLeadNote(leadId: string) {
       updateLeadNote(leadId, noteId, params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadNotes", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Note updated");
     },
     onError: (err: APIError) => {
@@ -197,6 +226,8 @@ export function useDeleteLeadNote(leadId: string) {
     mutationFn: (noteId: string) => deleteLeadNote(leadId, noteId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadNotes", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Note deleted");
     },
     onError: (err: APIError) => {
@@ -221,6 +252,8 @@ export function useLinkLeadDocument(leadId: string) {
     mutationFn: (documentId: string) => linkLeadDocument(leadId, documentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadDocuments", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Document linked");
     },
     onError: (err: APIError) => {
@@ -235,6 +268,8 @@ export function useUnlinkLeadDocument(leadId: string) {
     mutationFn: (linkId: string) => unlinkLeadDocument(leadId, linkId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadDocuments", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Document unlinked");
     },
     onError: (err: APIError) => {
@@ -268,6 +303,8 @@ export function useSubmitLeadTaskForReview(leadId: string) {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
       qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task submitted for review");
     },
     onError: (err: APIError) => {
@@ -285,6 +322,8 @@ export function useApproveLeadTask(leadId: string) {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
       qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task approved");
     },
     onError: (err: APIError) => {
@@ -302,6 +341,8 @@ export function useRejectLeadTask(leadId: string) {
       qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
       qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
       qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
+      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
+      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Task rejected");
     },
     onError: (err: APIError) => {

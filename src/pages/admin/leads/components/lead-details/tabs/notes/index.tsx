@@ -12,6 +12,7 @@ import {
 import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
 import { Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { useCurrentStaff } from "@/hooks/use-current-staff";
 import {
   useCreateLeadNote,
   useDeleteLeadNote,
@@ -147,9 +148,11 @@ export function LeadNotesTab({ leadId }: { leadId: string }) {
 }
 
 function LeadNoteCard({ note, leadId }: { note: LeadNote; leadId: string }) {
+  const { data: currentStaff } = useCurrentStaff();
   const deleteNote = useDeleteLeadNote(leadId);
   const updateNote = useUpdateLeadNote(leadId);
   const [editing, setEditing] = useState(false);
+  const isAuthor = currentStaff?.id === note.authorId;
   const [editText, setEditText] = useState(note.content);
 
   const handleSave = () => {
@@ -243,29 +246,31 @@ function LeadNoteCard({ note, leadId }: { note: LeadNote; leadId: string }) {
           <Text fontSize="13px" color="fg" lineHeight="160%" whiteSpace="pre-wrap">
             {note.content}
           </Text>
-          <Flex gap={2} mt={2.5}>
-            <IconButton
-              variant="outline"
-              borderColor="border"
-              size="sm"
-              color="fg.muted"
-              onClick={() => setEditing(true)}
-              aria-label="Edit note"
-            >
-              <Pencil size={13} />
-            </IconButton>
-            <IconButton
-              variant="outline"
-              borderColor="border"
-              size="sm"
-              color="fg.muted"
-              onClick={() => deleteNote.mutate(note.id)}
-              loading={deleteNote.isPending}
-              aria-label="Delete note"
-            >
-              <Trash2 size={13} />
-            </IconButton>
-          </Flex>
+          {isAuthor && (
+            <Flex gap={2} mt={2.5}>
+              <IconButton
+                variant="outline"
+                borderColor="border"
+                size="sm"
+                color="fg.muted"
+                onClick={() => setEditing(true)}
+                aria-label="Edit note"
+              >
+                <Pencil size={13} />
+              </IconButton>
+              <IconButton
+                variant="outline"
+                borderColor="border"
+                size="sm"
+                color="fg.muted"
+                onClick={() => deleteNote.mutate(note.id)}
+                loading={deleteNote.isPending}
+                aria-label="Delete note"
+              >
+                <Trash2 size={13} />
+              </IconButton>
+            </Flex>
+          )}
         </>
       )}
     </Box>
