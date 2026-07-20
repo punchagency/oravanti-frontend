@@ -1,6 +1,4 @@
-import type {
-  ConsultationSettings,
-} from "@/api/consultation-settings";
+import type { ConsultationSettings } from "@/api/consultation-settings";
 import type {
   Consultation,
   ConsultationListItem,
@@ -60,7 +58,6 @@ import {
   createListCollection,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   AlertTriangle,
   CalendarClock,
@@ -98,6 +95,7 @@ import {
 } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import {
   BrandButton,
@@ -108,25 +106,25 @@ import {
   StatusPill,
   SurfaceCard,
 } from "../../../../components/ui/intake-ui";
-import { buildFeeAgreementHtml } from "./fee-agreement-document";
-import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
 import {
-  ScheduleFollowUpContext,
-  type FollowUpRequest,
-} from "./schedule-follow-up-context";
+  consultationModeLabel,
+  fieldStyles,
+  type ConsultationMode,
+} from "./consultation-wizard-constants";
 import {
   ScheduleDetailsStep,
   SelectClientStep,
   StepProgress,
   SummaryItem,
 } from "./consultation-wizard-shared";
+import { buildFeeAgreementHtml } from "./fee-agreement-document";
 import { FeeAgreementWizard } from "./fee-agreement-wizard";
-import {
-  consultationModeLabel,
-  fieldStyles,
-  type ConsultationMode,
-} from "./consultation-wizard-constants";
 import { InstantConsultationDialog } from "./instant-consultation-dialog";
+import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
+import {
+  ScheduleFollowUpContext,
+  type FollowUpRequest,
+} from "./schedule-follow-up-context";
 
 type ScheduleStep = 1 | 2 | 3;
 
@@ -326,7 +324,10 @@ export function ConsultationView() {
   );
 }
 
-export type ConsultationSummaryLead = Pick<Lead, "id" | "name" | "caseTypeName">;
+export type ConsultationSummaryLead = Pick<
+  Lead,
+  "id" | "name" | "caseTypeName"
+>;
 
 type ConsultationRow = {
   lead: ConsultationSummaryLead;
@@ -959,7 +960,10 @@ export function ConsultationCard({
       );
     } else {
       saveLeadNotes.mutate(
-        { id: lead.id, data: { notes: displayNotes } },
+        {
+          id: lead.id,
+          data: { notes: displayNotes, noteContext: "consultation" },
+        },
         { onSuccess: () => setNotes(null) },
       );
     }
@@ -2638,7 +2642,6 @@ export function ScheduleConsultationDialog({
     </Dialog.Root>
   );
 }
-
 
 function ReviewStep({
   lead,
