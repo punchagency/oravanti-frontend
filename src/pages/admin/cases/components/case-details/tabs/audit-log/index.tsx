@@ -1,6 +1,6 @@
-import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useWorkflowLogs } from "@/hooks/use-workflows";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 import { SectionLabel } from "../../shared";
 
 interface AuditLogTabProps {
@@ -36,15 +36,30 @@ export function AuditLogTab({ caseId, isActive = true }: AuditLogTabProps) {
       <VStack align="stretch" gap={3} py={4}>
         <SectionLabel>Audit Log</SectionLabel>
         {Array.from({ length: 4 }, (_, i) => (
-          <Box key={i} p={3} border="1px solid" borderColor="border.subtle" borderRadius="6px">
+          <Box
+            key={i}
+            p={3}
+            border="1px solid"
+            borderColor="border.subtle"
+            borderRadius="6px"
+          >
             <HStack gap={2} mb={2}>
               <ThemeSkeleton h="24px" w="24px" borderRadius="full" />
               <Box>
-                <ThemeSkeleton h="12px" w={`${100 + i * 20}px`} borderRadius="4px" mb={1} />
+                <ThemeSkeleton
+                  h="12px"
+                  w={`${100 + i * 20}px`}
+                  borderRadius="4px"
+                  mb={1}
+                />
                 <ThemeSkeleton h="10px" w="80px" borderRadius="4px" />
               </Box>
             </HStack>
-            <ThemeSkeleton h="10px" w={`${180 + i * 15}px`} borderRadius="4px" />
+            <ThemeSkeleton
+              h="10px"
+              w={`${180 + i * 15}px`}
+              borderRadius="4px"
+            />
           </Box>
         ))}
       </VStack>
@@ -86,9 +101,7 @@ export function AuditLogTab({ caseId, isActive = true }: AuditLogTabProps) {
               </Text>
             )}
             <Text fontSize="9px" color="fg.muted">
-              {entry.performedBy
-                ? `by ${entry.performedBy.name}`
-                : "by System"}{" "}
+              {entry.performedBy ? `by ${entry.performedBy.name}` : "by System"}{" "}
               · {new Date(entry.createdAt).toLocaleString()}
             </Text>
           </Box>

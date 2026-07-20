@@ -1,3 +1,5 @@
+import { getLeadById } from "@/api/leads";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   Badge,
   Box,
@@ -14,11 +16,19 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Download, UserPlus } from "lucide-react";
 import { useEffect } from "react";
-import { Link as RouterLink, Outlet, useLocation, useNavigate, useParams } from "react-router";
-import { getLeadById } from "@/api/leads";
-import { useDocumentTitle } from "@/hooks/use-document-title";
-import { ThemeSkeleton } from "../staff-and-users/components/theme-skeleton";
-import { pipelineStageColors, pipelineStageLabels, taskStatusColors } from "./components/lead-details/constants";
+import {
+  Outlet,
+  Link as RouterLink,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
+import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
+import {
+  pipelineStageColors,
+  pipelineStageLabels,
+  taskStatusColors,
+} from "./components/lead-details/constants";
 
 const TAB_CONFIG = [
   { value: "overview", label: "Overview" },
@@ -39,7 +49,9 @@ export function LeadDetailPage() {
 
   const segments = location.pathname.replace(/\/+$/, "").split("/");
   const last = segments[segments.length - 1];
-  const currentTab = TAB_CONFIG.some((t) => t.value === last) ? last : DEFAULT_TAB;
+  const currentTab = TAB_CONFIG.some((t) => t.value === last)
+    ? last
+    : DEFAULT_TAB;
 
   useEffect(() => {
     if (leadId) {
@@ -109,7 +121,11 @@ export function LeadDetailPage() {
               >
                 {lead?.name ?? "—"}
               </Text>
-              <Text color="fg.muted" fontSize={{ base: "12px", md: "13px" }} mt={0.5}>
+              <Text
+                color="fg.muted"
+                fontSize={{ base: "12px", md: "13px" }}
+                mt={0.5}
+              >
                 {lead?.email ?? "—"}
               </Text>
             </>
@@ -139,7 +155,9 @@ export function LeadDetailPage() {
                 px={1.5}
                 py={0.5}
                 border="1px solid"
-                borderColor={pipelineStageColors[lead.pipelineStage] ?? "border"}
+                borderColor={
+                  pipelineStageColors[lead.pipelineStage] ?? "border"
+                }
               >
                 <Text
                   color="fg"
@@ -147,7 +165,8 @@ export function LeadDetailPage() {
                   fontWeight="500"
                   lineHeight="12px"
                 >
-                  {pipelineStageLabels[lead.pipelineStage] ?? lead.pipelineStage}
+                  {pipelineStageLabels[lead.pipelineStage] ??
+                    lead.pipelineStage}
                 </Text>
               </Box>
             ) : null}
@@ -202,10 +221,7 @@ export function LeadDetailPage() {
         <ScrollArea.Root w="full" size="xs">
           <ScrollArea.Viewport>
             <ScrollArea.Content>
-              <Tabs.List
-                borderBottom="1px solid"
-                borderColor="border.muted"
-              >
+              <Tabs.List borderBottom="1px solid" borderColor="border.muted">
                 {TAB_CONFIG.map((tab) => (
                   <Tabs.Trigger
                     key={tab.value}
@@ -242,4 +258,3 @@ export function LeadDetailPage() {
     </Box>
   );
 }
-

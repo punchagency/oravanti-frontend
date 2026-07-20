@@ -1,4 +1,5 @@
 import { getCaseById } from "@/api/cases";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   Badge,
   Box,
@@ -13,11 +14,23 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Archive, ChevronDown, ChevronRight, Download, UserPlus } from "lucide-react";
-import { Link as RouterLink, Outlet, useLocation, useNavigate, useParams } from "react-router";
+import {
+  AlertTriangle,
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  UserPlus,
+} from "lucide-react";
+import {
+  Outlet,
+  Link as RouterLink,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
+import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
 import { statusBadgeStyle } from "./components/case-details/shared";
-import { useDocumentTitle } from "@/hooks/use-document-title";
-import { ThemeSkeleton } from "../staff-and-users/components/theme-skeleton";
 
 const TAB_CONFIG = [
   { value: "overview", label: "Overview" },
@@ -38,7 +51,9 @@ export function CaseDetailPage() {
 
   const segments = location.pathname.replace(/\/+$/, "").split("/");
   const last = segments[segments.length - 1];
-  const currentTab = TAB_CONFIG.some((t) => t.value === last) ? last : DEFAULT_TAB;
+  const currentTab = TAB_CONFIG.some((t) => t.value === last)
+    ? last
+    : DEFAULT_TAB;
 
   const { data: caseRow, isLoading } = useQuery({
     queryKey: ["case", caseId],
@@ -47,7 +62,9 @@ export function CaseDetailPage() {
     staleTime: 60_000,
   });
 
-  useDocumentTitle(caseRow ? `${caseRow.caseNumber} – Case – Oravanti` : "Case – Oravanti");
+  useDocumentTitle(
+    caseRow ? `${caseRow.caseNumber} – Case – Oravanti` : "Case – Oravanti",
+  );
 
   const statusColors =
     statusBadgeStyle[caseRow?.status as keyof typeof statusBadgeStyle] ??
@@ -101,7 +118,11 @@ export function CaseDetailPage() {
               >
                 {caseRow?.caseNumber ?? "—"}
               </Text>
-              <Text color="fg.muted" fontSize={{ base: "12px", md: "13px" }} mt={0.5}>
+              <Text
+                color="fg.muted"
+                fontSize={{ base: "12px", md: "13px" }}
+                mt={0.5}
+              >
                 {caseRow?.client?.name ?? "—"}
               </Text>
             </>
@@ -124,12 +145,7 @@ export function CaseDetailPage() {
               {caseRow?.status ?? "—"}
             </Badge>
 
-            <Box
-              bg="brand.subtle"
-              borderRadius="10px"
-              px={1.5}
-              py={0.5}
-            >
+            <Box bg="brand.subtle" borderRadius="10px" px={1.5} py={0.5}>
               <Text
                 color="brand.fg"
                 fontSize="10px"
@@ -202,10 +218,7 @@ export function CaseDetailPage() {
         <ScrollArea.Root w="full" size="xs">
           <ScrollArea.Viewport>
             <ScrollArea.Content>
-              <Tabs.List
-                borderBottom="1px solid"
-                borderColor="border.muted"
-              >
+              <Tabs.List borderBottom="1px solid" borderColor="border.muted">
                 {TAB_CONFIG.map((tab) => (
                   <Tabs.Trigger
                     key={tab.value}

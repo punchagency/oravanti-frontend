@@ -1,7 +1,7 @@
 import { getLeadById } from "@/api/leads";
 import { Box, Text, VStack } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
-import { ThemeSkeleton } from "../../../../staff-and-users/components/theme-skeleton";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 import { pipelineStageLabels } from "../constants";
 import { FieldRow, SectionLabel } from "../shared";
 
@@ -26,7 +26,11 @@ export function LeadOverview({ leadId, isActive }: LeadOverviewProps) {
           {Array.from({ length: 5 }, (_, i) => (
             <Box key={i}>
               <ThemeSkeleton h="10px" w="80px" borderRadius="4px" mb={1} />
-              <ThemeSkeleton h="14px" w={`${150 + i * 25}px`} borderRadius="4px" />
+              <ThemeSkeleton
+                h="14px"
+                w={`${150 + i * 25}px`}
+                borderRadius="4px"
+              />
             </Box>
           ))}
         </VStack>
@@ -37,7 +41,11 @@ export function LeadOverview({ leadId, isActive }: LeadOverviewProps) {
           {Array.from({ length: 3 }, (_, i) => (
             <Box key={i}>
               <ThemeSkeleton h="10px" w="80px" borderRadius="4px" mb={1} />
-              <ThemeSkeleton h="14px" w={`${120 + i * 30}px`} borderRadius="4px" />
+              <ThemeSkeleton
+                h="14px"
+                w={`${120 + i * 30}px`}
+                borderRadius="4px"
+              />
             </Box>
           ))}
         </VStack>

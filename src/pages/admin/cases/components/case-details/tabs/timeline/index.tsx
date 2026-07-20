@@ -6,16 +6,13 @@ import {
   Timeline,
   VStack,
 } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
-import {
-  Clock,
-  FileText,
-} from "lucide-react";
+import { Clock, FileText } from "lucide-react";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 import { SectionLabel } from "../../shared";
 import { useCaseTimeline } from "../workflow/hooks";
 import type { TimelineEvent } from "../workflow/types";
-import { dateLabel } from "./date-utils";
 import { DateGroup } from "./date-group";
+import { dateLabel } from "./date-utils";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -41,7 +38,10 @@ const staticEntries: { event: string; date: string }[] = [
 // ---------------------------------------------------------------------------
 
 export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
-  const { data: timelineEvents, isLoading } = useCaseTimeline(caseId ?? "", isActive);
+  const { data: timelineEvents, isLoading } = useCaseTimeline(
+    caseId ?? "",
+    isActive,
+  );
 
   // Group workflow events by date
   const grouped = (timelineEvents ?? []).reduce<
@@ -69,7 +69,12 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
       <VStack align="stretch" gap={4} py={4}>
         {Array.from({ length: 3 }, (_, i) => (
           <Box key={i}>
-            <ThemeSkeleton h="12px" w={`${80 + i * 15}px`} borderRadius="4px" mb={3} />
+            <ThemeSkeleton
+              h="12px"
+              w={`${80 + i * 15}px`}
+              borderRadius="4px"
+              mb={3}
+            />
             {Array.from({ length: 2 }, (_, j) => (
               <HStack key={j} gap={3} mb={3} pl={2}>
                 <VStack gap={0} align="center">
@@ -77,7 +82,12 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
                   <ThemeSkeleton h="30px" w="2px" borderRadius="full" />
                 </VStack>
                 <Box flex={1}>
-                  <ThemeSkeleton h="12px" w={`${140 + j * 25}px`} borderRadius="4px" mb={1} />
+                  <ThemeSkeleton
+                    h="12px"
+                    w={`${140 + j * 25}px`}
+                    borderRadius="4px"
+                    mb={1}
+                  />
                   <ThemeSkeleton h="10px" w="60px" borderRadius="4px" />
                 </Box>
               </HStack>
@@ -120,9 +130,7 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
       ))}
 
       {/* Separator before static case events */}
-      {hasWorkflowEvents && (
-        <Separator borderColor="border.muted" my={3} />
-      )}
+      {hasWorkflowEvents && <Separator borderColor="border.muted" my={3} />}
 
       {/* Static case events (always shown) */}
       <Box mb={4}>
@@ -136,11 +144,7 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
         >
           Case events
         </Text>
-        <Timeline.Root
-          size="sm"
-          variant="plain"
-          colorPalette="green"
-        >
+        <Timeline.Root size="sm" variant="plain" colorPalette="green">
           {staticEntries.map((entry) => (
             <Timeline.Item key={entry.event}>
               <Timeline.Connector>
@@ -150,11 +154,7 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
                 </Timeline.Indicator>
               </Timeline.Connector>
               <Timeline.Content>
-                <Timeline.Title
-                  fontSize="11px"
-                  fontWeight="500"
-                  color="fg"
-                >
+                <Timeline.Title fontSize="11px" fontWeight="500" color="fg">
                   {entry.event}
                 </Timeline.Title>
                 <Timeline.Description

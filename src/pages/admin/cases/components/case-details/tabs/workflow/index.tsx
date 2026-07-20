@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   Box,
   HStack,
@@ -7,9 +6,10 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
-import { useCaseWorkflow } from "./hooks";
+import { useMemo } from "react";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 import { ModuleSection } from "./components/module-section";
+import { useCaseWorkflow } from "./hooks";
 import type { CaseModuleInstance, WorkflowModule } from "./types";
 
 interface WorkflowTabProps {
@@ -36,7 +36,9 @@ function groupByPhase(mergedModules: MergedModule[]): PhaseGroup[] {
   }
   return Array.from(map.entries()).map(([phase, modules]) => ({
     phase,
-    modules: modules.sort((a, b) => a.definition.orderIndex - b.definition.orderIndex),
+    modules: modules.sort(
+      (a, b) => a.definition.orderIndex - b.definition.orderIndex,
+    ),
   }));
 }
 
@@ -60,7 +62,14 @@ function mapBackendModule(mod: {
 }): { definition: WorkflowModule; instance: CaseModuleInstance } {
   const mappedSteps = mod.steps.map((s) => ({
     stepId: s.stepId,
-    status: s.status === "completed" ? "complete" as const : s.status === "in_progress" ? "in_progress" as const : s.status === "in_review" ? "in_review" as const : "not_started" as const,
+    status:
+      s.status === "completed"
+        ? ("complete" as const)
+        : s.status === "in_progress"
+          ? ("in_progress" as const)
+          : s.status === "in_review"
+            ? ("in_review" as const)
+            : ("not_started" as const),
     assignedTo: s.assignedTo,
     assignedAt: null,
     dueDate: s.dueDate,
@@ -87,7 +96,10 @@ function mapBackendModule(mod: {
     conditionalActivation:
       mod.activationType !== "auto"
         ? {
-            type: mod.activationType === "manual" ? "manual_trigger" : "condition_met",
+            type:
+              mod.activationType === "manual"
+                ? "manual_trigger"
+                : "condition_met",
             label: mod.activationCondition ?? "Module requires activation",
           }
         : undefined,
@@ -103,21 +115,24 @@ function mapBackendModule(mod: {
 }
 
 export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
-  const { data: workflowInstance, isLoading, refetch } = useCaseWorkflow(caseId, isActive);
+  const {
+    data: workflowInstance,
+    isLoading,
+    refetch,
+  } = useCaseWorkflow(caseId, isActive);
 
   const mergedModules: MergedModule[] = useMemo(() => {
     if (!workflowInstance) return [];
     return workflowInstance.modules.map(mapBackendModule);
   }, [workflowInstance]);
 
-  const phaseGroups = useMemo(() => groupByPhase(mergedModules), [mergedModules]);
+  const phaseGroups = useMemo(
+    () => groupByPhase(mergedModules),
+    [mergedModules],
+  );
 
   const totalSteps = useMemo(
-    () =>
-      mergedModules.reduce(
-        (sum, m) => sum + m.instance.steps.length,
-        0,
-      ),
+    () => mergedModules.reduce((sum, m) => sum + m.instance.steps.length, 0),
     [mergedModules],
   );
   const completedSteps = useMemo(
@@ -147,20 +162,41 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
           <ThemeSkeleton h="6px" w="100%" borderRadius="full" />
         </Box>
         {Array.from({ length: 2 }, (_, i) => (
-          <Box key={i} border="1px solid" borderColor="border" borderRadius="8px" p={4}>
+          <Box
+            key={i}
+            border="1px solid"
+            borderColor="border"
+            borderRadius="8px"
+            p={4}
+          >
             <HStack justify="space-between" mb={3}>
               <HStack gap={2}>
                 <ThemeSkeleton h="20px" w="20px" borderRadius="full" />
-                <ThemeSkeleton h="14px" w={`${120 + i * 30}px`} borderRadius="4px" />
+                <ThemeSkeleton
+                  h="14px"
+                  w={`${120 + i * 30}px`}
+                  borderRadius="4px"
+                />
               </HStack>
               <ThemeSkeleton h="18px" w="50px" borderRadius="full" />
             </HStack>
             <VStack align="stretch" gap={2}>
               {Array.from({ length: 2 + i }, (_, j) => (
-                <HStack key={j} justify="space-between" p={2} border="1px solid" borderColor="border.subtle" borderRadius="6px">
+                <HStack
+                  key={j}
+                  justify="space-between"
+                  p={2}
+                  border="1px solid"
+                  borderColor="border.subtle"
+                  borderRadius="6px"
+                >
                   <HStack gap={2}>
                     <ThemeSkeleton h="16px" w="16px" borderRadius="full" />
-                    <ThemeSkeleton h="12px" w={`${140 + j * 20}px`} borderRadius="4px" />
+                    <ThemeSkeleton
+                      h="12px"
+                      w={`${140 + j * 20}px`}
+                      borderRadius="4px"
+                    />
                   </HStack>
                   <ThemeSkeleton h="18px" w="60px" borderRadius="full" />
                 </HStack>

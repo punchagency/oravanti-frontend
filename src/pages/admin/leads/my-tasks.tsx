@@ -1,5 +1,19 @@
-import { Box, Button, Flex, HStack, Tabs, Text, VStack } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../staff-and-users/components/theme-skeleton";
+import type { LeadTask } from "@/api/lead-workflows";
+import {
+  useMyLeadTasks,
+  useSubmitLeadTaskForReview,
+  useUpdateLeadTaskStatus,
+} from "@/hooks/use-lead-workflows";
+import { useRunConflictCheck } from "@/hooks/use-leads";
+import {
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Tabs,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import {
   CheckCircle,
   Clock,
@@ -11,9 +25,7 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
-import { useMyLeadTasks, useSubmitLeadTaskForReview, useUpdateLeadTaskStatus } from "@/hooks/use-lead-workflows";
-import { useRunConflictCheck } from "@/hooks/use-leads";
-import type { LeadTask } from "@/api/lead-workflows";
+import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
 import { pipelineStageLabels } from "./components/lead-details/constants";
 import { CompleteTaskDialog } from "./components/lead-details/tabs/complete-task-dialog";
 
@@ -29,8 +41,18 @@ type TabValue = (typeof TABS)[number]["value"];
 
 const statusSummaryCards = [
   { key: "pending", label: "Pending", color: "gray.500", icon: Clock },
-  { key: "in_progress", label: "In Progress", color: "blue.500", icon: RotateCcw },
-  { key: "completed", label: "Completed", color: "green.500", icon: CheckCircle },
+  {
+    key: "in_progress",
+    label: "In Progress",
+    color: "blue.500",
+    icon: RotateCcw,
+  },
+  {
+    key: "completed",
+    label: "Completed",
+    color: "green.500",
+    icon: CheckCircle,
+  },
   { key: "total", label: "Total Tasks", color: "fg", icon: ListChecks },
 ] as const;
 
@@ -54,9 +76,12 @@ export function MyLeadsTasks() {
 
   const counts = {
     pending: (allTasks ?? []).filter((t) => t.status === "pending").length,
-    in_progress: (allTasks ?? []).filter((t) => t.status === "in_progress").length,
+    in_progress: (allTasks ?? []).filter((t) => t.status === "in_progress")
+      .length,
     in_review: (allTasks ?? []).filter((t) => t.status === "in_review").length,
-    completed: (allTasks ?? []).filter((t) => t.status === "completed" || t.status === "skipped").length,
+    completed: (allTasks ?? []).filter(
+      (t) => t.status === "completed" || t.status === "skipped",
+    ).length,
     total: allTasks?.length ?? 0,
   };
 
@@ -102,7 +127,10 @@ export function MyLeadsTasks() {
           return (
             <Box
               key={card.key}
-              flex={{ base: "1 1 calc(50% - 12px)", md: "1 1 calc(25% - 12px)" }}
+              flex={{
+                base: "1 1 calc(50% - 12px)",
+                md: "1 1 calc(25% - 12px)",
+              }}
               minW={{ base: 0, md: "120px" }}
               bg="bg"
               border="1px solid"
@@ -127,7 +155,12 @@ export function MyLeadsTasks() {
                   </Text>
                 )}
               </Flex>
-              <Text mt={1} fontSize="13px" color="fg.subtle" whiteSpace="nowrap">
+              <Text
+                mt={1}
+                fontSize="13px"
+                color="fg.subtle"
+                whiteSpace="nowrap"
+              >
                 {card.label}
               </Text>
             </Box>
@@ -172,18 +205,35 @@ export function MyLeadsTasks() {
               p={3}
               bg="bg"
             >
-              <Flex align="flex-start" gap={3} direction={{ base: "column", sm: "row" }}>
+              <Flex
+                align="flex-start"
+                gap={3}
+                direction={{ base: "column", sm: "row" }}
+              >
                 <Box flex={1}>
                   <Flex align="center" gap={2} mb={1}>
-                    <ThemeSkeleton h="14px" w="14px" borderRadius="full" flexShrink={0} />
-                    <ThemeSkeleton h="14px" w={`${160 + i * 30}px`} borderRadius="4px" />
+                    <ThemeSkeleton
+                      h="14px"
+                      w="14px"
+                      borderRadius="full"
+                      flexShrink={0}
+                    />
+                    <ThemeSkeleton
+                      h="14px"
+                      w={`${160 + i * 30}px`}
+                      borderRadius="4px"
+                    />
                   </Flex>
                   <HStack gap={1.5} ml={6} mt={1} flexWrap="wrap">
                     <ThemeSkeleton h="18px" w="60px" borderRadius="full" />
                     <ThemeSkeleton h="11px" w="140px" borderRadius="4px" />
                   </HStack>
                   <Box ml={6} mt={1.5}>
-                    <ThemeSkeleton h="10px" w={`${200 + i * 20}px`} borderRadius="4px" />
+                    <ThemeSkeleton
+                      h="10px"
+                      w={`${200 + i * 20}px`}
+                      borderRadius="4px"
+                    />
                   </Box>
                 </Box>
                 <HStack gap={2} flexShrink={0} align="center">
@@ -264,7 +314,10 @@ function TaskCard({ task }: { task: LeadTask }) {
   const badge = statusBadge[task.status] ?? statusBadge.pending;
 
   function handleAction() {
-    if (task.actionType === "run_conflict_check" && task.status !== "completed") {
+    if (
+      task.actionType === "run_conflict_check" &&
+      task.status !== "completed"
+    ) {
       doRunConflictCheck.mutate(task.leadId);
       return;
     }
@@ -290,7 +343,12 @@ function TaskCard({ task }: { task: LeadTask }) {
           <Box flex={1}>
             <Flex align="center" gap={2} mb={1}>
               {statusIcon(task.status)}
-              <Text fontSize="13px" fontWeight="500" color="fg" lineHeight="140%">
+              <Text
+                fontSize="13px"
+                fontWeight="500"
+                color="fg"
+                lineHeight="140%"
+              >
                 {task.title}
               </Text>
             </Flex>
@@ -307,7 +365,8 @@ function TaskCard({ task }: { task: LeadTask }) {
                 {badge.label}
               </Box>
               <Text fontSize="11px" color="fg.subtle">
-                {task.lead?.name ?? "—"} · {pipelineStageLabels[task.pipelineStage] ?? task.pipelineStage}
+                {task.lead?.name ?? "—"} ·{" "}
+                {pipelineStageLabels[task.pipelineStage] ?? task.pipelineStage}
               </Text>
             </HStack>
             {task.description ? (
@@ -318,20 +377,22 @@ function TaskCard({ task }: { task: LeadTask }) {
           </Box>
 
           <HStack gap={2} flexWrap="wrap" flexShrink={0}>
-            {task.dueDate && task.status !== "completed" && task.status !== "skipped" && (
-              <Box
-                fontSize="10px"
-                fontWeight="500"
-                bg="gray.50"
-                color="fg.subtle"
-                borderRadius="full"
-                px={2}
-                py={0.5}
-                whiteSpace="nowrap"
-              >
-                Due {formatDate(task.dueDate)}
-              </Box>
-            )}
+            {task.dueDate &&
+              task.status !== "completed" &&
+              task.status !== "skipped" && (
+                <Box
+                  fontSize="10px"
+                  fontWeight="500"
+                  bg="gray.50"
+                  color="fg.subtle"
+                  borderRadius="full"
+                  px={2}
+                  py={0.5}
+                  whiteSpace="nowrap"
+                >
+                  Due {formatDate(task.dueDate)}
+                </Box>
+              )}
             {task.status === "pending" && (
               <>
                 <Button
@@ -351,7 +412,12 @@ function TaskCard({ task }: { task: LeadTask }) {
                   color="brand.contrast"
                   fontSize="10px"
                   h="22px"
-                  onClick={() => doUpdateStatus.mutate({ taskId: task.id, status: "in_progress" })}
+                  onClick={() =>
+                    doUpdateStatus.mutate({
+                      taskId: task.id,
+                      status: "in_progress",
+                    })
+                  }
                   loading={doUpdateStatus.isPending}
                   _hover={{ bg: "brand.solid/90" }}
                 >

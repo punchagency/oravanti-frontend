@@ -1,5 +1,12 @@
-import { Box, CloseButton, Drawer, Flex, Separator, VStack } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../../components/theme-skeleton";
+import {
+  Box,
+  CloseButton,
+  Drawer,
+  Flex,
+  Separator,
+  VStack,
+} from "@chakra-ui/react";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 
 function FieldRowSkeleton() {
   return (
@@ -41,11 +48,23 @@ export function StaffDetailsSkeleton() {
 
       <Box px={5} pb={5}>
         <Flex gap={0} wrap="wrap">
-          <Box flex="1 1 50%" minW="140px" borderBottom="1px solid" borderColor="border.muted" py={2}>
+          <Box
+            flex="1 1 50%"
+            minW="140px"
+            borderBottom="1px solid"
+            borderColor="border.muted"
+            py={2}
+          >
             <ThemeSkeleton h="9px" w="60px" mb={1.5} />
             <ThemeSkeleton h="12px" w="100px" />
           </Box>
-          <Box flex="1 1 50%" minW="140px" borderBottom="1px solid" borderColor="border.muted" py={2}>
+          <Box
+            flex="1 1 50%"
+            minW="140px"
+            borderBottom="1px solid"
+            borderColor="border.muted"
+            py={2}
+          >
             <ThemeSkeleton h="9px" w="60px" mb={1.5} />
             <ThemeSkeleton h="12px" w="110px" />
           </Box>

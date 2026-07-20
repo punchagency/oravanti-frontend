@@ -1,5 +1,5 @@
 import { Box, HStack, ScrollArea, Table } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../components/theme-skeleton";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 
 const ROWS = 5;
 

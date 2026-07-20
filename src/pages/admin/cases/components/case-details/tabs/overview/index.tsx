@@ -1,8 +1,8 @@
-import { Box, HStack, Separator, VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { getCaseById } from "@/api/cases";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
+import { Box, HStack, Separator, VStack } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 import { type CaseData } from "../../shared";
 import { AiReview } from "./ai-review";
 import { MatterDetails } from "./matter-details";
@@ -47,9 +47,23 @@ export function Overview({ caseId, isActive = true }: OverviewProps) {
       <VStack align="stretch" gap={0} py={4}>
         <ThemeSkeleton h="11px" w="90px" borderRadius="4px" mb={2} />
         {Array.from({ length: 7 }, (_, i) => (
-          <Box key={i} borderBottom="1px solid" borderColor="border.muted" py={2}>
-            <ThemeSkeleton h="10px" w={`${70 + i * 5}px`} borderRadius="4px" mb={1.5} />
-            <ThemeSkeleton h="12px" w={`${100 + i * 15}px`} borderRadius="4px" />
+          <Box
+            key={i}
+            borderBottom="1px solid"
+            borderColor="border.muted"
+            py={2}
+          >
+            <ThemeSkeleton
+              h="10px"
+              w={`${70 + i * 5}px`}
+              borderRadius="4px"
+              mb={1.5}
+            />
+            <ThemeSkeleton
+              h="12px"
+              w={`${100 + i * 15}px`}
+              borderRadius="4px"
+            />
           </Box>
         ))}
 
@@ -78,7 +92,11 @@ export function Overview({ caseId, isActive = true }: OverviewProps) {
         {Array.from({ length: 3 }, (_, i) => (
           <HStack key={i} gap={2} mb={2}>
             <ThemeSkeleton h="12px" w="12px" borderRadius="4px" />
-            <ThemeSkeleton h="12px" w={`${120 + i * 20}px`} borderRadius="4px" />
+            <ThemeSkeleton
+              h="12px"
+              w={`${120 + i * 20}px`}
+              borderRadius="4px"
+            />
           </HStack>
         ))}
       </VStack>

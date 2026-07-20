@@ -1,7 +1,7 @@
 import { useLeadQuestionnaireFiles } from "@/hooks/use-lead-workflows";
 import { Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
 import { FileText } from "lucide-react";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null) return "—";
