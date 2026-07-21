@@ -1,19 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { reassignCaseTeam } from "../api/cases";
+import type {
+  CreateCaseNoteParams,
+  GetCaseNotesParams,
+  UpdateCaseNoteParams,
+} from "../api/workflows";
 import {
-  getCaseWorkflow,
-  getWorkflowSummary,
-  completeStep,
-  submitForReview,
-  approveStep,
-  rejectStep,
-  assignStep,
   activateModule,
+  approveStep,
+  assignStep,
+  bulkDeleteCaseNotes,
+  bulkPinCaseNotes,
+  completeStep,
+  createCaseNote,
+  deleteCaseNote,
+  getCaseDocuments,
+  getCaseEvents,
+  getCaseNotes,
   getCaseTimeline,
+  getCaseWorkflow,
   getMyTasks,
   getReviewQueue,
   getWorkflowLogs,
-  getCaseDocuments,
+  getWorkflowSummary,
+  rejectStep,
+  submitForReview,
+  toggleCaseNotePin,
+  updateCaseNote,
 } from "../api/workflows";
 import type { APIError } from "./types";
 
@@ -23,14 +37,57 @@ export const workflowKeys = {
   all: ["workflow"] as const,
   instance: (caseId: string) => ["workflow", "instance", caseId] as const,
   summary: (caseId: string) => ["workflow", "summary", caseId] as const,
-  timeline: (caseId: string) => ["workflow", "timeline", caseId] as const,
-  logs: (caseId: string) => ["workflow", "logs", caseId] as const,
+  timeline: (caseId: string, page?: number, limit?: number) =>
+    [
+      "workflow",
+      "timeline",
+      caseId,
+      ...(page ? [`p${page}`] : []),
+      ...(limit ? [`l${limit}`] : []),
+    ] as const,
+  logs: (caseId: string, page?: number, limit?: number) =>
+    [
+      "workflow",
+      "logs",
+      caseId,
+      ...(page ? [`p${page}`] : []),
+      ...(limit ? [`l${limit}`] : []),
+    ] as const,
   documents: (caseId: string) => ["workflow", "documents", caseId] as const,
-  notes: (caseId: string) => ["workflow", "notes", caseId] as const,
+  notes: (caseId: string, params?: GetCaseNotesParams) =>
+    [
+      "workflow",
+      "notes",
+      caseId,
+      ...(params?.pinnedOnly ? ["pinned"] : []),
+      ...(params?.context ? [params.context] : []),
+      ...(params?.authorId ? [params.authorId] : []),
+      ...(params?.page ? [`p${params.page}`] : []),
+      ...(params?.limit ? [`l${params.limit}`] : []),
+    ] as const,
+  caseEvents: (caseId: string, page?: number, limit?: number) =>
+    [
+      "case-events",
+      caseId,
+      ...(page ? [`p${page}`] : []),
+      ...(limit ? [`l${limit}`] : []),
+    ] as const,
   myTasks: (status?: string, page?: number, limit?: number) =>
-    ["workflow", "my-tasks", ...(status ? [status] : []), ...(page ? [`p${page}`] : []), ...(limit ? [`l${limit}`] : [])] as const,
+    [
+      "workflow",
+      "my-tasks",
+      ...(status ? [status] : []),
+      ...(page ? [`p${page}`] : []),
+      ...(limit ? [`l${limit}`] : []),
+    ] as const,
   reviewQueue: (status?: string, page?: number, limit?: number) =>
-    ["workflow", "review-queue", ...(status ? [status] : []), ...(page ? [`p${page}`] : []), ...(limit ? [`l${limit}`] : [])] as const,
+    [
+      "workflow",
+      "review-queue",
+      ...(status ? [status] : []),
+      ...(page ? [`p${page}`] : []),
+      ...(limit ? [`l${limit}`] : []),
+    ] as const,
 };
 
 // ─── Queries ─────────────────────────────────────────────────────────────────────
@@ -53,19 +110,29 @@ export function useWorkflowSummary(caseId: string, enabled: boolean = true) {
   });
 }
 
-export function useCaseTimeline(caseId: string, enabled: boolean = true) {
+export function useCaseTimeline(
+  caseId: string,
+  page?: number,
+  limit?: number,
+  enabled: boolean = true,
+) {
   return useQuery({
-    queryKey: workflowKeys.timeline(caseId),
-    queryFn: () => getCaseTimeline(caseId),
+    queryKey: workflowKeys.timeline(caseId, page, limit),
+    queryFn: () => getCaseTimeline(caseId, page, limit),
     enabled: Boolean(caseId) && enabled,
     staleTime: 30_000,
   });
 }
 
-export function useWorkflowLogs(caseId: string, enabled: boolean = true) {
+export function useWorkflowLogs(
+  caseId: string,
+  page?: number,
+  limit?: number,
+  enabled: boolean = true,
+) {
   return useQuery({
-    queryKey: workflowKeys.logs(caseId),
-    queryFn: () => getWorkflowLogs(caseId),
+    queryKey: workflowKeys.logs(caseId, page, limit),
+    queryFn: () => getWorkflowLogs(caseId, page, limit),
     enabled: Boolean(caseId) && enabled,
     staleTime: 30_000,
   });
@@ -88,9 +155,13 @@ export function useAssignStep(caseId: string) {
     }) => assignStep(caseId, stepId, staffId, overrideRationale),
     onSuccess: () => {
       toast.success("Step assigned");
-      queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.instance(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.timeline(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
     },
     onError: (err: APIError) => {
@@ -103,18 +174,17 @@ export function useCompleteStep(caseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      stepId,
-      notes,
-    }: {
-      stepId: string;
-      notes?: string;
-    }) => completeStep(caseId, stepId, notes),
+    mutationFn: ({ stepId, notes }: { stepId: string; notes?: string }) =>
+      completeStep(caseId, stepId, notes),
     onSuccess: () => {
       toast.success("Step completed");
-      queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.instance(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.timeline(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: ["cases"] });
     },
     onError: (err: APIError) => {
@@ -131,9 +201,13 @@ export function useSubmitForReview(caseId: string) {
       submitForReview(caseId, stepId, notes),
     onSuccess: () => {
       toast.success("Step submitted for review");
-      queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.instance(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.timeline(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
     },
     onError: (err: APIError) => {
@@ -146,18 +220,17 @@ export function useApproveStep(caseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      stepId,
-      notes,
-    }: {
-      stepId: string;
-      notes?: string;
-    }) => approveStep(caseId, stepId, notes),
+    mutationFn: ({ stepId, notes }: { stepId: string; notes?: string }) =>
+      approveStep(caseId, stepId, notes),
     onSuccess: () => {
       toast.success("Step approved");
-      queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.instance(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.timeline(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.reviewQueue() });
       queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
     },
@@ -171,18 +244,17 @@ export function useRejectStep(caseId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      stepId,
-      feedback,
-    }: {
-      stepId: string;
-      feedback: string;
-    }) => rejectStep(caseId, stepId, feedback),
+    mutationFn: ({ stepId, feedback }: { stepId: string; feedback: string }) =>
+      rejectStep(caseId, stepId, feedback),
     onSuccess: () => {
       toast.success("Step rejected with feedback");
-      queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.instance(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.timeline(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.reviewQueue() });
       queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
     },
@@ -199,9 +271,13 @@ export function useTriggerModule(caseId: string) {
     mutationFn: (moduleId: string) => activateModule(caseId, moduleId),
     onSuccess: () => {
       toast.success("Module activated");
-      queryClient.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.instance(caseId),
+      });
       queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.timeline(caseId) });
+      queryClient.invalidateQueries({
+        queryKey: workflowKeys.timeline(caseId),
+      });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to activate module");
@@ -231,7 +307,11 @@ export function useReviewQueue(status?: string, page?: number, limit?: number) {
 
 // ─── Case Documents ──────────────────────────────────────────────────────────
 
-export function useCaseDocuments(caseId: string, page?: number, limit?: number) {
+export function useCaseDocuments(
+  caseId: string,
+  page?: number,
+  limit?: number,
+) {
   return useQuery({
     queryKey: workflowKeys.documents(caseId),
     queryFn: () => getCaseDocuments(caseId, page, limit),
@@ -242,18 +322,10 @@ export function useCaseDocuments(caseId: string, page?: number, limit?: number) 
 
 // ─── Case Notes ──────────────────────────────────────────────────────────────
 
-import {
-  getCaseNotes,
-  createCaseNote,
-  updateCaseNote,
-  deleteCaseNote,
-} from "../api/workflows";
-import type { CreateCaseNoteParams, UpdateCaseNoteParams } from "../api/workflows";
-
-export function useCaseNotes(caseId: string) {
+export function useCaseNotes(caseId: string, params?: GetCaseNotesParams) {
   return useQuery({
-    queryKey: workflowKeys.notes(caseId),
-    queryFn: () => getCaseNotes(caseId),
+    queryKey: workflowKeys.notes(caseId, params),
+    queryFn: () => getCaseNotes(caseId, params),
     enabled: Boolean(caseId),
     staleTime: 30_000,
   });
@@ -262,7 +334,8 @@ export function useCaseNotes(caseId: string) {
 export function useCreateCaseNote(caseId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (params: CreateCaseNoteParams) => createCaseNote(caseId, params),
+    mutationFn: (params: CreateCaseNoteParams) =>
+      createCaseNote(caseId, params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
       toast.success("Note added");
@@ -276,7 +349,10 @@ export function useCreateCaseNote(caseId: string) {
 export function useUpdateCaseNote(caseId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ noteId, ...params }: { noteId: string } & UpdateCaseNoteParams) =>
+    mutationFn: ({
+      noteId,
+      ...params
+    }: { noteId: string } & UpdateCaseNoteParams) =>
       updateCaseNote(caseId, noteId, params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
@@ -299,5 +375,79 @@ export function useDeleteCaseNote(caseId: string) {
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to delete note");
     },
+  });
+}
+
+export function useToggleCaseNotePin(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (noteId: string) => toggleCaseNotePin(caseId, noteId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
+      toast.success("Pin toggled");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to toggle pin");
+    },
+  });
+}
+
+export function useBulkDeleteCaseNotes(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (noteIds: string[]) => bulkDeleteCaseNotes(caseId, noteIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
+      toast.success("Notes deleted");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to delete notes");
+    },
+  });
+}
+
+export function useBulkPinCaseNotes(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ noteIds, pinned }: { noteIds: string[]; pinned: boolean }) =>
+      bulkPinCaseNotes(caseId, noteIds, pinned),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
+      toast.success("Notes updated");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to update notes");
+    },
+  });
+}
+
+export function useReassignCaseTeam(caseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (teamId: string) => reassignCaseTeam(caseId, teamId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
+      qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
+      qc.invalidateQueries({ queryKey: ["case", caseId] });
+      qc.invalidateQueries({ queryKey: ["cases"] });
+      toast.success("Team reassigned");
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to reassign team");
+    },
+  });
+}
+
+// ─── Case Events (Unified Audit Trail) ───────────────────────────────────────
+
+export function useCaseEvents(
+  caseId: string,
+  page: number = 1,
+  limit: number = 10,
+) {
+  return useQuery({
+    queryKey: workflowKeys.caseEvents(caseId, page, limit),
+    queryFn: () => getCaseEvents(caseId, page, limit),
+    enabled: !!caseId,
   });
 }
