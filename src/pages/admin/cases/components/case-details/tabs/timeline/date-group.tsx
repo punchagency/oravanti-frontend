@@ -1,5 +1,5 @@
 import { Box, Text, Timeline } from "@chakra-ui/react";
-import type { TimelineEvent } from "../workflow/types";
+import type { CaseEvent } from "../../../../../../../api/workflows";
 import { EventRow } from "./event-row";
 
 export function DateGroup({
@@ -7,7 +7,7 @@ export function DateGroup({
   events,
 }: {
   label: string;
-  events: TimelineEvent[];
+  events: CaseEvent[];
 }) {
   if (events.length === 0) return null;
 

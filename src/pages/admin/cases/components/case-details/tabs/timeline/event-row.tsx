@@ -1,92 +1,138 @@
-import { HStack, Text, Timeline, VStack } from "@chakra-ui/react";
-import type { TimelineEvent } from "../workflow/types";
+import { Box, HStack, Text, Timeline, VStack } from "@chakra-ui/react";
+import type { CaseEvent } from "../../../../../../../api/workflows";
 import { formatTime } from "./date-utils";
 import { EventIcon, eventColor } from "./event-icon";
 
-function formatDuration(ms: number | null | undefined): string | null {
-  if (ms == null) return null;
-  const totalSeconds = Math.floor(ms / 1000);
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  if (minutes < 60) return `${minutes}m ${totalSeconds % 60}s`;
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ${minutes % 60}m`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ${hours % 24}h`;
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
 }
 
-function actorLine(event: TimelineEvent): string | null {
-  const actorName = (event.metadata?.actorName as string | undefined) ?? event.createdBy?.name;
-  const assigneeName = event.metadata?.assigneeName as string | undefined;
-  const note = (event.metadata?.note as string | undefined) ?? event.description;
-  const timeTakenMs = event.metadata?.timeTakenMs as number | null | undefined;
+function getDetailLines(event: CaseEvent): string[] {
+  const meta = (event.metadata ?? {}) as Record<string, unknown>;
+  const lines: string[] = [];
 
   switch (event.eventType) {
-    case "step_assigned":
-    case "step_assigned_override": {
-      const role = event.metadata?.staffRole as string | undefined;
-      const due = event.metadata?.dueDate as string | undefined;
-      const assignee = assigneeName ?? (event.metadata?.staffName as string | undefined);
-      if (!assignee) return null;
-      const parts = [`Assigned to ${assignee}`];
-      if (role) parts.push(`(${role})`);
-      if (actorName) parts.push(`by ${actorName}`);
-      if (due) parts.push(`due ${new Date(due).toLocaleDateString()}`);
-      return parts.join(" ");
-    }
-    case "step_reassigned": {
-      const prev = event.metadata?.previousStaffName as string | undefined;
-      const next = event.metadata?.newStaffName as string | undefined;
-      if (!prev || !next) return null;
-      const parts = [`Reassigned from ${prev} to ${next}`];
-      if (actorName) parts.push(`by ${actorName}`);
-      return parts.join(" ");
-    }
-    case "step_submitted_for_review": {
-      if (!actorName && !note) return null;
-      const parts: string[] = [];
-      if (actorName) parts.push(`Submitted by ${actorName}`);
-      if (note) parts.push(`— "${note}"`);
-      return parts.join(" ");
-    }
-    case "step_approved": {
-      if (!actorName && !assigneeName) return null;
-      const parts: string[] = [];
-      if (actorName) parts.push(`Approved by ${actorName}`);
-      if (assigneeName) parts.push(`(was assigned to ${assigneeName})`);
-      if (note) parts.push(`— "${note}"`);
-      const dur = formatDuration(timeTakenMs);
-      if (dur) parts.push(`— took ${dur}`);
-      return parts.join(" ");
-    }
-    case "step_rejected": {
-      if (!actorName) return null;
-      const parts = [`Rejected by ${actorName}`];
-      if (assigneeName) parts.push(`(was assigned to ${assigneeName})`);
-      if (note) parts.push(`— "${note}"`);
-      return parts.join(" ");
+    case "step_assigned": {
+      const staffName = meta.staffName as string | undefined;
+      const assignerName = meta.assignerName as string | undefined;
+      const moduleName = meta.moduleName as string | undefined;
+      const strategy = meta.assignmentStrategy as string | undefined;
+      const note = (meta.note ?? meta.overrideRationale) as string | undefined;
+
+      if (staffName) lines.push(`Assigned to ${staffName}`);
+      if (assignerName) lines.push(`by ${assignerName}`);
+      if (moduleName) lines.push(`Module: ${moduleName}`);
+      if (strategy === "workload_balanced") lines.push("Auto-assigned (workload)");
+      if (strategy === "manual_override") lines.push("Manual override");
+      if (note) lines.push(`Note: ${note}`);
+      break;
     }
     case "step_completed": {
-      const name =
-        actorName ??
-        (event.metadata?.completedByName as string | undefined);
-      if (!name) return null;
-      const parts = [`Completed by ${name}`];
-      if (assigneeName) parts.push(`(was assigned to ${assigneeName})`);
-      const dur = formatDuration(timeTakenMs);
-      if (dur) parts.push(`— took ${dur}`);
-      if (note) parts.push(`— "${note}"`);
-      return parts.join(" ");
+      const timeTakenMs = meta.timeTakenMs as number | undefined;
+      const completedByName = meta.completedByName as string | undefined;
+      const moduleName = meta.moduleName as string | undefined;
+      const note = meta.note as string | undefined;
+
+      if (completedByName) lines.push(`by ${completedByName}`);
+      if (timeTakenMs != null) lines.push(`Time taken: ${formatDuration(timeTakenMs)}`);
+      if (moduleName) lines.push(`Module: ${moduleName}`);
+      if (note) lines.push(`Note: ${note}`);
+      break;
+    }
+    case "step_submitted_for_review": {
+      const submittedByName = meta.submittedByName as string | undefined;
+      const moduleName = meta.moduleName as string | undefined;
+      const note = meta.note as string | undefined;
+
+      if (submittedByName) lines.push(`by ${submittedByName}`);
+      if (moduleName) lines.push(`Module: ${moduleName}`);
+      if (note) lines.push(`Note: ${note}`);
+      break;
+    }
+    case "step_approved": {
+      const reviewerName = meta.reviewerName as string | undefined;
+      const assigneeName = meta.assigneeName as string | undefined;
+      const timeTakenMs = meta.timeTakenMs as number | undefined;
+      const moduleName = meta.moduleName as string | undefined;
+      const note = meta.note as string | undefined;
+
+      if (reviewerName) lines.push(`by ${reviewerName}`);
+      if (assigneeName) lines.push(`Assignee: ${assigneeName}`);
+      if (timeTakenMs != null) lines.push(`Time taken: ${formatDuration(timeTakenMs)}`);
+      if (moduleName) lines.push(`Module: ${moduleName}`);
+      if (note) lines.push(`Note: ${note}`);
+      break;
+    }
+    case "step_rejected": {
+      const reviewerName = meta.reviewerName as string | undefined;
+      const assigneeName = meta.assigneeName as string | undefined;
+      const feedback = meta.feedback as string | undefined;
+      const moduleName = meta.moduleName as string | undefined;
+
+      if (reviewerName) lines.push(`by ${reviewerName}`);
+      if (assigneeName) lines.push(`Assignee: ${assigneeName}`);
+      if (moduleName) lines.push(`Module: ${moduleName}`);
+      if (feedback) lines.push(`Feedback: ${feedback}`);
+      break;
+    }
+    case "module_activated": {
+      const moduleName = meta.moduleName as string | undefined;
+      const activationType = meta.activationType as string | undefined;
+
+      if (moduleName) lines.push(`Module: ${moduleName}`);
+      if (activationType) lines.push(`Activation: ${activationType}`);
+      break;
+    }
+    case "workflow_initialized": {
+      const stepCount = meta.stepCount as number | undefined;
+      const moduleCount = meta.moduleCount as number | undefined;
+
+      if (stepCount != null) lines.push(`${stepCount} steps created`);
+      if (moduleCount != null) lines.push(`${moduleCount} modules activated`);
+      break;
+    }
+    case "case_team_reassigned": {
+      const prevTeam = meta.previousTeam as { id: string; name: string } | undefined;
+      const newTeam = meta.newTeam as { id: string; name: string } | undefined;
+
+      if (prevTeam?.name) lines.push(`From: ${prevTeam.name}`);
+      if (newTeam?.name) lines.push(`To: ${newTeam.name}`);
+      break;
+    }
+    case "case_team_assigned": {
+      const teamName = meta.teamName as string | undefined;
+      if (teamName) lines.push(`Team: ${teamName}`);
+      break;
+    }
+    case "case_note_created":
+    case "case_note_updated":
+    case "case_note_deleted":
+    case "case_note_pinned":
+    case "case_note_unpinned": {
+      const content = meta.content as string | undefined;
+      if (content) {
+        const preview = content.length > 80 ? `${content.slice(0, 80)}…` : content;
+        lines.push(preview);
+      }
+      break;
     }
     default:
-      return null;
+      break;
   }
+
+  return lines;
 }
 
-export function EventRow({ event }: { event: TimelineEvent }) {
-  const moduleName = event.metadata?.moduleName as string | undefined;
-  const stepTitle = event.metadata?.stepTitle as string | undefined;
-  const actorInfo = actorLine(event);
+export function EventRow({ event }: { event: CaseEvent }) {
+  const details = getDetailLines(event);
 
   return (
     <Timeline.Item key={event.id}>
@@ -108,24 +154,18 @@ export function EventRow({ event }: { event: TimelineEvent }) {
         <Timeline.Description fontSize="10px" color="fg.subtle" mt={0.5}>
           <VStack gap={0.5} align="start">
             <HStack gap={1} flexWrap="wrap">
-              {moduleName && (
-                <Text as="span" color="fg.muted">
-                  {moduleName}
-                </Text>
-              )}
-              {stepTitle && (
-                <Text as="span" color="fg.muted" truncate maxW="200px">
-                  · {stepTitle}
-                </Text>
-              )}
               <Text as="span" color="fg.subtle">
                 · {formatTime(event.createdAt)}
               </Text>
             </HStack>
-            {actorInfo && (
-              <Text as="span" color="fg.muted" fontSize="10px">
-                {actorInfo}
-              </Text>
+            {details.length > 0 && (
+              <Box>
+                {details.map((line, i) => (
+                  <Text key={i} as="span" color="fg.muted" fontSize="10px" display="block">
+                    {line}
+                  </Text>
+                ))}
+              </Box>
             )}
           </VStack>
         </Timeline.Description>
