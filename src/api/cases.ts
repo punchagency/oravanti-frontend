@@ -93,3 +93,14 @@ export async function getCaseById(id: string): Promise<CaseDetail> {
   const { data } = await API.get<{ data: CaseDetail }>(`/cases/${id}`);
   return data.data;
 }
+
+export async function reassignCaseTeam(
+  caseId: string,
+  teamId: string,
+): Promise<CaseDetail> {
+  const { data } = await API.post<{ data: CaseDetail }>(
+    `/cases/${caseId}/reassign-team`,
+    { teamId },
+  );
+  return data.data;
+}

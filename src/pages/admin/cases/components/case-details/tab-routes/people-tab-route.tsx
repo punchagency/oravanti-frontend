@@ -1,5 +1,7 @@
+import { useParams } from "react-router";
 import { People } from "../tabs/people";
 
 export function CasePeopleTabRoute() {
-  return <People />;
+  const { caseId } = useParams<{ caseId: string }>();
+  return <People caseId={caseId!} />;
 }

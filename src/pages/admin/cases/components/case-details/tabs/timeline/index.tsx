@@ -1,68 +1,55 @@
 import {
   Box,
   HStack,
-  Separator,
   Text,
-  Timeline,
   VStack,
 } from "@chakra-ui/react";
-import { Clock, FileText } from "lucide-react";
+import { Clock } from "lucide-react";
+import { parseAsInteger, useQueryStates } from "nuqs";
 import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { useCaseEvents } from "../../../../../../../hooks/use-workflows";
+import type { CaseEvent } from "../../../../../../../api/workflows";
 import { SectionLabel } from "../../shared";
-import { useCaseTimeline } from "../workflow/hooks";
-import type { TimelineEvent } from "../workflow/types";
 import { DateGroup } from "./date-group";
 import { dateLabel } from "./date-utils";
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface TimelineTabProps {
   caseId?: string;
-  isActive?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Static case entries (pre-existing, shown as a fallback)
-// ---------------------------------------------------------------------------
+export function TimelineTab({ caseId }: TimelineTabProps) {
+  const [{ page, limit }, setPagination] = useQueryStates({
+    page: parseAsInteger.withDefault(1),
+    limit: parseAsInteger.withDefault(10),
+  });
 
-const staticEntries: { event: string; date: string }[] = [
-  { event: "Case opened", date: "Mar 28, 2026" },
-  { event: "Initial consultation", date: "Apr 2, 2026" },
-  { event: "Documents filed", date: "Apr 15, 2026" },
-];
-
-// ---------------------------------------------------------------------------
-// Main TimelineTab
-// ---------------------------------------------------------------------------
-
-export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
-  const { data: timelineEvents, isLoading } = useCaseTimeline(
+  const { data: eventsResult, isLoading } = useCaseEvents(
     caseId ?? "",
-    isActive,
+    page,
+    limit,
   );
 
-  // Group workflow events by date
-  const grouped = (timelineEvents ?? []).reduce<
-    Record<string, TimelineEvent[]>
-  >((acc, event) => {
-    const label = dateLabel(event.createdAt, event.createdAt);
-    if (!acc[label]) acc[label] = [];
-    acc[label].push(event);
-    return acc;
-  }, {});
+  const events = eventsResult?.data ?? [];
+  const pagination = eventsResult?.pagination;
+
+  const grouped = events.reduce<Record<string, CaseEvent[]>>(
+    (acc, event) => {
+      const label = dateLabel(event.createdAt, event.createdAt);
+      if (!acc[label]) acc[label] = [];
+      acc[label].push(event);
+      return acc;
+    },
+    {},
+  );
 
   const dateOrder = Object.keys(grouped).sort((a, b) => {
-    // "Today" and "Yesterday" should be first
     if (a === "Today") return -1;
     if (b === "Today") return 1;
     if (a === "Yesterday") return -1;
     if (b === "Yesterday") return 1;
     return new Date(b).getTime() - new Date(a).getTime();
   });
-
-  const hasWorkflowEvents = (timelineEvents ?? []).length > 0;
 
   if (isLoading) {
     return (
@@ -102,7 +89,7 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
     <>
       <SectionLabel>Timeline</SectionLabel>
 
-      {!hasWorkflowEvents && (
+      {events.length === 0 && (
         <VStack
           align="center"
           py={6}
@@ -116,59 +103,28 @@ export function TimelineTab({ caseId, isActive = true }: TimelineTabProps) {
             <Clock size={24} />
           </Box>
           <Text fontSize="12px" fontWeight="500" color="fg.muted">
-            No workflow events yet
+            No events yet
           </Text>
           <Text fontSize="12px" color="fg.subtle">
-            Events will appear as steps are assigned and completed.
+            Events will appear as the case progresses.
           </Text>
         </VStack>
       )}
 
-      {/* Workflow events grouped by date */}
       {dateOrder.map((label) => (
         <DateGroup key={label} label={label} events={grouped[label]} />
       ))}
 
-      {/* Separator before static case events */}
-      {hasWorkflowEvents && <Separator borderColor="border.muted" my={3} />}
-
-      {/* Static case events (always shown) */}
-      <Box mb={4}>
-        <Text
-          fontSize="10px"
-          fontWeight="600"
-          color="fg.subtle"
-          textTransform="uppercase"
-          letterSpacing="0.8px"
-          mb={2}
-        >
-          Case events
-        </Text>
-        <Timeline.Root size="sm" variant="plain" colorPalette="green">
-          {staticEntries.map((entry) => (
-            <Timeline.Item key={entry.event}>
-              <Timeline.Connector>
-                <Timeline.Separator />
-                <Timeline.Indicator color="fg.subtle">
-                  <FileText size={13} />
-                </Timeline.Indicator>
-              </Timeline.Connector>
-              <Timeline.Content>
-                <Timeline.Title fontSize="11px" fontWeight="500" color="fg">
-                  {entry.event}
-                </Timeline.Title>
-                <Timeline.Description
-                  fontSize="10px"
-                  color="fg.subtle"
-                  mt={0.5}
-                >
-                  {entry.date}
-                </Timeline.Description>
-              </Timeline.Content>
-            </Timeline.Item>
-          ))}
-        </Timeline.Root>
-      </Box>
+      {pagination && (
+        <PaginationControls
+          currentPage={page}
+          limit={limit}
+          total={pagination.total}
+          onPageChange={(p: number) => setPagination({ page: p })}
+          onLimitChange={(l: number) => setPagination({ limit: l, page: 1 })}
+          pageSizeOptions={[10, 20, 50]}
+        />
+      )}
     </>
   );
 }

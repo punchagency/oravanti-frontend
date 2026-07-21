@@ -3,5 +3,5 @@ import { AuditLogTab } from "../tabs/audit-log";
 
 export function CaseAuditLogTabRoute() {
   const { caseId } = useParams<{ caseId: string }>();
-  return <AuditLogTab caseId={caseId!} isActive={true} />;
+  return <AuditLogTab caseId={caseId!} />;
 }

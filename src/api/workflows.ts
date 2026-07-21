@@ -2,6 +2,18 @@ import { API } from "./index";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
+export type CaseNoteContext = "notes_tab" | "workflow_step" | "task" | "lead_conversion" | "system";
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface WorkflowStepInstance {
   stepId: string;
   title: string;
@@ -57,6 +69,8 @@ export interface CaseNote {
   taskId: string | null;
   category: "client_communication" | "internal_strategy" | "medical_update" | "intake_screening" | "ops_review_feedback";
   visibility: "all_staff" | "attorneys_only" | "admins_only";
+  isPinned: boolean;
+  context: CaseNoteContext;
   content: string;
   isEdited: boolean;
   createdByUserId: string;
@@ -71,6 +85,8 @@ export interface CreateCaseNoteParams {
   taskId?: string;
   category?: string;
   visibility?: string;
+  isPinned?: boolean;
+  context?: CaseNoteContext;
   content: string;
 }
 
@@ -78,6 +94,7 @@ export interface UpdateCaseNoteParams {
   content?: string;
   category?: string;
   visibility?: string;
+  isPinned?: boolean;
 }
 
 // ─── API Calls ───────────────────────────────────────────────────────────────────
@@ -163,9 +180,19 @@ export async function activateModule(
   return data.data;
 }
 
-export async function getCaseTimeline(caseId: string): Promise<TimelineEvent[]> {
-  const { data } = await API.get<{ data: TimelineEvent[] }>(`/cases/${caseId}/workflow/timeline`);
-  return data.data;
+export async function getCaseTimeline(
+  caseId: string,
+  page?: number,
+  limit?: number,
+): Promise<PaginatedResponse<TimelineEvent>> {
+  const params: Record<string, string> = {};
+  if (page) params.page = String(page);
+  if (limit) params.limit = String(limit);
+  const { data } = await API.get<{ data: TimelineEvent[]; pagination: any }>(
+    `/cases/${caseId}/workflow/timeline`,
+    { params },
+  );
+  return { data: data.data, pagination: data.pagination };
 }
 
 export interface WorkflowLogEntry {
@@ -178,9 +205,19 @@ export interface WorkflowLogEntry {
   createdAt: string;
 }
 
-export async function getWorkflowLogs(caseId: string): Promise<WorkflowLogEntry[]> {
-  const { data } = await API.get<{ data: WorkflowLogEntry[] }>(`/cases/${caseId}/workflow/logs`);
-  return data.data;
+export async function getWorkflowLogs(
+  caseId: string,
+  page?: number,
+  limit?: number,
+): Promise<PaginatedResponse<WorkflowLogEntry>> {
+  const params: Record<string, string> = {};
+  if (page) params.page = String(page);
+  if (limit) params.limit = String(limit);
+  const { data } = await API.get<{ data: WorkflowLogEntry[]; pagination: any }>(
+    `/cases/${caseId}/workflow/logs`,
+    { params },
+  );
+  return { data: data.data, pagination: data.pagination };
 }
 
 // ─── My Tasks & Review Queue ────────────────────────────────────────────────────
@@ -342,9 +379,54 @@ export async function getCaseDocuments(
 
 // ─── Case Notes API ─────────────────────────────────────────────────────────────
 
-export async function getCaseNotes(caseId: string): Promise<CaseNote[]> {
-  const { data } = await API.get<{ data: CaseNote[] }>(`/cases/${caseId}/workflow/notes`);
+export interface GetCaseNotesParams {
+  page?: number;
+  limit?: number;
+  context?: CaseNoteContext;
+  authorId?: string;
+  pinnedOnly?: boolean;
+}
+
+export async function getCaseNotes(
+  caseId: string,
+  params?: GetCaseNotesParams,
+): Promise<PaginatedResponse<CaseNote>> {
+  const queryParams: Record<string, string> = {};
+  if (params?.page) queryParams.page = String(params.page);
+  if (params?.limit) queryParams.limit = String(params.limit);
+  if (params?.context) queryParams.context = params.context;
+  if (params?.authorId) queryParams.authorId = params.authorId;
+  if (params?.pinnedOnly) queryParams.pinnedOnly = "true";
+  const { data } = await API.get<{ data: CaseNote[]; pagination: any }>(
+    `/cases/${caseId}/workflow/notes`,
+    { params: queryParams },
+  );
+  return { data: data.data, pagination: data.pagination };
+}
+
+export async function toggleCaseNotePin(
+  caseId: string,
+  noteId: string,
+): Promise<CaseNote> {
+  const { data } = await API.post<{ data: CaseNote }>(
+    `/cases/${caseId}/workflow/notes/${noteId}/toggle-pin`,
+  );
   return data.data;
+}
+
+export async function bulkDeleteCaseNotes(
+  caseId: string,
+  noteIds: string[],
+): Promise<void> {
+  await API.post(`/cases/${caseId}/workflow/notes/bulk-delete`, { noteIds });
+}
+
+export async function bulkPinCaseNotes(
+  caseId: string,
+  noteIds: string[],
+  pinned: boolean,
+): Promise<void> {
+  await API.post(`/cases/${caseId}/workflow/notes/bulk-pin`, { noteIds, pinned });
 }
 
 export async function createCaseNote(
@@ -372,4 +454,33 @@ export async function deleteCaseNote(
   noteId: string,
 ): Promise<void> {
   await API.delete(`/cases/${caseId}/workflow/notes/${noteId}`);
+}
+
+// ─── Case Events (Unified Audit Trail) ───────────────────────────────────────
+
+export interface CaseEvent {
+  id: string;
+  eventType: string;
+  title: string;
+  description: string | null;
+  actorId: string | null;
+  actorName: string | null;
+  metadata: Record<string, unknown> | null;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+export async function getCaseEvents(
+  caseId: string,
+  page?: number,
+  limit?: number,
+): Promise<PaginatedResponse<CaseEvent>> {
+  const params: Record<string, string> = {};
+  if (page) params.page = String(page);
+  if (limit) params.limit = String(limit);
+  const { data } = await API.get<{ data: CaseEvent[]; pagination: any }>(
+    `/cases/${caseId}/audit-log`,
+    { params },
+  );
+  return { data: data.data, pagination: data.pagination };
 }

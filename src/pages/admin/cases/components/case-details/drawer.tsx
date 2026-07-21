@@ -268,7 +268,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <People />
+                  <People caseId={caseId} />
                 </Tabs.Content>
 
                 <Tabs.Content
@@ -288,7 +288,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <TimelineTab caseId={caseId} isActive={tab === "timeline"} />
+                  <TimelineTab caseId={caseId} />
                 </Tabs.Content>
 
                 <Tabs.Content
@@ -308,7 +308,7 @@ export function CaseDetailsDrawer({
                   flex={1}
                   overflow="auto"
                 >
-                  <AuditLogTab caseId={caseId} isActive={tab === "audit log"} />
+                  <AuditLogTab caseId={caseId} />
                 </Tabs.Content>
               </Tabs.Root>
             </Drawer.Body>

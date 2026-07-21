@@ -20,7 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useState } from "react";
-import { CaseDrawerOpener } from "../my-tasks/case-drawer";
+import { Link } from "react-router";
 import { WorkflowActionDialog } from "../my-tasks/workflow-action-dialog";
 
 const TABS = [
@@ -374,7 +374,7 @@ function ReviewCard({ item }: { item: ReviewQueueItem }) {
               {showTrail ? "Hide" : `${trailEntries.length} feedback`}
             </Button>
           )}
-          <CaseDrawerOpener caseId={item.caseId}>
+          <Link to={`/cases/${item.caseId}`}>
             <Button
               size="2xs"
               variant="outline"
@@ -385,7 +385,7 @@ function ReviewCard({ item }: { item: ReviewQueueItem }) {
               <ExternalLink size={10} />
               Open case
             </Button>
-          </CaseDrawerOpener>
+          </Link>
 
           {isInReview && (
             <>

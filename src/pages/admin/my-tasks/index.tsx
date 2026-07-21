@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
-import { CaseDrawerOpener } from "./case-drawer";
 import { WorkflowActionDialog } from "./workflow-action-dialog";
 
 const TABS = [
@@ -421,7 +420,7 @@ function TaskCard({ task }: { task: MyTaskItem }) {
               />
             </>
           )}
-          <CaseDrawerOpener caseId={task.caseId}>
+          <Link to={`/cases/${task.caseId}`}>
             <Button
               size="2xs"
               variant="outline"
@@ -432,7 +431,7 @@ function TaskCard({ task }: { task: MyTaskItem }) {
               <ExternalLink size={10} />
               Open case
             </Button>
-          </CaseDrawerOpener>
+          </Link>
         </HStack>
       </Flex>
 
