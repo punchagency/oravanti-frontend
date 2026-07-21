@@ -1,3 +1,5 @@
+import type { CaseDocument } from "@/api/workflows";
+import { useCaseDocuments } from "@/hooks/use-workflows";
 import {
   Badge,
   Box,
@@ -8,9 +10,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { Download, Eye, FileText } from "lucide-react";
-import { useCaseDocuments } from "@/hooks/use-workflows";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
-import type { CaseDocument } from "@/api/workflows";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null) return "—";
@@ -36,7 +36,9 @@ function categoryColor(category: string | null): { bg: string; color: string } {
   }
 }
 
-function scanStatusBadge(status: string | null): { label: string; bg: string; color: string } | null {
+function scanStatusBadge(
+  status: string | null,
+): { label: string; bg: string; color: string } | null {
   if (!status) return null;
   switch (status) {
     case "CLEAN":
@@ -58,7 +60,12 @@ export function DocumentTable({ caseId }: { caseId: string }) {
 
   if (isLoading) {
     return (
-      <Box border="1px solid" borderColor="border.muted" borderRadius="lg" overflow="hidden">
+      <Box
+        border="1px solid"
+        borderColor="border.muted"
+        borderRadius="lg"
+        overflow="hidden"
+      >
         <Table.Root size="sm" variant="line">
           <Table.Header>
             <Table.Row bg="bg.subtle">
@@ -86,8 +93,17 @@ export function DocumentTable({ caseId }: { caseId: string }) {
                   <HStack gap={2}>
                     <ThemeSkeleton h="16px" w="16px" borderRadius="4px" />
                     <Box>
-                      <ThemeSkeleton h="12px" w={`${120 + i * 15}px`} borderRadius="4px" mb={1} />
-                      <ThemeSkeleton h="9px" w={`${90 + i * 10}px`} borderRadius="4px" />
+                      <ThemeSkeleton
+                        h="12px"
+                        w={`${120 + i * 15}px`}
+                        borderRadius="4px"
+                        mb={1}
+                      />
+                      <ThemeSkeleton
+                        h="9px"
+                        w={`${90 + i * 10}px`}
+                        borderRadius="4px"
+                      />
                     </Box>
                   </HStack>
                 </Table.Cell>
@@ -281,7 +297,9 @@ function DocumentRow({ doc }: { doc: CaseDocument }) {
             {scan.label}
           </Badge>
         ) : (
-          <Text fontSize="13px" color="fg.muted">—</Text>
+          <Text fontSize="13px" color="fg.muted">
+            —
+          </Text>
         )}
       </Table.Cell>
       <Table.Cell px={4} py={3.5}>

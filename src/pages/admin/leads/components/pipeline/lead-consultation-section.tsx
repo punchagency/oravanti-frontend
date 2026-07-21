@@ -1,35 +1,3 @@
-import {
-  Box,
-  chakra,
-  Dialog,
-  Flex,
-  HStack,
-  Stack,
-  Text,
-  Textarea,
-} from "@chakra-ui/react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  CalendarClock,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  ExternalLink,
-  FileText,
-  Info,
-  Lock,
-  Mail,
-  MapPin,
-  Pencil,
-  Phone,
-  Send,
-  UserX,
-  Video,
-  X,
-  Zap,
-} from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
-import { toast } from "sonner";
 import type {
   Consultation,
   FeeAgreementDetails,
@@ -37,6 +5,14 @@ import type {
   LeadDetail,
 } from "@/api/leads";
 import { formatReceivedDate, getLeadById } from "@/api/leads";
+import {
+  BrandButton,
+  CardTitle,
+  MutedText,
+  OutlineButton,
+  StatusPill,
+  SurfaceCard,
+} from "@/components/ui/intake-ui";
 import { useConsultationSettings } from "@/hooks/use-consultation-settings";
 import {
   useAdvanceLeadStage,
@@ -53,23 +29,55 @@ import {
 } from "@/hooks/use-leads";
 import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
 import { useStaffList } from "@/hooks/use-staff-list";
-import { dayjs, formatTime } from "@/utils/date";
-import {
-  BrandButton,
-  CardTitle,
-  MutedText,
-  OutlineButton,
-  StatusPill,
-  SurfaceCard,
-} from "@/components/ui/intake-ui";
-import { buildFeeAgreementHtml } from "@/pages/admin/intake/components/fee-agreement-document";
-import { FeeAgreementWizard } from "@/pages/admin/intake/components/fee-agreement-wizard";
-import { consultationModeLabel } from "@/pages/admin/intake/components/consultation-wizard-constants";
+import { useLeadNotes, useDeleteLeadNote, useUpdateLeadNote } from "@/hooks/use-lead-workflows";
+import { useCurrentStaff } from "@/hooks/use-current-staff";
+import { useConfirmStore } from "@/store/confirm-store";
+import type { LeadNote } from "@/api/lead-workflows";
 import {
   ScheduleConsultationDialog,
   type ConsultationSummaryLead,
 } from "@/pages/admin/intake/components/consultation-view";
+import { consultationModeLabel } from "@/pages/admin/intake/components/consultation-wizard-constants";
+import { buildFeeAgreementHtml } from "@/pages/admin/intake/components/fee-agreement-document";
+import { FeeAgreementWizard } from "@/pages/admin/intake/components/fee-agreement-wizard";
 import { InstantConsultationDialog } from "@/pages/admin/intake/components/instant-consultation-dialog";
+import { dayjs, formatTime } from "@/utils/date";
+import {
+  Box,
+  Button,
+  chakra,
+  Dialog,
+  Flex,
+  HStack,
+  IconButton,
+  Stack,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { useQuery } from "@tanstack/react-query";
+import {
+  CalendarClock,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ExternalLink,
+  FileText,
+  Info,
+  Lock,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Send,
+  Trash2,
+  UserX,
+  Video,
+  X,
+  Zap,
+} from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 type StatusTone = "info" | "success" | "danger" | "warning" | "neutral";
 
@@ -225,7 +233,12 @@ function PastConsultations({ items }: { items: Consultation[] }) {
           Past consultations
         </Text>
         <MutedText>{items.length}</MutedText>
-        <Box ml="auto" color="fg.muted" transform={open ? "rotate(180deg)" : undefined} transition="transform 0.2s">
+        <Box
+          ml="auto"
+          color="fg.muted"
+          transform={open ? "rotate(180deg)" : undefined}
+          transition="transform 0.2s"
+        >
           <ChevronDown size={16} />
         </Box>
       </chakra.button>
@@ -240,7 +253,11 @@ function PastConsultations({ items }: { items: Consultation[] }) {
   );
 }
 
-function PastConsultationRow({ consultation: c }: { consultation: Consultation }) {
+function PastConsultationRow({
+  consultation: c,
+}: {
+  consultation: Consultation;
+}) {
   const [showNotes, setShowNotes] = useState(false);
   const tone = CONSULT_STATUS_TONE[c.status] ?? "neutral";
   const when = c.scheduledAt
@@ -272,7 +289,9 @@ function PastConsultationRow({ consultation: c }: { consultation: Consultation }
             ) : null}
           </Box>
         </HStack>
-        <StatusPill tone={tone}>{CONSULT_STATUS_LABEL[c.status] ?? c.status}</StatusPill>
+        <StatusPill tone={tone}>
+          {CONSULT_STATUS_LABEL[c.status] ?? c.status}
+        </StatusPill>
       </HStack>
       {notes ? (
         <Box pl="15px" mt="4px">
@@ -368,7 +387,10 @@ function CancelConsultationDialog({
                 color="fg"
                 fontSize="13px"
                 _placeholder={{ color: "fg.muted" }}
-                _focus={{ borderColor: "brand.solid", boxShadow: "0 0 0 1px var(--brand-cta)" }}
+                _focus={{
+                  borderColor: "brand.solid",
+                  boxShadow: "0 0 0 1px var(--brand-cta)",
+                }}
               />
             </Box>
           </Box>
@@ -599,6 +621,13 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
     ? (consultation?.attorneyNotes ?? "")
     : (effectiveLead.notes ?? "");
   const displayNotes = notes !== null ? notes : baseNotes;
+
+  const { data: notesResult, isLoading: isNotesLoading } = useLeadNotes(effectiveLead.id);
+  const allNotes = notesResult?.data ?? [];
+  const consultationNotes = useMemo(
+    () => allNotes.filter((n) => n.context === "consultation"),
+    [allNotes],
+  );
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [now, setTime] = useState(() => Date.now());
@@ -613,7 +642,9 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
   const attorneys = staffData?.data ?? [];
   const attorneyName = (() => {
     if (!consultation?.leadAttorneyId) return "Unassigned";
-    const a = attorneys.find((s: { id: string }) => s.id === consultation.leadAttorneyId);
+    const a = attorneys.find(
+      (s: { id: string }) => s.id === consultation.leadAttorneyId,
+    );
     return a ? `${a.firstName} ${a.lastName}`.trim() : "Assigned attorney";
   })();
 
@@ -627,10 +658,10 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
     ? formatIsoTime(consultation.scheduledAt)
     : "\u2014";
   const consultStatusLabel = consultation
-    ? CONSULT_STATUS_LABEL[consultation.status] ?? consultation.status
+    ? (CONSULT_STATUS_LABEL[consultation.status] ?? consultation.status)
     : null;
   const consultStatusTone: StatusTone = consultation
-    ? CONSULT_STATUS_TONE[consultation.status] ?? "neutral"
+    ? (CONSULT_STATUS_TONE[consultation.status] ?? "neutral")
     : "neutral";
 
   const consultationCompleted = consultation?.status === "completed";
@@ -653,8 +684,7 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
     consultation?.status === "in_progress";
 
   const caseOpened = Boolean(effectiveLead.convertedCaseId);
-  const isReadyToOpen =
-    feeAgreement?.status === "signed" && !awaitingPayment;
+  const isReadyToOpen = feeAgreement?.status === "signed" && !awaitingPayment;
   const feeStageIndex = caseOpened
     ? 5
     : isReadyToOpen
@@ -693,22 +723,36 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
       );
     } else {
       saveLeadNotes.mutate(
-        { id: effectiveLead.id, data: { notes: displayNotes } },
+        {
+          id: effectiveLead.id,
+          data: { notes: displayNotes, noteContext: "consultation" },
+        },
         { onSuccess: () => setNotes(null) },
       );
     }
   }
   function handleCompleteConsultation() {
-    completeMutation.mutate({ id: effectiveLead.id, data: { status: "completed" } });
+    completeMutation.mutate({
+      id: effectiveLead.id,
+      data: { status: "completed" },
+    });
   }
   function handleNoShow() {
-    noShowMutation.mutate({ id: effectiveLead.id, data: { status: "no_show" } });
+    noShowMutation.mutate({
+      id: effectiveLead.id,
+      data: { status: "no_show" },
+    });
   }
   function handleFollowUp() {
     if (!consultation) return;
     outcomesMutation.mutate(
       { id: effectiveLead.id, data: { outcome: "follow_up" } },
-      { onSuccess: () => toast.success("Follow-up recorded. Schedule it from the main consultation view.") },
+      {
+        onSuccess: () =>
+          toast.success(
+            "Follow-up recorded. Schedule it from the main consultation view.",
+          ),
+      },
     );
   }
   function handleCloseNoCase() {
@@ -747,12 +791,19 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
     <>
       <SurfaceCard>
         {/* 1. Lead + consultation details */}
-        <HStack align="flex-start" justify="space-between" gap="16px" wrap="wrap">
+        <HStack
+          align="flex-start"
+          justify="space-between"
+          gap="16px"
+          wrap="wrap"
+        >
           <HStack gap="12px" minW="0" align="flex-start">
             <Avatar name={effectiveLead.name} />
             <Box minW="0">
               <CardTitle>{effectiveLead.name}</CardTitle>
-              <MutedText>{effectiveLead.caseTypeName ?? "Matter type not set"}</MutedText>
+              <MutedText>
+                {effectiveLead.caseTypeName ?? "Matter type not set"}
+              </MutedText>
             </Box>
           </HStack>
           {consultation ? (
@@ -772,7 +823,8 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
                 {modeLabel}
               </StatusPill>
               <MutedText>
-                {consultationDate} · {consultationTime} · {consultation.duration} min
+                {consultationDate} · {consultationTime} ·{" "}
+                {consultation.duration} min
               </MutedText>
               {consultation.paymentTiming === "pay_in_person" &&
               consultation.feeStatus === "unpaid" ? (
@@ -875,6 +927,50 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
           </Box>
         </SectionRow>
 
+        {/* 3b. Consultation notes from lead notes */}
+        <SectionRow>
+          <Box>
+            <Text m="0" color="fg" fontSize="13px" fontWeight="500">
+              Consultation notes
+            </Text>
+            <MutedText>
+              Notes mirrored from consultation pre/post-consultation fields.
+            </MutedText>
+            {isNotesLoading ? (
+              <Stack gap={3} mt="8px">
+                {Array.from({ length: 2 }, (_, i) => (
+                  <Box
+                    key={i}
+                    border="1px solid"
+                    borderColor="border.muted"
+                    borderRadius="lg"
+                    bg="bg"
+                    p={4}
+                  >
+                    <HStack gap={2} mb={2}>
+                      <ThemeSkeleton h="24px" w="24px" borderRadius="full" />
+                      <ThemeSkeleton h="12px" w={`${80 + i * 15}px`} borderRadius="4px" />
+                      <ThemeSkeleton h="12px" w="60px" borderRadius="4px" />
+                    </HStack>
+                    <ThemeSkeleton h="12px" w="100%" borderRadius="4px" mb={1} />
+                    <ThemeSkeleton h="12px" w={`${200 + i * 30}px`} borderRadius="4px" />
+                  </Box>
+                ))}
+              </Stack>
+            ) : consultationNotes.length > 0 ? (
+              <Stack gap={3} mt="8px">
+                {consultationNotes.map((note) => (
+                  <ConsultationNoteCard
+                    key={note.id}
+                    note={note}
+                    leadId={effectiveLead.id}
+                  />
+                ))}
+              </Stack>
+            ) : null}
+          </Box>
+        </SectionRow>
+
         {/* 4. Fee agreement */}
         {hasCompletedConsultation ? (
           <SectionRow>
@@ -913,7 +1009,9 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
                 />
               ) : feeAgreement.status === "draft" ? (
                 <Stack gap="10px">
-                  <MutedText>Agreement generated — ready to dispatch.</MutedText>
+                  <MutedText>
+                    Agreement generated — ready to dispatch.
+                  </MutedText>
                   <HStack gap="8px" wrap="wrap">
                     <BrandButton onClick={() => setPreviewOpen(true)}>
                       <FileText size={14} />
@@ -1133,7 +1231,9 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
           sending={sendFee.isPending}
           onSend={() =>
             previewData &&
-            sendFee.mutate(previewData.agreement.id, { onSuccess: closePreview })
+            sendFee.mutate(previewData.agreement.id, {
+              onSuccess: closePreview,
+            })
           }
           onClose={closePreview}
         />
@@ -1149,5 +1249,138 @@ export function ConsultationSection({ lead }: { lead: LeadDetail }) {
         />
       </SurfaceCard>
     </>
+  );
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function ConsultationNoteCard({
+  note,
+  leadId,
+}: {
+  note: LeadNote;
+  leadId: string;
+}) {
+  const { data: currentStaff } = useCurrentStaff();
+  const deleteNote = useDeleteLeadNote(leadId);
+  const updateNote = useUpdateLeadNote(leadId);
+  const showConfirm = useConfirmStore((s) => s.showConfirm);
+  const [editing, setEditing] = useState(false);
+  const isAuthor = currentStaff?.id === note.authorId;
+  const [editText, setEditText] = useState(note.content);
+
+  const handleSave = () => {
+    if (!editText.trim()) return;
+    updateNote.mutate(
+      { noteId: note.id, content: editText.trim() },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  const handleDelete = () => {
+    showConfirm({
+      title: "Delete note",
+      description: "Are you sure you want to delete this note? This action cannot be undone.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      onConfirm: () => {
+        deleteNote.mutate(note.id);
+      },
+    });
+  };
+
+  return (
+    <Box
+      border="1px solid"
+      borderColor="border.muted"
+      borderRadius="lg"
+      bg="bg"
+      p={4}
+    >
+      <HStack gap={2} mb={2} wrap="wrap">
+        <Avatar name={note.authorName ?? "Unknown"} size={24} />
+        <Text fontSize="12px" fontWeight="500" color="fg">
+          {note.authorName ?? "Unknown"}
+        </Text>
+        <Text fontSize="11px" color="fg.subtle">
+          {formatDateTime(note.createdAt)}
+        </Text>
+        <Box ms="auto" />
+        {isAuthor && !editing && (
+          <HStack gap={1}>
+            <IconButton
+              variant="outline"
+              borderColor="border"
+              size="xs"
+              color="fg.muted"
+              onClick={() => setEditing(true)}
+              aria-label="Edit note"
+            >
+              <Pencil size={12} />
+            </IconButton>
+            <IconButton
+              variant="outline"
+              borderColor="border"
+              size="xs"
+              color="fg.muted"
+              onClick={handleDelete}
+              loading={deleteNote.isPending}
+              aria-label="Delete note"
+            >
+              <Trash2 size={12} />
+            </IconButton>
+          </HStack>
+        )}
+      </HStack>
+      {editing ? (
+        <Box>
+          <Textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            minH="60px"
+            fontSize="13px"
+            variant="outline"
+            borderColor="border"
+            mb={2}
+          />
+          <HStack gap={2} justify="flex-end">
+            <Button
+              size="xs"
+              variant="outline"
+              borderColor="border"
+              onClick={() => {
+                setEditing(false);
+                setEditText(note.content);
+              }}
+            >
+              <X size={12} />
+              Cancel
+            </Button>
+            <Button
+              size="xs"
+              bg="brand.solid"
+              color="brand.contrast"
+              onClick={handleSave}
+              loading={updateNote.isPending}
+            >
+              Save
+            </Button>
+          </HStack>
+        </Box>
+      ) : (
+        <Text fontSize="13px" color="fg" whiteSpace="pre-wrap">
+          {note.content}
+        </Text>
+      )}
+    </Box>
   );
 }

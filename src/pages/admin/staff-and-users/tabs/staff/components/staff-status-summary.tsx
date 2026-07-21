@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { AlertTriangle, CalendarOff, UserCheck, UserPlus } from "lucide-react";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 import { useStaffData } from "../staff-data-context";
-import { ThemeSkeleton } from "../../../components/theme-skeleton";
 
 const cards = [
   {

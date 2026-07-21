@@ -1,6 +1,6 @@
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { AlertTriangle, Group, LayoutGrid, Users } from "lucide-react";
-import { ThemeSkeleton } from "../../../components/theme-skeleton";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 import { useTeamsData } from "../teams-data-context";
 
 const cards = [

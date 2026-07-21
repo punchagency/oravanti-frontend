@@ -1,10 +1,10 @@
-import { Box, HStack, Text, VStack } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../../../staff-and-users/components/theme-skeleton";
-import { SectionLabel } from "../../shared";
-import { useLeadAuditLog } from "@/hooks/use-lead-workflows";
 import type { LeadAuditLogEntry } from "@/api/lead-workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { useLeadAuditLog } from "@/hooks/use-lead-workflows";
+import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { parseAsInteger, useQueryStates } from "nuqs";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
+import { SectionLabel } from "../../shared";
 
 const eventIcons: Record<string, string> = {
   LEAD_RECEIVED: "📥",
@@ -101,33 +101,59 @@ interface LeadAuditLogTabProps {
   isActive?: boolean;
 }
 
-export function LeadAuditLogTab({ leadId, isActive = true }: LeadAuditLogTabProps) {
-  const [{ page, limit }, setPagination] = useQueryStates(
-    {
-      page: parseAsInteger.withDefault(1),
-      limit: parseAsInteger.withDefault(10),
-    },
+export function LeadAuditLogTab({
+  leadId,
+  isActive = true,
+}: LeadAuditLogTabProps) {
+  const [{ page, limit }, setPagination] = useQueryStates({
+    page: parseAsInteger.withDefault(1),
+    limit: parseAsInteger.withDefault(10),
+  });
+
+  const { data, isLoading } = useLeadAuditLog(
+    leadId ?? "",
+    isActive,
+    page,
+    limit,
   );
 
-  const { data, isLoading } = useLeadAuditLog(leadId ?? "", isActive, page, limit);
-
   const logs = data?.data ?? [];
-  const pagination = data?.pagination ?? { total: 0, totalPages: 0, page: 1, limit: 10 };
+  const pagination = data?.pagination ?? {
+    total: 0,
+    totalPages: 0,
+    page: 1,
+    limit: 10,
+  };
 
   if (isLoading) {
     return (
       <VStack align="stretch" gap={3} py={4}>
         <SectionLabel>Audit Log</SectionLabel>
         {Array.from({ length: 4 }, (_, i) => (
-          <Box key={i} p={3} border="1px solid" borderColor="border.subtle" borderRadius="6px">
+          <Box
+            key={i}
+            p={3}
+            border="1px solid"
+            borderColor="border.subtle"
+            borderRadius="6px"
+          >
             <HStack gap={2} mb={2}>
               <ThemeSkeleton h="24px" w="24px" borderRadius="full" />
               <Box>
-                <ThemeSkeleton h="12px" w={`${100 + i * 20}px`} borderRadius="4px" mb={1} />
+                <ThemeSkeleton
+                  h="12px"
+                  w={`${100 + i * 20}px`}
+                  borderRadius="4px"
+                  mb={1}
+                />
                 <ThemeSkeleton h="10px" w="80px" borderRadius="4px" />
               </Box>
             </HStack>
-            <ThemeSkeleton h="10px" w={`${180 + i * 15}px`} borderRadius="4px" />
+            <ThemeSkeleton
+              h="10px"
+              w={`${180 + i * 15}px`}
+              borderRadius="4px"
+            />
           </Box>
         ))}
       </VStack>
@@ -172,9 +198,7 @@ export function LeadAuditLogTab({ leadId, isActive = true }: LeadAuditLogTabProp
               </Text>
             )}
             <Text fontSize="9px" color="fg.muted">
-              {entry.performedBy
-                ? `by ${entry.performedBy.name}`
-                : "by System"}{" "}
+              {entry.performedBy ? `by ${entry.performedBy.name}` : "by System"}{" "}
               · {new Date(entry.createdAt).toLocaleString()}
             </Text>
           </Box>

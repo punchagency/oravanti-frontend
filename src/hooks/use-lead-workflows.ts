@@ -20,12 +20,13 @@ import {
   linkLeadDocument,
   rejectLeadTask,
   submitLeadTaskForReview,
+  toggleLeadNotePin,
   unlinkLeadDocument,
   updateLeadNote,
   updateLeadTask,
   updateLeadTaskStatus,
 } from "@/api/lead-workflows";
-import type { CreateLeadNoteParams, LeadNoteType, LeadTaskInput, LeadTaskStatus } from "@/api/lead-workflows";
+import type { CreateLeadNoteParams, LeadNoteType, LeadNoteVisibility, LeadTaskInput, LeadTaskStatus } from "@/api/lead-workflows";
 import type { APIError } from "./types";
 
 export function useMyLeadTasks() {
@@ -179,11 +180,11 @@ export function useLeadAuditLog(leadId: string, enabled = true, page = 1, limit 
 
 // ─── Lead Notes ──────────────────────────────────────────────────────────────
 
-export function useLeadNotes(leadId: string) {
+export function useLeadNotes(leadId: string, opts?: { context?: string; authorId?: string; pinnedOnly?: boolean; page?: number; limit?: number; enabled?: boolean }) {
   return useQuery({
-    queryKey: ["leadNotes", leadId],
-    queryFn: () => getLeadNotes(leadId),
-    enabled: Boolean(leadId),
+    queryKey: ["leadNotes", leadId, opts?.context ?? "all", opts?.authorId ?? "all", opts?.pinnedOnly ?? false, opts?.page ?? 1, opts?.limit ?? 50],
+    queryFn: () => getLeadNotes(leadId, { context: opts?.context, authorId: opts?.authorId, pinnedOnly: opts?.pinnedOnly, page: opts?.page, limit: opts?.limit }),
+    enabled: Boolean(leadId) && (opts?.enabled ?? true),
   });
 }
 
@@ -206,7 +207,7 @@ export function useCreateLeadNote(leadId: string) {
 export function useUpdateLeadNote(leadId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ noteId, ...params }: { noteId: string } & { content?: string; type?: LeadNoteType }) =>
+    mutationFn: ({ noteId, ...params }: { noteId: string } & { content?: string; type?: LeadNoteType; visibility?: LeadNoteVisibility; isPinned?: boolean }) =>
       updateLeadNote(leadId, noteId, params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leadNotes", leadId] });
@@ -355,5 +356,18 @@ export function useLeadReviewQueue(status?: string, page = 1, limit = 20) {
   return useQuery({
     queryKey: [...leadWorkflowKeys.reviewQueue(), status, page, limit],
     queryFn: () => getLeadReviewQueue(status, page, limit),
+  });
+}
+
+export function useToggleNotePin(leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (noteId: string) => toggleLeadNotePin(leadId, noteId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leadNotes", leadId] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err?.response?.data?.message ?? "Failed to toggle pin");
+    },
   });
 }

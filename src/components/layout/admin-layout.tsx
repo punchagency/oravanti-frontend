@@ -1,5 +1,6 @@
 import { Box } from "@chakra-ui/react";
 import { Outlet } from "react-router";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import {
   ContextNavigation,
   PrimaryNavigation,
@@ -11,7 +12,9 @@ export function AdminLayout() {
       <PrimaryNavigation />
       <ContextNavigation />
       <Box as="main" className="main-content">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </Box>
     </Box>
   );

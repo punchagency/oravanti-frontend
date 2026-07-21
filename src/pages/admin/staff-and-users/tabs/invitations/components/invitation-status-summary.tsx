@@ -1,7 +1,7 @@
+import type { InvitationCounts } from "@/api/organization";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { Check, Clock, ThumbsDown, XCircle } from "lucide-react";
-import type { InvitationCounts } from "@/api/organization";
-import { ThemeSkeleton } from "../../../components/theme-skeleton";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 
 const cards = [
   {
@@ -61,10 +61,21 @@ export function InvitationStatusSummary({
       >
         <Flex align="center" gap={2.5}>
           {isLoading ? (
-            <ThemeSkeleton height={{ base: "24px", md: "32px" }} width="40px" borderRadius="md" />
+            <ThemeSkeleton
+              height={{ base: "24px", md: "32px" }}
+              width="40px"
+              borderRadius="md"
+            />
           ) : (
-            <Text fontWeight="bold" fontSize={{ base: "xl", md: "2xl" }} color="fg">
-              {counts.pending + counts.accepted + counts.rejected + counts.canceled}
+            <Text
+              fontWeight="bold"
+              fontSize={{ base: "xl", md: "2xl" }}
+              color="fg"
+            >
+              {counts.pending +
+                counts.accepted +
+                counts.rejected +
+                counts.canceled}
             </Text>
           )}
         </Flex>
@@ -96,14 +107,27 @@ export function InvitationStatusSummary({
                 <Icon size={18} />
               </Box>
               {isLoading ? (
-                <ThemeSkeleton height={{ base: "24px", md: "32px" }} width="40px" borderRadius="md" />
+                <ThemeSkeleton
+                  height={{ base: "24px", md: "32px" }}
+                  width="40px"
+                  borderRadius="md"
+                />
               ) : (
-                <Text fontWeight="bold" fontSize={{ base: "xl", md: "2xl" }} color="fg">
+                <Text
+                  fontWeight="bold"
+                  fontSize={{ base: "xl", md: "2xl" }}
+                  color="fg"
+                >
                   {card.count(counts)}
                 </Text>
               )}
             </Flex>
-            <Text mt={1} textStyle="body-sm" color="fg.subtle" whiteSpace="nowrap">
+            <Text
+              mt={1}
+              textStyle="body-sm"
+              color="fg.subtle"
+              whiteSpace="nowrap"
+            >
               {card.label}
             </Text>
           </Box>

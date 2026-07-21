@@ -1,5 +1,5 @@
 import { CloseButton, Drawer, Flex, Stack } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../../components/theme-skeleton";
+import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 
 export function TeamDetailsSkeleton() {
   return (

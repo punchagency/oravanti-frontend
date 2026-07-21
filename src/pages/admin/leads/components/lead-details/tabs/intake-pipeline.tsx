@@ -1,3 +1,13 @@
+import type { LeadTask, LeadTaskStatus } from "@/api/lead-workflows";
+import {
+  useAssignLeadTask,
+  useCompleteLeadTask,
+  useInitializePipeline,
+  useLeadTasks,
+  useUpdateLeadTaskStatus,
+} from "@/hooks/use-lead-workflows";
+import { useRunConflictCheck } from "@/hooks/use-leads";
+import { useStaff } from "@/hooks/use-staff";
 import {
   Badge,
   Box,
@@ -13,22 +23,24 @@ import {
   VStack,
   createListCollection,
 } from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../../staff-and-users/components/theme-skeleton";
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Play,
+  RotateCcw,
+  SkipForward,
+  UserPlus,
+} from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 import {
-  useLeadTasks,
-  useInitializePipeline,
-  useUpdateLeadTaskStatus,
-  useCompleteLeadTask,
-  useAssignLeadTask,
-} from "@/hooks/use-lead-workflows";
-import type { LeadTask, LeadTaskStatus } from "@/api/lead-workflows";
-import { useRunConflictCheck } from "@/hooks/use-leads";
-import { useStaff } from "@/hooks/use-staff";
+  pipelineStageColors,
+  pipelineStageLabels,
+  taskStatusColors,
+} from "../constants";
 import { SectionLabel } from "../shared";
-import { pipelineStageColors, pipelineStageLabels, taskStatusColors } from "../constants";
-import { Check, ChevronDown, ExternalLink, Play, RotateCcw, SkipForward, UserPlus } from "lucide-react";
 
 interface IntakePipelineTabProps {
   leadId: string;
@@ -43,7 +55,10 @@ const PIPELINE_ORDER = [
   "case_opening",
 ] as const;
 
-export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) {
+export function IntakePipelineTab({
+  leadId,
+  isActive,
+}: IntakePipelineTabProps) {
   const navigate = useNavigate();
   const { data: tasks, isLoading } = useLeadTasks(isActive ? leadId : "");
   const initPipeline = useInitializePipeline();
@@ -91,7 +106,12 @@ export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) 
               <ThemeSkeleton h="8px" w="8px" borderRadius="full" />
               <ThemeSkeleton h="12px" w="100px" borderRadius="4px" />
             </HStack>
-            <Box border="1px solid" borderColor="border" borderRadius="8px" overflow="hidden">
+            <Box
+              border="1px solid"
+              borderColor="border"
+              borderRadius="8px"
+              overflow="hidden"
+            >
               <Table.Root w="full" tableLayout="fixed">
                 <Table.Header>
                   <Table.Row bg="bg.subtle">
@@ -113,7 +133,12 @@ export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) 
                   {Array.from({ length: 3 }, (_, i) => (
                     <Table.Row key={i}>
                       <Table.Cell px={3} py={2.5}>
-                        <ThemeSkeleton h="12px" w="80%" borderRadius="4px" mb={1} />
+                        <ThemeSkeleton
+                          h="12px"
+                          w="80%"
+                          borderRadius="4px"
+                          mb={1}
+                        />
                         <ThemeSkeleton h="8px" w="60%" borderRadius="4px" />
                       </Table.Cell>
                       <Table.Cell px={3} py={2.5}>
@@ -187,10 +212,50 @@ export function IntakePipelineTab({ leadId, isActive }: IntakePipelineTabProps) 
                 <Table.Root w="full" tableLayout="fixed">
                   <Table.Header>
                     <Table.Row bg="bg.subtle">
-                      <Table.ColumnHeader px={3} py={2} fontSize="10px" textTransform="uppercase" color="fg.muted" fontWeight="500" w="38%">Task</Table.ColumnHeader>
-                      <Table.ColumnHeader px={3} py={2} fontSize="10px" textTransform="uppercase" color="fg.muted" fontWeight="500" w="14%">Status</Table.ColumnHeader>
-                      <Table.ColumnHeader px={3} py={2} fontSize="10px" textTransform="uppercase" color="fg.muted" fontWeight="500" w="18%">Assigned To</Table.ColumnHeader>
-                      <Table.ColumnHeader px={3} py={2} fontSize="10px" textTransform="uppercase" color="fg.muted" fontWeight="500" w="30%">Actions</Table.ColumnHeader>
+                      <Table.ColumnHeader
+                        px={3}
+                        py={2}
+                        fontSize="10px"
+                        textTransform="uppercase"
+                        color="fg.muted"
+                        fontWeight="500"
+                        w="38%"
+                      >
+                        Task
+                      </Table.ColumnHeader>
+                      <Table.ColumnHeader
+                        px={3}
+                        py={2}
+                        fontSize="10px"
+                        textTransform="uppercase"
+                        color="fg.muted"
+                        fontWeight="500"
+                        w="14%"
+                      >
+                        Status
+                      </Table.ColumnHeader>
+                      <Table.ColumnHeader
+                        px={3}
+                        py={2}
+                        fontSize="10px"
+                        textTransform="uppercase"
+                        color="fg.muted"
+                        fontWeight="500"
+                        w="18%"
+                      >
+                        Assigned To
+                      </Table.ColumnHeader>
+                      <Table.ColumnHeader
+                        px={3}
+                        py={2}
+                        fontSize="10px"
+                        textTransform="uppercase"
+                        color="fg.muted"
+                        fontWeight="500"
+                        w="30%"
+                      >
+                        Actions
+                      </Table.ColumnHeader>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
@@ -274,13 +339,27 @@ function TaskRow({
 
   return (
     <Table.Row>
-      <Table.Cell px={3} py={2.5} borderBottom="1px solid" borderColor="border.subtle">
-        <Text color="fg" fontSize="12px" fontWeight="500" truncate>{task.title}</Text>
+      <Table.Cell
+        px={3}
+        py={2.5}
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+      >
+        <Text color="fg" fontSize="12px" fontWeight="500" truncate>
+          {task.title}
+        </Text>
         {task.description ? (
-          <Text color="fg.muted" fontSize="10px" mt={0.5} truncate>{task.description}</Text>
+          <Text color="fg.muted" fontSize="10px" mt={0.5} truncate>
+            {task.description}
+          </Text>
         ) : null}
       </Table.Cell>
-      <Table.Cell px={3} py={2.5} borderBottom="1px solid" borderColor="border.subtle">
+      <Table.Cell
+        px={3}
+        py={2.5}
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+      >
         <Badge
           size="xs"
           borderRadius="full"
@@ -297,14 +376,25 @@ function TaskRow({
           {task.status.replace("_", " ")}
         </Badge>
       </Table.Cell>
-      <Table.Cell px={3} py={2.5} borderBottom="1px solid" borderColor="border.subtle">
+      <Table.Cell
+        px={3}
+        py={2.5}
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+      >
         <Text color="fg.muted" fontSize="11px" truncate>
           {task.staff?.name ?? "—"}
         </Text>
       </Table.Cell>
-      <Table.Cell px={3} py={2.5} borderBottom="1px solid" borderColor="border.subtle">
+      <Table.Cell
+        px={3}
+        py={2.5}
+        borderBottom="1px solid"
+        borderColor="border.subtle"
+      >
         <HStack gap={1}>
-          {task.actionType === "run_conflict_check" && task.status !== "completed" ? (
+          {task.actionType === "run_conflict_check" &&
+          task.status !== "completed" ? (
             <Button size="xs" h="24px" fontSize="10px" onClick={onAction}>
               Run check
             </Button>
@@ -312,7 +402,15 @@ function TaskRow({
 
           <Menu.Root>
             <Menu.Trigger asChild>
-              <Button size="xs" variant="outline" borderColor="border" h="24px" fontSize="10px" px={1.5} minW="auto">
+              <Button
+                size="xs"
+                variant="outline"
+                borderColor="border"
+                h="24px"
+                fontSize="10px"
+                px={1.5}
+                minW="auto"
+              >
                 <ChevronDown size={10} />
               </Button>
             </Menu.Trigger>
@@ -331,14 +429,21 @@ function TaskRow({
                       <Box flex="1">Mark complete</Box>
                     </Menu.Item>
                   )}
-                  {task.status !== "in_progress" && task.status !== "completed" && (
-                    <Menu.Item value="start" onClick={() => onStatusChange("in_progress")}>
-                      <Play size={13} />
-                      <Box flex="1">Start task</Box>
-                    </Menu.Item>
-                  )}
+                  {task.status !== "in_progress" &&
+                    task.status !== "completed" && (
+                      <Menu.Item
+                        value="start"
+                        onClick={() => onStatusChange("in_progress")}
+                      >
+                        <Play size={13} />
+                        <Box flex="1">Start task</Box>
+                      </Menu.Item>
+                    )}
                   {task.status !== "skipped" && task.status !== "completed" && (
-                    <Menu.Item value="skip" onClick={() => onStatusChange("skipped")}>
+                    <Menu.Item
+                      value="skip"
+                      onClick={() => onStatusChange("skipped")}
+                    >
                       <SkipForward size={13} />
                       <Box flex="1">Skip task</Box>
                     </Menu.Item>
@@ -349,7 +454,10 @@ function TaskRow({
                       <Box flex="1">Assign staff</Box>
                     </Menu.Item>
                   )}
-                  <Menu.Item value="reset" onClick={() => onStatusChange("pending")}>
+                  <Menu.Item
+                    value="reset"
+                    onClick={() => onStatusChange("pending")}
+                  >
                     <RotateCcw size={13} />
                     <Box flex="1">Reset to pending</Box>
                   </Menu.Item>
@@ -421,7 +529,8 @@ function MobileTaskCard({
           Assigned: {task.staff?.name ?? "—"}
         </Text>
         <HStack gap={1}>
-          {task.actionType === "run_conflict_check" && task.status !== "completed" ? (
+          {task.actionType === "run_conflict_check" &&
+          task.status !== "completed" ? (
             <Button size="2xs" h="22px" fontSize="10px" onClick={onAction}>
               Run check
             </Button>
@@ -429,7 +538,15 @@ function MobileTaskCard({
 
           <Menu.Root>
             <Menu.Trigger asChild>
-              <Button size="2xs" variant="outline" borderColor="border" h="22px" fontSize="10px" px={1.5} minW="auto">
+              <Button
+                size="2xs"
+                variant="outline"
+                borderColor="border"
+                h="22px"
+                fontSize="10px"
+                px={1.5}
+                minW="auto"
+              >
                 <ChevronDown size={9} />
               </Button>
             </Menu.Trigger>
@@ -448,14 +565,21 @@ function MobileTaskCard({
                       <Box flex="1">Mark complete</Box>
                     </Menu.Item>
                   )}
-                  {task.status !== "in_progress" && task.status !== "completed" && (
-                    <Menu.Item value="start" onClick={() => onStatusChange("in_progress")}>
-                      <Play size={13} />
-                      <Box flex="1">Start task</Box>
-                    </Menu.Item>
-                  )}
+                  {task.status !== "in_progress" &&
+                    task.status !== "completed" && (
+                      <Menu.Item
+                        value="start"
+                        onClick={() => onStatusChange("in_progress")}
+                      >
+                        <Play size={13} />
+                        <Box flex="1">Start task</Box>
+                      </Menu.Item>
+                    )}
                   {task.status !== "skipped" && task.status !== "completed" && (
-                    <Menu.Item value="skip" onClick={() => onStatusChange("skipped")}>
+                    <Menu.Item
+                      value="skip"
+                      onClick={() => onStatusChange("skipped")}
+                    >
                       <SkipForward size={13} />
                       <Box flex="1">Skip task</Box>
                     </Menu.Item>
@@ -466,7 +590,10 @@ function MobileTaskCard({
                       <Box flex="1">Assign staff</Box>
                     </Menu.Item>
                   )}
-                  <Menu.Item value="reset" onClick={() => onStatusChange("pending")}>
+                  <Menu.Item
+                    value="reset"
+                    onClick={() => onStatusChange("pending")}
+                  >
                     <RotateCcw size={13} />
                     <Box flex="1">Reset to pending</Box>
                   </Menu.Item>
@@ -533,7 +660,11 @@ function AssignStaffDialog({
             <Dialog.Body>
               <VStack gap={3} align="stretch">
                 <Text fontSize="12px" color="fg.muted">
-                  Assign "<Text as="span" fontWeight="500" color="fg">{taskTitle}</Text>" to a staff member
+                  Assign "
+                  <Text as="span" fontWeight="500" color="fg">
+                    {taskTitle}
+                  </Text>
+                  " to a staff member
                 </Text>
 
                 <Box>

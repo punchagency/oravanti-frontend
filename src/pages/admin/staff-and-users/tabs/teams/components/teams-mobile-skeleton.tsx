@@ -1,11 +1,5 @@
-import {
-  Box,
-  Flex,
-  HStack,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
-import { ThemeSkeleton } from "../../../components/theme-skeleton";
+import { Box, Flex, HStack, Stack, Text } from "@chakra-ui/react";
+import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 
 const ROWS = 3;
 
@@ -36,16 +30,25 @@ export function TeamsMobileSkeleton() {
 
           <ThemeSkeleton height="4px" width="100%" borderRadius="full" mb={3} />
 
-          <Stack gap={2} pt={2} borderTop="1px solid" borderColor="border.muted">
+          <Stack
+            gap={2}
+            pt={2}
+            borderTop="1px solid"
+            borderColor="border.muted"
+          >
             <Flex justify="space-between" align="center">
-              <Text color="fg.subtle" textStyle="body-sm">Team lead:</Text>
+              <Text color="fg.subtle" textStyle="body-sm">
+                Team lead:
+              </Text>
               <HStack gap={1.5}>
                 <ThemeSkeleton boxSize="20px" borderRadius="full" />
                 <ThemeSkeleton height="14px" width="100px" />
               </HStack>
             </Flex>
             <Flex justify="space-between" align="center">
-              <Text color="fg.subtle" textStyle="body-sm">Members:</Text>
+              <Text color="fg.subtle" textStyle="body-sm">
+                Members:
+              </Text>
               <ThemeSkeleton height="14px" width="50px" />
             </Flex>
             <Flex wrap="wrap" gap={2}>
