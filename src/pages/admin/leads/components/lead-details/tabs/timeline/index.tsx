@@ -1,10 +1,10 @@
 import type { LeadTimelineEvent } from "@/api/lead-workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { useLeadTimeline } from "@/hooks/use-lead-workflows";
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { Clock } from "lucide-react";
 import { parseAsInteger, useQueryStates } from "nuqs";
-import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 import { SectionLabel } from "../../shared";
 import { DateGroup } from "./date-group";
 import { dateLabel } from "./date-utils";

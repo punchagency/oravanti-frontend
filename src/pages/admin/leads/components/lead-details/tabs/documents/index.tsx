@@ -1,7 +1,8 @@
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { useLeadQuestionnaireFiles } from "@/hooks/use-lead-workflows";
-import { Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
-import { FileText } from "lucide-react";
-import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
+import { downloadResponseFile } from "@/api/questionnaires";
+import { Box, Flex, HStack, IconButton, Table, Text } from "@chakra-ui/react";
+import { Download, FileText } from "lucide-react";
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null) return "—";
@@ -67,6 +68,9 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
                 <Table.ColumnHeader px={3} py={2} w="120px">
                   <ThemeSkeleton h="10px" w="45px" borderRadius="4px" />
                 </Table.ColumnHeader>
+                <Table.ColumnHeader px={3} py={2} w="80px">
+                  <ThemeSkeleton h="10px" w="40px" borderRadius="4px" />
+                </Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -90,6 +94,9 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
                   </Table.Cell>
                   <Table.Cell px={3} py={2.5}>
                     <ThemeSkeleton h="11px" w="50px" borderRadius="4px" />
+                  </Table.Cell>
+                  <Table.Cell px={3} py={2.5}>
+                    <ThemeSkeleton h="16px" w="16px" borderRadius="4px" />
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -150,6 +157,17 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
                 >
                   Date
                 </Table.ColumnHeader>
+                <Table.ColumnHeader
+                  px={3}
+                  py={2}
+                  fontSize="10px"
+                  textTransform="uppercase"
+                  color="fg.muted"
+                  fontWeight="500"
+                  w="80px"
+                >
+                  Actions
+                </Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -183,6 +201,17 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
                         day: "numeric",
                       })}
                     </Text>
+                  </Table.Cell>
+                  <Table.Cell px={3} py={2.5}>
+                    <IconButton
+                      variant="ghost"
+                      size="xs"
+                      color="fg.muted"
+                      aria-label="Download"
+                      onClick={() => downloadResponseFile(file.id, file.name)}
+                    >
+                      <Download size={14} />
+                    </IconButton>
                   </Table.Cell>
                 </Table.Row>
               ))}

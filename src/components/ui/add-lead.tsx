@@ -4,7 +4,7 @@ import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useCreateLead } from "@/hooks/use-leads";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
 import { useFirmTimezone } from "@/hooks/useTimezone";
-import { leadSources } from "@/pages/admin/intake/data";
+import { leadSources } from "@/pages/admin/leads/data";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import { listTimezones } from "@/utils/timezones";
 import {
@@ -139,7 +139,7 @@ export function AddLeadDialog({
       <Dialog.Positioner px="16px">
         <Dialog.Content
           w="full"
-          maxW="480px"
+          maxW="2xl"
           border="1px solid"
           borderColor="border"
           borderRadius="14px"

@@ -44,8 +44,8 @@ import {
   OutlineButton,
 } from "@/components/ui/intake-ui";
 import { DateField } from "@/components/ui/date-field";
-import { CheckOption, ChoiceChip } from "./consultation-wizard-shared";
-import { fieldStyles } from "./consultation-wizard-constants";
+import { CheckOption, ChoiceChip } from "../shared/consultation-wizard-shared";
+import { fieldStyles } from "../shared/consultation-wizard-constants";
 import {
   getContingencyFit,
   getCostPreset,

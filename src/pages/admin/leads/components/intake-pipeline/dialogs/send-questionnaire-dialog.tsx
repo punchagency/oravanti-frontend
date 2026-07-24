@@ -45,7 +45,7 @@ import {
   BrandButton,
   MutedText,
   OutlineButton,
-} from "../../../../components/ui/intake-ui";
+} from "@/components/ui/intake-ui";
 import { NotifyChip } from "@/components/ui/notify-chip";
 
 type WizardStep = 1 | 2 | 3;

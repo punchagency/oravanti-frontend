@@ -25,9 +25,9 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
-import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
-import { pipelineStageLabels } from "./components/lead-details/constants";
-import { CompleteTaskDialog } from "./components/lead-details/tabs/complete-task-dialog";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { pipelineStageLabels } from "./components/intake-pipeline/shared/constants";
+import { CompleteTaskDialog } from "./components/intake-pipeline/dialogs/complete-task-dialog";
 
 const TABS = [
   { value: "all", label: "All" },

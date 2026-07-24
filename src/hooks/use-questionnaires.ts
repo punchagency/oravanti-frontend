@@ -16,11 +16,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { APIError } from "./types";
 
+const FIVE_MIN = 5 * 60 * 1000;
+
 export function useEligibleLeads(enabled = true) {
   return useQuery({
     queryKey: ["questionnaire-eligible-leads"],
     queryFn: getEligibleLeads,
     enabled,
+    staleTime: FIVE_MIN,
   });
 }
 
@@ -39,6 +42,7 @@ export function useQuestionBank(enabled = true) {
     queryKey: ["questionnaire-question-bank"],
     queryFn: getQuestionBank,
     enabled,
+    staleTime: FIVE_MIN,
   });
 }
 
@@ -47,6 +51,7 @@ export function useCaseTypeQuestionnairePreview(caseTypeId: string | null) {
     queryKey: ["questionnaire-preview", caseTypeId],
     queryFn: () => getCaseTypeQuestionnairePreview(caseTypeId as string),
     enabled: Boolean(caseTypeId),
+    staleTime: FIVE_MIN,
   });
 }
 
@@ -55,6 +60,7 @@ export function useLeadQuestionnaire(leadId: string) {
     queryKey: ["lead-questionnaire", leadId],
     queryFn: () => getLeadQuestionnaire(leadId),
     enabled: Boolean(leadId),
+    staleTime: FIVE_MIN,
   });
 }
 
@@ -63,6 +69,7 @@ export function useResponseDetail(responseId: string | null) {
     queryKey: ["questionnaire-response", responseId],
     queryFn: () => getResponseDetail(responseId as string),
     enabled: Boolean(responseId),
+    staleTime: FIVE_MIN,
   });
 }
 
