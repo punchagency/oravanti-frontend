@@ -45,7 +45,7 @@ import {
   BrandButton,
   MutedText,
   OutlineButton,
-} from "../../../../components/ui/intake-ui";
+} from "@/components/ui/intake-ui";
 import { NotifyChip } from "@/components/ui/notify-chip";
 
 type WizardStep = 1 | 2 | 3;
@@ -88,11 +88,13 @@ export function SendQuestionnaireDialog({
   onOpenChange,
   presetLeadId,
   presetLead,
+  leadName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   presetLeadId?: string | null;
   presetLead?: EligibleLead | null;
+  leadName?: string;
 }) {
   const [step, setStep] = useState<WizardStep>(1);
   const {
@@ -270,6 +272,7 @@ export function SendQuestionnaireDialog({
                   matterType={selectedLead?.caseTypeName ?? null}
                   channels={channels}
                   reminder={reminder}
+                  leadName={leadName}
                   onLeadChange={(id) =>
                     setValue("leadId", id, { shouldValidate: true })
                   }
@@ -386,6 +389,7 @@ function RecipientStep({
   matterType,
   channels,
   reminder,
+  leadName,
   onLeadChange,
   onToggleChannel,
   onReminderChange,
@@ -401,6 +405,7 @@ function RecipientStep({
   matterType: string | null;
   channels: Channel[];
   reminder: ReminderOption;
+  leadName?: string;
   onLeadChange: (id: string) => void;
   onToggleChannel: (c: Channel) => void;
   onReminderChange: (r: ReminderOption) => void;
@@ -428,19 +433,30 @@ function RecipientStep({
       </HStack>
 
       <Field label="Send to (conflict-cleared leads only)">
-        <SearchableSelect
-          ariaLabel="Send questionnaire to lead"
-          value={leadId}
-          onChange={onLeadChange}
-          placeholder={leadsLoading ? "Loading…" : "— Select a cleared lead —"}
-          searchPlaceholder="Search by name or email…"
-          emptyText="No leads match your search"
-          options={leads.map((l) => ({
-            value: l.id,
-            label: l.caseTypeName ? `${l.name} — ${l.caseTypeName}` : l.name,
-            sublabel: l.email,
-          }))}
-        />
+        {leadName ? (
+          <chakra.input
+            {...fieldStyles}
+            value={leadName}
+            readOnly
+            disabled
+            bg="bg.muted"
+            color="fg.muted"
+          />
+        ) : (
+          <SearchableSelect
+            ariaLabel="Send questionnaire to lead"
+            value={leadId}
+            onChange={onLeadChange}
+            placeholder={leadsLoading ? "Loading…" : "— Select a cleared lead —"}
+            searchPlaceholder="Search by name or email…"
+            emptyText="No leads match your search"
+            options={leads.map((l) => ({
+              value: l.id,
+              label: l.caseTypeName ? `${l.name} — ${l.caseTypeName}` : l.name,
+              sublabel: l.email,
+            }))}
+          />
+        )}
       </Field>
 
       {leadId ? (

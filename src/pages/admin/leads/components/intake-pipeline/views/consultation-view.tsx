@@ -105,26 +105,26 @@ import {
   OutlineButton,
   StatusPill,
   SurfaceCard,
-} from "../../../../components/ui/intake-ui";
+} from "@/components/ui/intake-ui";
 import {
   consultationModeLabel,
   fieldStyles,
   type ConsultationMode,
-} from "./consultation-wizard-constants";
+} from "../shared/consultation-wizard-constants";
 import {
   ScheduleDetailsStep,
   SelectClientStep,
   StepProgress,
   SummaryItem,
-} from "./consultation-wizard-shared";
-import { buildFeeAgreementHtml } from "./fee-agreement-document";
-import { FeeAgreementWizard } from "./fee-agreement-wizard";
-import { InstantConsultationDialog } from "./instant-consultation-dialog";
-import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
+} from "../shared/consultation-wizard-shared";
+import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
+import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
+import { InstantConsultationDialog } from "../dialogs/instant-consultation-dialog";
+import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
 import {
   ScheduleFollowUpContext,
   type FollowUpRequest,
-} from "./schedule-follow-up-context";
+} from "../shared/schedule-follow-up-context";
 
 type ScheduleStep = 1 | 2 | 3;
 
@@ -2242,6 +2242,7 @@ export function ScheduleConsultationDialog({
   parentConsultationId?: string;
 }) {
   const presetLeadId = presetLead?.id ?? null;
+  const isPreset = Boolean(presetLeadId);
   const [step, setStep] = useState<ScheduleStep>(1);
   const {
     control,
@@ -2276,6 +2277,13 @@ export function ScheduleConsultationDialog({
       setValue(key, value as never, { shouldValidate: true }),
     [setValue],
   );
+
+  useEffect(() => {
+    if (open && presetLeadId) {
+      setStep(2);
+      setValue("selectedLeadId", presetLeadId, { shouldValidate: true });
+    }
+  }, [open, presetLeadId]);
 
   // Eligible candidates have cleared conflict check — that's everyone in the
   // questionnaire stage (regardless of completion) plus consultation-stage leads
@@ -2487,7 +2495,9 @@ export function ScheduleConsultationDialog({
                     fontWeight="600"
                     lineHeight="1.2"
                   >
-                    {STEP_META[step].title}
+                    {isPreset
+                      ? STEP_META[step === 1 ? 2 : step].title
+                      : STEP_META[step].title}
                   </Dialog.Title>
                   <Dialog.Description
                     mt="6px"
@@ -2495,7 +2505,11 @@ export function ScheduleConsultationDialog({
                     fontSize="12px"
                     lineHeight="1.45"
                   >
-                    {STEP_META[step].label}
+                    {isPreset
+                      ? step === 2
+                        ? "Step 1 of 2 — Consultation details"
+                        : "Step 2 of 2 — Review & confirm"
+                      : STEP_META[step].label}
                   </Dialog.Description>
                 </Box>
                 <Dialog.CloseTrigger asChild>
@@ -2518,7 +2532,7 @@ export function ScheduleConsultationDialog({
                 </Dialog.CloseTrigger>
               </Flex>
 
-              <StepProgress step={step} total={3} />
+              <StepProgress step={isPreset ? step - 1 : step} total={isPreset ? 2 : 3} />
             </Box>
 
             <Box flex="1" minH="0" px="24px" pb="20px">
@@ -2610,7 +2624,7 @@ export function ScheduleConsultationDialog({
               borderBottomRadius="14px"
               bg="bg"
             >
-              {step > 1 ? (
+              {!isPreset && step > 1 ? (
                 <OutlineButton
                   onClick={() => setStep((s) => (s - 1) as ScheduleStep)}
                 >

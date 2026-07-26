@@ -23,12 +23,12 @@ import {
   useNavigate,
   useParams,
 } from "react-router";
-import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import {
   pipelineStageColors,
   pipelineStageLabels,
   taskStatusColors,
-} from "./components/lead-details/constants";
+} from "../intake-pipeline/shared/constants";
 
 const TAB_CONFIG = [
   { value: "overview", label: "Overview" },
@@ -130,7 +130,7 @@ export function LeadDetailPage() {
               </Text>
             </>
           )}
-          <HStack gap={1.5} mt={2} wrap="wrap">
+          <HStack gap={1.5} mt={2} wrap="wrap" align="center">
             <Badge
               size="xs"
               borderRadius="full"

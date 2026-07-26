@@ -10,7 +10,7 @@ import {
   type LeadSource,
   type PipelineStage,
 } from "@/api/leads";
-import { pipelineStageLabels } from "./components/lead-details/constants";
+import { pipelineStageLabels } from "./components/intake-pipeline/shared/constants";
 import { parseAsString, useQueryState } from "nuqs";
 import {
   createContext,

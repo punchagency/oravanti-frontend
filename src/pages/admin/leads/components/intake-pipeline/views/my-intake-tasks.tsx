@@ -3,7 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useMyLeadTasks, useCompleteLeadTask } from "@/hooks/use-lead-workflows";
 import { useRunConflictCheck } from "@/hooks/use-leads";
-import { pipelineStageColors, pipelineStageLabels, taskStatusColors } from "./lead-details/constants";
+import { pipelineStageColors, pipelineStageLabels, taskStatusColors } from "../shared/constants";
 import type { LeadTask } from "@/api/lead-workflows";
 
 const stagePaths: Record<string, string> = {

@@ -29,7 +29,6 @@ export function SectionLabel({ children }: { children: ReactNode }) {
       fontWeight="500"
       letterSpacing="0.55px"
       textTransform="uppercase"
-      mb={2}
     >
       {children}
     </Text>

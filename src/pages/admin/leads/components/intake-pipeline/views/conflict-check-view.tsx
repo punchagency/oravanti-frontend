@@ -26,7 +26,7 @@ import {
   PracticePill,
   StatusPill,
   SurfaceCard,
-} from "../../../../components/ui/intake-ui";
+} from "@/components/ui/intake-ui";
 import { toast } from "sonner";
 
 const matchTypeLabels: Record<ConflictCheckMatch["type"], string> = {

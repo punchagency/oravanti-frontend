@@ -11,7 +11,7 @@ import {
   chakra,
 } from "@chakra-ui/react";
 import { Info, UserPlus, Users, X, Zap } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -48,12 +48,12 @@ import {
   StepFieldLabel,
   StepProgress,
   SummaryItem,
-} from "./consultation-wizard-shared";
+} from "../shared/consultation-wizard-shared";
 import {
   consultationModeLabel,
   fieldStyles,
   invalidColor,
-} from "./consultation-wizard-constants";
+} from "../shared/consultation-wizard-constants";
 
 // Instant consultation wizard ("Start consultation now"): the consultation
 // begins immediately (or as soon as the client pays, for "Pay now") instead of
@@ -236,15 +236,29 @@ const INSTANT_DEFAULTS: InstantForm = {
 };
 
 export function InstantConsultationDialog({
-  open,
-  onOpenChange,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  children,
+  presetLeadId,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: React.ReactNode;
+  presetLeadId?: string;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
   const [step, setStep] = useState<InstantStep>(0);
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [conflictState, setConflictState] = useState<ConflictState>("idle");
+
+  useEffect(() => {
+    if (open && presetLeadId) {
+      setStep(2);
+      reset({ ...INSTANT_DEFAULTS, clientMode: "existing", selectedLeadId: presetLeadId });
+    }
+  }, [open, presetLeadId]);
 
   const {
     control,
@@ -256,7 +270,11 @@ export function InstantConsultationDialog({
     formState: { errors },
   } = useForm<InstantForm>({
     resolver: zodResolver(instantSchema),
-    defaultValues: INSTANT_DEFAULTS,
+    defaultValues: {
+      ...INSTANT_DEFAULTS,
+      clientMode: presetLeadId ? "existing" : "existing",
+      selectedLeadId: presetLeadId ?? "",
+    },
     mode: "onChange",
   });
 
@@ -571,25 +589,33 @@ export function InstantConsultationDialog({
   const handleConfirm = handleSubmit(onValid, onInvalid);
 
   const stepTitle =
-    step === 0
-      ? "Who is this consultation for?"
-      : step === 1
-        ? clientMode === "new"
-          ? "New client details"
-          : "Select client"
-        : step === 2
-          ? "Consultation details"
-          : "Fee & confirm";
+    presetLeadId
+      ? step === 2
+        ? "Consultation details"
+        : "Fee & confirm"
+      : step === 0
+        ? "Who is this consultation for?"
+        : step === 1
+          ? clientMode === "new"
+            ? "New client details"
+            : "Select client"
+          : step === 2
+            ? "Consultation details"
+            : "Fee & confirm";
   const stepDescription =
-    step === 0
-      ? "Select to get started"
-      : step === 1
-        ? clientMode === "new"
-          ? "Enter details and run a conflict check"
-          : "Step 1 of 3 — Select lead"
-        : step === 2
-          ? "Step 2 of 3 — Consultation details"
-          : "Review and begin the consultation";
+    presetLeadId
+      ? step === 2
+        ? "Step 1 of 2 — Consultation details"
+        : "Step 2 of 2 — Review & confirm"
+      : step === 0
+        ? "Select to get started"
+        : step === 1
+          ? clientMode === "new"
+            ? "Enter details and run a conflict check"
+            : "Step 1 of 3 — Select lead"
+          : step === 2
+            ? "Step 2 of 3 — Consultation details"
+            : "Review and begin the consultation";
 
   return (
     <Dialog.Root
@@ -605,6 +631,7 @@ export function InstantConsultationDialog({
       }}
       placement="center"
     >
+      {children}
       <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
       <Dialog.Positioner px="16px">
         <Dialog.Content
@@ -664,7 +691,12 @@ export function InstantConsultationDialog({
                 </Dialog.CloseTrigger>
               </Flex>
 
-              {step > 0 ? <StepProgress step={step} total={3} /> : null}
+              {step > 0 ? (
+                <StepProgress
+                  step={presetLeadId ? step - 1 : step}
+                  total={presetLeadId ? 2 : 3}
+                />
+              ) : null}
             </Box>
 
             <Box flex="1" minH="0" px="24px" pb="20px" overflowY="auto">
@@ -806,7 +838,7 @@ export function InstantConsultationDialog({
               borderBottomRadius="14px"
               bg="bg"
             >
-              {step > 0 ? (
+              {!presetLeadId && step > 0 ? (
                 <OutlineButton
                   onClick={() => setStep((s) => (s - 1) as InstantStep)}
                 >

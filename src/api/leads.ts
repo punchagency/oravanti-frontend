@@ -221,6 +221,56 @@ export const getLeadById = async (id: string): Promise<LeadDetail> => {
   return res.data.data;
 };
 
+// ─── Per-stage fetches ───────────────────────────────────────────────────────
+
+export type LeadLayout = {
+  id: string;
+  name: string;
+  pipelineStage: PipelineStage;
+  receivedAt: string;
+  situationSummary: string | null;
+  intakeAdversePartyName: string | null;
+  intakeAdversePartyEmail: string | null;
+  convertedCaseId: string | null;
+};
+
+export type ConsultationWithParticipants = Consultation & {
+  participants: {
+    id: string;
+    staffId: string;
+    roleSnapshot: string | null;
+    firstName: string;
+    lastName: string;
+  }[];
+  consultationHistory: Consultation[];
+};
+
+export const getConflictCheck = async (
+  id: string,
+): Promise<ConflictCheck | null> => {
+  const res = await API.get(`/leads/${id}/conflict-check`);
+  return res.data.data;
+};
+
+export const getConsultation = async (
+  id: string,
+): Promise<ConsultationWithParticipants | null> => {
+  const res = await API.get(`/leads/${id}/consultation`);
+  return res.data.data;
+};
+
+export const getFeeAgreement = async (
+  id: string,
+): Promise<FeeAgreement | null> => {
+  const res = await API.get(`/leads/${id}/agreement`);
+  return res.data.data;
+};
+
+export const getLeadLayout = async (id: string): Promise<LeadLayout> => {
+  const res = await API.get(`/leads/${id}/layout`);
+  return res.data.data;
+};
+
 // ─── Activity trail ──────────────────────────────────────────────────────────
 // Append-only on the server: there is no update or delete endpoint, and the UI
 // must not offer one.

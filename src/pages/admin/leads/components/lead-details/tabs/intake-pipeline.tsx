@@ -1,12 +1,13 @@
 import type { LeadTask, LeadTaskStatus } from "@/api/lead-workflows";
+import { conflictStatusLabels, type LeadDetail } from "@/api/leads";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import {
   useAssignLeadTask,
   useCompleteLeadTask,
-  useInitializePipeline,
   useLeadTasks,
   useUpdateLeadTaskStatus,
 } from "@/hooks/use-lead-workflows";
-import { useRunConflictCheck } from "@/hooks/use-leads";
+import { useLeadById, useRunConflictCheck } from "@/hooks/use-leads";
 import { useStaff } from "@/hooks/use-staff";
 import {
   Badge,
@@ -34,13 +35,163 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
 import {
   pipelineStageColors,
   pipelineStageLabels,
   taskStatusColors,
-} from "../constants";
+} from "../../intake-pipeline/shared/constants";
 import { SectionLabel } from "../shared";
+
+const consultationStatusLabels: Record<string, string> = {
+  pending_payment: "Awaiting payment",
+  awaiting_slot_selection: "Awaiting slot",
+  scheduled: "Scheduled",
+  in_progress: "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_show: "No show",
+};
+
+const feeAgreementStatusLabels: Record<string, string> = {
+  draft: "Draft",
+  pending_signature: "Awaiting signature",
+  signed: "Signed",
+  voided: "Voided",
+};
+
+const stageStatusColors: Record<
+  string,
+  { bg: string; color: string; borderColor: string }
+> = {
+  pass: {
+    bg: "green.subtle",
+    color: "green.fg",
+    borderColor: "green.emphasized",
+  },
+  needs_review: {
+    bg: "orange.subtle",
+    color: "orange.fg",
+    borderColor: "orange.emphasized",
+  },
+  conflict_found: {
+    bg: "red.subtle",
+    color: "red.fg",
+    borderColor: "red.emphasized",
+  },
+  pending: {
+    bg: "gray.subtle",
+    color: "gray.fg",
+    borderColor: "gray.emphasized",
+  },
+  scheduled: {
+    bg: "blue.subtle",
+    color: "blue.fg",
+    borderColor: "blue.emphasized",
+  },
+  completed: {
+    bg: "green.subtle",
+    color: "green.fg",
+    borderColor: "green.emphasized",
+  },
+  in_progress: {
+    bg: "blue.subtle",
+    color: "blue.fg",
+    borderColor: "blue.emphasized",
+  },
+  cancelled: {
+    bg: "red.subtle",
+    color: "red.fg",
+    borderColor: "red.emphasized",
+  },
+  no_show: { bg: "red.subtle", color: "red.fg", borderColor: "red.emphasized" },
+  sent: {
+    bg: "green.subtle",
+    color: "green.fg",
+    borderColor: "green.emphasized",
+  },
+  not_sent: {
+    bg: "gray.subtle",
+    color: "gray.fg",
+    borderColor: "gray.emphasized",
+  },
+  draft: {
+    bg: "gray.subtle",
+    color: "gray.fg",
+    borderColor: "gray.emphasized",
+  },
+  pending_signature: {
+    bg: "orange.subtle",
+    color: "orange.fg",
+    borderColor: "orange.emphasized",
+  },
+  signed: {
+    bg: "green.subtle",
+    color: "green.fg",
+    borderColor: "green.emphasized",
+  },
+  voided: { bg: "red.subtle", color: "red.fg", borderColor: "red.emphasized" },
+  converted: {
+    bg: "green.subtle",
+    color: "green.fg",
+    borderColor: "green.emphasized",
+  },
+  not_converted: {
+    bg: "gray.subtle",
+    color: "gray.fg",
+    borderColor: "gray.emphasized",
+  },
+};
+
+type StageStatus = { label: string; colorKey: string };
+
+function getStageStatus(
+  stage: string,
+  leadDetail: LeadDetail | undefined,
+): StageStatus | null {
+  if (!leadDetail) return null;
+
+  switch (stage) {
+    case "conflict_check": {
+      const status = leadDetail.conflictCheck?.status ?? "pending";
+      return {
+        label: conflictStatusLabels[status] ?? status,
+        colorKey: status,
+      };
+    }
+    case "questionnaire": {
+      const sent = Boolean(leadDetail.questionnaireSendId);
+      return {
+        label: sent ? "Sent" : "Not sent",
+        colorKey: sent ? "sent" : "not_sent",
+      };
+    }
+    case "consultation": {
+      const status = leadDetail.consultation?.status;
+      if (!status) return { label: "Not scheduled", colorKey: "not_sent" };
+      return {
+        label: consultationStatusLabels[status] ?? status,
+        colorKey: status,
+      };
+    }
+    case "fee_agreement": {
+      const status = leadDetail.feeAgreement?.status;
+      if (!status) return { label: "No agreement", colorKey: "not_sent" };
+      return {
+        label: feeAgreementStatusLabels[status] ?? status,
+        colorKey: status,
+      };
+    }
+    case "case_opening": {
+      const converted = Boolean(leadDetail.convertedCaseId);
+      return {
+        label: converted ? "Case opened" : "Not converted",
+        colorKey: converted ? "converted" : "not_converted",
+      };
+    }
+    default:
+      return null;
+  }
+}
 
 interface IntakePipelineTabProps {
   leadId: string;
@@ -61,7 +212,7 @@ export function IntakePipelineTab({
 }: IntakePipelineTabProps) {
   const navigate = useNavigate();
   const { data: tasks, isLoading } = useLeadTasks(isActive ? leadId : "");
-  const initPipeline = useInitializePipeline();
+  const { data: leadDetail } = useLeadById(isActive ? leadId : "");
   const updateStatus = useUpdateLeadTaskStatus(leadId);
   const completeTask = useCompleteLeadTask(leadId);
   const assignTask = useAssignLeadTask(leadId);
@@ -71,8 +222,6 @@ export function IntakePipelineTab({
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<string | null>(null);
   const [assignTaskTitle, setAssignTaskTitle] = useState("");
-
-  const needsInit = isActive && !isLoading && !tasks?.length;
 
   function stagePath(stage: string) {
     const suffix: Record<string, string> = {
@@ -164,23 +313,6 @@ export function IntakePipelineTab({
     );
   }
 
-  if (needsInit) {
-    return (
-      <VStack align="center" gap={3} py={8}>
-        <Text color="fg.muted" fontSize="13px">
-          No pipeline steps initialized yet
-        </Text>
-        <Button
-          size="sm"
-          onClick={() => initPipeline.mutate(leadId)}
-          loading={initPipeline.isPending}
-        >
-          Initialize Pipeline Steps
-        </Button>
-      </VStack>
-    );
-  }
-
   const grouped = PIPELINE_ORDER.map((stage) => ({
     stage,
     label: pipelineStageLabels[stage],
@@ -192,13 +324,36 @@ export function IntakePipelineTab({
     <>
       <Box py={4}>
         {grouped.map((group) => {
-          if (group.tasks.length === 0) return null;
+          const stageStatus = getStageStatus(group.stage, leadDetail);
+          if (group.tasks.length === 0 && !stageStatus) return null;
+
+          const statusColors = stageStatus
+            ? (stageStatusColors[stageStatus.colorKey] ??
+              stageStatusColors.pending)
+            : null;
 
           return (
             <Box key={group.stage} mb={5}>
-              <HStack gap={2} mb={2}>
+              <HStack gap={2} mb={2} align="center">
                 <Box w="8px" h="8px" borderRadius="full" bg={group.color} />
                 <SectionLabel>{group.label}</SectionLabel>
+                {stageStatus && statusColors ? (
+                  <Badge
+                    size="xs"
+                    borderRadius="full"
+                    px={2}
+                    py={0.5}
+                    borderWidth="1px"
+                    borderColor={statusColors.borderColor}
+                    bg={statusColors.bg}
+                    color={statusColors.color}
+                    fontWeight="500"
+                    fontSize="10px"
+                    textTransform="none"
+                  >
+                    {stageStatus.label}
+                  </Badge>
+                ) : null}
               </HStack>
 
               {/* Desktop table */}
