@@ -1,8 +1,5 @@
-import { useParams } from "react-router";
 import type { LeadLayout } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
-import { useLeadLayout } from "@/hooks/use-leads";
-import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
 import {
   CardTitle,
   MutedText,
@@ -11,12 +8,18 @@ import {
   StatusPill,
   SurfaceCard,
 } from "@/components/ui/intake-ui";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { useLeadLayout } from "@/hooks/use-leads";
+import {
+  useLeadQuestionnaire,
+  useSendReminder,
+} from "@/hooks/use-questionnaires";
+import { Box, HStack, Stack, Text } from "@chakra-ui/react";
 import { Check, Clock, Eye, Send } from "lucide-react";
 import { useState } from "react";
-import { Box, HStack, Stack, Text } from "@chakra-ui/react";
-import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
-import { SendQuestionnaireDialog } from "../dialogs/send-questionnaire-dialog";
+import { useParams } from "react-router";
 import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
+import { SendQuestionnaireDialog } from "../dialogs/send-questionnaire-dialog";
 import { PipelineLayout, QuestionnaireSkeleton } from "./pipeline-layout";
 
 export function QuestionnairePage() {
@@ -38,6 +41,7 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
   const { data: state, isLoading } = useLeadQuestionnaire(lead.id);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [openResponseId, setOpenResponseId] = useState<string | null>(null);
+  const sendReminder = useSendReminder();
 
   if (isLoading) {
     return (
@@ -58,7 +62,12 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
             <ThemeSkeleton h="18px" w="80px" borderRadius="full" />
           </HStack>
           <ThemeSkeleton h="10px" w="70%" borderRadius="4px" mt={3} />
-          <Box mt="14px" pt="14px" borderTop="1px solid" borderColor="border.subtle">
+          <Box
+            mt="14px"
+            pt="14px"
+            borderTop="1px solid"
+            borderColor="border.subtle"
+          >
             <ThemeSkeleton h="32px" w="100%" borderRadius="6px" />
           </Box>
         </SurfaceCard>
@@ -72,24 +81,24 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
 
   return (
     <>
-      <HStack justify="space-between" gap="16px" wrap="wrap">
+      <HStack justify="space-between" gap="16px" wrap="wrap" align="center">
         <MutedText fontSize="14px">
           {hasSent ? "Questionnaire sent" : "Questionnaire not sent yet"}
         </MutedText>
         {!hasSent ? (
           <OutlineButton onClick={() => setWizardOpen(true)}>
             <Send size={14} />
-            Send new questionnaire
+            Send questionnaire
           </OutlineButton>
         ) : !isSubmitted ? (
-          <OutlineButton onClick={() => setWizardOpen(true)}>
+          <OutlineButton
+            onClick={() =>
+              state?.send?.id && sendReminder.mutate(state.send.id)
+            }
+            loading={sendReminder.isPending}
+          >
             <Send size={14} />
-            Resend questionnaire
-          </OutlineButton>
-        ) : isSubmitted ? (
-          <OutlineButton onClick={() => response && setOpenResponseId(response.id)}>
-            <Eye size={14} />
-            View response
+            Send reminder
           </OutlineButton>
         ) : null}
       </HStack>
@@ -100,7 +109,9 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
             <CardTitle>Questionnaire: {lead.name}</CardTitle>
             <HStack mt="6px" gap="9px">
               <PracticePill tone="neutral">Lead</PracticePill>
-              <MutedText>Received {formatReceivedDate(lead.receivedAt)}</MutedText>
+              <MutedText>
+                Received {formatReceivedDate(lead.receivedAt)}
+              </MutedText>
             </HStack>
           </Box>
           {isSubmitted ? (
@@ -117,12 +128,24 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
         </HStack>
 
         {lead.situationSummary ? (
-          <Box mt="12px" p="10px" borderRadius="7px" bg="bg.muted" color="fg.muted" fontSize="13px">
+          <Box
+            mt="12px"
+            p="10px"
+            borderRadius="7px"
+            bg="bg.muted"
+            color="fg.muted"
+            fontSize="13px"
+          >
             {lead.situationSummary}
           </Box>
         ) : null}
 
-        <Box mt="14px" pt="14px" borderTop="1px solid" borderColor="border.subtle">
+        <Box
+          mt="14px"
+          pt="14px"
+          borderTop="1px solid"
+          borderColor="border.subtle"
+        >
           {!hasSent ? (
             <OutlineButton w="100%" onClick={() => setWizardOpen(true)}>
               <Send size={14} />
@@ -142,16 +165,10 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
               </OutlineButton>
             </Stack>
           ) : (
-            <Stack gap="8px">
-              <OutlineButton w="100%" disabled>
-                <Clock size={14} />
-                Awaiting client response
-              </OutlineButton>
-              <OutlineButton w="100%" onClick={() => setWizardOpen(true)}>
-                <Send size={14} />
-                Resend questionnaire
-              </OutlineButton>
-            </Stack>
+            <OutlineButton w="100%" disabled>
+              <Clock size={14} />
+              Awaiting client response
+            </OutlineButton>
           )}
         </Box>
       </SurfaceCard>
@@ -160,6 +177,7 @@ function QuestionnaireSection({ lead }: { lead: LeadLayout }) {
         open={wizardOpen}
         onOpenChange={setWizardOpen}
         presetLeadId={lead.id}
+        leadName={lead.name}
       />
 
       <QuestionnaireResponseDialog
