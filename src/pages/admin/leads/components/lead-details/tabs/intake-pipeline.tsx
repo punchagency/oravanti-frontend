@@ -334,7 +334,7 @@ export function IntakePipelineTab({
 
           return (
             <Box key={group.stage} mb={5}>
-              <HStack gap={2} mb={2}>
+              <HStack gap={2} mb={2} align="center">
                 <Box w="8px" h="8px" borderRadius="full" bg={group.color} />
                 <SectionLabel>{group.label}</SectionLabel>
                 {stageStatus && statusColors ? (

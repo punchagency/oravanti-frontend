@@ -188,7 +188,7 @@ function ConflictCheckSection({ lead }: { lead: LeadLayout }) {
       </Box>
 
       <SurfaceCard>
-        <HStack align="flex-start" justify="space-between" gap="16px">
+        <HStack align="center" justify="space-between" gap="16px">
           <Box>
             <CardTitle>Conflict review: {lead.name}</CardTitle>
             <HStack mt="6px" gap="9px">

@@ -130,7 +130,7 @@ export function LeadDetailPage() {
               </Text>
             </>
           )}
-          <HStack gap={1.5} mt={2} wrap="wrap">
+          <HStack gap={1.5} mt={2} wrap="wrap" align="center">
             <Badge
               size="xs"
               borderRadius="full"
