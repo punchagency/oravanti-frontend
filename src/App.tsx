@@ -28,6 +28,13 @@ import {
 import { MyTasksPage } from "@/pages/admin/my-tasks";
 import { LeadReviewQueuePage } from "@/pages/admin/lead-review-queue";
 import { ReviewQueuePage } from "@/pages/admin/review-queue";
+import {
+  AiReviewDashboardPage,
+  AiReviewByCasePage,
+  AiReviewByDocumentPage,
+  AiReviewResolutionLogPage,
+  AiReviewSettingsPage,
+} from "@/pages/admin/ai-review";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
@@ -152,6 +159,12 @@ const router = createBrowserRouter(
           </Route>
           <Route path="cases/my-tasks" element={<MyTasksPage />} />
           <Route path="cases/review-queue" element={<ReviewQueuePage />} />
+
+          <Route path="ai-review" element={<AiReviewDashboardPage />} />
+          <Route path="ai-review/by-case" element={<AiReviewByCasePage />} />
+          <Route path="ai-review/by-document" element={<AiReviewByDocumentPage />} />
+          <Route path="ai-review/resolution-log" element={<AiReviewResolutionLogPage />} />
+          <Route path="ai-review/settings" element={<AiReviewSettingsPage />} />
 
           <Route path="staff-management" element={<StaffAndUsersPage />}>
             <Route index element={<Staff />} />

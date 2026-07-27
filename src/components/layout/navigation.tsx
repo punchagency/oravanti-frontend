@@ -40,6 +40,7 @@ import {
   Settings,
   Shield,
   Signature,
+  Bot,
   UserRoundPlus,
   Users,
 } from "lucide-react";
@@ -77,6 +78,7 @@ const iconMap: Record<NavigationIcon, LucideIcon> = {
   overview: ChartColumn,
   "book-open-check": BookOpenCheck,
   "chart-pie": ChartPie,
+  "ai-review": Bot,
 };
 
 function isPathActive(currentPath: string, item: ContextNavigationItem) {
