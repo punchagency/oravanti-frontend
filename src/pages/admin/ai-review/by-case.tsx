@@ -42,7 +42,7 @@ export function AiReviewByCasePage() {
   const query = useIssuesByCase({ page: currentPage, limit });
 
   return (
-    <Box p="24px" maxW="1000px" mx="auto">
+    <Box pt="24px">
       <Text textStyle="heading">Issues by case</Text>
       <Text color="fg.muted" mt="2px" fontSize="14px">
         AI detection status per active matter

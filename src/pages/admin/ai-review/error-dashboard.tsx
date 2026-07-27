@@ -97,7 +97,7 @@ export function AiReviewDashboardPage() {
     : "No scan has run yet";
 
   return (
-    <Box p="24px" maxW="1100px" mx="auto">
+    <Box pt="24px">
       <Flex justifyContent="space-between" alignItems="flex-start" gap="16px" flexWrap="wrap">
         <Box>
           <Text textStyle="heading">AI case review</Text>

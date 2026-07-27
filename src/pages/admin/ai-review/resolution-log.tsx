@@ -27,7 +27,7 @@ export function AiReviewResolutionLogPage() {
   const summary = query.data?.summary;
 
   return (
-    <Box p="24px" maxW="1100px" mx="auto">
+    <Box pt="24px">
       <Flex justifyContent="space-between" alignItems="flex-start" gap="16px">
         <Box>
           <Text textStyle="heading">Resolution log</Text>

@@ -40,7 +40,7 @@ export function AiReviewByDocumentPage() {
   const query = useIssuesByDocument({ page: currentPage, limit });
 
   return (
-    <Box p="24px" maxW="1100px" mx="auto">
+    <Box pt="24px">
       <Text textStyle="heading">Document flags</Text>
       <Text color="fg.muted" mt="2px" fontSize="14px">
         All documents with AI-detected issues

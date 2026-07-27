@@ -42,7 +42,7 @@ export function AiReviewSettingsPage() {
 
   if (!canConfigure) {
     return (
-      <Box p="24px" maxW="640px" mx="auto">
+      <Box pt="24px" maxW="640px">
         <SurfaceCard>
           <Flex direction="column" align="center" gap="8px" py="24px" textAlign="center">
             <Box color="fg.muted">
@@ -61,7 +61,7 @@ export function AiReviewSettingsPage() {
   }
 
   return (
-    <Box p="24px" maxW="640px" mx="auto">
+    <Box pt="24px" maxW="640px">
       <Text textStyle="heading">AI review settings</Text>
       <Text color="fg.muted" mt="2px" fontSize="14px">
         Control what the automated review checks and when it runs.
