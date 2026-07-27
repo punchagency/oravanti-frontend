@@ -4,6 +4,7 @@ export type PrimarySection =
   | "cases"
   | "staff"
   | "finance"
+  | "calendar"
   | "analytics"
   | "ai-review"
   | "settings";
@@ -13,6 +14,7 @@ export type NavigationIcon =
   | "billing"
   | "briefcase"
   | "calendar"
+  | "calendar-check"
   | "chart"
   | "lock"
   | "chevron"
@@ -21,8 +23,10 @@ export type NavigationIcon =
   | "download"
   | "education"
   | "file"
+  | "file-clock"
   | "folder"
   | "folder-open"
+  | "gavel"
   | "signature"
   | "mail"
   | "message"
@@ -31,6 +35,7 @@ export type NavigationIcon =
   | "search"
   | "settings"
   | "shield"
+  | "shield-check"
   | "globe"
   | "landmark"
   | "book-open-check"
@@ -73,6 +78,12 @@ export const primaryNavigation: PrimaryNavigationItem[] = [
     section: "cases",
     path: "/cases",
     icon: "folder",
+  },
+  {
+    label: "Calendar",
+    section: "calendar",
+    path: "/calendar",
+    icon: "calendar",
   },
   {
     label: "AI Review",
@@ -257,6 +268,53 @@ export const contextNavigation: Record<
       ],
     },
   ],
+  calendar: [
+    {
+      label: "Calendar",
+      items: [
+        {
+          label: "All events",
+          path: "/calendar",
+          icon: "calendar",
+        },
+        {
+          label: "Hearings",
+          path: "/calendar/hearings",
+          icon: "gavel",
+        },
+        {
+          label: "Gov. interviews",
+          path: "/calendar/interviews",
+          icon: "landmark",
+        },
+        {
+          label: "Filing deadlines",
+          path: "/calendar/deadlines",
+          icon: "file-clock",
+        },
+        {
+          label: "Appointments",
+          path: "/calendar/appointments",
+          icon: "calendar-check",
+        },
+      ],
+    },
+    {
+      label: "Management",
+      items: [
+        {
+          label: "Deadline rules",
+          path: "/calendar/deadline-rules",
+          icon: "shield-check",
+        },
+        {
+          label: "Service requests",
+          path: "/calendar/service-requests",
+          icon: "clipboard",
+        },
+      ],
+    },
+  ],
   analytics: [
     {
       label: "Analytics",
@@ -370,11 +428,13 @@ export const contextNavigation: Record<
 };
 
 export function getSectionForPath(pathname: string): PrimarySection {
-  if (pathname.startsWith("/intake") || pathname.startsWith("/leads")) return "intake";
+  if (pathname.startsWith("/intake") || pathname.startsWith("/leads"))
+    return "intake";
   if (pathname.startsWith("/cases")) return "cases";
   if (pathname.startsWith("/ai-review")) return "ai-review";
   if (pathname.startsWith("/staff")) return "staff";
   if (pathname.startsWith("/finance")) return "finance";
+  if (pathname.startsWith("/calendar")) return "calendar";
   if (pathname.startsWith("/analytics")) return "analytics";
   if (pathname.startsWith("/settings")) return "settings";
   return "overview";
