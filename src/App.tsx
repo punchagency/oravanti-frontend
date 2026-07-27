@@ -7,6 +7,7 @@ import {
   CaseDocumentsTabRoute,
   CaseTimelineTabRoute,
   CaseNotesTabRoute,
+  CaseAiReviewTabRoute,
   CaseAuditLogTabRoute,
 } from "@/pages/admin/cases/components/case-details/tab-routes";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
@@ -155,6 +156,7 @@ const router = createBrowserRouter(
             <Route path="documents" element={<CaseDocumentsTabRoute />} />
             <Route path="timeline" element={<CaseTimelineTabRoute />} />
             <Route path="notes" element={<CaseNotesTabRoute />} />
+            <Route path="ai-review" element={<CaseAiReviewTabRoute />} />
             <Route path="audit-log" element={<CaseAuditLogTabRoute />} />
           </Route>
           <Route path="cases/my-tasks" element={<MyTasksPage />} />

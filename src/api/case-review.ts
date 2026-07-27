@@ -156,6 +156,8 @@ export type Paginated<T> = { data: T[]; pagination: Pagination };
 export type IssueFilters = {
   severity?: IssueSeverity;
   status?: IssueStatus;
+  leadId?: string;
+  caseId?: string;
   page?: number;
   limit?: number;
 };

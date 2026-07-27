@@ -49,10 +49,11 @@ export function useCaseReviewStats(enabled = true) {
   });
 }
 
-export function useCaseReviewIssues(filters: IssueFilters = {}) {
+export function useCaseReviewIssues(filters: IssueFilters = {}, enabled = true) {
   return useQuery({
     queryKey: keys.issues(filters),
     queryFn: () => getCaseReviewIssues(filters),
+    enabled,
   });
 }
 
