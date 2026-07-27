@@ -1,6 +1,6 @@
 import type { CaseReviewIssue, IssueAction } from "@/api/case-review";
 import { BrandButton, OutlineButton, StatusPill } from "@/components/ui/intake-ui";
-import { useRunIssueAction, useUpdateIssueStatus } from "@/hooks/use-case-review";
+import { useRunIssueAction } from "@/hooks/use-case-review";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { AlertCircle, AlertTriangle, ArrowRight, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -28,7 +28,6 @@ const formatDateTime = (iso: string) =>
 export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
   const navigate = useNavigate();
   const runAction = useRunIssueAction();
-  const updateStatus = useUpdateIssueStatus();
   const tint = cardTint(issue.badge);
   const SeverityIcon = issue.badge === "critical" ? AlertCircle : AlertTriangle;
 
@@ -46,7 +45,7 @@ export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
     runAction.mutate({ id: issue.id, actionKey: action.key });
   };
 
-  const busy = runAction.isPending || updateStatus.isPending;
+  const busy = runAction.isPending;
 
   return (
     <Box
@@ -115,9 +114,10 @@ export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
 
       <HStack mt="14px" gap="8px" flexWrap="wrap">
         {issue.actions.map((action, i) => {
-          const Btn = action.variant === "primary" && i === 0
-            ? BrandButton
-            : OutlineButton;
+          const Btn =
+            action.variant === "primary" && i === 0 && !action.stub
+              ? BrandButton
+              : OutlineButton;
           const isNav = action.kind === "navigate";
           return (
             <Btn
@@ -127,8 +127,8 @@ export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
               onClick={() => onAction(action)}
             >
               <HStack gap="5px">
-                <Text>{action.label}</Text>
                 {isNav && <ArrowRight size={13} />}
+                <Text>{action.label}</Text>
                 {action.stub && (
                   <Box as="span" fontSize="9px" color="fg.subtle">
                     Soon
@@ -138,28 +138,6 @@ export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
             </Btn>
           );
         })}
-
-        {/* Resolve / dismiss are always available on an active issue. */}
-        {(issue.status === "open" || issue.status === "under_review") && (
-          <>
-            <OutlineButton
-              disabled={busy}
-              onClick={() =>
-                updateStatus.mutate({ id: issue.id, action: "resolve" })
-              }
-            >
-              Resolve
-            </OutlineButton>
-            <OutlineButton
-              disabled={busy}
-              onClick={() =>
-                updateStatus.mutate({ id: issue.id, action: "dismiss" })
-              }
-            >
-              Dismiss
-            </OutlineButton>
-          </>
-        )}
       </HStack>
     </Box>
   );

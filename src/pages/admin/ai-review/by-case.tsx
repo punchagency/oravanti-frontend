@@ -19,11 +19,12 @@ function MatterStatus({ matter }: { matter: MatterRow }) {
     return <StatusPill tone="success">Clear</StatusPill>;
   }
   return (
-    <HStack gap="6px">
+    <HStack gap="8px">
       {matter.critical > 0 && (
-        <StatusPill tone="danger">
+        // Critical reads as urgent plain text in the prototype, not a pill.
+        <Text fontSize="12px" fontWeight="600" color="#b00020">
           {matter.critical} critical
-        </StatusPill>
+        </Text>
       )}
       {matter.warnings > 0 && (
         <StatusPill tone="warning">
@@ -84,8 +85,8 @@ export function AiReviewByCasePage() {
                       onClick={() => navigate(matterPath(matter.type, matter.id))}
                     >
                       <HStack gap="5px">
-                        <Text>View issues</Text>
                         <ArrowRight size={13} />
+                        <Text>View issues</Text>
                       </HStack>
                     </OutlineButton>
                   </HStack>

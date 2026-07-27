@@ -106,6 +106,7 @@ export type DocumentFlag = {
   issueId: string | null;
   title: string;
   type: string | null;
+  issueType: string;
   matter: {
     id: string;
     type: ScenarioType;

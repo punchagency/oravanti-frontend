@@ -95,12 +95,19 @@ export function AiReviewResolutionLogPage() {
         <Box overflowX="auto">
           <Table.Root size="sm">
             <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeader>Issue</Table.ColumnHeader>
-                <Table.ColumnHeader>Case</Table.ColumnHeader>
-                <Table.ColumnHeader>Resolved by</Table.ColumnHeader>
-                <Table.ColumnHeader>Resolved date</Table.ColumnHeader>
-                <Table.ColumnHeader>Action taken</Table.ColumnHeader>
+              <Table.Row bg="bg.muted">
+                {["Issue", "Case", "Resolved by", "Resolved date", "Action taken"].map(
+                  (h) => (
+                    <Table.ColumnHeader
+                      key={h}
+                      fontSize="10px"
+                      letterSpacing="0.06em"
+                      color="fg.muted"
+                    >
+                      {h.toUpperCase()}
+                    </Table.ColumnHeader>
+                  ),
+                )}
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -136,7 +143,14 @@ export function AiReviewResolutionLogPage() {
                           <HStack gap="6px">
                             <Text>{row.resolvedBy.name}</Text>
                             {row.resolvedBy.role && (
-                              <StatusPill tone="neutral">
+                              <StatusPill
+                                tone={
+                                  row.resolvedBy.role === "attorney" ||
+                                  row.resolvedBy.role === "owner"
+                                    ? "info"
+                                    : "neutral"
+                                }
+                              >
                                 {row.resolvedBy.role}
                               </StatusPill>
                             )}

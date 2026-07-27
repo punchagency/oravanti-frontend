@@ -9,6 +9,7 @@ import {
   BrandButton,
   IntakeListSkeleton,
   OutlineButton,
+  StatusPill,
 } from "@/components/ui/intake-ui";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
@@ -133,27 +134,28 @@ export function AiReviewDashboardPage() {
           value={s?.criticalIssues ?? 0}
           caption="Immediate action required"
           tone="critical"
-          icon={<AlertCircle size={18} />}
+          icon={<AlertCircle size={16} />}
         />
         <StatTile
           label="Warnings"
           value={s?.warnings ?? 0}
           caption="Review recommended"
           tone="warning"
-          icon={<AlertTriangle size={18} />}
+          icon={<AlertTriangle size={16} />}
         />
         <StatTile
           label="Matters affected"
           value={s?.mattersAffected ?? 0}
           caption={`Of ${s?.totalActiveMatters ?? 0} active matters`}
-          icon={<BriefcaseBusiness size={18} />}
+          tone="info"
+          icon={<BriefcaseBusiness size={16} />}
         />
         <StatTile
           label="Resolved (30d)"
           value={s?.resolvedLast30Days ?? 0}
           caption="Successfully closed"
           tone="success"
-          icon={<CheckCircle2 size={18} />}
+          icon={<CheckCircle2 size={16} />}
         />
       </Grid>
 
@@ -225,12 +227,19 @@ export function AiReviewDashboardPage() {
         <Box mt="14px" overflowX="auto">
           <Table.Root size="sm">
             <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeader>Issue</Table.ColumnHeader>
-                <Table.ColumnHeader>Case</Table.ColumnHeader>
-                <Table.ColumnHeader>Resolved by</Table.ColumnHeader>
-                <Table.ColumnHeader>Resolved date</Table.ColumnHeader>
-                <Table.ColumnHeader>Action taken</Table.ColumnHeader>
+              <Table.Row bg="bg.muted">
+                {["Issue", "Case", "Resolved by", "Resolved date", "Action taken"].map(
+                  (h) => (
+                    <Table.ColumnHeader
+                      key={h}
+                      fontSize="10px"
+                      letterSpacing="0.06em"
+                      color="fg.muted"
+                    >
+                      {h.toUpperCase()}
+                    </Table.ColumnHeader>
+                  ),
+                )}
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -246,7 +255,13 @@ export function AiReviewDashboardPage() {
                       ? new Date(row.resolvedAt).toLocaleDateString()
                       : "—"}
                   </Table.Cell>
-                  <Table.Cell>{row.actionTaken ?? "—"}</Table.Cell>
+                  <Table.Cell>
+                    {row.actionTaken ? (
+                      <StatusPill tone="success">{row.actionTaken}</StatusPill>
+                    ) : (
+                      "—"
+                    )}
+                  </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

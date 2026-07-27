@@ -11,13 +11,27 @@ import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { Box, HStack, Skeleton, Table, Text } from "@chakra-ui/react";
 import { AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router";
-import { badgeTone, matterDocumentsPath } from "./severity";
+import { matterDocumentsPath } from "./severity";
 
 const SOURCE_LABEL: Record<DocumentFlag["source"], string> = {
   client_upload: "Client upload",
   pending_client: "Pending client",
   firm: "Firm",
 };
+
+/** In the prototype every flag is a soft pill except "Missing", which is plain. */
+function FlagCell({ flag }: { flag: DocumentFlag }) {
+  if (flag.issueType === "missing_required_document") {
+    return (
+      <Text fontSize="12px" fontWeight="600" color="fg">
+        {flag.flag}
+      </Text>
+    );
+  }
+  return <StatusPill tone="gold">{flag.flag}</StatusPill>;
+}
+
+const HEADERS = ["Document", "Type", "Case", "Source", "Date", "AI flag", "Action"];
 
 export function AiReviewByDocumentPage() {
   useDocumentTitle("Document flags");
@@ -36,14 +50,17 @@ export function AiReviewByDocumentPage() {
         <Box overflowX="auto">
           <Table.Root size="sm">
             <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeader>Document</Table.ColumnHeader>
-                <Table.ColumnHeader>Type</Table.ColumnHeader>
-                <Table.ColumnHeader>Case</Table.ColumnHeader>
-                <Table.ColumnHeader>Source</Table.ColumnHeader>
-                <Table.ColumnHeader>Date</Table.ColumnHeader>
-                <Table.ColumnHeader>AI flag</Table.ColumnHeader>
-                <Table.ColumnHeader>Action</Table.ColumnHeader>
+              <Table.Row bg="bg.muted">
+                {HEADERS.map((h) => (
+                  <Table.ColumnHeader
+                    key={h}
+                    fontSize="10px"
+                    letterSpacing="0.06em"
+                    color="fg.muted"
+                  >
+                    {h.toUpperCase()}
+                  </Table.ColumnHeader>
+                ))}
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -87,9 +104,7 @@ export function AiReviewByDocumentPage() {
                           : "—"}
                       </Table.Cell>
                       <Table.Cell>
-                        <StatusPill tone={badgeTone(flag.badge)}>
-                          {flag.flag}
-                        </StatusPill>
+                        <FlagCell flag={flag} />
                       </Table.Cell>
                       <Table.Cell>
                         <OutlineButton
