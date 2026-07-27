@@ -9,6 +9,7 @@ import {
   Briefcase,
   Clock,
 } from "lucide-react";
+import { memo } from "react";
 import { useNavigate } from "react-router";
 import {
   badgeLabel,
@@ -31,7 +32,7 @@ const formatDateTime = (iso: string) =>
  * guidance, then the contextual action buttons. Shared by the dashboard and
  * (later) the per-matter tabs, so all surfaces render an issue identically.
  */
-export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
+function IssueCardBase({ issue }: { issue: CaseReviewIssue }) {
   const navigate = useNavigate();
   const runAction = useRunIssueAction();
   const tint = cardTint(issue.badge);
@@ -148,3 +149,6 @@ export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
     </Box>
   );
 }
+
+/** Memoised so a parent re-render (e.g. stats loading) does not re-render every card. */
+export const IssueCard = memo(IssueCardBase);
