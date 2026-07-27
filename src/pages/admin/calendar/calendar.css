@@ -1,0 +1,275 @@
+/* ── Calendar — rbc overrides only ──────────────────────────── */
+
+/* ── Single border token — uniform in light & dark ──────────── */
+:root {
+  --cal-border: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="dark"] {
+  --cal-border: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Hide default toolbar ──────────────────────────────────── */
+.rbc-toolbar {
+  display: none !important;
+}
+
+/* ── Kill ALL rbc default hardcoded borders ───────────────────  */
+.rbc-calendar,
+.rbc-calendar *,
+.rbc-calendar *::before,
+.rbc-calendar *::after {
+  border-color: var(--cal-border) !important;
+}
+
+/* ── Calendar shell ────────────────────────────────────────── */
+.rbc-calendar {
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  border: none !important;
+}
+
+/* ── Month view ────────────────────────────────────────────── */
+.rbc-month-view {
+  background: var(--surface-primary);
+  border: 1px solid var(--cal-border) !important;
+}
+
+.rbc-month {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.rbc-month-row {
+  margin-left: 0;
+  margin-right: 0;
+  border: none !important;
+  border-bottom: 1px solid var(--cal-border) !important;
+}
+
+.rbc-month-row:last-child {
+  border-bottom: none !important;
+}
+
+/* ── Day cells ─────────────────────────────────────────────── */
+.rbc-days {
+  gap: 0;
+}
+
+.rbc-day-bg {
+  background: var(--surface-primary);
+  transition: background 120ms ease;
+  min-height: 90px;
+}
+
+.rbc-day-bg:hover {
+  background: var(--surface-hover);
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid var(--cal-border) !important;
+}
+
+.rbc-date-cell {
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.rbc-date-cell > span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* ── Today highlight ───────────────────────────────────────── */
+.rbc-today {
+  background: transparent !important;
+}
+
+.rbc-today .rbc-date-cell > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--brand-cta);
+  color: var(--brand-cta-text);
+  border-radius: 50%;
+  font-weight: 600;
+}
+
+/* ── Week / Day headers ────────────────────────────────────── */
+.rbc-header {
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--cal-border) !important;
+  padding: 12px 4px;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.rbc-header > * {
+  /* Restore size on custom component children */
+  font-size: revert !important;
+  line-height: revert !important;
+  color: revert !important;
+}
+
+.rbc-header + .rbc-header {
+  border-left: 1px solid var(--cal-border) !important;
+}
+
+.rbc-time-header,
+.rbc-time-header-row,
+.rbc-header-row {
+  overflow: visible !important;
+}
+
+.rbc-header-row {
+  border-bottom: 1px solid var(--cal-border) !important;
+}
+
+/* ── All-day row — collapse (not used) ─────────────────────── */
+.rbc-allday-row {
+  display: none !important;
+}
+
+.rbc-allday-cell {
+  display: none !important;
+}
+
+/* ── Time gutter ───────────────────────────────────────────── */
+.rbc-time-gutter {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.rbc-time-gutter > div {
+  padding-right: 8px;
+  height: 48px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+/* ── Time slots ────────────────────────────────────────────── */
+.rbc-time-slot {
+  background: var(--surface-primary);
+  border-top: 1px solid var(--cal-border) !important;
+  height: 48px;
+}
+
+.rbc-time-slot:hover {
+  background: var(--surface-hover);
+}
+
+.rbc-time-content {
+  border-top: none !important;
+}
+
+.rbc-time-content > * + * > * {
+  border-left: 1px solid var(--cal-border) !important;
+}
+
+.rbc-day-column + .rbc-day-column {
+  border-left: 1px solid var(--cal-border) !important;
+}
+
+/* ── Week/Day: scrollable time grid ────────────────────────── */
+.rbc-time-view {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cal-border) !important;
+  border-radius: 8px;
+}
+
+.rbc-time-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--cal-border) !important;
+}
+
+.rbc-time-content {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 0;
+  border-top: none !important;
+}
+
+/* ── Today column highlight (week/day) ─────────────────────── */
+.rbc-today-bg {
+  background: var(--brand-cta) !important;
+  opacity: 0.04;
+}
+
+/* ── Current time indicator ────────────────────────────────── */
+.rbc-current-time-indicator {
+  background: var(--brand-cta);
+  height: 2px;
+}
+
+/* ── Events ────────────────────────────────────────────────── */
+.rbc-event {
+  border: none !important;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0;
+  margin: 1px 4px;
+}
+
+.rbc-event-label {
+  display: none !important;
+}
+
+/* ── Show more ─────────────────────────────────────────────── */
+.rbc-show-more {
+  color: var(--brand-cta);
+  font-size: 11px;
+  font-weight: 500;
+  background: transparent;
+  border: none !important;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.rbc-show-more:hover {
+  background: var(--brand-cta-subtle);
+}
+
+/* ── Off-range (overflow) days ─────────────────────────────── */
+.rbc-off-range-bg {
+  background: var(--surface-secondary) !important;
+}
+
+.rbc-off-range-bg .rbc-day-bg {
+  background: var(--surface-secondary) !important;
+}
+
+.rbc-off-range .rbc-date-cell > span {
+  color: var(--text-muted);
+  opacity: 0.35;
+}
+
+/* ── Button borders (prev/next/today) ──────────────────────── */
+.rbc-toolbar button {
+  border: none !important;
+  background: transparent;
+}
+
+.rbc-toolbar button:hover {
+  background: transparent;
+}
+
+/* ── RBC default border-radius overrides ───────────────────── */
+.rbc-day-bg,
+.rbc-day-bg + .rbc-day-bg,
+.rbc-header + .rbc-header,
+.rbc-time-view,
+.rbc-month-row {
+  border-radius: 0 !important;
+}
