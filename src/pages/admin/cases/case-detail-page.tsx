@@ -39,6 +39,7 @@ const TAB_CONFIG = [
   { value: "documents", label: "Documents" },
   { value: "timeline", label: "Timeline" },
   { value: "notes", label: "Notes" },
+  { value: "ai-review", label: "AI Review" },
   { value: "audit-log", label: "Audit Log" },
 ] as const;
 
