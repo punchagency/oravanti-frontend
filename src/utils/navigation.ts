@@ -6,6 +6,7 @@ export type PrimarySection =
   | "finance"
   | "calendar"
   | "analytics"
+  | "ai-review"
   | "settings";
 
 export type NavigationIcon =
@@ -42,6 +43,7 @@ export type NavigationIcon =
   | "chart-column-big"
   | "rss"
   | "overview"
+  | "ai-review"
   | "users";
 
 export type PrimaryNavigationItem = {
@@ -82,6 +84,12 @@ export const primaryNavigation: PrimaryNavigationItem[] = [
     section: "calendar",
     path: "/calendar",
     icon: "calendar",
+  },
+  {
+    label: "AI Review",
+    section: "ai-review",
+    path: "/ai-review",
+    icon: "ai-review",
   },
   {
     label: "Staff",
@@ -346,6 +354,32 @@ export const contextNavigation: Record<
       ],
     },
   ],
+  "ai-review": [
+    {
+      label: "AI Detection",
+      items: [
+        { label: "Error dashboard", path: "/ai-review", icon: "shield" },
+        { label: "By case", path: "/ai-review/by-case", icon: "briefcase" },
+        { label: "By document", path: "/ai-review/by-document", icon: "file" },
+      ],
+    },
+    {
+      label: "Resolved",
+      items: [
+        {
+          label: "Resolution log",
+          path: "/ai-review/resolution-log",
+          icon: "clipboard",
+        },
+      ],
+    },
+    {
+      label: "Configuration",
+      items: [
+        { label: "Settings", path: "/ai-review/settings", icon: "settings" },
+      ],
+    },
+  ],
   settings: [
     {
       label: "Settings",
@@ -394,8 +428,10 @@ export const contextNavigation: Record<
 };
 
 export function getSectionForPath(pathname: string): PrimarySection {
-  if (pathname.startsWith("/intake") || pathname.startsWith("/leads")) return "intake";
+  if (pathname.startsWith("/intake") || pathname.startsWith("/leads"))
+    return "intake";
   if (pathname.startsWith("/cases")) return "cases";
+  if (pathname.startsWith("/ai-review")) return "ai-review";
   if (pathname.startsWith("/staff")) return "staff";
   if (pathname.startsWith("/finance")) return "finance";
   if (pathname.startsWith("/calendar")) return "calendar";

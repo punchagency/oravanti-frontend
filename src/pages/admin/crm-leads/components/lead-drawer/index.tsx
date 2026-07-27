@@ -15,13 +15,15 @@ import { buildPracticeAreaMap, practiceAreaName, stageLabel, stageTone } from ".
 import { ActivityTab } from "./activity-tab";
 import { NotesTab } from "./notes-tab";
 import { OverviewTab } from "./overview-tab";
+import { MatterIssues } from "@/pages/admin/ai-review/components/matter-issues";
 
-type DrawerTab = "overview" | "activity" | "notes";
+type DrawerTab = "overview" | "activity" | "notes" | "ai-review";
 
 const TABS: { value: DrawerTab; label: string }[] = [
   { value: "overview", label: "Overview" },
   { value: "activity", label: "Activity" },
   { value: "notes", label: "Notes" },
+  { value: "ai-review", label: "AI Review" },
 ];
 
 /**
@@ -197,6 +199,19 @@ export function LeadDrawer({
                       overflow="auto"
                     >
                       <NotesTab leadId={lead.id} isActive={tab === "notes"} />
+                    </Tabs.Content>
+
+                    <Tabs.Content
+                      value="ai-review"
+                      px={5}
+                      py={5}
+                      flex={1}
+                      overflow="auto"
+                    >
+                      <MatterIssues
+                        leadId={lead.id}
+                        enabled={tab === "ai-review"}
+                      />
                     </Tabs.Content>
                   </>
                 )}

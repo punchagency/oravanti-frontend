@@ -1,43 +1,48 @@
 import { AdminLayout } from "@/components/layout/admin-layout";
-import { CasesPage, CaseDetailPage } from "@/pages/admin/cases";
 import {
-  CaseOverviewTabRoute,
-  CaseWorkflowTabRoute,
-  CasePeopleTabRoute,
-  CaseDocumentsTabRoute,
-  CaseTimelineTabRoute,
-  CaseNotesTabRoute,
+  AiReviewByCasePage,
+  AiReviewByDocumentPage,
+  AiReviewDashboardPage,
+  AiReviewResolutionLogPage,
+  AiReviewSettingsPage,
+} from "@/pages/admin/ai-review";
+import { CalendarDataProvider, CalendarPage } from "@/pages/admin/calendar";
+import { CaseDetailPage, CasesPage } from "@/pages/admin/cases";
+import {
+  CaseAiReviewTabRoute,
   CaseAuditLogTabRoute,
+  CaseDocumentsTabRoute,
+  CaseNotesTabRoute,
+  CaseOverviewTabRoute,
+  CasePeopleTabRoute,
+  CaseTimelineTabRoute,
+  CaseWorkflowTabRoute,
 } from "@/pages/admin/cases/components/case-details/tab-routes";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
 import { AdminDashboard } from "@/pages/admin/dashboard";
+import { LeadReviewQueuePage } from "@/pages/admin/lead-review-queue";
 import {
-  LeadsPage,
   LeadDetailPage,
+  LeadsPage,
   MyLeadsTasksPage,
 } from "@/pages/admin/leads";
-import { ConflictCheckPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-conflict-check-page";
-import { QuestionnairePage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-questionnaire-page";
-import { ConsultationPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-consultation-page";
 import { CaseOpeningPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-case-opening-page";
+import { ConflictCheckPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-conflict-check-page";
+import { ConsultationPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-consultation-page";
+import { QuestionnairePage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-questionnaire-page";
 import {
   DocumentsTabRoute,
   IntakePipelineTabRoute,
-  LeadOverviewTabRoute,
   LeadAuditLogTabRoute,
+  LeadOverviewTabRoute,
   NotesTabRoute,
   TimelineTabRoute,
 } from "@/pages/admin/leads/components/lead-details/tab-routes";
 import { MyTasksPage } from "@/pages/admin/my-tasks";
-import { LeadReviewQueuePage } from "@/pages/admin/lead-review-queue";
 import { ReviewQueuePage } from "@/pages/admin/review-queue";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
-import {
-  CalendarPage,
-  CalendarDataProvider,
-} from "@/pages/admin/calendar";
 import Certifications from "@/pages/admin/staff-and-users/tabs/certifications";
 import Invitations from "@/pages/admin/staff-and-users/tabs/invitations";
 import Leave from "@/pages/admin/staff-and-users/tabs/leave";
@@ -135,16 +140,31 @@ const router = createBrowserRouter(
           <Route path="leads/review-queue" element={<LeadReviewQueuePage />} />
           <Route path="leads/:leadId" element={<LeadDetailPage />}>
             <Route index element={<LeadOverviewTabRoute />} />
-            <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />
+            <Route
+              path="intake-pipeline"
+              element={<IntakePipelineTabRoute />}
+            />
             <Route path="documents" element={<DocumentsTabRoute />} />
             <Route path="timeline" element={<TimelineTabRoute />} />
             <Route path="audit-log" element={<LeadAuditLogTabRoute />} />
             <Route path="notes" element={<NotesTabRoute />} />
           </Route>
-          <Route path="leads/:leadId/conflict-check" element={<ConflictCheckPage />} />
-          <Route path="leads/:leadId/questionnaire" element={<QuestionnairePage />} />
-          <Route path="leads/:leadId/consultation" element={<ConsultationPage />} />
-          <Route path="leads/:leadId/case-opening" element={<CaseOpeningPage />} />
+          <Route
+            path="leads/:leadId/conflict-check"
+            element={<ConflictCheckPage />}
+          />
+          <Route
+            path="leads/:leadId/questionnaire"
+            element={<QuestionnairePage />}
+          />
+          <Route
+            path="leads/:leadId/consultation"
+            element={<ConsultationPage />}
+          />
+          <Route
+            path="leads/:leadId/case-opening"
+            element={<CaseOpeningPage />}
+          />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
 
           <Route path="cases" element={<CasesPage />} />
@@ -155,6 +175,7 @@ const router = createBrowserRouter(
             <Route path="documents" element={<CaseDocumentsTabRoute />} />
             <Route path="timeline" element={<CaseTimelineTabRoute />} />
             <Route path="notes" element={<CaseNotesTabRoute />} />
+            <Route path="ai-review" element={<CaseAiReviewTabRoute />} />
             <Route path="audit-log" element={<CaseAuditLogTabRoute />} />
           </Route>
           <Route path="cases/my-tasks" element={<MyTasksPage />} />
@@ -216,6 +237,17 @@ const router = createBrowserRouter(
               </CalendarDataProvider>
             }
           />
+          <Route path="ai-review" element={<AiReviewDashboardPage />} />
+          <Route path="ai-review/by-case" element={<AiReviewByCasePage />} />
+          <Route
+            path="ai-review/by-document"
+            element={<AiReviewByDocumentPage />}
+          />
+          <Route
+            path="ai-review/resolution-log"
+            element={<AiReviewResolutionLogPage />}
+          />
+          <Route path="ai-review/settings" element={<AiReviewSettingsPage />} />
 
           <Route path="staff-management" element={<StaffAndUsersPage />}>
             <Route index element={<Staff />} />
