@@ -19,6 +19,7 @@ import {
   HStack,
   Menu,
   Portal,
+  Spinner,
   Table,
   Text,
 } from "@chakra-ui/react";
@@ -223,51 +224,89 @@ export function AiReviewDashboardPage() {
         </HStack>
       </Flex>
 
-      {showResolved && (
-        <Box mt="14px" overflowX="auto">
-          <Table.Root size="sm">
-            <Table.Header>
-              <Table.Row bg="bg.muted">
-                {["Issue", "Case", "Resolved by", "Resolved date", "Action taken"].map(
-                  (h) => (
-                    <Table.ColumnHeader
-                      key={h}
-                      fontSize="10px"
-                      letterSpacing="0.06em"
-                      color="fg.muted"
+      {showResolved &&
+        (resolved.isLoading ? (
+          <Flex mt="14px" py="40px" justify="center">
+            <Spinner size="md" color="brand.solid" />
+          </Flex>
+        ) : (
+          <Box
+            mt="14px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="10px"
+            overflow="hidden"
+          >
+            <Box overflowX="auto">
+              <Table.Root size="md">
+                <Table.Header>
+                  <Table.Row bg="bg.muted">
+                    {[
+                      "Issue",
+                      "Case",
+                      "Resolved by",
+                      "Resolved date",
+                      "Action taken",
+                    ].map((h) => (
+                      <Table.ColumnHeader
+                        key={h}
+                        py="12px"
+                        fontSize="10px"
+                        letterSpacing="0.06em"
+                        color="fg.muted"
+                      >
+                        {h.toUpperCase()}
+                      </Table.ColumnHeader>
+                    ))}
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {resolved.data?.data.map((row) => (
+                    <Table.Row
+                      key={row.id}
+                      borderBottom="1px solid"
+                      borderColor="border.muted"
+                      _last={{ borderBottom: "none" }}
                     >
-                      {h.toUpperCase()}
-                    </Table.ColumnHeader>
-                  ),
-                )}
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {resolved.data?.data.map((row) => (
-                <Table.Row key={row.id}>
-                  <Table.Cell>{row.title}</Table.Cell>
-                  <Table.Cell>
-                    {row.client?.name ?? row.scenario.reference ?? "—"}
-                  </Table.Cell>
-                  <Table.Cell>{row.resolvedBy?.name ?? "—"}</Table.Cell>
-                  <Table.Cell>
-                    {row.resolvedAt
-                      ? new Date(row.resolvedAt).toLocaleDateString()
-                      : "—"}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {row.actionTaken ? (
-                      <StatusPill tone="success">{row.actionTaken}</StatusPill>
-                    ) : (
-                      "—"
-                    )}
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Root>
-        </Box>
-      )}
+                      <Table.Cell py="14px" fontWeight="500">
+                        {row.title}
+                      </Table.Cell>
+                      <Table.Cell py="14px">
+                        <Text fontWeight="500">
+                          {row.client?.name ?? row.scenario.reference ?? "—"}
+                        </Text>
+                        {row.scenario.reference && row.client && (
+                          <Text
+                            fontSize="11px"
+                            color="fg.muted"
+                            fontFamily="mono"
+                          >
+                            {row.scenario.reference}
+                          </Text>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell py="14px">
+                        {row.resolvedBy?.name ?? "—"}
+                      </Table.Cell>
+                      <Table.Cell py="14px" color="fg.muted">
+                        {row.resolvedAt
+                          ? new Date(row.resolvedAt).toLocaleDateString()
+                          : "—"}
+                      </Table.Cell>
+                      <Table.Cell py="14px">
+                        {row.actionTaken ? (
+                          <StatusPill tone="success">{row.actionTaken}</StatusPill>
+                        ) : (
+                          "—"
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            </Box>
+          </Box>
+        ))}
     </Box>
   );
 }

@@ -2,7 +2,13 @@ import type { CaseReviewIssue, IssueAction } from "@/api/case-review";
 import { BrandButton, OutlineButton, StatusPill } from "@/components/ui/intake-ui";
 import { useRunIssueAction } from "@/hooks/use-case-review";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
-import { AlertCircle, AlertTriangle, ArrowRight, Briefcase } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  Briefcase,
+  Clock,
+} from "lucide-react";
 import { useNavigate } from "react-router";
 import {
   badgeLabel,
@@ -130,8 +136,8 @@ export function IssueCard({ issue }: { issue: CaseReviewIssue }) {
                 {isNav && <ArrowRight size={13} />}
                 <Text>{action.label}</Text>
                 {action.stub && (
-                  <Box as="span" fontSize="9px" color="fg.subtle">
-                    Soon
+                  <Box as="span" color="fg.subtle" display="inline-flex">
+                    <Clock size={12} />
                   </Box>
                 )}
               </HStack>
