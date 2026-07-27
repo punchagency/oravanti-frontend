@@ -38,18 +38,18 @@ import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
 import {
   MatchCard,
   ResolutionDialog,
-} from "@/pages/admin/intake/components/conflict-check-view";
+} from "@/pages/admin/leads/components/intake-pipeline/views/conflict-check-view";
 import {
   ConsultationCard,
   ScheduleConsultationDialog,
-} from "@/pages/admin/intake/components/consultation-view";
+} from "@/pages/admin/leads/components/intake-pipeline/views/consultation-view";
 import {
   ScheduleFollowUpContext,
   type FollowUpRequest,
-} from "@/pages/admin/intake/components/schedule-follow-up-context";
-import { QuestionnaireResponseDialog } from "@/pages/admin/intake/components/questionnaire-response-dialog";
-import { SendQuestionnaireDialog } from "@/pages/admin/intake/components/send-questionnaire-dialog";
-import { TeamSelectionModal } from "@/pages/admin/intake/components/team-selection-modal";
+} from "@/pages/admin/leads/components/intake-pipeline/shared/schedule-follow-up-context";
+import { QuestionnaireResponseDialog } from "@/pages/admin/leads/components/intake-pipeline/dialogs/questionnaire-response-dialog";
+import { SendQuestionnaireDialog } from "@/pages/admin/leads/components/intake-pipeline/dialogs/send-questionnaire-dialog";
+import { TeamSelectionModal } from "@/pages/admin/leads/components/intake-pipeline/dialogs/team-selection-modal";
 import { stageLabel, stageTone } from "../../data";
 import { EditLeadDialog } from "./edit-lead-dialog";
 

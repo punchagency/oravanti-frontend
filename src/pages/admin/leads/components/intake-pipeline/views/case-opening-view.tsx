@@ -12,8 +12,8 @@ import {
   PracticePill,
   StatusPill,
   SurfaceCard,
-} from "../../../../components/ui/intake-ui";
-import { TeamSelectionModal } from "./team-selection-modal";
+} from "@/components/ui/intake-ui";
+import { TeamSelectionModal } from "../dialogs/team-selection-modal";
 
 export function CaseOpeningView() {
   const { data, isLoading } = useLeads({ stage: "case_opening" });

@@ -6,11 +6,18 @@ import {
 } from "@/api/leads";
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { useRunConflictCheck, useUpdateLeadStatus } from "@/hooks/use-leads";
+import {
+  useLeadsStageCount,
+  useRunConflictCheck,
+  useUpdateLeadStatus,
+} from "@/hooks/use-leads";
 import { useAuthStore } from "@/store/auth-store";
+import { InstantConsultationDialog } from "./components/intake-pipeline/dialogs/instant-consultation-dialog";
+import { OutlineButton } from "@/components/ui/intake-ui";
 import {
   Box,
   Button,
+  Dialog,
   Flex,
   HStack,
   IconButton,
@@ -25,10 +32,13 @@ import {
   createListCollection,
 } from "@chakra-ui/react";
 import {
+  Briefcase,
   ClipboardCheck,
   Ellipsis,
   Eye,
+  FileSignature,
   FileText,
+  MessageSquare,
   Plus,
   RotateCcw,
   Search,
@@ -36,6 +46,7 @@ import {
   Trash2,
   Undo2,
   X,
+  Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -44,8 +55,8 @@ import {
   MutedText,
   PracticePill,
 } from "../../../components/ui/intake-ui";
-import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
-import { pipelineStageLabels } from "./components/lead-details/constants";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { pipelineStageLabels } from "./components/intake-pipeline/shared/constants";
 import { LeadsDataProvider, useLeadsData } from "./leads-data-context";
 
 const PAGE_SIZE_OPTIONS = [10, 15, 20, 50] as const;
@@ -55,6 +66,14 @@ const statusSummaryCards = [
   { key: "reviewed", label: "Reviewed", color: "#1D9E75", icon: RotateCcw },
   { key: "archived", label: "Archived", color: "#B4B2A9", icon: Trash2 },
   { key: "total", label: "Total Leads", color: "fg", icon: Eye },
+] as const;
+
+const stageSummaryCards = [
+  { key: "conflict_check", label: "Conflict Check", color: "#E85435", icon: ShieldAlert },
+  { key: "questionnaire", label: "Questionnaire", color: "#3B82F6", icon: ClipboardCheck },
+  { key: "consultation", label: "Consultation", color: "#8B5CF6", icon: MessageSquare },
+  { key: "fee_agreement", label: "Fee Agreement", color: "#F59E0B", icon: FileSignature },
+  { key: "case_opening", label: "Case Opening", color: "#10B981", icon: Briefcase },
 ] as const;
 
 function LeadsPageContent() {
@@ -83,6 +102,8 @@ function LeadsPageContent() {
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const updateLeadStatus = useUpdateLeadStatus();
   const runConflictCheck = useRunConflictCheck();
+  const { data: stageCounts, isLoading: stageCountsLoading } =
+    useLeadsStageCount();
   const currentUser = useAuthStore((s) => s.user);
 
   function handleQueryChange(value: string) {
@@ -175,18 +196,14 @@ function LeadsPageContent() {
           <Plus size={15} />
           Add lead
         </BrandButton>
-        <Link to="/leads/review-queue">
-          <Button
-            variant="outline"
-            borderColor="border"
-            size="sm"
-            color="fg.muted"
-            _hover={{ color: "fg", bg: "bg.muted" }}
-          >
-            <ClipboardCheck size={15} />
-            Review queue
-          </Button>
-        </Link>
+        <InstantConsultationDialog>
+          <Dialog.Trigger asChild>
+            <OutlineButton w={{ base: "full", md: "auto" }}>
+              <Zap size={14} />
+              Start consultation now
+            </OutlineButton>
+          </Dialog.Trigger>
+        </InstantConsultationDialog>
       </Flex>
 
       {/* ── Status summary ── */}
@@ -217,6 +234,55 @@ function LeadsPageContent() {
                   <Icon size={18} />
                 </Box>
                 {isLoading ? (
+                  <ThemeSkeleton h="28px" w="32px" borderRadius="md" />
+                ) : (
+                  <Text
+                    fontWeight="bold"
+                    fontSize={{ base: "xl", md: "2xl" }}
+                    color="fg"
+                  >
+                    {count}
+                  </Text>
+                )}
+              </Flex>
+              <Text
+                mt={1}
+                fontSize="13px"
+                color="fg.subtle"
+                whiteSpace="nowrap"
+              >
+                {card.label}
+              </Text>
+            </Box>
+          );
+        })}
+      </Flex>
+
+      {/* ── Pipeline stage summary ── */}
+      <Flex wrap="wrap" gap={{ base: 3, md: 4 }} pb={5}>
+        {stageSummaryCards.map((card) => {
+          const Icon = card.icon;
+          const count = stageCounts?.[card.key as keyof typeof stageCounts] ?? 0;
+          return (
+            <Box
+              key={card.key}
+              flex={{
+                base: "1 1 calc(50% - 12px)",
+                md: "1 1 calc(20% - 12px)",
+              }}
+              minW={{ base: 0, md: "110px" }}
+              bg="bg"
+              border="1px solid"
+              borderColor="border"
+              borderRadius="lg"
+              px={{ base: 3, md: 4 }}
+              py={{ base: 3, md: 4 }}
+            >
+              <Flex align="center" gap={2.5}>
+                <Box color={card.color}>
+                  <Icon size={18} />
+                </Box>
+                {stageCountsLoading ? (
                   <ThemeSkeleton h="28px" w="32px" borderRadius="md" />
                 ) : (
                   <Text

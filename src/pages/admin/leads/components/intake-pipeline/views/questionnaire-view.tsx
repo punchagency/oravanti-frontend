@@ -14,9 +14,9 @@ import {
   PracticePill,
   StatusPill,
   SurfaceCard,
-} from "../../../../components/ui/intake-ui";
-import { QuestionnaireResponseDialog } from "./questionnaire-response-dialog";
-import { SendQuestionnaireDialog } from "./send-questionnaire-dialog";
+} from "@/components/ui/intake-ui";
+import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
+import { SendQuestionnaireDialog } from "../dialogs/send-questionnaire-dialog";
 
 export function QuestionnaireView() {
   const { data, isLoading } = useLeads({ stage: "questionnaire" });

@@ -16,8 +16,11 @@ import {
   LeadsPage,
   LeadDetailPage,
   MyLeadsTasksPage,
-  LeadPipelinePage,
 } from "@/pages/admin/leads";
+import { ConflictCheckPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-conflict-check-page";
+import { QuestionnairePage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-questionnaire-page";
+import { ConsultationPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-consultation-page";
+import { CaseOpeningPage } from "@/pages/admin/leads/components/intake-pipeline/pages/lead-case-opening-page";
 import {
   DocumentsTabRoute,
   IntakePipelineTabRoute,
@@ -142,10 +145,10 @@ const router = createBrowserRouter(
             <Route path="audit-log" element={<LeadAuditLogTabRoute />} />
             <Route path="notes" element={<NotesTabRoute />} />
           </Route>
-          <Route path="leads/:leadId/conflict-check" element={<LeadPipelinePage />} />
-          <Route path="leads/:leadId/questionnaire" element={<LeadPipelinePage />} />
-          <Route path="leads/:leadId/consultation" element={<LeadPipelinePage />} />
-          <Route path="leads/:leadId/case-opening" element={<LeadPipelinePage />} />
+          <Route path="leads/:leadId/conflict-check" element={<ConflictCheckPage />} />
+          <Route path="leads/:leadId/questionnaire" element={<QuestionnairePage />} />
+          <Route path="leads/:leadId/consultation" element={<ConsultationPage />} />
+          <Route path="leads/:leadId/case-opening" element={<CaseOpeningPage />} />
           <Route path="intake/crm-leads" element={<CrmLeadsPage />} />
 
           <Route path="cases" element={<CasesPage />} />

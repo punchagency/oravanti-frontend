@@ -39,7 +39,7 @@ import {
   BrandButton,
   MutedText,
   OutlineButton,
-} from "../../../../components/ui/intake-ui";
+} from "@/components/ui/intake-ui";
 
 type ResponseTab = "responses" | "documents";
 

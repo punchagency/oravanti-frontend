@@ -2,8 +2,8 @@ import { Box, Flex, HStack, Link, Text, VStack } from "@chakra-ui/react";
 import { Download } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link as RouterLink, useLocation } from "react-router";
-import { intakeStages, intakeTabs } from "../data";
-import { OutlineButton } from "../../../../components/ui/intake-ui";
+import { intakeStages, intakeTabs } from "../../../data";
+import { OutlineButton } from "@/components/ui/intake-ui";
 import { useLeadsStageCount } from "@/hooks/use-leads";
 
 export function PipelineFrame({

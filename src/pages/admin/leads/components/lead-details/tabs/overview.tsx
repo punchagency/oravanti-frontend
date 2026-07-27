@@ -1,8 +1,8 @@
 import { getLeadById } from "@/api/leads";
 import { Box, Text, VStack } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
-import { ThemeSkeleton } from "../../../../../../components/ui/theme-skeleton";
-import { pipelineStageLabels } from "../constants";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { pipelineStageLabels } from "../../intake-pipeline/shared/constants";
 import { FieldRow, SectionLabel } from "../shared";
 
 interface LeadOverviewProps {
