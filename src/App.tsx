@@ -34,6 +34,10 @@ import { ReviewQueuePage } from "@/pages/admin/review-queue";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
+import {
+  CalendarPage,
+  CalendarDataProvider,
+} from "@/pages/admin/calendar";
 import Certifications from "@/pages/admin/staff-and-users/tabs/certifications";
 import Invitations from "@/pages/admin/staff-and-users/tabs/invitations";
 import Leave from "@/pages/admin/staff-and-users/tabs/leave";
@@ -155,6 +159,63 @@ const router = createBrowserRouter(
           </Route>
           <Route path="cases/my-tasks" element={<MyTasksPage />} />
           <Route path="cases/review-queue" element={<ReviewQueuePage />} />
+
+          <Route
+            path="calendar"
+            element={
+              <CalendarDataProvider>
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
+          <Route
+            path="calendar/hearings"
+            element={
+              <CalendarDataProvider filter="master_calendar_hearing">
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
+          <Route
+            path="calendar/interviews"
+            element={
+              <CalendarDataProvider filter="uscis_interview">
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
+          <Route
+            path="calendar/deadlines"
+            element={
+              <CalendarDataProvider filter="filing_deadline">
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
+          <Route
+            path="calendar/appointments"
+            element={
+              <CalendarDataProvider filter="client_meeting">
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
+          <Route
+            path="calendar/deadline-rules"
+            element={
+              <CalendarDataProvider>
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
+          <Route
+            path="calendar/service-requests"
+            element={
+              <CalendarDataProvider>
+                <CalendarPage />
+              </CalendarDataProvider>
+            }
+          />
 
           <Route path="staff-management" element={<StaffAndUsersPage />}>
             <Route index element={<Staff />} />
