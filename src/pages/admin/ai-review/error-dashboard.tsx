@@ -35,6 +35,11 @@ import {
 import { useState } from "react";
 import { IssueCard } from "./components/issue-card";
 import { StatTile } from "./components/stat-tile";
+import {
+  ReportRow,
+  ReportTable,
+  REPORT_CELL_PY,
+} from "./components/report-table";
 
 const formatScanTime = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -98,7 +103,7 @@ export function AiReviewDashboardPage() {
     : "No scan has run yet";
 
   return (
-    <Box pt="24px">
+    <Box pt="24px" pb="56px">
       <Flex justifyContent="space-between" alignItems="flex-start" gap="16px" flexWrap="wrap">
         <Box>
           <Text textStyle="heading">AI case review</Text>
@@ -230,82 +235,49 @@ export function AiReviewDashboardPage() {
             <Spinner size="md" color="brand.solid" />
           </Flex>
         ) : (
-          <Box
+          <ReportTable
             mt="14px"
-            border="1px solid"
-            borderColor="border"
-            borderRadius="10px"
-            overflow="hidden"
+            headers={[
+              "Issue",
+              "Case",
+              "Resolved by",
+              "Resolved date",
+              "Action taken",
+            ]}
           >
-            <Box overflowX="auto">
-              <Table.Root size="md">
-                <Table.Header>
-                  <Table.Row bg="bg.muted">
-                    {[
-                      "Issue",
-                      "Case",
-                      "Resolved by",
-                      "Resolved date",
-                      "Action taken",
-                    ].map((h) => (
-                      <Table.ColumnHeader
-                        key={h}
-                        py="12px"
-                        fontSize="10px"
-                        letterSpacing="0.06em"
-                        color="fg.muted"
-                      >
-                        {h.toUpperCase()}
-                      </Table.ColumnHeader>
-                    ))}
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {resolved.data?.data.map((row) => (
-                    <Table.Row
-                      key={row.id}
-                      borderBottom="1px solid"
-                      borderColor="border.muted"
-                      _last={{ borderBottom: "none" }}
-                    >
-                      <Table.Cell py="14px" fontWeight="500">
-                        {row.title}
-                      </Table.Cell>
-                      <Table.Cell py="14px">
-                        <Text fontWeight="500">
-                          {row.client?.name ?? row.scenario.reference ?? "—"}
-                        </Text>
-                        {row.scenario.reference && row.client && (
-                          <Text
-                            fontSize="11px"
-                            color="fg.muted"
-                            fontFamily="mono"
-                          >
-                            {row.scenario.reference}
-                          </Text>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell py="14px">
-                        {row.resolvedBy?.name ?? "—"}
-                      </Table.Cell>
-                      <Table.Cell py="14px" color="fg.muted">
-                        {row.resolvedAt
-                          ? new Date(row.resolvedAt).toLocaleDateString()
-                          : "—"}
-                      </Table.Cell>
-                      <Table.Cell py="14px">
-                        {row.actionTaken ? (
-                          <StatusPill tone="success">{row.actionTaken}</StatusPill>
-                        ) : (
-                          "—"
-                        )}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Root>
-            </Box>
-          </Box>
+            {resolved.data?.data.map((row) => (
+              <ReportRow key={row.id}>
+                <Table.Cell py={REPORT_CELL_PY} fontWeight="500">
+                  {row.title}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY}>
+                  <Text fontWeight="500">
+                    {row.client?.name ?? row.scenario.reference ?? "—"}
+                  </Text>
+                  {row.scenario.reference && row.client && (
+                    <Text fontSize="11px" color="fg.muted" fontFamily="mono">
+                      {row.scenario.reference}
+                    </Text>
+                  )}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY}>
+                  {row.resolvedBy?.name ?? "—"}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY} color="fg.muted">
+                  {row.resolvedAt
+                    ? new Date(row.resolvedAt).toLocaleDateString()
+                    : "—"}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY}>
+                  {row.actionTaken ? (
+                    <StatusPill tone="success">{row.actionTaken}</StatusPill>
+                  ) : (
+                    "—"
+                  )}
+                </Table.Cell>
+              </ReportRow>
+            ))}
+          </ReportTable>
         ))}
     </Box>
   );

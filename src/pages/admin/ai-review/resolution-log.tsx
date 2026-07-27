@@ -1,12 +1,13 @@
-import {
-  OutlineButton,
-  StatusPill,
-  SurfaceCard,
-} from "@/components/ui/intake-ui";
+import { OutlineButton, StatusPill } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useExportReport, useResolutionLog } from "@/hooks/use-case-review";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
+import {
+  ReportRow,
+  ReportTable,
+  REPORT_CELL_PY,
+} from "./components/report-table";
 import {
   Box,
   Flex,
@@ -91,92 +92,71 @@ export function AiReviewResolutionLogPage() {
         </Box>
       )}
 
-      <SurfaceCard>
-        <Box overflowX="auto">
-          <Table.Root size="sm">
-            <Table.Header>
-              <Table.Row bg="bg.muted">
-                {["Issue", "Case", "Resolved by", "Resolved date", "Action taken"].map(
-                  (h) => (
-                    <Table.ColumnHeader
-                      key={h}
-                      fontSize="10px"
-                      letterSpacing="0.06em"
-                      color="fg.muted"
-                    >
-                      {h.toUpperCase()}
-                    </Table.ColumnHeader>
-                  ),
-                )}
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {query.isLoading
-                ? Array.from({ length: 6 }).map((_, i) => (
-                    <Table.Row key={i}>
-                      {Array.from({ length: 5 }).map((__, j) => (
-                        <Table.Cell key={j}>
-                          <Skeleton h="16px" w="80%" />
-                        </Table.Cell>
-                      ))}
-                    </Table.Row>
-                  ))
-                : query.data?.data.map((row) => (
-                    <Table.Row key={row.id}>
-                      <Table.Cell fontWeight="500">{row.title}</Table.Cell>
-                      <Table.Cell>
-                        <Text fontWeight="500">
-                          {row.client?.name ?? row.scenario.reference ?? "—"}
-                        </Text>
-                        {row.scenario.reference && row.client && (
-                          <Text
-                            fontSize="11px"
-                            color="fg.muted"
-                            fontFamily="mono"
-                          >
-                            {row.scenario.reference}
-                          </Text>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {row.resolvedBy ? (
-                          <HStack gap="6px">
-                            <Text>{row.resolvedBy.name}</Text>
-                            {row.resolvedBy.role && (
-                              <StatusPill
-                                tone={
-                                  row.resolvedBy.role === "attorney" ||
-                                  row.resolvedBy.role === "owner"
-                                    ? "info"
-                                    : "neutral"
-                                }
-                              >
-                                {row.resolvedBy.role}
-                              </StatusPill>
-                            )}
-                          </HStack>
-                        ) : (
-                          "—"
-                        )}
-                      </Table.Cell>
-                      <Table.Cell color="fg.muted">
-                        {row.resolvedAt
-                          ? new Date(row.resolvedAt).toLocaleDateString()
-                          : "—"}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {row.actionTaken ? (
-                          <StatusPill tone="success">{row.actionTaken}</StatusPill>
-                        ) : (
-                          "—"
-                        )}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-            </Table.Body>
-          </Table.Root>
-        </Box>
-      </SurfaceCard>
+      <ReportTable
+        mt="24px"
+        headers={["Issue", "Case", "Resolved by", "Resolved date", "Action taken"]}
+      >
+        {query.isLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <ReportRow key={i}>
+                {Array.from({ length: 5 }).map((__, j) => (
+                  <Table.Cell key={j} py={REPORT_CELL_PY}>
+                    <Skeleton h="16px" w="80%" />
+                  </Table.Cell>
+                ))}
+              </ReportRow>
+            ))
+          : query.data?.data.map((row) => (
+              <ReportRow key={row.id}>
+                <Table.Cell py={REPORT_CELL_PY} fontWeight="500">
+                  {row.title}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY}>
+                  <Text fontWeight="500">
+                    {row.client?.name ?? row.scenario.reference ?? "—"}
+                  </Text>
+                  {row.scenario.reference && row.client && (
+                    <Text fontSize="11px" color="fg.muted" fontFamily="mono">
+                      {row.scenario.reference}
+                    </Text>
+                  )}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY}>
+                  {row.resolvedBy ? (
+                    <HStack gap="6px">
+                      <Text>{row.resolvedBy.name}</Text>
+                      {row.resolvedBy.role && (
+                        <StatusPill
+                          tone={
+                            row.resolvedBy.role === "attorney" ||
+                            row.resolvedBy.role === "owner"
+                              ? "info"
+                              : "neutral"
+                          }
+                        >
+                          {row.resolvedBy.role}
+                        </StatusPill>
+                      )}
+                    </HStack>
+                  ) : (
+                    "—"
+                  )}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY} color="fg.muted">
+                  {row.resolvedAt
+                    ? new Date(row.resolvedAt).toLocaleDateString()
+                    : "—"}
+                </Table.Cell>
+                <Table.Cell py={REPORT_CELL_PY}>
+                  {row.actionTaken ? (
+                    <StatusPill tone="success">{row.actionTaken}</StatusPill>
+                  ) : (
+                    "—"
+                  )}
+                </Table.Cell>
+              </ReportRow>
+            ))}
+      </ReportTable>
 
       {query.data && query.data.pagination.total > limit && (
         <Box mt="16px">
