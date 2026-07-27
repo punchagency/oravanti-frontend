@@ -83,10 +83,12 @@ export function useIssuesByDocument(
 
 export function useResolutionLog(
   params: { page?: number; limit?: number; days?: number } = {},
+  enabled = true,
 ) {
   return useQuery({
     queryKey: keys.resolutionLog(params),
     queryFn: () => getResolutionLog(params),
+    enabled,
   });
 }
 

@@ -95,7 +95,10 @@ export function AiReviewDashboardPage() {
   const issues = useCaseReviewIssues({ status: "open" });
   const runScan = useRunFullScan();
   const [showResolved, setShowResolved] = useState(false);
-  const resolved = useResolutionLog({ limit: 20 });
+  // Only fetch the resolved list once the section is opened, so the loading
+  // state maps to the click rather than page mount (otherwise the fetch is
+  // already done by the time the user opens it and no spinner ever shows).
+  const resolved = useResolutionLog({ limit: 20 }, showResolved);
 
   const s = stats.data;
   const scanLine = s?.lastScan.at
@@ -221,16 +224,19 @@ export function AiReviewDashboardPage() {
           {showResolved && (
             <ExportMenu report="resolution-log" label="Export" />
           )}
-          <BrandButton onClick={() => setShowResolved((v) => !v)}>
+          <BrandButton
+            loading={showResolved && resolved.isFetching}
+            onClick={() => setShowResolved((v) => !v)}
+          >
             {showResolved
               ? "Hide resolved"
-              : `Show resolved (${resolved.data?.summary.resolved ?? 0})`}
+              : `Show resolved (${s?.resolvedLast30Days ?? 0})`}
           </BrandButton>
         </HStack>
       </Flex>
 
       {showResolved &&
-        (resolved.isLoading ? (
+        (resolved.isPending ? (
           <Flex mt="14px" py="40px" justify="center">
             <Spinner size="md" color="brand.solid" />
           </Flex>
