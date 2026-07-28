@@ -1,8 +1,15 @@
+import { getCases } from "@/api/cases";
+import { getAllClients } from "@/api/clients";
+import { getStaff } from "@/api/staff";
+import { BrandButton } from "@/components/ui/intake-ui";
+import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
+import { dayjs } from "@/utils/date";
 import {
   Box,
   Button,
   chakra,
   Checkbox,
+  createListCollection,
   DatePicker,
   Dialog,
   Field,
@@ -15,20 +22,14 @@ import {
   Text,
   Textarea,
   VStack,
-  createListCollection,
 } from "@chakra-ui/react";
-import { CalendarDate } from "@internationalized/date";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { CalendarDate } from "@internationalized/date";
 import { useQuery } from "@tanstack/react-query";
+import { CalendarDays, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { dayjs } from "@/utils/date";
-import { CalendarDays, Plus, X } from "lucide-react";
-import { getAllClients } from "@/api/clients";
-import { getCases } from "@/api/cases";
-import { getStaff } from "@/api/staff";
-import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
 import { useCalendarData } from "./calendar-data-context";
 import {
   CALENDAR_FILTER_TYPES,
@@ -98,7 +99,7 @@ interface AddEventDialogProps {
   children?: ReactNode;
 }
 
-export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
+export function AddEventDialog({ onAdd }: AddEventDialogProps) {
   const [open, setOpen] = useState(false);
   const { slotData, setSlotData } = useCalendarData();
   const { showSuccess } = useFeedbackDialog();
@@ -250,42 +251,10 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
       placement="center"
     >
       <Dialog.Trigger asChild>
-        {children ?? (
-          <Button
-            size="sm"
-            h="36px"
-            px="16px"
-            borderRadius="7px"
-            fontWeight={600}
-            fontSize="13px"
-            bg="brand.solid"
-            color="brand.fg"
-            _hover={{ bg: "brand.emphasized" }}
-          >
-            <Plus size={14} />
-            Add event
-          </Button>
-        )}
-      </Dialog.Trigger>
-
-      <Dialog.Trigger asChild>
-        <Button
-          display={{ base: "flex", md: "none" }}
-          position="fixed"
-          bottom="24px"
-          right="24px"
-          w="56px"
-          h="56px"
-          borderRadius="50%"
-          bg="brand.solid"
-          color="brand.fg"
-          _hover={{ bg: "brand.emphasized" }}
-          shadow="lg"
-          zIndex={50}
-          aria-label="Add event"
-        >
-          <Plus size={24} />
-        </Button>
+        <BrandButton>
+          <Plus size={14} />
+          Add event
+        </BrandButton>
       </Dialog.Trigger>
 
       <Portal>
@@ -323,11 +292,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
               </chakra.button>
             </Dialog.CloseTrigger>
 
-            <Box
-              as="form"
-              p="32px 24px 24px"
-              onSubmit={handleSubmit(onSubmit)}
-            >
+            <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit(onSubmit)}>
               <Dialog.Title
                 color="fg"
                 fontSize="17px"
@@ -367,9 +332,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                       {...inputStyles}
                     />
                     {errors.title && (
-                      <Field.ErrorText>
-                        {errors.title.message}
-                      </Field.ErrorText>
+                      <Field.ErrorText>{errors.title.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
@@ -417,9 +380,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                       )}
                     />
                     {errors.type && (
-                      <Field.ErrorText>
-                        {errors.type.message}
-                      </Field.ErrorText>
+                      <Field.ErrorText>{errors.type.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
@@ -460,10 +421,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                                 <Select.Positioner>
                                   <Select.Content>
                                     {clientCollection.items.map((item) => (
-                                      <Select.Item
-                                        key={item.value}
-                                        item={item}
-                                      >
+                                      <Select.Item key={item.value} item={item}>
                                         <Select.ItemText>
                                           {item.label}
                                         </Select.ItemText>
@@ -551,10 +509,10 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                       render={({ field }) => {
                         const dateValue = field.value
                           ? new CalendarDate(
-                              ...dayjs(field.value)
+                              ...(dayjs(field.value)
                                 .format("YYYY-MM-DD")
                                 .split("-")
-                                .map(Number) as [number, number, number]
+                                .map(Number) as [number, number, number]),
                             )
                           : undefined;
                         return (
@@ -564,7 +522,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                               const v = details.value[0];
                               if (v) {
                                 field.onChange(
-                                  `${v.year}-${String(v.month).padStart(2, "0")}-${String(v.day).padStart(2, "0")}`
+                                  `${v.year}-${String(v.month).padStart(2, "0")}-${String(v.day).padStart(2, "0")}`,
                                 );
                               } else {
                                 field.onChange("");
@@ -623,9 +581,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                       }}
                     />
                     {errors.date && (
-                      <Field.ErrorText>
-                        {errors.date.message}
-                      </Field.ErrorText>
+                      <Field.ErrorText>{errors.date.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
@@ -754,10 +710,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                               <Select.Positioner>
                                 <Select.Content>
                                   {staffCollection.items.map((item) => (
-                                    <Select.Item
-                                      key={item.value}
-                                      item={item}
-                                    >
+                                    <Select.Item key={item.value} item={item}>
                                       <Select.ItemText>
                                         {item.label}
                                       </Select.ItemText>
@@ -810,12 +763,7 @@ export function AddEventDialog({ onAdd, children }: AddEventDialogProps) {
                         </Checkbox.Root>
                       )}
                     />
-                    <Text
-                      fontSize="12px"
-                      color="fg.muted"
-                      mt="4px"
-                      ml="24px"
-                    >
+                    <Text fontSize="12px" color="fg.muted" mt="4px" ml="24px">
                       Deadline rules will be automatically applied based on the
                       hearing type.
                     </Text>

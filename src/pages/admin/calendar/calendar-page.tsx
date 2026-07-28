@@ -1,5 +1,5 @@
-import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { dayjs } from "@/utils/date";
+import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import isToday from "dayjs/plugin/isToday";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback } from "react";
@@ -79,7 +79,7 @@ export function CalendarPage() {
           <HStack
             p="3px"
             borderRadius="8px"
-            bg="bg.muted"
+            bg="bg.subtle"
             border="1px solid"
             borderColor="border.subtle"
           >
@@ -89,12 +89,12 @@ export function CalendarPage() {
                 size="xs"
                 px={{ base: "10px", md: "14px" }}
                 py="6px"
-                borderRadius="6px"
+                borderRadius="sm"
                 fontWeight={view === v ? 600 : 500}
                 fontSize="12px"
                 bg={view === v ? "brand.solid" : "transparent"}
                 color={view === v ? "brand.fg" : "fg.muted"}
-                _hover={view === v ? {} : { bg: "bg.subtle", color: "fg" }}
+                _hover={view === v ? {} : { bg: "bg.muted", color: "fg" }}
                 onClick={() => setView(v)}
               >
                 {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -104,45 +104,53 @@ export function CalendarPage() {
 
           <HStack gap="4px">
             <Button
-              size="xs"
+              size="sm"
               px="10px"
               py="6px"
               borderRadius="6px"
               fontWeight={500}
               fontSize="12px"
-              bg="bg.muted"
+              bg="bg.subtle"
+              border="1px solid"
+              borderColor="border.subtle"
               color="fg"
-              _hover={{ bg: "bg.subtle" }}
+              _hover={{ bg: "bg.muted" }}
               onClick={handlePrev}
             >
               <ChevronLeft size={12} />
+              Prev
             </Button>
             <Button
-              size="xs"
+              size="sm"
               px="10px"
               py="6px"
               borderRadius="6px"
               fontWeight={500}
               fontSize="12px"
-              bg="bg.muted"
+              bg="bg.subtle"
+              border="1px solid"
+              borderColor="border.subtle"
               color="fg"
-              _hover={{ bg: "bg.subtle" }}
+              _hover={{ bg: "bg.muted" }}
               onClick={handleNext}
             >
+              Next
               <ChevronRight size={12} />
             </Button>
           </HStack>
 
           <Button
-            size="xs"
+            size="sm"
             px="14px"
             py="6px"
             borderRadius="6px"
             fontWeight={500}
             fontSize="12px"
-            bg="bg.muted"
+            bg="bg.subtle"
+            border="1px solid"
+            borderColor="border.subtle"
             color="fg"
-            _hover={{ bg: "bg.subtle" }}
+            _hover={{ bg: "bg.muted" }}
             onClick={handleToday}
           >
             Today

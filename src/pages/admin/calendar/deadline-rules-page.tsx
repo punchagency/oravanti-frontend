@@ -1,12 +1,5 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Flex,
-  HStack,
-  Table,
-  Text,
-} from "@chakra-ui/react";
+import { BrandButton } from "@/components/ui/intake-ui";
+import { Badge, Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
 import { Info, Plus } from "lucide-react";
 
 const DEADLINE_RULES = [
@@ -139,21 +132,10 @@ export function DeadlineRulesPage() {
             Automatic deadline cascades for hearings and filings
           </Text>
         </Box>
-        <Button
-          size="sm"
-          h="36px"
-          px="16px"
-          borderRadius="7px"
-          fontWeight={600}
-          fontSize="13px"
-          bg="brand.solid"
-          color="brand.fg"
-          _hover={{ bg: "brand.emphasized" }}
-          flexShrink={0}
-        >
+        <BrandButton>
           <Plus size={14} />
           Add custom rule
-        </Button>
+        </BrandButton>
       </Flex>
 
       {/* ── Info banner ── */}
@@ -194,10 +176,7 @@ export function DeadlineRulesPage() {
               <Table.Row bg="bg.subtle">
                 {["Trigger Event", "Rule", "Deadline Added", "Priority"].map(
                   (col) => (
-                    <Table.ColumnHeader
-                      key={col}
-                      {...thStyle}
-                    >
+                    <Table.ColumnHeader key={col} {...thStyle}>
                       {col}
                     </Table.ColumnHeader>
                   ),
@@ -227,7 +206,8 @@ export function DeadlineRulesPage() {
                       fontWeight={500}
                       display="inline-block"
                     >
-                      {rule.priority.charAt(0).toUpperCase() + rule.priority.slice(1)}
+                      {rule.priority.charAt(0).toUpperCase() +
+                        rule.priority.slice(1)}
                     </Badge>
                   </Table.Cell>
                 </Table.Row>
