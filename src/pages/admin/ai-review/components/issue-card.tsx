@@ -9,7 +9,7 @@ import {
   Briefcase,
   Clock,
 } from "lucide-react";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   badgeLabel,
@@ -17,6 +17,7 @@ import {
   matterDocumentsPath,
   matterPath,
 } from "../severity";
+import { AssigneeDialog } from "./assignee-dialog";
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -38,6 +39,8 @@ function IssueCardBase({ issue }: { issue: CaseReviewIssue }) {
   const tint = cardTint(issue.badge);
   const SeverityIcon = issue.badge === "critical" ? AlertCircle : AlertTriangle;
 
+  const [assigning, setAssigning] = useState<IssueAction | null>(null);
+
   const onAction = (action: IssueAction) => {
     if (action.stub) return;
     if (action.kind === "navigate") {
@@ -47,6 +50,10 @@ function IssueCardBase({ issue }: { issue: CaseReviewIssue }) {
           ? matterDocumentsPath(type, id)
           : matterPath(type, id),
       );
+      return;
+    }
+    if (action.requiresAssignee) {
+      setAssigning(action);
       return;
     }
     runAction.mutate({ id: issue.id, actionKey: action.key });
@@ -146,6 +153,21 @@ function IssueCardBase({ issue }: { issue: CaseReviewIssue }) {
           );
         })}
       </HStack>
+
+      <AssigneeDialog
+        issueId={issue.id}
+        actionLabel={assigning?.label ?? ""}
+        open={assigning !== null}
+        onOpenChange={({ open }) => !open && setAssigning(null)}
+        busy={busy}
+        onConfirm={(assigneeStaffId) => {
+          if (!assigning) return;
+          runAction.mutate(
+            { id: issue.id, actionKey: assigning.key, assigneeStaffId },
+            { onSuccess: () => setAssigning(null) },
+          );
+        }}
+      />
     </Box>
   );
 }

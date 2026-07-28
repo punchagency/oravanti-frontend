@@ -2,6 +2,7 @@ import {
   exportIssues,
   exportResolutionLog,
   getCaseReviewConfig,
+  getEligibleAssignees,
   getCaseReviewIssue,
   getCaseReviewIssues,
   getCaseReviewStats,
@@ -28,6 +29,7 @@ const keys = {
   stats: ["case-review", "stats"] as const,
   issues: (f: IssueFilters) => ["case-review", "issues", f] as const,
   issue: (id: string) => ["case-review", "issue", id] as const,
+  assignees: (id: string) => ["case-review", "assignees", id] as const,
   byCase: (p: object) => ["case-review", "by-case", p] as const,
   byDocument: (p: object) => ["case-review", "by-document", p] as const,
   resolutionLog: (p: object) => ["case-review", "resolution-log", p] as const,
@@ -62,6 +64,15 @@ export function useCaseReviewIssue(id: string | null) {
     queryKey: keys.issue(id ?? ""),
     queryFn: () => getCaseReviewIssue(id as string),
     enabled: Boolean(id),
+  });
+}
+
+/** Attorneys an issue's assignee-taking actions may route work to. */
+export function useEligibleAssignees(id: string | null, enabled = true) {
+  return useQuery({
+    queryKey: keys.assignees(id ?? ""),
+    queryFn: () => getEligibleAssignees(id as string),
+    enabled: Boolean(id) && enabled,
   });
 }
 
@@ -136,8 +147,15 @@ export function useUpdateIssueStatus() {
 export function useRunIssueAction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, actionKey }: { id: string; actionKey: string }) =>
-      runIssueAction(id, actionKey),
+    mutationFn: ({
+      id,
+      actionKey,
+      assigneeStaffId,
+    }: {
+      id: string;
+      actionKey: string;
+      assigneeStaffId?: string;
+    }) => runIssueAction(id, actionKey, assigneeStaffId),
     onSuccess: (result) => {
       // Navigate actions carry no effect and toast nothing; routing is the
       // caller's job.
