@@ -163,7 +163,10 @@ export function CalendarPage() {
       <CalendarLegend />
 
       {/* ── Calendar content ── */}
-      <Box h={{ base: "calc(100vh - 280px)", md: "calc(100vh - 240px)" }} overflow="hidden">
+      <Box
+        h={{ base: "calc(100vh - 280px)", md: "calc(100vh - 240px)" }}
+        overflow="hidden"
+      >
         <Calendar
           localizer={localizer}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,7 +205,7 @@ export function CalendarPage() {
             openDetail(event.id);
           }}
           onSelectSlot={handleSlotSelect}
-          min={new Date(2000, 0, 1, 1, 0)}
+          min={new Date(2000, 0, 1, 0, 0)}
           max={new Date(2000, 0, 1, 23, 59)}
           step={60}
           timeslots={1}
