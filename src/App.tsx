@@ -6,7 +6,7 @@ import {
   AiReviewResolutionLogPage,
   AiReviewSettingsPage,
 } from "@/pages/admin/ai-review";
-import { CalendarDataProvider, CalendarPage } from "@/pages/admin/calendar";
+import { CalendarDataProvider, CalendarPage, DeadlineRulesPage, ServiceRequestsPage } from "@/pages/admin/calendar";
 import { CaseDetailPage, CasesPage } from "@/pages/admin/cases";
 import {
   CaseAiReviewTabRoute,
@@ -223,19 +223,11 @@ const router = createBrowserRouter(
           />
           <Route
             path="calendar/deadline-rules"
-            element={
-              <CalendarDataProvider>
-                <CalendarPage />
-              </CalendarDataProvider>
-            }
+            element={<DeadlineRulesPage />}
           />
           <Route
             path="calendar/service-requests"
-            element={
-              <CalendarDataProvider>
-                <CalendarPage />
-              </CalendarDataProvider>
-            }
+            element={<ServiceRequestsPage />}
           />
           <Route path="ai-review" element={<AiReviewDashboardPage />} />
           <Route path="ai-review/by-case" element={<AiReviewByCasePage />} />

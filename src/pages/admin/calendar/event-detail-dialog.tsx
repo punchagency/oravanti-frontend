@@ -20,7 +20,7 @@ import {
   createListCollection,
 } from "@chakra-ui/react";
 import { CalendarDate } from "@internationalized/date";
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";

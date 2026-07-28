@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import { useCalendarEvents, useCreateCalendarEvent } from "./use-calendar";
 import type {
   CalendarEvent,

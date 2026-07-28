@@ -1,4 +1,4 @@
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import type { CalendarViewType } from "./types";
 
 export function getTitle(view: CalendarViewType, date: Date): string {
