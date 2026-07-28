@@ -1,5 +1,5 @@
 import { Box, Text } from "@chakra-ui/react";
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import type { CalendarEvent, CalendarViewType } from "./types";
 import { EVENT_TYPE_CONFIG } from "./types";
 

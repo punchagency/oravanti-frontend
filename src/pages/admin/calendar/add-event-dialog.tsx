@@ -23,7 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import { CalendarDays, Plus, X } from "lucide-react";
 import { getAllClients } from "@/api/clients";
 import { getCases } from "@/api/cases";

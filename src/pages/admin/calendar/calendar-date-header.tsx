@@ -1,5 +1,5 @@
 import { Box, Text } from "@chakra-ui/react";
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import isToday from "dayjs/plugin/isToday";
 
 dayjs.extend(isToday);

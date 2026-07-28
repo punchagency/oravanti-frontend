@@ -1,5 +1,5 @@
 import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
-import dayjs from "dayjs";
+import { dayjs } from "@/utils/date";
 import isToday from "dayjs/plugin/isToday";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback } from "react";
