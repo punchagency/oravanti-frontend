@@ -13,7 +13,7 @@ import {
   chakra,
 } from "@chakra-ui/react";
 import { Check, UserCheck, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const fullName = (a: EligibleAssignee) =>
   [a.firstName, a.lastName].filter(Boolean).join(" ") || a.email || "Unnamed";
@@ -44,14 +44,17 @@ export function AssigneeDialog({
   const [search, setSearch] = useState("");
   const { data: assignees, isLoading } = useEligibleAssignees(issueId, open);
 
-  // Reset on open rather than unmounting the dialog, which would break the
-  // focus trap.
-  useEffect(() => {
+  // Reset on open rather than unmounting the dialog, which would break the focus
+  // trap. Adjusted during render instead of in an effect — setState in an effect
+  // costs an extra render pass, and React recommends this for prop-driven resets.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setSelectedId(null);
       setSearch("");
     }
-  }, [open]);
+  }
 
   const filtered = useMemo(
     () =>
