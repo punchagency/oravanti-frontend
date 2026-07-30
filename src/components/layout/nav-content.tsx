@@ -143,10 +143,17 @@ export function NavContent({
           <ScrollArea.Thumb />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+      <Box
+        px={collapsed ? "0" : "8px"}
+        py="12px"
+        borderTop="1px solid"
+        borderColor="border.subtle"
+      >
+        <QuickActions collapsed={collapsed} />
+      </Box>
 
       {!collapsed && (
         <Flex direction="column" gap="12px" p="8px">
-          <QuickActions collapsed={collapsed} />
           <Flex
             p="12px"
             borderRadius="md"
@@ -187,12 +194,6 @@ export function NavContent({
               Upgrade plan
             </Button>
           </Flex>
-        </Flex>
-      )}
-
-      {collapsed && (
-        <Flex direction="column" gap="8px" p="8px" alignItems="center">
-          <QuickActions collapsed={collapsed} />
         </Flex>
       )}
     </>
