@@ -1,4 +1,5 @@
 import { BrandButton } from "@/components/ui/intake-ui";
+import { PageTitle } from "@/components/layout/navigation";
 import { Badge, Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
 import { Info, Plus } from "lucide-react";
 
@@ -114,16 +115,18 @@ export function DeadlineRulesPage() {
         borderColor="border.subtle"
       >
         <Box flex="1">
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize={{ base: "18px", md: "24px" }}
-            fontWeight="600"
-            lineHeight="1.2"
-          >
-            Deadline rules
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize={{ base: "18px", md: "24px" }}
+              fontWeight="600"
+              lineHeight="1.2"
+            >
+              Deadline rules
+            </Text>
+          </PageTitle>
           <Text
             m={{ base: "4px 0 0", md: "8px 0 0" }}
             color="fg.muted"

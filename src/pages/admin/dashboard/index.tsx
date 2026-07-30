@@ -1,4 +1,5 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { PageTitle } from "@/components/layout/navigation";
 import { ActivityView } from "./views/activity";
 import { OverviewView } from "./views/overview";
 import { PipelineView } from "./views/pipeline";
@@ -25,16 +26,18 @@ export function AdminDashboard() {
         borderColor="border.subtle"
       >
         <Box>
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="22px"
-            fontWeight="500"
-            lineHeight="1.2"
-          >
-            Dashboard
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="22px"
+              fontWeight="500"
+              lineHeight="1.2"
+            >
+              Dashboard
+            </Text>
+          </PageTitle>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
             Firm overview — cases, pipeline and staff at a glance
           </Text>

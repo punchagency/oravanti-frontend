@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { PageTitle } from "@/components/layout/navigation";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useLeads, useLeadsStageCount } from "@/hooks/use-leads";
 import { ArchivedLeadsTab } from "./components/archived-leads-tab";
@@ -65,16 +66,18 @@ export function CrmLeadsPage() {
         borderColor="border.subtle"
       >
         <Box>
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="22px"
-            fontWeight="500"
-            lineHeight="1.2"
-          >
-            CRM &amp; leads
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="22px"
+              fontWeight="500"
+              lineHeight="1.2"
+            >
+              CRM &amp; leads
+            </Text>
+          </PageTitle>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
             Full pipeline from first contact to active client
           </Text>

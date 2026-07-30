@@ -8,6 +8,7 @@ import {
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useAuthStore } from "@/store/auth-store";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { PageTitle } from "@/components/layout/navigation";
 import { Box, Button, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -114,16 +115,18 @@ export function LeadReviewQueuePage() {
         borderColor="border.subtle"
       >
         <Box flex="1">
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="24px"
-            fontWeight="600"
-            lineHeight="1.2"
-          >
-            Lead Review Queue
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="24px"
+              fontWeight="600"
+              lineHeight="1.2"
+            >
+              Lead Review Queue
+            </Text>
+          </PageTitle>
           <Text m="8px 0 0" color="fg.muted" fontSize="14px">
             Approve or reject lead intake tasks submitted for review
           </Text>

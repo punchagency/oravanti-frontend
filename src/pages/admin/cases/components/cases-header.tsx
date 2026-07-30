@@ -1,6 +1,7 @@
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download } from "lucide-react";
 import { OutlineButton } from "@/components/ui/intake-ui";
+import { PageTitle } from "@/components/layout/navigation";
 import { OpenMatterButton } from "./open-matter-dialog";
 
 export function CasesPageHeader() {
@@ -16,16 +17,18 @@ export function CasesPageHeader() {
       borderColor="border.subtle"
     >
       <Box flex="1">
-        <Text
-          as="h1"
-          m="0"
-          color="fg"
-          fontSize="24px"
-          fontWeight="600"
-          lineHeight="1.2"
-        >
-          Cases
-        </Text>
+        <PageTitle>
+          <Text
+            as="h1"
+            m="0"
+            color="fg"
+            fontSize="24px"
+            fontWeight="600"
+            lineHeight="1.2"
+          >
+            Cases
+          </Text>
+        </PageTitle>
         <Text m="8px 0 0" color="fg.muted" fontSize="14px">
           All active and closed matters across your practice areas
         </Text>

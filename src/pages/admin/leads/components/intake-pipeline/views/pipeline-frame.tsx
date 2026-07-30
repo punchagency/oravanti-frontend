@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Link as RouterLink, useLocation } from "react-router";
 import { intakeStages, intakeTabs } from "../../../data";
 import { OutlineButton } from "@/components/ui/intake-ui";
+import { PageTitle } from "@/components/layout/navigation";
 import { useLeadsStageCount } from "@/hooks/use-leads";
 
 export function PipelineFrame({
@@ -29,16 +30,18 @@ export function PipelineFrame({
         borderColor="border.subtle"
       >
         <Box>
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="22px"
-            fontWeight="500"
-            lineHeight="1.2"
-          >
-            Intake pipeline
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="22px"
+              fontWeight="500"
+              lineHeight="1.2"
+            >
+              Intake pipeline
+            </Text>
+          </PageTitle>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
             Manage leads from first contact to active case
           </Text>

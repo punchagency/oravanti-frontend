@@ -5,5 +5,6 @@ export function usePublicPracticeAreas() {
   return useQuery({
     queryKey: ["public-practice-areas"],
     queryFn: getPublicPracticeAreas,
+    staleTime: Infinity,
   });
 }

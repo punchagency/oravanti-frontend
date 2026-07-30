@@ -1,3 +1,4 @@
+import { PageTitle } from "@/components/layout/navigation";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import type { CalendarEventType } from "./types";
@@ -42,16 +43,18 @@ export function CalendarHeader({ filter, actions }: CalendarHeaderProps) {
       borderColor="border.subtle"
     >
       <Box flex="1">
-        <Text
-          as="h1"
-          m="0"
-          color="fg"
-          fontSize={{ base: "18px", md: "24px" }}
-          fontWeight="600"
-          lineHeight="1.2"
-        >
-          {title}
-        </Text>
+        <PageTitle>
+          <Text
+            as="h1"
+            m="0"
+            color="fg"
+            fontSize={{ base: "18px", md: "24px" }}
+            fontWeight="600"
+            lineHeight="1.2"
+          >
+            {title}
+          </Text>
+        </PageTitle>
         <Text
           m={{ base: "4px 0 0", md: "8px 0 0" }}
           color="fg.muted"

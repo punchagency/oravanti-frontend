@@ -1,6 +1,7 @@
 import { dayjs, guessTimezone } from "@/utils/date";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { PageTitle } from "@/components/layout/navigation";
 import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useCancelInvitation } from "@/hooks/useCancelInvitation";
@@ -182,16 +183,18 @@ export default function Invitations() {
           pb="16px"
         >
           <Box>
-            <Text
-              as="h1"
-              m="0"
-              color="fg"
-              fontSize="22px"
-              fontWeight="500"
-              lineHeight="1.2"
-            >
-              Invitations
-            </Text>
+            <PageTitle>
+              <Text
+                as="h1"
+                m="0"
+                color="fg"
+                fontSize="22px"
+                fontWeight="500"
+                lineHeight="1.2"
+              >
+                Invitations
+              </Text>
+            </PageTitle>
             <Text m="6px 0 0" color="fg.muted" fontSize="13px">
               Review and manage staff invitations
             </Text>
@@ -226,16 +229,18 @@ export default function Invitations() {
         pb="16px"
       >
         <Box>
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="22px"
-            fontWeight="500"
-            lineHeight="1.2"
-          >
-            Invitations
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="22px"
+              fontWeight="500"
+              lineHeight="1.2"
+            >
+              Invitations
+            </Text>
+          </PageTitle>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
             Review and manage staff invitations
           </Text>

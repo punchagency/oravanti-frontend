@@ -2,8 +2,8 @@ export type PrimarySection =
   | "overview"
   | "intake"
   | "cases"
-  | "staff"
-  | "finance"
+  | "staff-management"
+  | "billing-and-finance"
   | "calendar"
   | "analytics"
   | "ai-review"
@@ -92,14 +92,14 @@ export const primaryNavigation: PrimaryNavigationItem[] = [
     icon: "ai-review",
   },
   {
-    label: "Staff",
-    section: "staff",
+    label: "Staff Management",
+    section: "staff-management",
     path: "/staff-management",
     icon: "users",
   },
   {
-    label: "Finance",
-    section: "finance",
+    label: "Billing & Finance",
+    section: "billing-and-finance",
     path: "/finance/invoicing",
     icon: "billing",
   },
@@ -156,114 +156,91 @@ export const contextNavigation: Record<
   ],
   cases: [
     {
-      label: "Cases & operations",
+      label: "Cases",
       items: [
         {
-          label: "Cases",
+          label: "All matters",
           path: "/cases",
-          icon: "folder",
-          children: [
-            {
-              label: "All matters",
-              path: "/cases",
-              icon: "folder-open",
-            },
-            {
-              label: "My tasks",
-              path: "/cases/my-tasks",
-              icon: "clipboard",
-            },
-            {
-              label: "Review queue",
-              path: "/cases/review-queue",
-              icon: "shield",
-            },
-            {
-              label: "Policy alerts",
-              path: "/cases/policy-alerts",
-              icon: "rss",
-            },
-          ],
+          icon: "folder-open",
+        },
+        {
+          label: "My tasks",
+          path: "/cases/my-tasks",
+          icon: "clipboard",
+        },
+        {
+          label: "Review queue",
+          path: "/cases/review-queue",
+          icon: "shield",
+        },
+        {
+          label: "Policy alerts",
+          path: "/cases/policy-alerts",
+          icon: "rss",
         },
       ],
     },
   ],
-  staff: [
+  ["staff-management"]: [
     {
-      label: "Staff",
+      label: "Staff Management",
       items: [
         {
-          label: "Staff Management",
+          label: "Staff accounts",
           path: "/staff-management",
           icon: "users",
-          children: [
-            {
-              label: "Staff accounts",
-              path: "/staff-management",
-              icon: "users",
-            },
-            {
-              label: "Certifications",
-              path: "/staff-management/certifications",
-              icon: "book-open-check",
-            },
-            {
-              label: "Performance",
-              path: "/staff-management/performance",
-              icon: "chart-column-big",
-            },
-            {
-              label: "Leave management",
-              path: "/staff-management/leave",
-              icon: "calendar",
-            },
-          ],
         },
         {
-          label: "Contractors",
+          label: "Certifications",
+          path: "/staff-management/certifications",
+          icon: "book-open-check",
+        },
+        {
+          label: "Performance",
+          path: "/staff-management/performance",
+          icon: "chart-column-big",
+        },
+        {
+          label: "Leave management",
+          path: "/staff-management/leave",
+          icon: "calendar",
+        },
+      ],
+    },
+    {
+      label: "Contractors",
+      items: [
+        {
+          label: "Marketplace",
           path: "/staff/contractors/marketplace",
-          icon: "briefcase",
-          children: [
-            {
-              label: "Marketplace",
-              path: "/staff/contractors/marketplace",
-              icon: "search",
-            },
-            {
-              label: "Active engagements",
-              path: "/staff/contractors/active-engagements",
-              icon: "lock",
-            },
-          ],
+          icon: "search",
+        },
+        {
+          label: "Active engagements",
+          path: "/staff/contractors/active-engagements",
+          icon: "lock",
         },
       ],
     },
   ],
-  finance: [
+  ["billing-and-finance"]: [
     {
-      label: "Finance",
+      label: "Billing & finance",
       items: [
         {
-          label: "Billing & finance",
+          label: "Invoicing",
           path: "/finance/invoicing",
-          icon: "billing",
-          children: [
-            {
-              label: "Invoicing",
-              path: "/finance/invoicing",
-              icon: "file",
-            },
-            {
-              label: "Trust accounts",
-              path: "/finance/trust-accounts",
-              icon: "landmark",
-            },
-            {
-              label: "International payments",
-              path: "/finance/international-payments",
-              icon: "globe",
-            },
-          ],
+          icon: "file",
+        },
+        {
+          label: "Trust accounts",
+          path: "/finance/trust-accounts",
+          icon: "landmark",
+        },
+        {
+          label: "International payments",
+          path: "/finance/international-payments",
+          icon: "globe",
         },
       ],
     },
@@ -320,36 +297,29 @@ export const contextNavigation: Record<
       label: "Analytics",
       items: [
         {
-          label: "Analytics",
+          label: "Firm overview",
           path: "/analytics/firm-overview",
-          icon: "analytics",
-          children: [
-            {
-              label: "Firm overview",
-              path: "/analytics/firm-overview",
-              icon: "overview",
-            },
-            {
-              label: "Revenue & billing",
-              path: "/analytics/revenue-billing",
-              icon: "billing",
-            },
-            {
-              label: "Staff performance",
-              path: "/analytics/staff-performance",
-              icon: "users",
-            },
-            {
-              label: "Intake & CRM",
-              path: "/analytics/intake-crm",
-              icon: "intake",
-            },
-            {
-              label: "Compliance",
-              path: "/analytics/compliance",
-              icon: "shield",
-            },
-          ],
+          icon: "overview",
+        },
+        {
+          label: "Revenue & billing",
+          path: "/analytics/revenue-billing",
+          icon: "billing",
+        },
+        {
+          label: "Staff performance",
+          path: "/analytics/staff-performance",
+          icon: "users",
+        },
+        {
+          label: "Intake & CRM",
+          path: "/analytics/intake-crm",
+          icon: "intake",
+        },
+        {
+          label: "Compliance",
+          path: "/analytics/compliance",
+          icon: "shield",
         },
       ],
     },
@@ -385,42 +355,39 @@ export const contextNavigation: Record<
       label: "Settings",
       items: [
         {
-          label: "Settings",
+          label: "Add-on activation",
           path: "/settings/add-on-activation",
+          icon: "intake",
+        },
+        {
+          label: "RBAC",
+          path: "/settings/rbac",
+          icon: "shield",
+        },
+        {
+          label: "Integrations",
+          path: "/settings/integrations",
+          icon: "briefcase",
+        },
+        {
+          label: "Email accounts",
+          path: "/settings/email-accounts",
+          icon: "mail",
+        },
+        {
+          label: "Firm settings",
+          path: "/settings/firm-settings",
           icon: "settings",
-          children: [
-            {
-              label: "Add-on activation",
-              path: "/settings/add-on-activation",
-              icon: "intake",
-            },
-            { label: "RBAC", path: "/settings/rbac", icon: "shield" },
-            {
-              label: "Integrations",
-              path: "/settings/integrations",
-              icon: "briefcase",
-            },
-            {
-              label: "Email accounts",
-              path: "/settings/email-accounts",
-              icon: "mail",
-            },
-            {
-              label: "Firm settings",
-              path: "/settings/firm-settings",
-              icon: "settings",
-            },
-            {
-              label: "Training platform",
-              path: "/settings/training-platform",
-              icon: "education",
-            },
-            {
-              label: "Education & leads",
-              path: "/settings/education-leads",
-              icon: "education",
-            },
-          ],
+        },
+        {
+          label: "Training platform",
+          path: "/settings/training-platform",
+          icon: "education",
+        },
+        {
+          label: "Education & leads",
+          path: "/settings/education-leads",
+          icon: "education",
         },
       ],
     },
@@ -432,8 +399,8 @@ export function getSectionForPath(pathname: string): PrimarySection {
     return "intake";
   if (pathname.startsWith("/cases")) return "cases";
   if (pathname.startsWith("/ai-review")) return "ai-review";
-  if (pathname.startsWith("/staff")) return "staff";
-  if (pathname.startsWith("/finance")) return "finance";
+  if (pathname.startsWith("/staff")) return "staff-management";
+  if (pathname.startsWith("/finance")) return "billing-and-finance";
   if (pathname.startsWith("/calendar")) return "calendar";
   if (pathname.startsWith("/analytics")) return "analytics";
   if (pathname.startsWith("/settings")) return "settings";

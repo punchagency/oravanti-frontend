@@ -1,5 +1,6 @@
 import type { ReviewQueueItem } from "@/api/workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { PageTitle } from "@/components/layout/navigation";
 import {
   useApproveStep,
   useRejectStep,
@@ -104,16 +105,18 @@ export function ReviewQueuePage() {
         borderColor="border.subtle"
       >
         <Box flex="1">
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="24px"
-            fontWeight="600"
-            lineHeight="1.2"
-          >
-            Review Queue
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="24px"
+              fontWeight="600"
+              lineHeight="1.2"
+            >
+              Review Queue
+            </Text>
+          </PageTitle>
           <Text m="8px 0 0" color="fg.muted" fontSize="14px">
             Approve or reject workflow steps submitted for review
           </Text>

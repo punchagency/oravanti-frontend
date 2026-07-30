@@ -9,7 +9,6 @@ import {
   chakra,
   Checkbox,
   createListCollection,
-  DatePicker,
   Dialog,
   Field,
   Flex,
@@ -23,12 +22,10 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDate } from "@internationalized/date";
-import { CalendarDays, X } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { useCalendarData } from "./calendar-data-context";
 import {
   CALENDAR_FILTER_TYPES,
   EVENT_TYPE_CONFIG,
@@ -92,18 +89,22 @@ const selectTriggerStyles = {
   },
 };
 
-interface AddEventDialogProps {
+interface QuickAddEventDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onAdd: (event: CreateCalendarEventRequest) => void;
   children?: ReactNode;
 }
 
-export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledOnOpenChange, onAdd, children }: AddEventDialogProps) {
+export function QuickAddEventDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  onAdd,
+  children,
+}: QuickAddEventDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
-  const { slotData, setSlotData } = useCalendarData();
   const { showSuccess } = useFeedbackDialog();
 
   const {
@@ -132,26 +133,6 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
   });
 
   const watchedClientId = watch("clientId");
-
-  useEffect(() => {
-    if (slotData) {
-      reset({
-        title: "",
-        type: "client_meeting",
-        clientId: "",
-        caseId: "",
-        date: dayjs(slotData.start).format("YYYY-MM-DD"),
-        startTime: dayjs(slotData.start).format("HH:mm"),
-        endTime: dayjs(slotData.end).format("HH:mm"),
-        location: "",
-        assignedStaffId: "",
-        notes: "",
-        applyDeadlineRules: true,
-      });
-      onOpenChange(true);
-      setSlotData(null);
-    }
-  }, [slotData, reset, setSlotData, onOpenChange]);
 
   const { data: clients = [], isLoading: clientsLoading } = useClients();
 
@@ -442,6 +423,7 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                               onValueChange={(e) =>
                                 field.onChange(e.value[0] ?? "")
                               }
+                              disabled={!watchedClientId}
                             >
                               <Select.Control>
                                 <Select.Trigger {...selectTriggerStyles}>
@@ -454,28 +436,13 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                               <Portal>
                                 <Select.Positioner>
                                   <Select.Content>
-                                    {caseCollection.items.length === 0 ? (
-                                      <Text
-                                        p="2"
-                                        fontSize="13px"
-                                        color="fg.muted"
-                                      >
-                                        {watchedClientId
-                                          ? "No cases for this client"
-                                          : "Select a client first"}
-                                      </Text>
-                                    ) : (
-                                      caseCollection.items.map((item) => (
-                                        <Select.Item
-                                          key={item.value}
-                                          item={item}
-                                        >
-                                          <Select.ItemText>
-                                            {item.label}
-                                          </Select.ItemText>
-                                        </Select.Item>
-                                      ))
-                                    )}
+                                    {caseCollection.items.map((item) => (
+                                      <Select.Item key={item.value} item={item}>
+                                        <Select.ItemText>
+                                          {item.label}
+                                        </Select.ItemText>
+                                      </Select.Item>
+                                    ))}
                                   </Select.Content>
                                 </Select.Positioner>
                               </Portal>
@@ -496,94 +463,28 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                     <Controller
                       name="date"
                       control={control}
-                      render={({ field }) => {
-                        const dateValue = field.value
-                          ? new CalendarDate(
-                              ...(dayjs(field.value)
-                                .format("YYYY-MM-DD")
-                                .split("-")
-                                .map(Number) as [number, number, number]),
-                            )
-                          : undefined;
-                        return (
-                          <DatePicker.Root
-                            value={dateValue ? [dateValue] : []}
-                            onValueChange={(details) => {
-                              const v = details.value[0];
-                              if (v) {
-                                field.onChange(
-                                  `${v.year}-${String(v.month).padStart(2, "0")}-${String(v.day).padStart(2, "0")}`,
-                                );
-                              } else {
-                                field.onChange("");
-                              }
-                            }}
-                          >
-                            <DatePicker.Control>
-                              <DatePicker.Input
-                                h="36px"
-                                px="12px"
-                                border="1px solid"
-                                borderColor="border"
-                                borderRadius="7px"
-                                bg="bg"
-                                color="fg"
-                                fontSize="13px"
-                                _focus={{
-                                  borderColor: "brand.solid",
-                                  boxShadow: "0 0 0 1px var(--brand-cta)",
-                                }}
-                              />
-                              <DatePicker.IndicatorGroup>
-                                <DatePicker.Trigger
-                                  asChild
-                                  border="none"
-                                  bg="transparent"
-                                  color="fg.muted"
-                                  cursor="pointer"
-                                >
-                                  <chakra.button type="button">
-                                    <CalendarDays size={16} />
-                                  </chakra.button>
-                                </DatePicker.Trigger>
-                              </DatePicker.IndicatorGroup>
-                            </DatePicker.Control>
-                            <Portal>
-                              <DatePicker.Positioner>
-                                <DatePicker.Content>
-                                  <DatePicker.View view="day">
-                                    <DatePicker.Header />
-                                    <DatePicker.DayTable />
-                                  </DatePicker.View>
-                                  <DatePicker.View view="month">
-                                    <DatePicker.Header />
-                                    <DatePicker.MonthTable />
-                                  </DatePicker.View>
-                                  <DatePicker.View view="year">
-                                    <DatePicker.Header />
-                                    <DatePicker.YearTable />
-                                  </DatePicker.View>
-                                </DatePicker.Content>
-                              </DatePicker.Positioner>
-                            </Portal>
-                          </DatePicker.Root>
-                        );
-                      }}
+                      render={({ field }) => (
+                        <Input
+                          type="date"
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          {...inputStyles}
+                        />
+                      )}
                     />
                     {errors.date && (
                       <Field.ErrorText>{errors.date.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
-                  <Grid
-                    templateColumns={{
-                      base: "1fr",
-                      sm: "repeat(2, minmax(0, 1fr))",
-                    }}
-                    gap="10px"
-                  >
-                    <Field.Root>
-                      <Field.Label>Start time</Field.Label>
+                  <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap="10px">
+                    <Field.Root invalid={!!errors.startTime}>
+                      <Field.Label>
+                        Start time
+                        <Text as="span" color="red.500" ml="2px">
+                          *
+                        </Text>
+                      </Field.Label>
                       <Controller
                         name="startTime"
                         control={control}
@@ -591,14 +492,14 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           <Select.Root
                             collection={timeCollection}
                             size="sm"
-                            value={field.value ? [field.value] : []}
+                            value={[field.value]}
                             onValueChange={(e) =>
                               field.onChange(e.value[0] ?? "")
                             }
                           >
                             <Select.Control>
                               <Select.Trigger {...selectTriggerStyles}>
-                                <Select.ValueText placeholder="Select time" />
+                                <Select.ValueText />
                               </Select.Trigger>
                               <Select.IndicatorGroup>
                                 <Select.Indicator />
@@ -620,9 +521,20 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           </Select.Root>
                         )}
                       />
+                      {errors.startTime && (
+                        <Field.ErrorText>
+                          {errors.startTime.message}
+                        </Field.ErrorText>
+                      )}
                     </Field.Root>
-                    <Field.Root>
-                      <Field.Label>End time</Field.Label>
+
+                    <Field.Root invalid={!!errors.endTime}>
+                      <Field.Label>
+                        End time
+                        <Text as="span" color="red.500" ml="2px">
+                          *
+                        </Text>
+                      </Field.Label>
                       <Controller
                         name="endTime"
                         control={control}
@@ -630,14 +542,14 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           <Select.Root
                             collection={timeCollection}
                             size="sm"
-                            value={field.value ? [field.value] : []}
+                            value={[field.value]}
                             onValueChange={(e) =>
                               field.onChange(e.value[0] ?? "")
                             }
                           >
                             <Select.Control>
                               <Select.Trigger {...selectTriggerStyles}>
-                                <Select.ValueText placeholder="Select time" />
+                                <Select.ValueText />
                               </Select.Trigger>
                               <Select.IndicatorGroup>
                                 <Select.Indicator />
@@ -659,13 +571,18 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           </Select.Root>
                         )}
                       />
+                      {errors.endTime && (
+                        <Field.ErrorText>
+                          {errors.endTime.message}
+                        </Field.ErrorText>
+                      )}
                     </Field.Root>
                   </Grid>
 
                   <Field.Root>
                     <Field.Label>Location / link</Field.Label>
                     <Input
-                      placeholder="Courtroom, address, or video link"
+                      placeholder="e.g. Courtroom 4B or Zoom link"
                       {...register("location")}
                       {...inputStyles}
                     />
@@ -690,7 +607,7 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           >
                             <Select.Control>
                               <Select.Trigger {...selectTriggerStyles}>
-                                <Select.ValueText placeholder="Select staff member" />
+                                <Select.ValueText placeholder="Select staff" />
                               </Select.Trigger>
                               <Select.IndicatorGroup>
                                 <Select.Indicator />
@@ -716,68 +633,56 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                   </Field.Root>
 
                   <Field.Root>
-                    <Field.Label>Description</Field.Label>
+                    <Field.Label>Description / notes</Field.Label>
                     <Textarea
-                      placeholder="Optional"
+                      placeholder="Optional notes or agenda items"
                       {...register("notes")}
-                      h="72px"
-                      px="12px"
-                      border="1px solid"
-                      borderColor="border"
-                      borderRadius="7px"
-                      bg="bg"
-                      color="fg"
-                      fontSize="13px"
-                      _placeholder={{ color: "fg.muted" }}
-                      _focus={{
-                        borderColor: "brand.solid",
-                        boxShadow: "0 0 0 1px var(--brand-cta)",
-                      }}
+                      {...inputStyles}
+                      h="80px"
                     />
                   </Field.Root>
 
-                  <Field.Root>
-                    <Controller
-                      name="applyDeadlineRules"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="applyDeadlineRules"
+                    control={control}
+                    render={({ field }) => (
+                      <Flex align="center" gap="2">
                         <Checkbox.Root
                           checked={field.value}
                           onCheckedChange={(e) => field.onChange(!!e.checked)}
                         >
                           <Checkbox.HiddenInput />
                           <Checkbox.Control />
-                          <Checkbox.Label fontSize="13px" color="fg">
+                          <Checkbox.Label fontSize="13px" color="fg.muted">
                             Apply deadline cascade rules
                           </Checkbox.Label>
                         </Checkbox.Root>
-                      )}
-                    />
-                    <Text fontSize="12px" color="fg.muted" mt="4px" ml="24px">
-                      Deadline rules will be automatically applied based on the
-                      hearing type.
-                    </Text>
-                  </Field.Root>
+                      </Flex>
+                    )}
+                  />
                 </VStack>
               )}
 
-              {!isLoadingData && (
-                <Flex justify="flex-end" gap="12px" mt="18px">
-                  <Button
-                    type="submit"
-                    h="36px"
-                    px="20px"
-                    borderRadius="7px"
-                    fontWeight={600}
-                    fontSize="13px"
-                    bg="brand.solid"
-                    color="brand.fg"
-                    _hover={{ bg: "brand.emphasized" }}
-                  >
-                    Add event
-                  </Button>
-                </Flex>
-              )}
+              <Flex justify="flex-end" gap="8px" mt="24px">
+                <Button
+                  type="button"
+                  variant="outline"
+                  borderColor="border"
+                  color="fg.muted"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  bg="brand.solid"
+                  color="white"
+                  _hover={{ bg: "brand.solid/90" }}
+                  disabled={isLoadingData}
+                >
+                  Add event
+                </Button>
+              </Flex>
             </Box>
           </Dialog.Content>
         </Dialog.Positioner>
