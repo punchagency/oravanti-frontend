@@ -106,6 +106,7 @@ import {
   StatusPill,
   SurfaceCard,
 } from "@/components/ui/intake-ui";
+import { DocumentFlagBadge } from "@/pages/admin/ai-review/components/document-flag-badge";
 import {
   consultationModeLabel,
   fieldStyles,
@@ -911,9 +912,9 @@ export function ConsultationCard({
   const pendingQuestions = fileQuestions.filter(
     (q) => !uploadedQuestionIds.has(q.id),
   );
-  const issueFiles = files.filter((f) => f.scanStatus === "issues_found");
+  const issueFiles = files.filter((f) => f.aiReview?.flags.length);
   const issueCount = issueFiles.reduce(
-    (n, f) => n + (f.scanResult?.length ?? 0),
+    (n, f) => n + (f.aiReview?.flags.length ?? 0),
     0,
   );
 
@@ -1191,6 +1192,7 @@ export function ConsultationCard({
                           </Box>
                         </HStack>
                         <HStack gap="8px" flex="0 0 auto">
+                          <DocumentFlagBadge review={file.aiReview} />
                           <StatusPill tone="success">Received</StatusPill>
                           {canDownload ? (
                             <chakra.button

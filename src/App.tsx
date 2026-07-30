@@ -62,6 +62,7 @@ import { AuthGuard } from "./guards/auth-guard";
 import { GuestGuard } from "./guards/guest-guard";
 import AcceptInvitationPage from "./pages/accept-invitation";
 import { AgreementSigningPage } from "./pages/agreement-signing";
+import { DocumentUploadPage } from "./pages/document-upload";
 import { ConsultationBookingPage } from "./pages/consultation-booking";
 import { SignUpPage } from "./pages/contractor-sign-up";
 import EmailVerifiedPage from "./pages/email-verified";
@@ -105,6 +106,9 @@ const router = createBrowserRouter(
 
       {/* Public fee-agreement signing page (token-gated, no auth) */}
       <Route path="/sign/:token" element={<AgreementSigningPage />} />
+
+      {/* Public document upload for an external request (token-gated, no auth) */}
+      <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
 
       <Route element={<AuthGuard />}>
         <Route path="/email-verified" element={<EmailVerifiedPage />} />

@@ -29,6 +29,16 @@ export type IssueAction = {
   target?: "case" | "document";
   /** Offered but not yet implemented — render disabled with a "coming soon" hint. */
   stub: boolean;
+  /** Ask which attorney before invoking; the server still validates the choice. */
+  requiresAssignee: boolean;
+};
+
+export type EligibleAssignee = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  role: string | null;
 };
 
 export type CaseReviewIssue = {
@@ -235,12 +245,21 @@ export type RunActionResult =
   | { kind: "navigate"; target: "case" | "document"; scenario: IssueScenario }
   | { kind: "mutation"; issue: CaseReviewIssue };
 
+export const getEligibleAssignees = async (
+  issueId: string,
+): Promise<EligibleAssignee[]> => {
+  const res = await API.get(`/case-review/issues/${issueId}/eligible-assignees`);
+  return res.data.data;
+};
+
 export const runIssueAction = async (
   id: string,
   actionKey: string,
+  assigneeStaffId?: string,
 ): Promise<RunActionResult> => {
   const res = await API.post(
     `/case-review/issues/${id}/actions/${actionKey}`,
+    assigneeStaffId ? { assigneeStaffId } : {},
   );
   return res.data.data;
 };

@@ -59,21 +59,34 @@ export type SendQuestionnaireConfig = {
   customDocumentRequests?: CustomDocumentInput[];
 };
 
-export type ResponseScanFinding = {
-  severity: "critical" | "high" | "medium" | "low";
-  title: string;
-  description: string;
-  affectedField?: string;
+/** Where a document's AI analysis got to. Mirrors the ai_scan_status enum. */
+export type AiScanStatus =
+  | "pending"
+  | "queued"
+  | "running"
+  | "complete"
+  | "failed"
+  | "skipped";
+
+/**
+ * What AI review found against one document.
+ *
+ * `status` and `flags` are both needed: no flags on a `complete` scan means the
+ * document is clean, while no flags on a `failed` one means nobody looked.
+ */
+export type DocumentAiReview = {
+  status: AiScanStatus;
+  flags: { issueId: string; flag: string; badge: "critical" | "warning" }[];
 };
 
 export type ResponseFile = {
   id: string;
   questionId: string;
+  documentId: string;
   originalFilename: string;
   mimeType: string;
   fileSize: number;
-  scanStatus: "pending" | "scanning" | "clean" | "issues_found" | "failed";
-  scanResult: ResponseScanFinding[] | null;
+  aiReview: DocumentAiReview;
 };
 
 export type ResponseAnswer = {

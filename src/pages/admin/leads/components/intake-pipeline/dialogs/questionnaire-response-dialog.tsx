@@ -14,14 +14,14 @@ import {
   Check,
   Download,
   FileText,
-  Flag,
   Lock,
-  RefreshCw,
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useCaseReviewIssue } from "@/hooks/use-case-review";
+import { IssueActions } from "@/pages/admin/ai-review/components/issue-actions";
 import {
   downloadResponseFile,
   downloadResponsePdf,
@@ -374,6 +374,45 @@ function ResponseContent({
   );
 }
 
+/**
+ * One AI-review finding against an uploaded document, with the actions that
+ * issue actually offers.
+ *
+ * Fetched per flag rather than rendered from the flag alone: which actions apply
+ * depends on the issue type, and that lives with the issue. The count here is
+ * the flagged documents in one questionnaire, so the extra requests are few.
+ */
+function FlaggedIssue({ issueId }: { issueId: string }) {
+  const { data: issue } = useCaseReviewIssue(issueId);
+  if (!issue) return null;
+
+  return (
+    <Box
+      mt="10px"
+      p="10px"
+      borderRadius="7px"
+      border="1px solid"
+      borderColor={issue.badge === "critical" ? "red.300" : "orange.300"}
+      bg={issue.badge === "critical" ? "red.50" : "orange.50"}
+    >
+      <HStack align="flex-start" gap="8px">
+        <Box color={issue.badge === "critical" ? "red.600" : "orange.600"}>
+          <AlertTriangle size={13} />
+        </Box>
+        <Box minW="0">
+          <Text fontSize="12px" fontWeight="600" color="fg">
+            {issue.title}
+          </Text>
+          <Text fontSize="11px" color="fg.muted" lineHeight="1.4">
+            {issue.description}
+          </Text>
+        </Box>
+      </HStack>
+      <IssueActions issue={issue} compact />
+    </Box>
+  );
+}
+
 function DocumentsTab({
   files,
   filesByQuestion,
@@ -421,56 +460,20 @@ function DocumentsTab({
             ) : null}
           </HStack>
 
-          {file.scanStatus === "issues_found" && file.scanResult?.length ? (
-            <Box
-              mt="10px"
-              p="10px"
-              borderRadius="7px"
-              border="1px solid"
-              borderColor="#e0796f"
-              bg="#fdecea"
-            >
-              {file.scanResult.map((finding, i) => (
-                <HStack key={i} align="flex-start" gap="8px" mb={i === file.scanResult!.length - 1 ? "0" : "8px"}>
-                  <AlertTriangle size={13} color="#c0392b" />
-                  <Box>
-                    <Text fontSize="12px" fontWeight="600" color="#922b21">
-                      {finding.title}
-                    </Text>
-                    <Text fontSize="11px" color="#7b241c" lineHeight="1.4">
-                      {finding.description}
-                    </Text>
-                  </Box>
-                </HStack>
-              ))}
-              <HStack gap="8px" mt="10px">
-                <OutlineButton
-                  h="28px"
-                  px="10px"
-                  onClick={() => toast.success("Re-upload requested from client")}
-                >
-                  <RefreshCw size={12} />
-                  Request re-upload
-                </OutlineButton>
-                <OutlineButton
-                  h="28px"
-                  px="10px"
-                  onClick={() => toast.success("Flagged for advisory review")}
-                >
-                  <Flag size={12} />
-                  Flag for advisory
-                </OutlineButton>
-              </HStack>
-            </Box>
+          {file.aiReview?.flags.length ? (
+            file.aiReview.flags.map((flag) => (
+              <FlaggedIssue key={flag.issueId} issueId={flag.issueId} />
+            ))
           ) : (
             <Box mt="6px">
               <MutedText fontSize="11px">
-                {file.scanStatus === "clean"
+                {file.aiReview?.status === "complete"
                   ? "✓ AI scan: no issues detected"
-                  : file.scanStatus === "pending" ||
-                      file.scanStatus === "scanning"
+                  : file.aiReview?.status === "pending" ||
+                      file.aiReview?.status === "queued" ||
+                      file.aiReview?.status === "running"
                     ? "AI scan in progress…"
-                    : "Scan unavailable"}
+                    : "Not scanned"}
               </MutedText>
             </Box>
           )}

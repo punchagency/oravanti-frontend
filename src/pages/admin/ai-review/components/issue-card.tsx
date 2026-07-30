@@ -1,22 +1,10 @@
-import type { CaseReviewIssue, IssueAction } from "@/api/case-review";
-import { BrandButton, OutlineButton, StatusPill } from "@/components/ui/intake-ui";
-import { useRunIssueAction } from "@/hooks/use-case-review";
+import type { CaseReviewIssue } from "@/api/case-review";
+import { StatusPill } from "@/components/ui/intake-ui";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
-import {
-  AlertCircle,
-  AlertTriangle,
-  ArrowRight,
-  Briefcase,
-  Clock,
-} from "lucide-react";
+import { AlertCircle, AlertTriangle, Briefcase } from "lucide-react";
 import { memo } from "react";
-import { useNavigate } from "react-router";
-import {
-  badgeLabel,
-  cardTint,
-  matterDocumentsPath,
-  matterPath,
-} from "../severity";
+import { badgeLabel, cardTint } from "../severity";
+import { IssueActions } from "./issue-actions";
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -33,26 +21,8 @@ const formatDateTime = (iso: string) =>
  * (later) the per-matter tabs, so all surfaces render an issue identically.
  */
 function IssueCardBase({ issue }: { issue: CaseReviewIssue }) {
-  const navigate = useNavigate();
-  const runAction = useRunIssueAction();
   const tint = cardTint(issue.badge);
   const SeverityIcon = issue.badge === "critical" ? AlertCircle : AlertTriangle;
-
-  const onAction = (action: IssueAction) => {
-    if (action.stub) return;
-    if (action.kind === "navigate") {
-      const { type, id } = issue.scenario;
-      navigate(
-        action.target === "document"
-          ? matterDocumentsPath(type, id)
-          : matterPath(type, id),
-      );
-      return;
-    }
-    runAction.mutate({ id: issue.id, actionKey: action.key });
-  };
-
-  const busy = runAction.isPending;
 
   return (
     <Box
@@ -119,33 +89,7 @@ function IssueCardBase({ issue }: { issue: CaseReviewIssue }) {
         </Box>
       )}
 
-      <HStack mt="14px" gap="8px" flexWrap="wrap">
-        {issue.actions.map((action, i) => {
-          const Btn =
-            action.variant === "primary" && i === 0 && !action.stub
-              ? BrandButton
-              : OutlineButton;
-          const isNav = action.kind === "navigate";
-          return (
-            <Btn
-              key={action.key}
-              disabled={action.stub || busy}
-              title={action.stub ? "Not yet available" : undefined}
-              onClick={() => onAction(action)}
-            >
-              <HStack gap="5px">
-                {isNav && <ArrowRight size={13} />}
-                <Text>{action.label}</Text>
-                {action.stub && (
-                  <Box as="span" color="fg.subtle" display="inline-flex">
-                    <Clock size={12} />
-                  </Box>
-                )}
-              </HStack>
-            </Btn>
-          );
-        })}
-      </HStack>
+      <IssueActions issue={issue} />
     </Box>
   );
 }
