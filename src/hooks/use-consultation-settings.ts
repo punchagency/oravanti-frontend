@@ -14,6 +14,7 @@ export function useConsultationSettings() {
   return useQuery({
     queryKey: ["consultationSettings"],
     queryFn: getConsultationSettings,
+    staleTime: Infinity,
   });
 }
 
@@ -37,6 +38,7 @@ export function useConsultationLocations() {
   return useQuery({
     queryKey: ["consultationLocations"],
     queryFn: getConsultationLocations,
+    staleTime: Infinity,
   });
 }
 
