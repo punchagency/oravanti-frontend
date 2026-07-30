@@ -19,6 +19,17 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const createEvent = useCreateCalendarEvent();
 
+  /*
+    Keep sidebar state frozen while menu or any dialog is open:
+    – suppressCollapse = true → DesktopNav ignores onMouseEnter
+      and onMouseLeave, so the sidebar stays put.
+    – This prevents:
+      1. Sidebar collapsing when mouse moves from the nav to the
+         portaled menu popover (onMouseLeave fires immediately).
+      2. Sidebar re-expanding while a dialog is open (dialog is
+         portaled to body, but mouse can still enter the sidebar
+         area, triggering onMouseEnter → suppressCollapse blocks it).
+  */
   useEffect(() => {
     setSuppressCollapse(
       menuOpen || addLeadOpen || instantConsultOpen || createTeamOpen || inviteStaffOpen || addEventOpen,
@@ -65,6 +76,12 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
               borderRadius="md"
               p="4px"
             >
+              {/*
+                forceCollapse() + setDialogOpen(true): sidebar shrinks
+                immediately when clicking a menu item. suppressCollapse
+                stays true (dialog is open) so the sidebar stays
+                collapsed until the dialog closes.
+              */}
               <Menu.Item
                 value="add-lead"
                 bg="transparent"
