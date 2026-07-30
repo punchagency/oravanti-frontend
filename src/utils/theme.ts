@@ -134,12 +134,14 @@ const config = defineConfig({
           inverted: { value: { _light: "#1F1F1F", _dark: "#FFFFFF" } },
           panel: { value: { _light: "#FFFFFF", _dark: "#2A2A2A" } },
           input: { value: { _light: "#FFFFFF", _dark: "#2A2A2A" } },
+          hover: { value: { _light: "#F1EFE8", _dark: "#363636" } },
         },
         fg: {
           DEFAULT: { value: { _light: "#1A1A1A", _dark: "#F1EFE8" } },
           muted: { value: { _light: "#5F5E5A", _dark: "#B4B2A9" } },
           subtle: { value: { _light: "#888780", _dark: "#5F5E5A" } },
           inverted: { value: { _light: "#FFFFFF", _dark: "#1A1A1A" } },
+          error: { value: { _light: "#B00020", _dark: "#F87171" } },
         },
         border: {
           DEFAULT: {
