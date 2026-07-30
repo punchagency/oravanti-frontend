@@ -1,12 +1,16 @@
 import { Flex, Text, chakra } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavContent } from "./nav-content";
 import { useNav } from "./nav-context";
 
 export function DesktopNav() {
-  const { collapsed } = useNav();
+  const { collapsed, suppressCollapse, collapseSignal } = useNav();
   const [hovered, setHovered] = useState(false);
   const expanded = hovered || !collapsed;
+
+  useEffect(() => {
+    setHovered(false);
+  }, [collapseSignal]);
 
   return (
     <Flex
@@ -23,7 +27,9 @@ export function DesktopNav() {
       transition="width 200ms, min-width 200ms"
       display={{ base: "none", lg: "flex" }}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => {
+        if (!suppressCollapse) setHovered(false);
+      }}
       zIndex={20}
       flexShrink={0}
     >

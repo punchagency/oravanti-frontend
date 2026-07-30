@@ -6,9 +6,12 @@ import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-staff/di
 import { CreateTeamDialog } from "@/pages/admin/staff-and-users/tabs/teams/components/create-team/dialog";
 import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { CalendarDays, ChevronDown, Plus, UserRoundPlus, Users, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNav } from "./nav-context";
 
 export function QuickActions({ collapsed }: { collapsed: boolean }) {
+  const { setSuppressCollapse, forceCollapse } = useNav();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [instantConsultOpen, setInstantConsultOpen] = useState(false);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
@@ -16,9 +19,13 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const createEvent = useCreateCalendarEvent();
 
+  useEffect(() => {
+    setSuppressCollapse(menuOpen);
+  }, [menuOpen, setSuppressCollapse]);
+
   return (
     <>
-      <Menu.Root>
+      <Menu.Root onOpenChange={(details) => setMenuOpen(details.open)}>
         <Menu.Trigger asChild>
           <Button
             variant="ghost"
@@ -66,7 +73,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setAddLeadOpen(true)}
+                onClick={() => { setAddLeadOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <UserRoundPlus size={15} />
@@ -83,7 +90,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setInstantConsultOpen(true)}
+                onClick={() => { setInstantConsultOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <Zap size={15} />
@@ -100,7 +107,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setCreateTeamOpen(true)}
+                onClick={() => { setCreateTeamOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <Users size={15} />
@@ -117,7 +124,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setInviteStaffOpen(true)}
+                onClick={() => { setInviteStaffOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <Plus size={15} />
@@ -134,7 +141,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setAddEventOpen(true)}
+                onClick={() => { setAddEventOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <CalendarDays size={15} />

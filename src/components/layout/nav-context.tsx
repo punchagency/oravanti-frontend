@@ -15,12 +15,20 @@ const NavContext = createContext<{
   mobileOpen: boolean;
   onMobileOpen: () => void;
   onMobileClose: () => void;
+  suppressCollapse: boolean;
+  setSuppressCollapse: (v: boolean) => void;
+  forceCollapse: () => void;
+  collapseSignal: number;
 }>({
   collapsed: false,
   toggleCollapsed: () => {},
   mobileOpen: false,
   onMobileOpen: () => {},
   onMobileClose: () => {},
+  suppressCollapse: false,
+  setSuppressCollapse: () => {},
+  forceCollapse: () => {},
+  collapseSignal: 0,
 });
 
 export function useNav() {
@@ -73,9 +81,12 @@ export function NavProvider({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pageTitle, setPageTitle] = useState("");
   const [pageTitleVisible, setPageTitleVisible] = useState(true);
+  const [suppressCollapse, setSuppressCollapse] = useState(false);
+  const [collapseSignal, setCollapseSignal] = useState(0);
   const toggleCollapsed = useCallback(() => setCollapsed((c) => !c), []);
   const onMobileOpen = useCallback(() => setMobileOpen(true), []);
   const onMobileClose = useCallback(() => setMobileOpen(false), []);
+  const forceCollapse = useCallback(() => setCollapseSignal((c) => c + 1), []);
 
   return (
     <NavContext.Provider
@@ -85,6 +96,10 @@ export function NavProvider({ children }: { children: ReactNode }) {
         mobileOpen,
         onMobileOpen,
         onMobileClose,
+        suppressCollapse,
+        setSuppressCollapse,
+        forceCollapse,
+        collapseSignal,
       }}
     >
       <PageTitleContext.Provider
