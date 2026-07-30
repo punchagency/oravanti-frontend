@@ -20,8 +20,10 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
   const createEvent = useCreateCalendarEvent();
 
   useEffect(() => {
-    setSuppressCollapse(menuOpen);
-  }, [menuOpen, setSuppressCollapse]);
+    setSuppressCollapse(
+      menuOpen || addLeadOpen || instantConsultOpen || createTeamOpen || inviteStaffOpen || addEventOpen,
+    );
+  }, [menuOpen, addLeadOpen, instantConsultOpen, createTeamOpen, inviteStaffOpen, addEventOpen, setSuppressCollapse]);
 
   return (
     <>

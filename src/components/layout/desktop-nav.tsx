@@ -26,7 +26,9 @@ export function DesktopNav() {
       borderColor="border"
       transition="width 200ms, min-width 200ms"
       display={{ base: "none", lg: "flex" }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => {
+        if (!suppressCollapse) setHovered(true);
+      }}
       onMouseLeave={() => {
         if (!suppressCollapse) setHovered(false);
       }}
