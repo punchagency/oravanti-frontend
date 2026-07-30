@@ -1,5 +1,6 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { PageTitle } from "@/components/layout/navigation";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download, UserPlus } from "lucide-react";
 import { InviteStaffDialog } from "../../invite-staff/dialog";
@@ -26,16 +27,18 @@ function StaffContent() {
         pb="16px"
       >
         <Box>
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="22px"
-            fontWeight="500"
-            lineHeight="1.2"
-          >
-            Staff
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="22px"
+              fontWeight="500"
+              lineHeight="1.2"
+            >
+              Staff
+            </Text>
+          </PageTitle>
           <Text m="6px 0 0" color="fg.muted" fontSize="13px">
             Manage staff accounts and view team members
           </Text>

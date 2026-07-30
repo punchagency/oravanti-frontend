@@ -1,4 +1,5 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { PageTitle } from "@/components/layout/navigation";
 import { Box, Heading, Stack, Text } from "@chakra-ui/react";
 import { ConsultationFeeDefaults } from "./components/consultation-fee-defaults";
 import { FirmTimezone } from "./components/firm-timezone";
@@ -16,14 +17,16 @@ export function FirmSettingsPage() {
         borderColor="border.subtle"
         pb="4"
       >
-        <Heading
-          as="h1"
-          size={{ base: "xl", md: "2xl" }}
-          fontWeight="500"
-          color="fg"
-        >
-          Firm settings
-        </Heading>
+        <PageTitle>
+          <Heading
+            as="h1"
+            size={{ base: "xl", md: "2xl" }}
+            fontWeight="500"
+            color="fg"
+          >
+            Firm settings
+          </Heading>
+        </PageTitle>
         <Text textStyle="subheadline" color="fg.muted" mt="1">
           Manage firm-wide defaults that apply across the intake pipeline
         </Text>

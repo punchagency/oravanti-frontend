@@ -1,5 +1,6 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
+import { PageTitle } from "@/components/layout/navigation";
 import { Box, Heading, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -56,14 +57,16 @@ export function EmailAccountConnectionPage() {
         borderColor="border.subtle"
       >
         <Box>
-          <Heading
-            as="h1"
-            size={{ base: "xl", md: "2xl" }}
-            fontWeight="500"
-            color="fg"
-          >
-            Email Accounts
-          </Heading>
+          <PageTitle>
+            <Heading
+              as="h1"
+              size={{ base: "xl", md: "2xl" }}
+              fontWeight="500"
+              color="fg"
+            >
+              Email Accounts
+            </Heading>
+          </PageTitle>
           <Text textStyle="subheadline" color="fg.muted" mt="1">
             Connect your personal email to send messages from Oravanti
           </Text>
