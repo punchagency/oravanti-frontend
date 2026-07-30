@@ -19,7 +19,7 @@ import {
   VStack,
   createListCollection,
 } from "@chakra-ui/react";
-import { CalendarDate } from "@internationalized/date";
+import { CalendarDate, today as getToday } from "@internationalized/date";
 import { dayjs } from "@/utils/date";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -843,14 +843,6 @@ export function EventDetailDialog({
                         View case
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      colorPalette="red"
-                      onClick={() => setMode("delete-confirm")}
-                    >
-                      Delete
-                    </Button>
                   </Flex>
                 ) : (
                   <Flex justify="flex-end" gap="12px" mt="18px">
