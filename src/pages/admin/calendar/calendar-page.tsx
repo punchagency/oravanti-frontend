@@ -41,6 +41,7 @@ export function CalendarPage() {
 
   const handleSlotSelect = useCallback(
     (slotInfo: { start: Date; end: Date }) => {
+      if (dayjs(slotInfo.start).isBefore(dayjs(), "day")) return;
       setSlotData(slotInfo);
     },
     [setSlotData],
