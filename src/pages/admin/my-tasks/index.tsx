@@ -1,5 +1,6 @@
 import type { MyTaskItem } from "@/api/workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
+import { PageTitle } from "@/components/layout/navigation";
 import { useMyTasks, useSubmitForReview } from "@/hooks/use-workflows";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useAuthStore } from "@/store/auth-store";
@@ -105,16 +106,18 @@ export function MyTasksPage() {
         borderColor="border.subtle"
       >
         <Box flex="1">
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="24px"
-            fontWeight="600"
-            lineHeight="1.2"
-          >
-            My Tasks
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="24px"
+              fontWeight="600"
+              lineHeight="1.2"
+            >
+              My Tasks
+            </Text>
+          </PageTitle>
           <Text m="8px 0 0" color="fg.muted" fontSize="14px">
             Track and manage your assigned workflow steps
           </Text>

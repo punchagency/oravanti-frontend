@@ -5,6 +5,7 @@ import {
   useUpdateLeadTaskStatus,
 } from "@/hooks/use-lead-workflows";
 import { useRunConflictCheck } from "@/hooks/use-leads";
+import { PageTitle } from "@/components/layout/navigation";
 import {
   Box,
   Button,
@@ -103,16 +104,18 @@ export function MyLeadsTasks() {
         borderColor="border.subtle"
       >
         <Box flex="1">
-          <Text
-            as="h1"
-            m="0"
-            color="fg"
-            fontSize="24px"
-            fontWeight="600"
-            lineHeight="1.2"
-          >
-            My Tasks
-          </Text>
+          <PageTitle>
+            <Text
+              as="h1"
+              m="0"
+              color="fg"
+              fontSize="24px"
+              fontWeight="600"
+              lineHeight="1.2"
+            >
+              My Tasks
+            </Text>
+          </PageTitle>
           <Text m="8px 0 0" color="fg.muted" fontSize="14px">
             Track and manage your assigned intake tasks
           </Text>
