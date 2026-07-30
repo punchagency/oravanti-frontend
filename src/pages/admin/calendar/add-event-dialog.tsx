@@ -23,7 +23,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDate } from "@internationalized/date";
+import { CalendarDate, today as getToday } from "@internationalized/date";
 import { CalendarDays, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -132,6 +132,7 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
   });
 
   const watchedClientId = watch("clientId");
+  const watchedDate = watch("date");
 
   useEffect(() => {
     if (slotData) {
@@ -207,12 +208,23 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
     [staff],
   );
 
+  const filteredTimeOptions = useMemo(() => {
+    if (watchedDate === dayjs().format("YYYY-MM-DD")) {
+      const now = dayjs();
+      return TIME_OPTIONS.filter((opt) => {
+        const [h, m] = opt.value.split(":").map(Number);
+        return h > now.hour() || (h === now.hour() && m > now.minute());
+      });
+    }
+    return TIME_OPTIONS;
+  }, [watchedDate]);
+
   const timeCollection = useMemo(
     () =>
       createListCollection({
-        items: TIME_OPTIONS,
+        items: filteredTimeOptions,
       }),
-    [],
+    [filteredTimeOptions],
   );
 
   const onSubmit = (data: FormValues) => {
@@ -508,6 +520,7 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                         return (
                           <DatePicker.Root
                             value={dateValue ? [dateValue] : []}
+                            isDateUnavailable={(date) => date.compare(getToday(dayjs.tz.guess())) < 0}
                             onValueChange={(details) => {
                               const v = details.value[0];
                               if (v) {
