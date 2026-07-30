@@ -20,7 +20,7 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { UserPlus, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -72,12 +72,17 @@ const TIMEZONE_OPTIONS = listTimezones().map((tz) => ({
 }));
 
 export function AddLeadDialog({
-  open,
-  onOpenChange,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  children,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: ReactNode;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
   const { data: practiceAreas } = usePublicPracticeAreas();
   const createLead = useCreateLead();
   const firmTimezone = useFirmTimezone();
@@ -135,6 +140,7 @@ export function AddLeadDialog({
       }}
       placement="center"
     >
+      {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
       <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
       <Dialog.Positioner px="16px">
         <Dialog.Content

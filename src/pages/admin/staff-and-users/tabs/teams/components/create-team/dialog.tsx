@@ -21,8 +21,18 @@ import type { CreateTeamFormValues } from "./types";
 
 type Step = "INFO" | "MEMBERS" | "REVIEW";
 
-export function CreateTeamDialog({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function CreateTeamDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  children,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: ReactNode;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
   const [currentStep, setCurrentStep] = useState<Step>("INFO");
 
   const createTeamMutation = useCreateTeam();
@@ -110,7 +120,7 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
     };
 
     await createTeamMutation.mutateAsync(payload);
-    setOpen(false);
+    onOpenChange(false);
     reset();
     setSelectedIds([]);
     setCurrentStep("INFO");
@@ -121,7 +131,7 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
     <Dialog.Root
       open={open}
       onOpenChange={(details) => {
-        setOpen(details.open);
+        onOpenChange(details.open);
         if (!details.open) {
           reset();
           setSelectedIds([]);
@@ -131,7 +141,7 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
       }}
       placement="center"
     >
-      <Dialog.Trigger asChild>{children}</Dialog.Trigger>
+      {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
       <Portal>
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />
         <Dialog.Positioner px={{ base: "12px", sm: "16px" }}>
@@ -273,7 +283,7 @@ export function CreateTeamDialog({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={
                     currentStep == "INFO"
-                      ? () => setOpen(false)
+                      ? () => onOpenChange(false)
                       : handleBackStep
                   }
                   height="44px"

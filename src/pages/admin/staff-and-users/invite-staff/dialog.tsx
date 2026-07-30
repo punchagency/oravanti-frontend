@@ -63,8 +63,18 @@ export function InviteStaffButton() {
   );
 }
 
-export function InviteStaffDialog({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function InviteStaffDialog({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  children,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: ReactNode;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
 
   const {
     register,
@@ -127,7 +137,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
     inviteMutation.mutate(payload, {
       onSuccess: () => {
         reset();
-        setOpen(false);
+        onOpenChange(false);
       },
     });
   };
@@ -136,7 +146,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
     <Dialog.Root
       open={open}
       onOpenChange={(details) => {
-        setOpen(details.open);
+        onOpenChange(details.open);
         if (!details.open) {
           reset();
           setSelectedIds([]);
@@ -144,7 +154,7 @@ export function InviteStaffDialog({ children }: { children: ReactNode }) {
       }}
       placement="center"
     >
-      <Dialog.Trigger asChild>{children}</Dialog.Trigger>
+      {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
       <Portal>
         <Dialog.Backdrop backdropFilter="blur(1.5px)" />
         <Dialog.Positioner px="16px">
