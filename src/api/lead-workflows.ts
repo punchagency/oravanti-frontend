@@ -1,4 +1,5 @@
 import { API } from ".";
+import type { DocumentAiReview } from "./questionnaires";
 
 export type LeadTaskStatus = "pending" | "in_progress" | "in_review" | "completed" | "skipped";
 
@@ -180,14 +181,14 @@ export interface QuestionnaireFile {
   leadId: string | null;
   questionId: string;
   questionSource: string;
+  documentId: string;
   storagePath: string;
   fileUrl: string;
   mimeType: string;
   fileSize: number;
   originalFilename: string;
-  scanStatus: string;
-  scanResult: unknown;
-  scannedAt: string | null;
+  /** What AI review makes of this document — see DocumentAiReview. */
+  aiReview: DocumentAiReview;
   createdAt: string;
 }
 

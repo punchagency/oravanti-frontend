@@ -1,6 +1,7 @@
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { useLeadQuestionnaireFiles } from "@/hooks/use-lead-workflows";
-import { downloadResponseFile } from "@/api/questionnaires";
+import { downloadResponseFile, type DocumentAiReview } from "@/api/questionnaires";
+import { DocumentFlagBadge } from "@/pages/admin/ai-review/components/document-flag-badge";
 import { Box, Flex, HStack, IconButton, Table, Text } from "@chakra-ui/react";
 import { Download, FileText } from "lucide-react";
 
@@ -24,12 +25,14 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
     name: string;
     size: number;
     createdAt: string;
+    aiReview?: DocumentAiReview;
   }[] = [
     ...(questionnaireFiles ?? []).map((f) => ({
       id: f.id,
       name: f.originalFilename,
       size: f.fileSize,
       createdAt: f.createdAt,
+      aiReview: f.aiReview,
     })),
   ];
 
@@ -164,6 +167,17 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
                   textTransform="uppercase"
                   color="fg.muted"
                   fontWeight="500"
+                  w="140px"
+                >
+                  AI review
+                </Table.ColumnHeader>
+                <Table.ColumnHeader
+                  px={3}
+                  py={2}
+                  fontSize="10px"
+                  textTransform="uppercase"
+                  color="fg.muted"
+                  fontWeight="500"
                   w="80px"
                 >
                   Actions
@@ -201,6 +215,9 @@ export function LeadDocumentsTab({ leadId }: { leadId: string }) {
                         day: "numeric",
                       })}
                     </Text>
+                  </Table.Cell>
+                  <Table.Cell px={3} py={2.5}>
+                    <DocumentFlagBadge review={file.aiReview} />
                   </Table.Cell>
                   <Table.Cell px={3} py={2.5}>
                     <IconButton
