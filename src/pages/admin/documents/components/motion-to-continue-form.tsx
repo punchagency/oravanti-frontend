@@ -1,3 +1,4 @@
+import { DateField } from "@/components/ui/date-field";
 import { FormSelect } from "@/components/ui/form-select";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import {
@@ -116,15 +117,10 @@ export function MotionToContinueForm() {
           <Field.Label fontSize="13px" color="fg">
             Filing date
           </Field.Label>
-          <Input
-            type="date"
-            size="sm"
+          <DateField
             value={filingDate}
-            onChange={(e) => setFilingDate(e.target.value)}
-            bg="bg.input"
-            borderColor="border.input"
-            borderRadius="7px"
-            fontSize="13px"
+            onChange={setFilingDate}
+            ariaLabel="Filing date"
           />
         </Field.Root>
 
@@ -149,15 +145,10 @@ export function MotionToContinueForm() {
           <Field.Label fontSize="13px" color="fg">
             Requested new hearing date
           </Field.Label>
-          <Input
-            type="date"
-            size="sm"
+          <DateField
             value={hearingDate}
-            onChange={(e) => setHearingDate(e.target.value)}
-            bg="bg.input"
-            borderColor="border.input"
-            borderRadius="7px"
-            fontSize="13px"
+            onChange={setHearingDate}
+            ariaLabel="Requested new hearing date"
           />
         </Field.Root>
 
