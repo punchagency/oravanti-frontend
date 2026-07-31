@@ -1,3 +1,4 @@
+import { FormSelect } from "@/components/ui/form-select";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import {
   Box,
@@ -6,13 +7,12 @@ import {
   Grid,
   HStack,
   Input,
-  NativeSelect,
   Stack,
   Text,
   Textarea,
 } from "@chakra-ui/react";
 import { Check, Eye, Save } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { creatorAttorney, creatorCases } from "../data";
 
 /** Read-only mirror of a value the template pulls from the case record. */
@@ -45,6 +45,18 @@ export function MotionToContinueForm() {
 
   const record = creatorCases.find((c) => c.value === caseValue);
 
+  // FormSelect is memoized: it only pays off with a stable options array and
+  // change handler.
+  const caseOptions = useMemo(
+    () =>
+      creatorCases.map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    [],
+  );
+  const handleCaseChange = useCallback((value: string) => setCaseValue(value), []);
+
   return (
     <Box>
       <Flex justifyContent="space-between" alignItems="center" gap="16px">
@@ -61,24 +73,13 @@ export function MotionToContinueForm() {
           <Field.Label fontSize="13px" color="fg">
             Linked case
           </Field.Label>
-          <NativeSelect.Root size="sm" w="full">
-            <NativeSelect.Field
-              value={caseValue}
-              onChange={(e) => setCaseValue(e.currentTarget.value)}
-              bg="bg.input"
-              borderColor="border.input"
-              borderRadius="7px"
-              fontSize="13px"
-            >
-              <option value="">Select a case...</option>
-              {creatorCases.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
+          <FormSelect
+            options={caseOptions}
+            value={caseValue}
+            onChange={handleCaseChange}
+            placeholder="Select a case..."
+            ariaLabel="Linked case"
+          />
         </Field.Root>
 
         <Box>

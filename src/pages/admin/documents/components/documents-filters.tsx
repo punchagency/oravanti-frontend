@@ -1,5 +1,7 @@
-import { Box, Flex, Input, NativeSelect } from "@chakra-ui/react";
+import { FilterCombobox } from "@/components/ui/filter-combobox";
+import { Box, Flex, Input } from "@chakra-ui/react";
 import { Search } from "lucide-react";
+import { useMemo } from "react";
 import {
   documentCaseOptions,
   documentStaffOptions,
@@ -15,35 +17,6 @@ export type DocumentFilters = {
   staff: string;
 };
 
-function FilterSelect({
-  value,
-  onChange,
-  placeholder,
-  children,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <NativeSelect.Root size="sm" w={{ base: "full", md: "150px" }}>
-      <NativeSelect.Field
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        bg="bg.input"
-        borderColor="border.input"
-        borderRadius="7px"
-        fontSize="13px"
-      >
-        <option value="">{placeholder}</option>
-        {children}
-      </NativeSelect.Field>
-      <NativeSelect.Indicator />
-    </NativeSelect.Root>
-  );
-}
-
 export function DocumentsFilters({
   filters,
   onChange,
@@ -56,80 +29,76 @@ export function DocumentsFilters({
     value: DocumentFilters[K],
   ) => onChange({ ...filters, [key]: value });
 
+  const typeOptions = useMemo(
+    () => documentTypeOptions.map((type) => ({ value: type, label: type })),
+    [],
+  );
+  const staffOptions = useMemo(
+    () => documentStaffOptions.map((staff) => ({ value: staff, label: staff })),
+    [],
+  );
+
   return (
     <Flex gap="10px" flexWrap="wrap" align="center">
       <Box position="relative" flex="1 1 280px" minW="220px">
         <Box
           position="absolute"
-          left="12px"
+          left={3}
           top="50%"
           transform="translateY(-50%)"
           zIndex={1}
           color="fg.subtle"
           pointerEvents="none"
         >
-          <Search size={15} />
+          <Search size={16} />
         </Box>
         <Input
           placeholder="Search documents, cases, types..."
-          pl="36px"
-          size="sm"
+          pl={9}
+          size={{ base: "xs", md: "sm" }}
           bg="bg.input"
           borderColor="border.input"
-          borderRadius="7px"
-          fontSize="13px"
+          borderRadius="md"
           value={filters.search}
           onChange={(e) => set("search", e.target.value)}
         />
       </Box>
 
-      <FilterSelect
+      <FilterCombobox
+        options={documentCaseOptions}
         value={filters.matter}
-        onChange={(v) => set("matter", v)}
+        onChange={(value) => set("matter", value)}
         placeholder="All cases"
-      >
-        {documentCaseOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </FilterSelect>
+        noun="cases"
+        minW="200px"
+      />
 
-      <FilterSelect
+      <FilterCombobox
+        options={typeOptions}
         value={filters.type}
-        onChange={(v) => set("type", v)}
+        onChange={(value) => set("type", value)}
         placeholder="All types"
-      >
-        {documentTypeOptions.map((type) => (
-          <option key={type} value={type}>
-            {type}
-          </option>
-        ))}
-      </FilterSelect>
+        noun="types"
+        minW="140px"
+      />
 
-      <FilterSelect
+      <FilterCombobox
+        options={documentStatusOptions}
         value={filters.status}
-        onChange={(v) => set("status", v)}
+        onChange={(value) => set("status", value)}
         placeholder="All status"
-      >
-        {documentStatusOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </FilterSelect>
+        noun="statuses"
+        minW="150px"
+      />
 
-      <FilterSelect
+      <FilterCombobox
+        options={staffOptions}
         value={filters.staff}
-        onChange={(v) => set("staff", v)}
+        onChange={(value) => set("staff", value)}
         placeholder="All staff"
-      >
-        {documentStaffOptions.map((staff) => (
-          <option key={staff} value={staff}>
-            {staff}
-          </option>
-        ))}
-      </FilterSelect>
+        noun="staff"
+        minW="150px"
+      />
     </Flex>
   );
 }
