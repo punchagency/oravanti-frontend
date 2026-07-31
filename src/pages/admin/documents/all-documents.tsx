@@ -6,9 +6,10 @@ import {
 } from "@/components/ui/report-table";
 import { StatTile } from "@/components/ui/stat-tile";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { Box, Flex, Grid, HStack, Table, Text } from "@chakra-ui/react";
+import { Box, chakra, Flex, Grid, HStack, Table, Text } from "@chakra-ui/react";
 import {
   AlertTriangle,
+  ChevronDown,
   Clock,
   Files,
   Package,
@@ -70,19 +71,49 @@ function matches(doc: FirmDocument, filters: DocumentFilters) {
   return true;
 }
 
-/** A full-width shaded divider that labels each group of rows. */
-function GroupRow({ label, count }: { label: string; count: number }) {
+/** A full-width shaded divider that labels a group of rows and collapses it. */
+function GroupRow({
+  label,
+  count,
+  open,
+  onToggle,
+}: {
+  label: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <Table.Row bg="bg.muted">
+    <Table.Row bg="bg.muted" _hover={{ bg: "bg.subtle" }}>
       <Table.Cell colSpan={HEADERS.length} py="10px">
-        <Text
-          fontSize="10px"
-          fontWeight="600"
-          letterSpacing="0.06em"
-          color="fg.muted"
+        <chakra.button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          display="flex"
+          alignItems="center"
+          gap="6px"
+          w="full"
+          textAlign="left"
+          cursor="pointer"
         >
-          {label.toUpperCase()} ({count})
-        </Text>
+          <Box
+            color="fg.muted"
+            display="flex"
+            transform={open ? undefined : "rotate(-90deg)"}
+            transition="transform 150ms"
+          >
+            <ChevronDown size={14} />
+          </Box>
+          <Text
+            fontSize="10px"
+            fontWeight="600"
+            letterSpacing="0.06em"
+            color="fg.muted"
+          >
+            {label.toUpperCase()} ({count})
+          </Text>
+        </chakra.button>
       </Table.Cell>
     </Table.Row>
   );
@@ -129,6 +160,10 @@ export function AllDocumentsPage() {
   useDocumentTitle("Documents");
   const [filters, setFilters] = useState<DocumentFilters>(NO_FILTERS);
   const [visibleRecent, setVisibleRecent] = useState(RECENT_PAGE_SIZE);
+  const [openGroups, setOpenGroups] = useState({ flagged: true, recent: true });
+
+  const toggleGroup = (group: "flagged" | "recent") =>
+    setOpenGroups((groups) => ({ ...groups, [group]: !groups[group] }));
 
   const flagged = useMemo(
     () => flaggedDocuments.filter((doc) => matches(doc, filters)),
@@ -233,25 +268,35 @@ export function AllDocumentsPage() {
           <>
             {flagged.length > 0 && (
               <>
-                <GroupRow label="Flagged by AI" count={flagged.length} />
-                {flagged.map((doc) => (
-                  <DocumentRow key={doc.id} doc={doc} />
-                ))}
+                <GroupRow
+                  label="Flagged by AI"
+                  count={flagged.length}
+                  open={openGroups.flagged}
+                  onToggle={() => toggleGroup("flagged")}
+                />
+                {openGroups.flagged &&
+                  flagged.map((doc) => <DocumentRow key={doc.id} doc={doc} />)}
               </>
             )}
             {recent.length > 0 && (
               <>
-                <GroupRow label="Recent uploads" count={recent.length} />
-                {shownRecent.map((doc) => (
-                  <DocumentRow key={doc.id} doc={doc} />
-                ))}
+                <GroupRow
+                  label="Recent uploads"
+                  count={recent.length}
+                  open={openGroups.recent}
+                  onToggle={() => toggleGroup("recent")}
+                />
+                {openGroups.recent &&
+                  shownRecent.map((doc) => (
+                    <DocumentRow key={doc.id} doc={doc} />
+                  ))}
               </>
             )}
           </>
         )}
       </ReportTable>
 
-      {recent.length > 0 && (
+      {recent.length > 0 && openGroups.recent && (
         <Flex
           mt="16px"
           justifyContent="space-between"
