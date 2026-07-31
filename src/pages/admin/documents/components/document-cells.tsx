@@ -105,7 +105,7 @@ export function DocumentRowActions({
 }) {
   const uploaded = review !== "missing";
   return (
-    <HStack gap="6px" justifyContent="flex-end">
+    <HStack gap="6px">
       {uploaded ? (
         <ActionIconButton label="Preview document">
           <Eye size={14} />

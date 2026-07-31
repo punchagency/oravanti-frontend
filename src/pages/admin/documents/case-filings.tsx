@@ -70,7 +70,7 @@ export function CaseFilingsPage() {
               <FilingStatusPill status={filing.status} />
             </Table.Cell>
             <Table.Cell py={REPORT_CELL_PY}>
-              <HStack gap="6px" justifyContent="flex-end">
+              <HStack gap="6px">
                 <ActionIconButton label="Preview filing">
                   <Eye size={14} />
                 </ActionIconButton>
