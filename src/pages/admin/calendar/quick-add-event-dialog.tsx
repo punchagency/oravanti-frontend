@@ -9,6 +9,7 @@ import {
   chakra,
   Checkbox,
   createListCollection,
+  DatePicker,
   Dialog,
   Field,
   Flex,
@@ -21,8 +22,9 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { CalendarDate, today as getToday } from "@internationalized/date";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X } from "lucide-react";
+import { CalendarDays, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -133,6 +135,7 @@ export function QuickAddEventDialog({
   });
 
   const watchedClientId = watch("clientId");
+  const watchedDate = watch("date");
 
   const { data: clients = [], isLoading: clientsLoading } = useClients();
 
@@ -188,12 +191,23 @@ export function QuickAddEventDialog({
     [staff],
   );
 
+  const filteredTimeOptions = useMemo(() => {
+    if (watchedDate === dayjs().format("YYYY-MM-DD")) {
+      const now = dayjs();
+      return TIME_OPTIONS.filter((opt) => {
+        const [h, m] = opt.value.split(":").map(Number);
+        return h > now.hour() || (h === now.hour() && m > now.minute());
+      });
+    }
+    return TIME_OPTIONS;
+  }, [watchedDate]);
+
   const timeCollection = useMemo(
     () =>
       createListCollection({
-        items: TIME_OPTIONS,
+        items: filteredTimeOptions,
       }),
-    [],
+    [filteredTimeOptions],
   );
 
   const onSubmit = (data: FormValues) => {
@@ -463,14 +477,80 @@ export function QuickAddEventDialog({
                     <Controller
                       name="date"
                       control={control}
-                      render={({ field }) => (
-                        <Input
-                          type="date"
-                          value={field.value}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          {...inputStyles}
-                        />
-                      )}
+                      render={({ field }) => {
+                        const dateValue = field.value
+                          ? new CalendarDate(
+                              ...(dayjs(field.value)
+                                .format("YYYY-MM-DD")
+                                .split("-")
+                                .map(Number) as [number, number, number]),
+                            )
+                          : undefined;
+                        return (
+                          <DatePicker.Root
+                            value={dateValue ? [dateValue] : []}
+                            isDateUnavailable={(date) => date.compare(getToday(dayjs.tz.guess())) < 0}
+                            onValueChange={(details) => {
+                              const v = details.value[0];
+                              if (v) {
+                                field.onChange(
+                                  `${v.year}-${String(v.month).padStart(2, "0")}-${String(v.day).padStart(2, "0")}`,
+                                );
+                              } else {
+                                field.onChange("");
+                              }
+                            }}
+                          >
+                            <DatePicker.Control>
+                              <DatePicker.Input
+                                h="36px"
+                                px="12px"
+                                border="1px solid"
+                                borderColor="border"
+                                borderRadius="7px"
+                                bg="bg"
+                                color="fg"
+                                fontSize="13px"
+                                _focus={{
+                                  borderColor: "brand.solid",
+                                  boxShadow: "0 0 0 1px var(--brand-cta)",
+                                }}
+                              />
+                              <DatePicker.IndicatorGroup>
+                                <DatePicker.Trigger
+                                  asChild
+                                  border="none"
+                                  bg="transparent"
+                                  color="fg.muted"
+                                  cursor="pointer"
+                                >
+                                  <chakra.button type="button">
+                                    <CalendarDays size={16} />
+                                  </chakra.button>
+                                </DatePicker.Trigger>
+                              </DatePicker.IndicatorGroup>
+                            </DatePicker.Control>
+                            <Portal>
+                              <DatePicker.Positioner>
+                                <DatePicker.Content>
+                                  <DatePicker.View view="day">
+                                    <DatePicker.Header />
+                                    <DatePicker.DayTable />
+                                  </DatePicker.View>
+                                  <DatePicker.View view="month">
+                                    <DatePicker.Header />
+                                    <DatePicker.MonthTable />
+                                  </DatePicker.View>
+                                  <DatePicker.View view="year">
+                                    <DatePicker.Header />
+                                    <DatePicker.YearTable />
+                                  </DatePicker.View>
+                                </DatePicker.Content>
+                              </DatePicker.Positioner>
+                            </Portal>
+                          </DatePicker.Root>
+                        );
+                      }}
                     />
                     {errors.date && (
                       <Field.ErrorText>{errors.date.message}</Field.ErrorText>

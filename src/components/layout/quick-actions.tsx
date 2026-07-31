@@ -6,9 +6,12 @@ import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-staff/di
 import { CreateTeamDialog } from "@/pages/admin/staff-and-users/tabs/teams/components/create-team/dialog";
 import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { CalendarDays, ChevronDown, Plus, UserRoundPlus, Users, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNav } from "./nav-context";
 
 export function QuickActions({ collapsed }: { collapsed: boolean }) {
+  const { setSuppressCollapse, forceCollapse } = useNav();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [instantConsultOpen, setInstantConsultOpen] = useState(false);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
@@ -16,9 +19,26 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const createEvent = useCreateCalendarEvent();
 
+  /*
+    Keep sidebar state frozen while menu or any dialog is open:
+    – suppressCollapse = true → DesktopNav ignores onMouseEnter
+      and onMouseLeave, so the sidebar stays put.
+    – This prevents:
+      1. Sidebar collapsing when mouse moves from the nav to the
+         portaled menu popover (onMouseLeave fires immediately).
+      2. Sidebar re-expanding while a dialog is open (dialog is
+         portaled to body, but mouse can still enter the sidebar
+         area, triggering onMouseEnter → suppressCollapse blocks it).
+  */
+  useEffect(() => {
+    setSuppressCollapse(
+      menuOpen || addLeadOpen || instantConsultOpen || createTeamOpen || inviteStaffOpen || addEventOpen,
+    );
+  }, [menuOpen, addLeadOpen, instantConsultOpen, createTeamOpen, inviteStaffOpen, addEventOpen, setSuppressCollapse]);
+
   return (
     <>
-      <Menu.Root>
+      <Menu.Root onOpenChange={(details) => setMenuOpen(details.open)}>
         <Menu.Trigger asChild>
           <Button
             variant="ghost"
@@ -56,6 +76,12 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
               borderRadius="md"
               p="4px"
             >
+              {/*
+                forceCollapse() + setDialogOpen(true): sidebar shrinks
+                immediately when clicking a menu item. suppressCollapse
+                stays true (dialog is open) so the sidebar stays
+                collapsed until the dialog closes.
+              */}
               <Menu.Item
                 value="add-lead"
                 bg="transparent"
@@ -66,7 +92,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setAddLeadOpen(true)}
+                onClick={() => { setAddLeadOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <UserRoundPlus size={15} />
@@ -83,7 +109,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setInstantConsultOpen(true)}
+                onClick={() => { setInstantConsultOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <Zap size={15} />
@@ -100,7 +126,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setCreateTeamOpen(true)}
+                onClick={() => { setCreateTeamOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <Users size={15} />
@@ -117,7 +143,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setInviteStaffOpen(true)}
+                onClick={() => { setInviteStaffOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <Plus size={15} />
@@ -134,7 +160,7 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
-                onClick={() => setAddEventOpen(true)}
+                onClick={() => { setAddEventOpen(true); forceCollapse(); }}
               >
                 <Box color="fg">
                   <CalendarDays size={15} />

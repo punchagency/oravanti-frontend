@@ -1,12 +1,21 @@
 import { Flex, Text, chakra } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavContent } from "./nav-content";
 import { useNav } from "./nav-context";
 
 export function DesktopNav() {
-  const { collapsed } = useNav();
+  const { collapsed, suppressCollapse, collapseSignal } = useNav();
   const [hovered, setHovered] = useState(false);
   const expanded = hovered || !collapsed;
+
+  /*
+    Collapse the sidebar immediately when forceCollapse() is
+    called (Quick Actions menu item click). Bumping the signal
+    counter triggers this effect → setHovered(false).
+  */
+  useEffect(() => {
+    setHovered(false);
+  }, [collapseSignal]);
 
   return (
     <Flex
@@ -22,8 +31,20 @@ export function DesktopNav() {
       borderColor="border"
       transition="width 200ms, min-width 200ms"
       display={{ base: "none", lg: "flex" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      /*
+        suppressCollapse gates BOTH onMouseEnter and onMouseLeave:
+        – While a Quick Actions menu or dialog is open, the sidebar
+          stays locked in its current state (prevents collapse from
+          portaled menu, prevents re-expand while dialog is open).
+        – When suppressCollapse is false, normal hover expand/collapse
+          behavior resumes.
+      */
+      onMouseEnter={() => {
+        if (!suppressCollapse) setHovered(true);
+      }}
+      onMouseLeave={() => {
+        if (!suppressCollapse) setHovered(false);
+      }}
       zIndex={20}
       flexShrink={0}
     >

@@ -1,8 +1,11 @@
+import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
+import { dayjs } from "@/utils/date";
 import {
   Badge,
   Box,
   Button,
   chakra,
+  createListCollection,
   DatePicker,
   Dialog,
   Field,
@@ -17,26 +20,23 @@ import {
   Text,
   Textarea,
   VStack,
-  createListCollection,
 } from "@chakra-ui/react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDate } from "@internationalized/date";
-import { dayjs } from "@/utils/date";
+import { CalendarDays, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  useCalendarEventDetail,
-  useUpdateCalendarEvent,
-  useDeleteCalendarEvent,
-} from "./use-calendar";
-import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
 import {
   CALENDAR_FILTER_TYPES,
   EVENT_TYPE_CONFIG,
   type CalendarEventType,
 } from "./types";
-import { CalendarDays, X } from "lucide-react";
+import {
+  useCalendarEventDetail,
+  useDeleteCalendarEvent,
+  useUpdateCalendarEvent,
+} from "./use-calendar";
 import { TIME_OPTIONS } from "./utils";
 
 const editSchema = z
@@ -301,14 +301,9 @@ export function EventDetailDialog({
                         *
                       </Text>
                     </Field.Label>
-                    <Input
-                      {...register("title")}
-                      {...inputStyles}
-                    />
+                    <Input {...register("title")} {...inputStyles} />
                     {errors.title && (
-                      <Field.ErrorText>
-                        {errors.title.message}
-                      </Field.ErrorText>
+                      <Field.ErrorText>{errors.title.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
@@ -356,9 +351,7 @@ export function EventDetailDialog({
                       )}
                     />
                     {errors.type && (
-                      <Field.ErrorText>
-                        {errors.type.message}
-                      </Field.ErrorText>
+                      <Field.ErrorText>{errors.type.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
@@ -375,10 +368,10 @@ export function EventDetailDialog({
                       render={({ field }) => {
                         const dateValue = field.value
                           ? new CalendarDate(
-                              ...dayjs(field.value)
+                              ...(dayjs(field.value)
                                 .format("YYYY-MM-DD")
                                 .split("-")
-                                .map(Number) as [number, number, number]
+                                .map(Number) as [number, number, number]),
                             )
                           : undefined;
                         return (
@@ -388,7 +381,7 @@ export function EventDetailDialog({
                               const v = details.value[0];
                               if (v) {
                                 field.onChange(
-                                  `${v.year}-${String(v.month).padStart(2, "0")}-${String(v.day).padStart(2, "0")}`
+                                  `${v.year}-${String(v.month).padStart(2, "0")}-${String(v.day).padStart(2, "0")}`,
                                 );
                               } else {
                                 field.onChange("");
@@ -447,9 +440,7 @@ export function EventDetailDialog({
                       }}
                     />
                     {errors.date && (
-                      <Field.ErrorText>
-                        {errors.date.message}
-                      </Field.ErrorText>
+                      <Field.ErrorText>{errors.date.message}</Field.ErrorText>
                     )}
                   </Field.Root>
 
@@ -707,7 +698,9 @@ export function EventDetailDialog({
 
                   {event.client && (
                     <HStack justify="space-between">
-                      <Text fontSize="13px" color="fg.muted">Client</Text>
+                      <Text fontSize="13px" color="fg.muted">
+                        Client
+                      </Text>
                       <Text fontSize="13px" color="fg" fontWeight={500}>
                         {event.client.name}
                       </Text>
@@ -716,7 +709,9 @@ export function EventDetailDialog({
 
                   {event.case && (
                     <HStack justify="space-between">
-                      <Text fontSize="13px" color="fg.muted">Case ref</Text>
+                      <Text fontSize="13px" color="fg.muted">
+                        Case ref
+                      </Text>
                       <Text fontSize="13px" color="fg" fontWeight={500}>
                         {event.case.caseNumber}
                       </Text>
@@ -725,7 +720,9 @@ export function EventDetailDialog({
 
                   {event.lead && (
                     <HStack justify="space-between">
-                      <Text fontSize="13px" color="fg.muted">Lead</Text>
+                      <Text fontSize="13px" color="fg.muted">
+                        Lead
+                      </Text>
                       <Text fontSize="13px" color="fg" fontWeight={500}>
                         {event.lead.name}
                       </Text>
@@ -735,12 +732,16 @@ export function EventDetailDialog({
                   <Separator borderColor="border.subtle" />
 
                   <HStack justify="space-between">
-                    <Text fontSize="13px" color="fg.muted">Date / time</Text>
+                    <Text fontSize="13px" color="fg.muted">
+                      Date / time
+                    </Text>
                     <Text
                       fontSize="13px"
                       color={event.status === "cancelled" ? "fg.muted" : "fg"}
                       fontWeight={500}
-                      textDecoration={event.status === "cancelled" ? "line-through" : "none"}
+                      textDecoration={
+                        event.status === "cancelled" ? "line-through" : "none"
+                      }
                     >
                       {dayjs(event.startTime).format("MMM D, YYYY · h:mm A")}
                       {event.endTime
@@ -751,7 +752,9 @@ export function EventDetailDialog({
 
                   {event.location && (
                     <HStack justify="space-between">
-                      <Text fontSize="13px" color="fg.muted">Location</Text>
+                      <Text fontSize="13px" color="fg.muted">
+                        Location
+                      </Text>
                       <Text fontSize="13px" color="fg" fontWeight={500}>
                         {event.location}
                       </Text>
@@ -774,7 +777,9 @@ export function EventDetailDialog({
                   {event.notes && (
                     <>
                       <Separator borderColor="border.subtle" />
-                      <Text fontSize="13px" color="fg.muted">Description</Text>
+                      <Text fontSize="13px" color="fg.muted">
+                        Description
+                      </Text>
                       <Text fontSize="13px" color="fg">
                         {event.notes}
                       </Text>
@@ -843,14 +848,6 @@ export function EventDetailDialog({
                         View case
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      colorPalette="red"
-                      onClick={() => setMode("delete-confirm")}
-                    >
-                      Delete
-                    </Button>
                   </Flex>
                 ) : (
                   <Flex justify="flex-end" gap="12px" mt="18px">
