@@ -19,12 +19,15 @@ export function StatTile({
   caption,
   icon,
   tone,
+  mutedValue = false,
 }: {
   label: string;
   value: number;
   caption: string;
   icon: ReactNode;
   tone: Tone;
+  /** Keep the number neutral while the icon badge still carries the tone. */
+  mutedValue?: boolean;
 }) {
   const t = TONES[tone];
   return (
@@ -50,7 +53,13 @@ export function StatTile({
           {icon}
         </Flex>
       </Flex>
-      <Text mt="8px" fontSize="30px" fontWeight="700" color={t.value} lineHeight="1">
+      <Text
+        mt="8px"
+        fontSize="30px"
+        fontWeight="700"
+        color={mutedValue ? "fg" : t.value}
+        lineHeight="1"
+      >
         {value}
       </Text>
       <Text mt="8px" fontSize="12px" color="fg.muted">

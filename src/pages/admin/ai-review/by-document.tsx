@@ -12,7 +12,7 @@ import {
   ReportRow,
   ReportTable,
   REPORT_CELL_PY,
-} from "./components/report-table";
+} from "@/components/ui/report-table";
 
 const SOURCE_LABEL: Record<DocumentFlag["source"], string> = {
   client_upload: "Client upload",

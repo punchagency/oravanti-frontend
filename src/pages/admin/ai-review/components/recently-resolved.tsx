@@ -3,7 +3,7 @@ import { useResolutionLog } from "@/hooks/use-case-review";
 import { Flex, Spinner, Table, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { ExportMenu } from "./export-menu";
-import { REPORT_CELL_PY, ReportRow, ReportTable } from "./report-table";
+import { REPORT_CELL_PY, ReportRow, ReportTable } from "@/components/ui/report-table";
 
 /**
  * The dashboard's "Recently resolved" section, kept in its own component so
