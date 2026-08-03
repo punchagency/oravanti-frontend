@@ -348,7 +348,9 @@ export interface CaseDocument {
     fileSize: number;
     mimeType: string;
     originalFileName: string;
-    scanStatus: string | null;
+    /** Pre-signed and short-lived — the server mints it per request. */
+    fileUrl: string | null;
+    virusScanStatus: string | null;
   } | null;
   case: {
     id: string;

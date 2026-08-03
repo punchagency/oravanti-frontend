@@ -1,4 +1,5 @@
 import type { CaseDocument } from "@/api/workflows";
+import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
 import { useCaseDocuments } from "@/hooks/use-workflows";
 import {
   Badge,
@@ -49,9 +50,20 @@ function scanStatusBadge(
       return { label: "Threat detected", bg: "red.subtle", color: "red.fg" };
     case "FAILED":
       return { label: "Scan failed", bg: "red.subtle", color: "red.fg" };
+    // SKIPPED and anything unrecognised carry no claim worth a badge.
     default:
       return null;
   }
+}
+
+/**
+ * Category labels come from a DB enum, so render them as words rather than as
+ * the raw `uscis_response`.
+ */
+function categoryLabel(category: string | null): string {
+  if (!category) return "—";
+  const spaced = category.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 export function DocumentTable({ caseId }: { caseId: string }) {
@@ -241,7 +253,21 @@ export function DocumentTable({ caseId }: { caseId: string }) {
 
 function DocumentRow({ doc }: { doc: CaseDocument }) {
   const cat = categoryColor(doc.category);
-  const scan = scanStatusBadge(doc.currentVersion?.scanStatus ?? null);
+  const scan = scanStatusBadge(doc.currentVersion?.virusScanStatus ?? null);
+  const canDownload = useCanDownloadDocuments();
+  // The list endpoint already signs each current version, so viewing and
+  // downloading need no extra round trip.
+  const fileUrl = doc.currentVersion?.fileUrl ?? null;
+
+  const download = () => {
+    if (!fileUrl) return;
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = doc.currentVersion?.originalFileName ?? doc.title;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   return (
     <Table.Row>
@@ -273,7 +299,7 @@ function DocumentRow({ doc }: { doc: CaseDocument }) {
           py={0.5}
           display="inline-block"
         >
-          {doc.category ?? "—"}
+          {categoryLabel(doc.category)}
         </Box>
       </Table.Cell>
       <Table.Cell px={4} py={3.5}>
@@ -313,19 +339,27 @@ function DocumentRow({ doc }: { doc: CaseDocument }) {
       </Table.Cell>
       <Table.Cell px={4} py={2.5}>
         <HStack gap={1}>
+          {canDownload && (
+            <IconButton
+              variant="ghost"
+              size="xs"
+              color="fg.muted"
+              aria-label={`Download ${doc.title}`}
+              disabled={!fileUrl}
+              onClick={download}
+            >
+              <Download size={14} />
+            </IconButton>
+          )}
           <IconButton
             variant="ghost"
             size="xs"
             color="fg.muted"
-            aria-label="Download"
-          >
-            <Download size={14} />
-          </IconButton>
-          <IconButton
-            variant="ghost"
-            size="xs"
-            color="fg.muted"
-            aria-label="View"
+            aria-label={`View ${doc.title}`}
+            disabled={!fileUrl}
+            onClick={() =>
+              fileUrl && window.open(fileUrl, "_blank", "noopener,noreferrer")
+            }
           >
             <Eye size={14} />
           </IconButton>
