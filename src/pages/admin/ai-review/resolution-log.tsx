@@ -7,7 +7,7 @@ import {
   ReportRow,
   ReportTable,
   REPORT_CELL_PY,
-} from "./components/report-table";
+} from "@/components/ui/report-table";
 import {
   Box,
   Flex,
