@@ -2,7 +2,7 @@ import { type CreateTeamPayload } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useCreateTeam } from "@/hooks/use-create-team";
 import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import {
   Box,
   chakra,
@@ -39,7 +39,7 @@ export function CreateTeamDialog({
   const treeDataQuery = usePracticeAreaTreeData();
   const treeData = treeDataQuery.data;
   const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
-  const { data: allStaffData } = useStaffList({ limit: 200 });
+  const { data: allStaffData } = useStaffsList({ limit: 200 });
 
   const attorneys = useMemo(
     () =>

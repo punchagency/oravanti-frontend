@@ -1,7 +1,7 @@
 import type { PipelineStage } from "@/api/leads";
 import { useCases } from "@/hooks/use-cases";
 import { useLeads } from "@/hooks/use-leads";
-import { useStaff } from "@/hooks/use-staff";
+import { useStaffs } from "@/hooks/use-staff";
 import {
   Box,
   Button,
@@ -104,7 +104,7 @@ export function OverviewView() {
   const { data: casesResponse } = useCases();
   const allCases = casesResponse?.data ?? [];
 
-  const { data: staffData } = useStaff();
+  const { data: staffData } = useStaffs();
   const allStaff = staffData ?? [];
 
   const activeCaseCount = allCases.filter((c) => c.status === "active").length;

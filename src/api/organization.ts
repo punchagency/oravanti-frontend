@@ -1,7 +1,7 @@
 import { API } from ".";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 
-export interface GetStaffListParams {
+export interface GetStaffsParams {
   search?: string;
   role?: string;
   team?: string;
@@ -23,13 +23,13 @@ export interface PaginationMeta {
   offset: number;
 }
 
-export interface GetStaffListResponse {
+export interface GetStaffsResponse {
   data: StaffMemberDTO[];
   counts: StatusCounts;
   pagination: PaginationMeta;
 }
 
-export interface InviteStaffPayload {
+export interface InviteStaffsPayload {
   firstName: string;
   lastName: string;
   email: string;
@@ -42,14 +42,14 @@ export interface InviteStaffPayload {
   teamIds?: string[];
 }
 
-export async function getStaffList(
-  params?: GetStaffListParams,
-): Promise<GetStaffListResponse> {
-  const response = await API.get("/organization/staff", { params });
-  return { data: response.data.data, counts: response.data.counts, pagination: response.data.pagination } as GetStaffListResponse;
+export async function getStaffs(
+  params?: GetStaffsParams,
+): Promise<GetStaffsResponse> {
+  const response = await API.get("/organization/staffs", { params });
+  return { data: response.data.data, counts: response.data.counts, pagination: response.data.pagination } as GetStaffsResponse;
 }
 
-export async function inviteStaff(data: InviteStaffPayload) {
+export async function inviteStaffs(data: InviteStaffsPayload) {
   return (await API.post("/organization/invite", data)).data.data;
 }
 
@@ -109,7 +109,7 @@ export async function resendInvitation(email: string, role: string) {
   return (await API.post("/organization/resend-invitation", { email, role })).data.data;
 }
 
-export interface UpdateStaffPayload {
+export interface UpdateStaffMemberPayload {
   phone?: string;
   jobTitle?: string;
   maxCaseload?: number;
@@ -122,8 +122,11 @@ export interface UpdateStaffPayload {
   teamIds?: string[];
 }
 
-export async function updateStaff(staffId: string, data: UpdateStaffPayload) {
-  return (await API.patch(`/organization/staff/${staffId}`, data)).data.data;
+export async function updateStaffMember(
+  staffId: string,
+  data: UpdateStaffMemberPayload,
+) {
+  return (await API.patch(`/organization/staffs/${staffId}`, data)).data.data;
 }
 
 export interface PendingInvitation {
@@ -227,11 +230,11 @@ export async function getTeamsList(
   return { data: response.data.data, counts: response.data.counts, pagination: response.data.pagination } as GetTeamsListResponse;
 }
 
-export async function updateStaffRole(
+export async function updateStaffMemberRole(
   staffId: string,
   role: string,
 ): Promise<void> {
-  await API.patch(`/organization/staff/${staffId}/role`, { role });
+  await API.patch(`/organization/staffs/${staffId}/role`, { role });
 }
 
 export interface CreateTeamPayload {
@@ -254,8 +257,8 @@ export async function deleteTeam(teamId: string): Promise<void> {
   await API.delete(`/organization/teams/${teamId}`);
 }
 
-export async function removeStaff(staffId: string): Promise<void> {
-  await API.delete(`/organization/staff/${staffId}`);
+export async function removeStaffMember(staffId: string): Promise<void> {
+  await API.delete(`/organization/staffs/${staffId}`);
 }
 
 export interface UpdateTeamPayload {
@@ -298,14 +301,40 @@ export async function getTeamDetails(
 
 export type StaffDetailsDTO = StaffMemberDTO;
 
-export async function getCurrentStaff(): Promise<StaffDetailsDTO> {
-  const response = await API.get("/organization/staff/me");
+export type UpdateMyProfileInput = Partial<{
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  barNumber: string;
+}>;
+
+export async function getCurrentStaffProfile(): Promise<StaffDetailsDTO> {
+  const response = await API.get("/staffs/profile");
   return response.data.data;
 }
 
-export async function getStaffDetails(
+export async function updateMyProfile(
+  input: UpdateMyProfileInput,
+): Promise<StaffDetailsDTO> {
+  const response = await API.patch("/staffs/profile", input);
+  return response.data.data;
+}
+
+export async function getStaffMember(
   staffId: string,
 ): Promise<StaffDetailsDTO> {
-  const response = await API.get(`/organization/staff/${staffId}`);
+  const response = await API.get(`/organization/staffs/${staffId}`);
+  return response.data.data;
+}
+
+export async function uploadAvatar(
+  file: File,
+): Promise<StaffDetailsDTO> {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  const response = await API.post("/staffs/avatar", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return response.data.data;
 }

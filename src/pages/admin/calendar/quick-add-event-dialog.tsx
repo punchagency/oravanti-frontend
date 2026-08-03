@@ -1,6 +1,6 @@
 import { useClients } from "@/hooks/use-clients";
 import { useCases } from "@/hooks/use-cases";
-import { useStaff } from "@/hooks/use-staff";
+import { useStaffs } from "@/hooks/use-staff";
 import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
 import { dayjs } from "@/utils/date";
 import {
@@ -145,7 +145,7 @@ export function QuickAddEventDialog({
   });
   const casesData = casesResponse?.data ?? [];
 
-  const { data: staff = [], isLoading: staffLoading } = useStaff();
+  const { data: staff = [], isLoading: staffLoading } = useStaffs();
 
   const typeCollection = useMemo(
     () =>

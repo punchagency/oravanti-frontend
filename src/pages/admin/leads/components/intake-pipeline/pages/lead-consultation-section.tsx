@@ -38,7 +38,7 @@ import {
   useUpdateLead,
 } from "@/hooks/use-leads";
 import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import { consultationModeLabel } from "../shared/consultation-wizard-constants";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
@@ -1160,7 +1160,7 @@ function ConsultationOutcomes({
   const outcomesMutation = useUpdateConsultation();
   const completeMutation = useUpdateConsultation();
   const noShowMutation = useUpdateConsultation();
-  const { data: staffData, isLoading: isStaffLoading } = useStaffList({
+  const { data: staffData, isLoading: isStaffLoading } = useStaffsList({
     role: "attorney",
     status: "active",
     limit: 1000,

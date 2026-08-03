@@ -1,6 +1,6 @@
 import {
-  getStaffList,
-  type GetStaffListParams,
+  getStaffs,
+  type GetStaffsParams,
   type PaginationMeta,
   type StatusCounts,
 } from "@/api/organization";
@@ -20,8 +20,10 @@ export interface StaffMemberDTO {
   memberId: string | null;
   status: string;
   jobTitle: string | null;
+  barNumber: string | null;
   startDate: string | null;
   maxCaseload: number | null;
+  avatarUrl: string | null;
   practiceAreas: { id: string; name: string }[];
   subcategories: { id: string; name: string }[];
   caseTypes: { id: string; name: string }[];
@@ -30,12 +32,12 @@ export interface StaffMemberDTO {
   updatedAt: string;
 }
 
-export function useStaffList(params?: GetStaffListParams) {
+export function useStaffsList(params?: GetStaffsParams) {
   const { showError } = useFeedbackDialog();
 
   const query = useQuery({
-    queryKey: ["staff", params],
-    queryFn: () => getStaffList(params),
+    queryKey: ["staffs", params],
+    queryFn: () => getStaffs(params),
     staleTime: Infinity,
   });
 
@@ -49,4 +51,4 @@ export function useStaffList(params?: GetStaffListParams) {
   return query;
 }
 
-export type { GetStaffListParams, PaginationMeta, StatusCounts };
+export type { GetStaffsParams, PaginationMeta, StatusCounts };

@@ -1,8 +1,8 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
-import type { InviteStaffPayload } from "@/api/organization";
+import type { InviteStaffsPayload } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
-import { useInviteStaff } from "@/hooks/use-invite-staff";
+import { useInviteStaffs } from "@/hooks/use-invite-staff";
 import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import {
@@ -104,7 +104,7 @@ export function InviteStaffDialog({
   const teamsQuery = useTeamsList({ limit: 200 });
   const teams = teamsQuery.data?.data ?? [];
 
-  const inviteMutation = useInviteStaff();
+  const inviteMutation = useInviteStaffs();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -121,7 +121,7 @@ export function InviteStaffDialog({
   };
 
   const onSubmit = (formData: FormValues) => {
-    const payload: InviteStaffPayload = {
+    const payload: InviteStaffsPayload = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       email: formData.email.trim(),

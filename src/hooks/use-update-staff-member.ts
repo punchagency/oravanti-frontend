@@ -1,9 +1,9 @@
-import { updateStaff, updateStaffRole, type UpdateStaffPayload } from "@/api/organization";
+import { updateStaffMember, updateStaffMemberRole, type UpdateStaffMemberPayload } from "@/api/organization";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
-export function useUpdateStaff() {
+export function useUpdateStaffMember() {
   const { showSuccess, showError } = useFeedbackDialog();
   const queryClient = useQueryClient();
 
@@ -14,16 +14,16 @@ export function useUpdateStaff() {
       newRole,
     }: {
       staffId: string;
-      data: UpdateStaffPayload;
+      data: UpdateStaffMemberPayload;
       newRole?: string;
     }) =>
-      updateStaffStaff(staffId, data, newRole),
+      updateStaffMemberStaff(staffId, data, newRole),
     onSuccess: () => {
       showSuccess({
-        title: "Staff updated",
+        title: "Staff member updated",
         description: "Staff details have been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      queryClient.invalidateQueries({ queryKey: ["staffs"] });
       queryClient.invalidateQueries({ queryKey: ["invitations"] });
     },
     onError: (error) => {
@@ -35,13 +35,13 @@ export function useUpdateStaff() {
   });
 }
 
-async function updateStaffStaff(
+async function updateStaffMemberStaff(
   staffId: string,
-  data: UpdateStaffPayload,
+  data: UpdateStaffMemberPayload,
   newRole?: string,
 ) {
   if (newRole) {
-    await updateStaffRole(staffId, newRole);
+    await updateStaffMemberRole(staffId, newRole);
   }
-  await updateStaff(staffId, data);
+  await updateStaffMember(staffId, data);
 }

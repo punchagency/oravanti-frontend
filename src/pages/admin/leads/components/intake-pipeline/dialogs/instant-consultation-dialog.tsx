@@ -25,7 +25,7 @@ import {
   useRunConflictCheck,
 } from "@/hooks/use-leads";
 import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import {
   useConsultationLocations,
   useConsultationSettings,
@@ -333,7 +333,7 @@ export function InstantConsultationDialog({
     ];
   }, [questionnaireData, consultationData]);
 
-  const { data: staffData } = useStaffList({ status: "active" });
+  const { data: staffData } = useStaffsList({ status: "active" });
   const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
   const attorneys = useMemo(
     () => allStaff.filter((s) => s.role === "attorney"),
