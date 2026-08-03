@@ -58,7 +58,7 @@ export function Documents({ caseId }: { caseId: string }) {
         </HStack>
       </Flex>
 
-      <AlertSection />
+      <AlertSection caseId={caseId} />
 
       <DocumentTable caseId={caseId} />
     </>
