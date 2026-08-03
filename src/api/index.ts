@@ -60,6 +60,7 @@ const shouldSkipRefresh = (url?: string) => {
     "/auth/sign-out",
     "/auth/send-verification-otp",
     "/auth/two-factor/verify-totp",
+    "/auth/two-factor/verify-backup-code",
   ];
 
   return excludedPaths.some((path) => url.includes(path));

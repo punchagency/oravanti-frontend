@@ -355,6 +355,11 @@ export const contextNavigation: Record<
       label: "Settings",
       items: [
         {
+          label: "My profile",
+          path: "/profile",
+          icon: "users",
+        },
+        {
           label: "Add-on activation",
           path: "/settings/add-on-activation",
           icon: "intake",

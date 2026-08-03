@@ -42,6 +42,11 @@ import { MyTasksPage } from "@/pages/admin/my-tasks";
 import { ReviewQueuePage } from "@/pages/admin/review-queue";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
+import { MyProfilePage } from "@/pages/admin/my-profile";
+import ProfileTab from "@/pages/admin/my-profile/tabs/profile";
+import SecurityTab from "@/pages/admin/my-profile/tabs/security";
+import AppearanceTab from "@/pages/admin/my-profile/tabs/appearance";
+import { UnsavedChangesProvider } from "@/contexts/unsaved-changes-context";
 import { StaffAndUsersPage } from "@/pages/admin/staff-and-users";
 import Certifications from "@/pages/admin/staff-and-users/tabs/certifications";
 import Invitations from "@/pages/admin/staff-and-users/tabs/invitations";
@@ -77,6 +82,7 @@ import { QuestionnairePortalPage } from "./pages/questionnaire-portal";
 import ResetPassword from "./pages/reset-password";
 import SetPasswordPage from "./pages/set-password";
 import VerifyEmailNoticePage from "./pages/verify-email";
+import TwoFactorVerification from "./pages/two-factor";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -84,6 +90,7 @@ const router = createBrowserRouter(
       <Route element={<GuestGuard />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/two-factor" element={<TwoFactorVerification />} />
       </Route>
 
       <Route path="/forgot-password">
@@ -126,7 +133,14 @@ const router = createBrowserRouter(
         />
         <Route path="/onboarding/step-3-tos" element={<Step3TosPage />} />
 
-        <Route path="/" element={<AdminLayout />}>
+        <Route
+          path="/"
+          element={
+            <UnsavedChangesProvider>
+              <AdminLayout />
+            </UnsavedChangesProvider>
+          }
+        >
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard/pipeline" element={<AdminDashboard />} />
           <Route path="dashboard/activity" element={<AdminDashboard />} />
@@ -137,6 +151,16 @@ const router = createBrowserRouter(
               element={<EmailAccountConnectionPage />}
             />
             <Route path="firm-settings" element={<FirmSettingsPage />} />
+          </Route>
+
+          <Route path="profile" element={<MyProfilePage />}>
+            <Route index element={<ProfileTab />} />
+            <Route
+              path="profile"
+              element={<Navigate to="/profile" replace />}
+            />
+            <Route path="security" element={<SecurityTab />} />
+            <Route path="appearance" element={<AppearanceTab />} />
           </Route>
 
           <Route path="leads" element={<LeadsPage />} />

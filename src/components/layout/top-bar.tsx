@@ -1,7 +1,8 @@
 import { useColorMode } from "@/hooks/use-color-mode";
+import { useCurrentStaff } from "@/hooks/use-current-staff";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
-import { Box, Button, Flex, Menu, Portal, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Image, Menu, Portal, Text } from "@chakra-ui/react";
 import {
   Check,
   ChevronRight,
@@ -10,19 +11,73 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sun,
+  User,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useNavigate } from "react-router";
 import { useNav, usePageTitle } from "./nav-context";
+
+type AvatarChipProps = {
+  src?: string;
+  alt?: string;
+  fallback: string;
+  size?: string;
+  fontSize?: string;
+};
+
+function AvatarChip({
+  src,
+  alt,
+  fallback,
+  size = "28px",
+  fontSize = "10px",
+}: AvatarChipProps) {
+  return (
+    <Box
+      display="grid"
+      placeItems="center"
+      w={size}
+      h={size}
+      minW={size}
+      borderRadius="full"
+      bg="accent.admin"
+      color="white"
+      fontSize={fontSize}
+      fontWeight={500}
+      overflow="hidden"
+    >
+      {src ? (
+        <Image src={src} alt={alt} boxSize="full" objectFit="cover" />
+      ) : (
+        fallback || "?"
+      )}
+    </Box>
+  );
+}
 
 export function TopBar() {
   const { collapsed, toggleCollapsed, onMobileOpen } = useNav();
   const { title: pageTitle, isVisible: pageTitleVisible } = usePageTitle();
   const user = useAuthStore((s) => s.user);
   const memberRole = useAuthStore((s) => s.memberRole);
+  const { data: currentStaff } = useCurrentStaff();
   const signOutMutation = useSignOut();
   const { setTheme } = useTheme();
   const { colorMode } = useColorMode();
-  const initials = (user?.name ?? "")
+  const navigate = useNavigate();
+
+  const staffName = [currentStaff?.firstName, currentStaff?.lastName]
+    .filter(Boolean)
+    .join(" ");
+  const displayName = staffName || user?.name || "User";
+  const displayRole = currentStaff?.role
+    ? currentStaff.role
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : (memberRole ?? "");
+  const avatarUrl = currentStaff?.avatarUrl ?? "";
+  const initials = (displayName === "User" ? user?.name ?? "" : displayName)
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -90,20 +145,7 @@ export function TopBar() {
             borderRadius="full"
             _hover={{ bg: "bg.subtle" }}
           >
-            <Box
-              display="grid"
-              placeItems="center"
-              w="28px"
-              h="28px"
-              borderRadius="full"
-              bg="accent.admin"
-              color="white"
-              fontSize="10px"
-              fontWeight={500}
-              cursor="pointer"
-            >
-              {initials || "?"}
-            </Box>
+            <AvatarChip src={avatarUrl} alt={displayName} fallback={initials} />
           </Button>
         </Menu.Trigger>
         <Portal>
@@ -118,31 +160,22 @@ export function TopBar() {
               p="4px"
             >
               <Flex align="center" gap="10px" px="12px" py="8px">
-                <Box
-                  display="grid"
-                  placeItems="center"
-                  w="28px"
-                  h="28px"
-                  minW="28px"
-                  borderRadius="full"
-                  bg="accent.admin"
-                  color="white"
-                  fontSize="10px"
-                  fontWeight={500}
-                >
-                  {initials || "?"}
-                </Box>
+                <AvatarChip
+                  src={avatarUrl}
+                  alt={displayName}
+                  fallback={initials}
+                />
                 <Box>
                   <Text m={0} color="fg" fontSize="13px" fontWeight={500}>
-                    {user?.name ?? "User"}
+                    {displayName}
                   </Text>
                   <Text m={0} color="fg.subtle" fontSize="11px">
-                    {memberRole ?? ""}
+                    {displayRole}
                   </Text>
                 </Box>
               </Flex>
               <Menu.Separator borderColor="border" />
-              {/* <Menu.Item
+              <Menu.Item
                 value="profile"
                 bg="transparent"
                 color="fg"
@@ -152,12 +185,15 @@ export function TopBar() {
                 gap="8px"
                 fontSize="13px"
                 _hover={{ bg: "bg.hover" }}
+                onClick={() => navigate("/profile")}
               >
                 <Box color="fg">
                   <User size={15} />
                 </Box>
-                Profile
-              </Menu.Item> */}
+                <Text m={0} flex="1">
+                  Profile
+                </Text>
+              </Menu.Item>
               {/* <Menu.Item
                 value="billing"
                 bg="transparent"

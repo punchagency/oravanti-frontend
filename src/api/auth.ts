@@ -133,3 +133,77 @@ export async function resetPassword(data: {
 }) {
   return (await API.post("/auth/reset-password", data)).data;
 }
+
+// ── Password Management ──────────────────────────────────────────────────────
+
+export async function changePassword(data: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  return (await API.post("/auth/change-password", data)).data;
+}
+
+// ── Session Management ───────────────────────────────────────────────────────
+
+export type UserSession = {
+  id: string;
+  token: string;
+  createdAt: string;
+  updatedAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  userId: string;
+};
+
+export async function getUserSessions() {
+  return (await API.get<{ data: UserSession[] }>("/auth/sessions")).data;
+}
+
+export async function revokeSession(token: string) {
+  return (await API.delete(`/auth/sessions/${token}`)).data;
+}
+
+// ── Two-Factor Authentication ────────────────────────────────────────────────
+
+export type TwoFactorSetupData = {
+  totpURI: string;
+  backupCodes: string[];
+};
+
+export async function enableTwoFactorAuth(data: { password: string }) {
+  return (await API.post<{ data: TwoFactorSetupData }>(
+    "/auth/two-factor/enable",
+    data,
+  )).data;
+}
+
+export async function disableTwoFactorAuth(data: { password: string }) {
+  return (await API.post("/auth/two-factor/disable", data)).data;
+}
+
+export async function verifyTwoFactorSetup(data: { token: string }) {
+  return (await API.post("/auth/two-factor/verify-setup", data)).data;
+}
+
+export async function verifyBackupCode(data: { code: string }) {
+  return (await API.post("/auth/two-factor/verify-backup-code", data)).data;
+}
+
+// ── Organization (Firm Information) ──────────────────────────────────────────
+
+export type FirmInformationUpdate = {
+  name: string;
+  slug?: string;
+  emailAddress?: string;
+  phoneNumber?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  website?: string;
+  taxId?: string;
+};
+
+export async function updateOrganization(data: FirmInformationUpdate) {
+  return (await API.post("/organization/update", { data })).data;
+}
