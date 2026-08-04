@@ -1,4 +1,8 @@
-import { submitDocumentByToken } from "@/api/document-requests";
+import {
+  getDocumentRequestByToken,
+  submitDocumentByToken,
+  type PublicDocumentRequest,
+} from "@/api/document-requests";
 import type { APIError } from "@/hooks/types";
 import {
   Box,
@@ -7,13 +11,30 @@ import {
   Flex,
   Heading,
   Input,
+  Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { useMutation } from "@tanstack/react-query";
-import { CheckCircle2, FileUp, Upload } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { CheckCircle2, FileUp, Upload, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+/** Why a link is no longer usable, in the client's terms. */
+const deadLinkMessage: Record<string, string> = {
+  SUBMITTED: "This document has already been received. Nothing more is needed.",
+  EXPIRED:
+    "This upload link has expired. Contact your legal team and they can send you a new one.",
+  CANCELLED:
+    "This request was withdrawn. Contact your legal team if you think that is a mistake.",
+};
 
 /**
  * Where a client lands from a "we need a document" email.
@@ -27,12 +48,20 @@ export function DocumentUploadPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
+  const request = useQuery({
+    queryKey: ["document-request", token],
+    queryFn: () => getDocumentRequestByToken(token),
+    enabled: Boolean(token),
+    retry: false,
+  });
+
   const submit = useMutation({
     mutationFn: () =>
       submitDocumentByToken(token, {
         file: file as File,
         uploadedByName: name,
         uploadedByEmail: email,
+        title: request.data?.requestedLabel ?? undefined,
       }),
   });
 
@@ -60,6 +89,42 @@ export function DocumentUploadPage() {
     );
   }
 
+  if (request.isLoading) {
+    return (
+      <Container maxW="560px" py="80px">
+        <Flex justify="center">
+          <Spinner color="brand.solid" />
+        </Flex>
+      </Container>
+    );
+  }
+
+  // A spent or unknown link is a dead end — say so before asking for a file
+  // rather than after the client has picked one.
+  const notFound = request.isError;
+  const dead = notFound
+    ? "This upload link is not valid. Contact your legal team and they can send you a new one."
+    : (deadLinkMessage[request.data?.status ?? ""] ?? null);
+
+  if (dead) {
+    return (
+      <Container maxW="560px" py="80px">
+        <Stack align="center" gap="14px" textAlign="center">
+          <Box color="fg.muted">
+            <XCircle size={40} />
+          </Box>
+          <Heading size="lg" color="fg">
+            This link is no longer active
+          </Heading>
+          <Text color="fg.muted" fontSize="15px">
+            {dead}
+          </Text>
+        </Stack>
+      </Container>
+    );
+  }
+
+  const details = request.data as PublicDocumentRequest;
   const canSubmit = Boolean(file && name.trim() && email.trim());
 
   return (
@@ -73,10 +138,13 @@ export function DocumentUploadPage() {
             </Heading>
           </Flex>
           <Text color="fg.muted" fontSize="14px" lineHeight="1.6">
-            Your legal team has asked for a document. Upload it below — this link
-            is unique to you, so there is no need to sign in.
+            {details.firmName ?? "Your legal team"} has asked for a document.
+            Upload it below — this link is unique to you, so there is no need to
+            sign in.
           </Text>
         </Stack>
+
+        <MatterCard details={details} />
 
         <Stack
           gap="16px"
@@ -156,5 +224,70 @@ export function DocumentUploadPage() {
         </Stack>
       </Stack>
     </Container>
+  );
+}
+
+/**
+ * Which matter this request belongs to, and what it is asking for.
+ *
+ * A client with more than one matter open at the firm has no way to tell two
+ * upload links apart otherwise — and sending a document to the wrong file is
+ * worse than not sending it.
+ */
+function MatterCard({ details }: { details: PublicDocumentRequest }) {
+  const { matter } = details;
+
+  const rows: { label: string; value: string }[] = [
+    { label: "Document requested", value: details.requestedLabel ?? "—" },
+    ...(matter.clientName
+      ? [{ label: "Client", value: matter.clientName }]
+      : []),
+    ...(matter.reference ? [{ label: "Matter", value: matter.reference }] : []),
+    ...(matter.caseType
+      ? [{ label: "Case type", value: matter.caseType }]
+      : []),
+    ...(matter.practiceArea
+      ? [{ label: "Practice area", value: matter.practiceArea }]
+      : []),
+    { label: "Link expires", value: formatDate(details.expiresAt) },
+  ];
+
+  return (
+    <Stack
+      gap="12px"
+      p="20px"
+      border="1px solid"
+      borderColor="border"
+      borderRadius="12px"
+      bg="bg.subtle"
+    >
+      {rows.map((row) => (
+        <Flex key={row.label} gap="12px" justify="space-between" wrap="wrap">
+          <Text fontSize="13px" color="fg.muted">
+            {row.label}
+          </Text>
+          <Text
+            fontSize="13px"
+            fontWeight="600"
+            color="fg"
+            textAlign="right"
+            maxW="60%"
+          >
+            {row.value}
+          </Text>
+        </Flex>
+      ))}
+
+      {details.message && (
+        <Box borderTop="1px solid" borderColor="border" pt="12px">
+          <Text fontSize="13px" color="fg.muted" mb="4px">
+            Why it is needed
+          </Text>
+          <Text fontSize="13px" color="fg" lineHeight="1.6">
+            {details.message}
+          </Text>
+        </Box>
+      )}
+    </Stack>
   );
 }
