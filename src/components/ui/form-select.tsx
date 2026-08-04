@@ -60,7 +60,7 @@ export const FormSelect = memo(function FormSelect({
     >
       <Select.HiddenSelect />
       <Select.Control>
-        <Select.Trigger bg="bg" borderColor="border" rounded="7px">
+        <Select.Trigger bg="bg.input" borderColor="border" rounded="7px">
           <Select.ValueText placeholder={placeholder} />
         </Select.Trigger>
         <Select.IndicatorGroup>
@@ -73,7 +73,7 @@ export const FormSelect = memo(function FormSelect({
             {collection.items.map((item) => (
               <Select.Item item={item} key={item.value}>
                 <Select.ItemText>{item.label}</Select.ItemText>
-                <Select.ItemIndicator />
+                <Select.ItemIndicator color="brand.solid" />
               </Select.Item>
             ))}
           </Select.Content>

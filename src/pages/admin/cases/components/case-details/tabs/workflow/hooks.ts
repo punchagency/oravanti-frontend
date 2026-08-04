@@ -1,5 +1,5 @@
 ﻿import { useQuery } from "@tanstack/react-query";
-import { getStaff } from "@/api/staff";
+import { getStaffs } from "@/api/staff";
 import type { StaffCertification } from "./types";
 
 export {
@@ -16,7 +16,7 @@ export function useEligibleStaff(_requiredCertification: string | null) {
   return useQuery({
     queryKey: ["workflow", "eligible-staff", _requiredCertification],
     queryFn: async () => {
-      const staff = await getStaff();
+      const staff = await getStaffs();
       return staff.map((s): StaffCertification => ({
         id: s.id,
         name: `${s.firstName} ${s.lastName}`,

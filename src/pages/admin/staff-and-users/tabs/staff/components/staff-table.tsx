@@ -1,4 +1,4 @@
-import { useRemoveStaff } from "@/hooks/use-remove-staff";
+import { useRemoveStaffMember } from "@/hooks/use-remove-staff-member";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useAuthStore } from "@/store/auth-store";
 import { useConfirmStore } from "@/store/confirm-store";
@@ -31,7 +31,7 @@ import { StaffDetailsDrawer } from "./staff-details/drawer";
 function TableActionMenu({ staff }: { staff: StaffMember }) {
   const [open, setOpen] = useState(false);
   const { showConfirm } = useConfirmDialog();
-  const removeStaff = useRemoveStaff();
+  const removeStaff = useRemoveStaffMember();
 
   const handleRemove = () => {
     showConfirm({
@@ -208,6 +208,7 @@ export function StaffTable() {
                               color="fg"
                               fontSize="xs"
                             />
+                            <Avatar.Image src={staff.avatarUrl ?? undefined} />
                           </Avatar.Root>
                           <Box>
                             <HStack gap={1}>

@@ -1,16 +1,16 @@
-import { removeStaff } from "@/api/organization";
+import { removeStaffMember } from "@/api/organization";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
-export function useRemoveStaff() {
+export function useRemoveStaffMember() {
   const { showSuccess, showError } = useFeedbackDialog();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (staffId: string) => removeStaff(staffId),
+    mutationFn: (staffId: string) => removeStaffMember(staffId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      queryClient.invalidateQueries({ queryKey: ["staffs"] });
       queryClient.invalidateQueries({ queryKey: ["teams"] });
       showSuccess({ title: "Staff member removed" });
     },

@@ -40,7 +40,7 @@ import {
   useResponseDetail,
   useUploadResponseFile,
 } from "@/hooks/use-questionnaires";
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import { dayjs, formatTime } from "@/utils/date";
 import {
   Box,
@@ -739,7 +739,7 @@ export function ConsultationCard({
   const responseId = questionnaire?.response?.id ?? null;
   const { data: responseDetail } = useResponseDetail(responseId);
   const canDownload = useCanDownloadDocuments();
-  const { data: staffData } = useStaffList({
+  const { data: staffData } = useStaffsList({
     role: "attorney",
     status: "active",
     limit: 1000,
@@ -2305,7 +2305,7 @@ export function ScheduleConsultationDialog({
     ];
   }, [questionnaireData, consultationData]);
 
-  const { data: staffData } = useStaffList({ status: "active", limit: 1000 });
+  const { data: staffData } = useStaffsList({ status: "active", limit: 1000 });
   const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
   const attorneys = useMemo(
     () => allStaff.filter((s) => s.role === "attorney"),

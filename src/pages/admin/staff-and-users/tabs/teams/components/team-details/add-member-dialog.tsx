@@ -1,7 +1,7 @@
 import type { TeamListDTO } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useTeamDetails } from "@/hooks/use-team-details";
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import { useAddTeamMembers } from "@/hooks/use-add-team-members";
 import {
   Avatar,
@@ -30,7 +30,7 @@ export function AddMemberDialog({ team, open, onOpenChange }: AddMemberDialogPro
   const addMembers = useAddTeamMembers();
   const { data: fullTeam, isLoading } = useTeamDetails(open ? team.id : null);
 
-  const { data: allStaffData } = useStaffList({ limit: 200 });
+  const { data: allStaffData } = useStaffsList({ limit: 200 });
   const allStaff = useMemo(() => allStaffData?.data ?? [], [allStaffData]);
 
   const existingMemberIds = useMemo(

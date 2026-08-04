@@ -8,7 +8,7 @@ import {
   useUpdateLeadTaskStatus,
 } from "@/hooks/use-lead-workflows";
 import { useLeadById, useRunConflictCheck } from "@/hooks/use-leads";
-import { useStaff } from "@/hooks/use-staff";
+import { useStaffs } from "@/hooks/use-staff";
 import {
   Badge,
   Box,
@@ -217,7 +217,7 @@ export function IntakePipelineTab({
   const completeTask = useCompleteLeadTask(leadId);
   const assignTask = useAssignLeadTask(leadId);
   const runConflictCheck = useRunConflictCheck();
-  const { data: staffList } = useStaff();
+  const { data: staffList } = useStaffs();
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<string | null>(null);

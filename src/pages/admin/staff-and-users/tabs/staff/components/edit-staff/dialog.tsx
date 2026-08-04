@@ -1,9 +1,9 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
-import type { UpdateStaffPayload } from "@/api/organization";
+import type { UpdateStaffMemberPayload } from "@/api/organization";
 import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
 import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
 import { useTeamsList } from "@/hooks/use-teams-list";
-import { useUpdateStaff } from "@/hooks/use-update-staff";
+import { useUpdateStaffMember } from "@/hooks/use-update-staff-member";
 import {
   Box,
   chakra,
@@ -131,10 +131,10 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
     mode: "onBlur",
   });
 
-  const updateMutation = useUpdateStaff();
+  const updateMutation = useUpdateStaffMember();
 
   const onSubmit = (formData: FormValues) => {
-    const payload: UpdateStaffPayload = {
+    const payload: UpdateStaffMemberPayload = {
       firstName: formData.firstName.trim() || undefined,
       lastName: formData.lastName.trim() || undefined,
       phone: formData.phone.trim() || undefined,

@@ -1,6 +1,6 @@
 import { useDebounce } from "@uidotdev/usehooks";
 import {
-  useStaffList,
+  useStaffsList,
   type PaginationMeta,
   type StatusCounts,
 } from "@/hooks/use-staff-list";
@@ -86,7 +86,7 @@ export function StaffDataProvider({ children }: { children: ReactNode }) {
     [debouncedSearch, roleFilter, teamFilter, statusFilter, currentPage, pageLimit],
   );
 
-  const { data: response, isLoading: apiLoading } = useStaffList(params);
+  const { data: response, isLoading: apiLoading } = useStaffsList(params);
 
   const data = response?.data;
   const counts = response?.counts ?? {

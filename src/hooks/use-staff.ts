@@ -1,10 +1,10 @@
-import { getStaff } from "@/api/staff";
+import { getStaffs } from "@/api/staff";
 import { useQuery } from "@tanstack/react-query";
 
-export function useStaff() {
+export function useStaffs() {
   return useQuery({
-    queryKey: ["staff"],
-    queryFn: getStaff,
+    queryKey: ["staffs"],
+    queryFn: getStaffs,
     staleTime: Infinity,
   });
 }

@@ -23,7 +23,7 @@ import { StaffDetailsDrawer } from "./staff-details/drawer";
 import { useAuthStore } from "@/store/auth-store";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useConfirmStore } from "@/store/confirm-store";
-import { useRemoveStaff } from "@/hooks/use-remove-staff";
+import { useRemoveStaffMember } from "@/hooks/use-remove-staff-member";
 import { Ellipsis, Eye, UserX } from "lucide-react";
 import { useState } from "react";
 
@@ -35,7 +35,7 @@ export function StaffMobileCard({ staff }: StaffMobileCardProps) {
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [open, setOpen] = useState(false);
   const { showConfirm } = useConfirmDialog();
-  const removeStaff = useRemoveStaff();
+  const removeStaff = useRemoveStaffMember();
 
   const handleRemove = () => {
     showConfirm({
@@ -74,6 +74,7 @@ export function StaffMobileCard({ staff }: StaffMobileCardProps) {
               bg="bg.muted"
               color="fg"
             />
+            <Avatar.Image src={staff.avatarUrl ?? undefined} />
           </Avatar.Root>
           <Box minW={0}>
             <HStack gap={1}>

@@ -4,7 +4,7 @@ import type { PracticeAreaTreeNode } from "@/api/auth";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useTeamDetails } from "@/hooks/use-team-details";
 import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import { useUpdateTeam } from "@/hooks/use-update-team";
 import {
   Avatar,
@@ -49,7 +49,7 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
   const treeDataQuery = usePracticeAreaTreeData();
   const treeData = treeDataQuery.data;
   const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
-  const { data: allStaffData } = useStaffList({ limit: 200 });
+  const { data: allStaffData } = useStaffsList({ limit: 200 });
 
   const collectLeafIds = (nodes: PracticeAreaTreeNode[]): string[] => {
     const ids: string[] = [];

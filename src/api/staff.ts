@@ -19,7 +19,7 @@ export type Staff = {
   status: StaffStatus;
 };
 
-export async function getStaff(): Promise<Staff[]> {
-  const { data } = await API.get<{ data: Staff[] }>("/organization/staff");
+export async function getStaffs(): Promise<Staff[]> {
+  const { data } = await API.get<{ data: Staff[] }>("/organization/staffs");
   return data.data;
 }

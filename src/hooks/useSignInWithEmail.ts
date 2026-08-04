@@ -27,7 +27,7 @@ export const useSignInWithEmail = () => {
         description: "You have been signed in successfully.",
       });
       if (data?.data?.twoFactorRedirect) {
-        navigate("/auth/2fa");
+        navigate("/two-factor");
       } else {
         const sessionData: {
           user: SessionUser;

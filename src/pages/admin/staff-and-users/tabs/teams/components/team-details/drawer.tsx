@@ -1,4 +1,4 @@
-import { useStaffList } from "@/hooks/use-staff-list";
+import { useStaffsList } from "@/hooks/use-staff-list";
 import { useTeamDetails } from "@/hooks/use-team-details";
 import {
   CloseButton,
@@ -37,7 +37,7 @@ export function TeamDetailsDrawer({
     controlledOnOpenChange ??
     (({ open }: { open: boolean }) => setInternalOpen(open));
   const { data: fullTeam, isLoading } = useTeamDetails(open ? id : null);
-  const { data: staffResponse } = useStaffList({ limit: 200 });
+  const { data: staffResponse } = useStaffsList({ limit: 200 });
 
   return (
     <Drawer.Root

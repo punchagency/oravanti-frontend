@@ -1,4 +1,4 @@
-import { useStaffDetails } from "@/hooks/use-staff-details";
+import { useStaffMember } from "@/hooks/use-staff-member";
 import { useAuthStore } from "@/store/auth-store";
 import {
   Avatar,
@@ -38,7 +38,7 @@ export function StaffDetailsDrawer({
   const onOpenChange =
     controlledOnOpenChange ??
     (({ open }: { open: boolean }) => setInternalOpen(open));
-  const { data: staff, isLoading } = useStaffDetails(open ? staffId : null);
+  const { data: staff, isLoading } = useStaffMember(open ? staffId : null);
   const currentUserId = useAuthStore((s) => s.user?.id);
 
   return (
@@ -77,6 +77,7 @@ export function StaffDetailsDrawer({
                           fontSize="13px"
                           fontWeight="500"
                         />
+                        <Avatar.Image src={staff.avatarUrl ?? undefined} />
                       </Avatar.Root>
                       <Box>
                         <HStack gap={1}>

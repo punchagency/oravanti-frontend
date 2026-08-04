@@ -1,4 +1,7 @@
-import { getCurrentStaff, type StaffDetailsDTO } from "@/api/organization";
+import {
+  getCurrentStaffProfile,
+  type StaffDetailsDTO,
+} from "@/api/organization";
 import { useAuthStore } from "@/store/auth-store";
 import { useQuery } from "@tanstack/react-query";
 
@@ -7,7 +10,7 @@ export function useCurrentStaff() {
 
   return useQuery({
     queryKey: ["currentStaff", userId],
-    queryFn: () => getCurrentStaff(),
+    queryFn: () => getCurrentStaffProfile(),
     enabled: !!userId,
     staleTime: Infinity,
   });
