@@ -50,18 +50,16 @@ export function useUploadCaseDocument(caseId: string) {
   });
 }
 
+/**
+ * Neither send toasts on success: both hand back a one-time upload link, and
+ * the dialog that shows it already reports whether the email got through. A
+ * toast on top would say the same thing twice.
+ */
 export function useCreateDocumentRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createDocumentRequest,
-    onSuccess: (request) => {
-      toast[request.emailSent ? "success" : "warning"](
-        request.emailSent
-          ? `Request sent to ${request.recipientEmail}`
-          : "Request created, but the email didn't send — copy the link instead",
-      );
-      qc.invalidateQueries({ queryKey: documentKeys.all });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: documentKeys.all }),
     onError: (err: APIError) =>
       toast.error(err.response?.data?.message ?? "Couldn't send that request"),
   });
@@ -75,14 +73,7 @@ export function useReissueDocumentRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (requestId: string) => reissueDocumentRequest(requestId),
-    onSuccess: (request) => {
-      toast[request.emailSent ? "success" : "warning"](
-        request.emailSent
-          ? `Reminder sent to ${request.recipientEmail}`
-          : "New link issued, but the reminder email didn't send — copy it instead",
-      );
-      qc.invalidateQueries({ queryKey: documentKeys.all });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: documentKeys.all }),
     onError: (err: APIError) =>
       toast.error(
         err.response?.data?.message ?? "Couldn't resend that request",

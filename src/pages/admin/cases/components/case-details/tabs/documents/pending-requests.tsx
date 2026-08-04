@@ -6,9 +6,8 @@ import {
 } from "@/hooks/use-documents";
 import { useConfirmStore } from "@/store/confirm-store";
 import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
-import { Copy, MailCheck, Send } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { MailCheck, Send } from "lucide-react";
+import type { IssuedLink } from "./issued-link-dialog";
 
 const statusStyle: Record<
   DocumentRequestStatus,
@@ -45,17 +44,18 @@ const formatDate = (iso: string) =>
  * Requests this matter is still waiting on. Settled ones drop off — a closed
  * request is history, and the document itself shows in the table below.
  */
-export function PendingRequests({ caseId }: { caseId: string }) {
+export function PendingRequests({
+  caseId,
+  onIssued,
+}: {
+  caseId: string;
+  /** Hands the fresh upload link to whoever shows it. */
+  onIssued: (link: IssuedLink) => void;
+}) {
   const { data } = useDocumentRequests({ caseId });
   const cancelRequest = useCancelDocumentRequest();
   const reissue = useReissueDocumentRequest();
   const showConfirm = useConfirmStore((s) => s.showConfirm);
-  /**
-   * Links minted by a resend in this session, keyed by request. The token is
-   * only stored hashed, so this is the one moment the link can be read — it is
-   * deliberately not persisted and goes on reload.
-   */
-  const [issuedLinks, setIssuedLinks] = useState<Record<string, string>>({});
 
   const open = (data ?? []).filter((request) =>
     OPEN_STATUSES.includes(request.status),
@@ -72,10 +72,12 @@ export function PendingRequests({ caseId }: { caseId: string }) {
       onConfirm: () =>
         reissue.mutate(request.id, {
           onSuccess: (fresh) =>
-            setIssuedLinks((prev) => ({
-              ...prev,
-              [request.id]: fresh.uploadLink,
-            })),
+            onIssued({
+              url: fresh.uploadLink,
+              recipientEmail: fresh.recipientEmail,
+              emailSent: fresh.emailSent,
+              resent: true,
+            }),
         }),
     });
 
@@ -107,7 +109,6 @@ export function PendingRequests({ caseId }: { caseId: string }) {
           <RequestRow
             key={request.id}
             request={request}
-            issuedLink={issuedLinks[request.id] ?? null}
             onResend={() => confirmResend(request)}
             onCancel={() => cancelRequest.mutate(request.id)}
             busy={cancelRequest.isPending || reissue.isPending}
@@ -120,25 +121,16 @@ export function PendingRequests({ caseId }: { caseId: string }) {
 
 function RequestRow({
   request,
-  issuedLink,
   onResend,
   onCancel,
   busy,
 }: {
   request: DocumentRequest;
-  issuedLink: string | null;
   onResend: () => void;
   onCancel: () => void;
   busy: boolean;
 }) {
   const style = statusStyle[request.status];
-
-  const copy = () =>
-    issuedLink &&
-    navigator.clipboard.writeText(issuedLink).then(
-      () => toast.success("Upload link copied"),
-      () => toast.error("Couldn't reach the clipboard"),
-    );
 
   return (
     <Box
@@ -195,35 +187,6 @@ function RequestRow({
           </Button>
         </HStack>
       </Flex>
-
-      {/* Shown only just after a resend — the link cannot be read back later. */}
-      {issuedLink && (
-        <HStack
-          mt={2}
-          gap={2}
-          border="1px solid"
-          borderColor="border.muted"
-          borderRadius="md"
-          bg="bg.subtle"
-          px={3}
-          py={2}
-        >
-          <Text fontSize="11px" color="fg.muted" truncate flex={1}>
-            {issuedLink}
-          </Text>
-          <Button
-            size="xs"
-            variant="outline"
-            borderColor="border"
-            fontSize="12px"
-            fontWeight="400"
-            onClick={copy}
-          >
-            <Copy size={12} />
-            Copy
-          </Button>
-        </HStack>
-      )}
     </Box>
   );
 }

@@ -5,6 +5,7 @@ import { Plus, Upload } from "lucide-react";
 import { useState } from "react";
 import { AlertSection } from "./alert-card";
 import { DocumentTable } from "./document-table";
+import { IssuedLinkDialog, type IssuedLink } from "./issued-link-dialog";
 import { PendingRequests } from "./pending-requests";
 import { RequestDocumentDialog } from "./request-document-dialog";
 import { UploadDocumentDialog } from "./upload-document-dialog";
@@ -12,6 +13,12 @@ import { UploadDocumentDialog } from "./upload-document-dialog";
 export function Documents({ caseId }: { caseId: string }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+  /**
+   * The link a send or resend just minted. Held here rather than in either
+   * caller so one dialog shows it both times — and only in memory, since the
+   * token is stored hashed and cannot be read back once this is cleared.
+   */
+  const [issuedLink, setIssuedLink] = useState<IssuedLink | null>(null);
 
   // Already cached by the case shell; read here only to prefill the recipient.
   const { data: caseRow } = useQuery({
@@ -73,7 +80,7 @@ export function Documents({ caseId }: { caseId: string }) {
 
       <AlertSection caseId={caseId} />
 
-      <PendingRequests caseId={caseId} />
+      <PendingRequests caseId={caseId} onIssued={setIssuedLink} />
 
       <DocumentTable caseId={caseId} />
 
@@ -87,7 +94,9 @@ export function Documents({ caseId }: { caseId: string }) {
         client={caseRow?.client ?? null}
         open={requestOpen}
         onOpenChange={({ open }) => setRequestOpen(open)}
+        onIssued={setIssuedLink}
       />
+      <IssuedLinkDialog link={issuedLink} onClose={() => setIssuedLink(null)} />
     </>
   );
 }
