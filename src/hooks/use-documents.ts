@@ -2,6 +2,7 @@ import {
   cancelDocumentRequest,
   createDocumentRequest,
   getDocumentRequests,
+  reissueDocumentRequest,
   uploadCaseDocument,
   type DocumentRequestStatus,
 } from "@/api/documents";
@@ -63,6 +64,37 @@ export function useCreateDocumentRequest() {
     },
     onError: (err: APIError) =>
       toast.error(err.response?.data?.message ?? "Couldn't send that request"),
+  });
+}
+
+/**
+ * Re-issue an open request's link, with or without a reminder email. Rotation
+ * changes the expiry too, so the list has to be refetched either way.
+ */
+export function useReissueDocumentRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      notify,
+    }: {
+      requestId: string;
+      notify: boolean;
+    }) => reissueDocumentRequest(requestId, notify),
+    onSuccess: (request, { notify }) => {
+      // A silent re-issue is announced by whoever asked for it — only the caller
+      // knows whether the link actually reached the clipboard.
+      if (notify) {
+        toast[request.emailSent ? "success" : "warning"](
+          request.emailSent
+            ? `Reminder sent to ${request.recipientEmail}`
+            : "Link re-issued, but the reminder email didn't send",
+        );
+      }
+      qc.invalidateQueries({ queryKey: documentKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't re-issue that link"),
   });
 }
 

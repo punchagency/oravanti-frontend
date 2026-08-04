@@ -89,6 +89,23 @@ export const getDocumentRequests = async (
   return res.data.data;
 };
 
+/**
+ * Issue a fresh upload link for an open request.
+ *
+ * The token is only ever stored hashed, so handing the link over a second time
+ * means minting a new one — whatever the recipient already had stops working.
+ * `notify: false` mints the link without sending a reminder.
+ */
+export const reissueDocumentRequest = async (
+  requestId: string,
+  notify: boolean,
+): Promise<CreatedDocumentRequest> => {
+  const res = await API.post(`/documents/requests/${requestId}/reissue`, {
+    notify,
+  });
+  return res.data.data;
+};
+
 export const cancelDocumentRequest = async (
   requestId: string,
 ): Promise<DocumentRequest> => {

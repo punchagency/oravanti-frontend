@@ -2,9 +2,11 @@ import type { DocumentRequest, DocumentRequestStatus } from "@/api/documents";
 import {
   useCancelDocumentRequest,
   useDocumentRequests,
+  useReissueDocumentRequest,
 } from "@/hooks/use-documents";
 import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
-import { MailCheck } from "lucide-react";
+import { Link2, MailCheck, Send } from "lucide-react";
+import { toast } from "sonner";
 
 const statusStyle: Record<
   DocumentRequestStatus,
@@ -44,12 +46,29 @@ const formatDate = (iso: string) =>
 export function PendingRequests({ caseId }: { caseId: string }) {
   const { data } = useDocumentRequests({ caseId });
   const cancelRequest = useCancelDocumentRequest();
+  const reissue = useReissueDocumentRequest();
 
   const open = (data ?? []).filter((request) =>
     OPEN_STATUSES.includes(request.status),
   );
 
   if (open.length === 0) return null;
+
+  const copyLink = (requestId: string) =>
+    reissue.mutate(
+      { requestId, notify: false },
+      {
+        onSuccess: (request) =>
+          navigator.clipboard.writeText(request.uploadLink).then(
+            () =>
+              toast.success("New link copied — the old one no longer works"),
+            () =>
+              toast.error(
+                "Couldn't reach the clipboard, but a new link was issued",
+              ),
+          ),
+      },
+    );
 
   return (
     <Box
@@ -79,8 +98,12 @@ export function PendingRequests({ caseId }: { caseId: string }) {
           <RequestRow
             key={request.id}
             request={request}
+            onResend={() =>
+              reissue.mutate({ requestId: request.id, notify: true })
+            }
+            onCopyLink={() => copyLink(request.id)}
             onCancel={() => cancelRequest.mutate(request.id)}
-            busy={cancelRequest.isPending}
+            busy={cancelRequest.isPending || reissue.isPending}
           />
         ))}
       </Flex>
@@ -90,10 +113,14 @@ export function PendingRequests({ caseId }: { caseId: string }) {
 
 function RequestRow({
   request,
+  onResend,
+  onCopyLink,
   onCancel,
   busy,
 }: {
   request: DocumentRequest;
+  onResend: () => void;
+  onCopyLink: () => void;
   onCancel: () => void;
   busy: boolean;
 }) {
@@ -132,6 +159,32 @@ function RequestRow({
         >
           {style.label}
         </Badge>
+        <Button
+          size="xs"
+          variant="ghost"
+          color="fg.muted"
+          fontSize="12px"
+          fontWeight="400"
+          onClick={onResend}
+          disabled={busy}
+          title="Email the client a reminder with a fresh link"
+        >
+          <Send size={12} />
+          Resend
+        </Button>
+        <Button
+          size="xs"
+          variant="ghost"
+          color="fg.muted"
+          fontSize="12px"
+          fontWeight="400"
+          onClick={onCopyLink}
+          disabled={busy}
+          title="Copy a fresh upload link — this retires the one already sent"
+        >
+          <Link2 size={12} />
+          New link
+        </Button>
         <Button
           size="xs"
           variant="ghost"
