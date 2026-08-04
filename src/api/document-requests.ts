@@ -1,5 +1,41 @@
 import { httpClient } from "@/services/http-client";
 
+export type DocumentRequestMatter = {
+  type: "case" | "lead";
+  /** Case number; null for a request raised against a lead. */
+  reference: string | null;
+  caseType: string | null;
+  practiceArea: string | null;
+  clientName: string | null;
+};
+
+export type PublicDocumentRequest = {
+  status:
+    | "PENDING"
+    | "SUBMITTED"
+    | "PARTIALLY_SUBMITTED"
+    | "EXPIRED"
+    | "CANCELLED";
+  expiresAt: string;
+  requestedLabel: string | null;
+  message: string | null;
+  recipientName: string | null;
+  firmName: string | null;
+  matter: DocumentRequestMatter;
+};
+
+/**
+ * What the request is for, read with the token alone. Lets the page name the
+ * matter before the client uploads — they may have more than one open with the
+ * firm — and say up front when a link is spent.
+ */
+export const getDocumentRequestByToken = async (
+  token: string,
+): Promise<PublicDocumentRequest> => {
+  const res = await httpClient.get(`/documents/requests/${token}`);
+  return res.data.data;
+};
+
 /**
  * Submit a document against an external request token.
  *

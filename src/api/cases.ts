@@ -3,6 +3,8 @@ import { API } from "./index";
 export interface CaseClient {
   id: string;
   name: string;
+  /** Only returned by the case-detail endpoint, not by the list. */
+  email?: string | null;
 }
 
 export interface PracticeAreaInfo {
