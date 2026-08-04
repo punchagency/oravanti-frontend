@@ -20,7 +20,7 @@ import {
 import { ExportMenu } from "./components/export-menu";
 import { IssueCard } from "./components/issue-card";
 import { RecentlyResolved } from "./components/recently-resolved";
-import { StatTile } from "./components/stat-tile";
+import { StatTile } from "@/components/ui/stat-tile";
 
 const formatScanTime = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {

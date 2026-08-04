@@ -19,6 +19,13 @@ import {
   CaseWorkflowTabRoute,
 } from "@/pages/admin/cases/components/case-details/tab-routes";
 import { CrmLeadsPage } from "@/pages/admin/crm-leads";
+import {
+  AllDocumentsPage,
+  CaseFilingsPage,
+  DocumentCreatorPage,
+  DocumentTemplatesPage,
+  InterviewPackagesPage,
+} from "@/pages/admin/documents";
 import { AdminDashboard } from "@/pages/admin/dashboard";
 import { LeadReviewQueuePage } from "@/pages/admin/lead-review-queue";
 import {
@@ -208,6 +215,18 @@ const router = createBrowserRouter(
           </Route>
           <Route path="cases/my-tasks" element={<MyTasksPage />} />
           <Route path="cases/review-queue" element={<ReviewQueuePage />} />
+
+          <Route path="documents" element={<AllDocumentsPage />} />
+          <Route path="documents/case-filings" element={<CaseFilingsPage />} />
+          <Route
+            path="documents/interview-packages"
+            element={<InterviewPackagesPage />}
+          />
+          <Route path="documents/creator" element={<DocumentCreatorPage />} />
+          <Route
+            path="documents/templates"
+            element={<DocumentTemplatesPage />}
+          />
 
           <Route
             path="calendar"
