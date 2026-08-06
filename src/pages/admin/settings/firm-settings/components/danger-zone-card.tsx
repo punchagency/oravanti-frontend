@@ -1,24 +1,17 @@
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useExportFirmData, useDeleteFirmAccount } from "@/hooks/use-firm-settings";
 import { Box, Button, Flex, Text } from "@chakra-ui/react";
 import { Download, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function DangerZoneCard() {
-  const exportData = useExportFirmData();
-  const deleteAccount = useDeleteFirmAccount();
-  const { showConfirm } = useConfirmDialog();
-
   function handleExport() {
-    exportData.mutate();
+    toast.info("Feature coming soon", {
+      description: "Firm data export is not yet available.",
+    });
   }
 
   function handleDelete() {
-    showConfirm({
-      title: "Delete firm account",
-      description:
-        "This action is irreversible. All firm data, including cases, clients, and staff information will be permanently deleted.",
-      confirmLabel: "Delete account",
-      onConfirm: () => deleteAccount.mutate(),
+    toast.info("Feature coming soon", {
+      description: "Firm account deletion is not yet available.",
     });
   }
 
@@ -57,7 +50,7 @@ export function DangerZoneCard() {
           justifyContent="center"
           gap="2"
           onClick={handleExport}
-          loading={exportData.isPending}
+          loading={false}
           _hover={{ bg: "bg.hover" }}
         >
           <Download size={15} />
@@ -74,7 +67,7 @@ export function DangerZoneCard() {
           justifyContent="center"
           gap="2"
           onClick={handleDelete}
-          loading={deleteAccount.isPending}
+          loading={false}
           _hover={{ bg: "rgba(176, 0, 32, 0.08)" }}
         >
           <Trash2 size={15} />
