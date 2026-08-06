@@ -49,6 +49,11 @@ import { MyTasksPage } from "@/pages/admin/my-tasks";
 import { ReviewQueuePage } from "@/pages/admin/review-queue";
 import { EmailAccountConnectionPage } from "@/pages/admin/settings/email-account-connection";
 import { FirmSettingsPage } from "@/pages/admin/settings/firm-settings";
+import GeneralTab from "@/pages/admin/settings/firm-settings/tabs/general";
+import BillingTab from "@/pages/admin/settings/firm-settings/tabs/billing";
+import NotificationsTab from "@/pages/admin/settings/firm-settings/tabs/notifications";
+import ComplianceTab from "@/pages/admin/settings/firm-settings/tabs/compliance";
+
 import { MyProfilePage } from "@/pages/admin/my-profile";
 import ProfileTab from "@/pages/admin/my-profile/tabs/profile";
 import SecurityTab from "@/pages/admin/my-profile/tabs/security";
@@ -63,6 +68,7 @@ import Staff from "@/pages/admin/staff-and-users/tabs/staff";
 import Teams from "@/pages/admin/staff-and-users/tabs/teams";
 import TimeTracking from "@/pages/admin/staff-and-users/tabs/time-tracking";
 import { NotFoundPage } from "@/pages/not-found";
+
 import {
   Navigate,
   Route,
@@ -91,9 +97,10 @@ import SetPasswordPage from "./pages/set-password";
 import VerifyEmailNoticePage from "./pages/verify-email";
 import TwoFactorVerification from "./pages/two-factor";
 
-const router = createBrowserRouter(
-  createRoutesFromElements(
-    <Route>
+function createAppRouter() {
+  return createBrowserRouter(
+    createRoutesFromElements(
+      <Route>
       <Route element={<GuestGuard />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
@@ -157,7 +164,16 @@ const router = createBrowserRouter(
               path="email-accounts"
               element={<EmailAccountConnectionPage />}
             />
-            <Route path="firm-settings" element={<FirmSettingsPage />} />
+            <Route path="firm-settings" element={<FirmSettingsPage />}>
+              <Route index element={<GeneralTab />} />
+              <Route
+                path="general"
+                element={<Navigate to="/settings/firm-settings" replace />}
+              />
+              <Route path="billing" element={<BillingTab />} />
+              <Route path="notifications" element={<NotificationsTab />} />
+              <Route path="compliance" element={<ComplianceTab />} />
+            </Route>
           </Route>
 
           <Route path="profile" element={<MyProfilePage />}>
@@ -307,8 +323,11 @@ const router = createBrowserRouter(
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>,
-  ),
-);
+    ),
+  );
+}
+
+const router = createAppRouter();
 
 export default function App() {
   return <RouterProvider router={router} />;

@@ -1,12 +1,19 @@
 import { getProfile, updateProfile } from "@/api/profile";
+import { FormSelect } from "@/components/ui/form-select";
+import type { APIError } from "@/hooks/types";
 import { useAuthStore } from "@/store/auth-store";
 import { guessTimezone } from "@/utils/date";
 import { listTimezones } from "@/utils/timezones";
-import { Box, Button, Flex, NativeSelect, Spinner, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Flex,
+  Spinner,
+  Text,
+} from "@chakra-ui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { APIError } from "@/hooks/types";
 
 const TIMEZONES = listTimezones();
 
@@ -15,6 +22,8 @@ export function PersonalTimezone() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile"],
     queryFn: getProfile,
+    staleTime: Infinity,
+    retry: false,
   });
 
   const [timezone, setTimezone] = useState(guessTimezone());
@@ -69,19 +78,14 @@ export function PersonalTimezone() {
           <Spinner size="sm" />
         ) : (
           <Flex gap="3" align="center" wrap="wrap">
-            <NativeSelect.Root maxW="320px">
-              <NativeSelect.Field
+            <Box maxW="320px" flex="1">
+              <FormSelect
+                options={TIMEZONES.map((tz) => ({ label: tz, value: tz }))}
                 value={timezone}
-                onChange={(e) => setTimezone(e.currentTarget.value)}
-              >
-                {TIMEZONES.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz}
-                  </option>
-                ))}
-              </NativeSelect.Field>
-              <NativeSelect.Indicator />
-            </NativeSelect.Root>
+                onChange={setTimezone}
+                size="sm"
+              />
+            </Box>
 
             <Button
               onClick={() => mutation.mutate()}
