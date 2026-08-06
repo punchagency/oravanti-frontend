@@ -199,16 +199,16 @@ export function FinancePage() {
               />
             </Box>
           )}
-          <OutlineButton onClick={handleExport}>
-            <Download size={14} />
-            Export
-          </OutlineButton>
           {currentTab === "invoicing" && (
             <BrandButton onClick={() => setNewInvoiceOpen(true)}>
               <Plus size={14} />
               New invoice
             </BrandButton>
           )}
+          <OutlineButton onClick={handleExport}>
+            <Download size={14} />
+            Export
+          </OutlineButton>
         </Flex>
       </Flex>
 

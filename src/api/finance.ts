@@ -557,6 +557,8 @@ export type FinanceReport = {
     collectionRate: number;
   }[];
   aging: {
+    /** Aging covers ALL outstanding invoices, not just the selected month. */
+    scope: "all_time";
     total: number;
     buckets: { key: string; label: string; amount: number }[];
   };

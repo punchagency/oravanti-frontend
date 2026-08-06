@@ -230,7 +230,13 @@ export function ReceivableAgingCard({ aging }: { aging: FinanceReport["aging"] }
     <SurfaceCard>
       <CardTitle>Accounts receivable aging</CardTitle>
       <Text fontSize="12px" color="fg.muted" mt="2px">
-        Outstanding balances by age — {formatCurrency(aging.total)} total
+        All outstanding balances by age — {formatCurrency(aging.total)} total
+      </Text>
+      {/* Says so explicitly: this panel is all-time while the rest of the
+          report is month-scoped, so its total legitimately exceeds the
+          month's outstanding whenever an older invoice is still unpaid. */}
+      <Text fontSize="11px" color="fg.subtle" mt="2px">
+        Across every month, not just the one selected
       </Text>
 
       <Flex direction="column" gap="14px" mt="16px">
