@@ -27,6 +27,7 @@ import { AgingSummaryCard } from "../../components/aging-summary-card";
 import { InvoiceDetailDialog } from "../../components/dialogs/invoice-detail-dialog";
 import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-up-dialog";
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
+import { SendInvoiceDialog } from "../../components/dialogs/send-invoice-dialog";
 import { InvoicesTable } from "../../components/invoices-table";
 import { RecentActivityCard } from "../../components/recent-activity-card";
 import { ACCOUNT_OPTIONS, INVOICE_STATUS_OPTIONS } from "../../data";
@@ -49,6 +50,7 @@ export default function InvoicingTab() {
   const [followUpTarget, setFollowUpTarget] = useState<InvoiceListRow | null>(
     null,
   );
+  const [sendTarget, setSendTarget] = useState<InvoiceListRow | null>(null);
 
   const params = useMemo(
     () => ({
@@ -211,6 +213,13 @@ export default function InvoicingTab() {
             </Flex>
           </Flex>
 
+          {status === "draft" && (
+            <Text fontSize="11px" color="fg.muted" mb="10px">
+              Drafts have not been sent to the client and are excluded from the
+              totals above — they are not invoiced revenue until delivered.
+            </Text>
+          )}
+
           <InvoicesTable
             rows={invoices.data?.data ?? []}
             totals={invoices.data?.totals}
@@ -219,6 +228,7 @@ export default function InvoicingTab() {
             onView={(row) => setDetailId(row.id)}
             onRecordPayment={setPaymentTarget}
             onFollowUp={setFollowUpTarget}
+            onSend={setSendTarget}
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
@@ -262,6 +272,11 @@ export default function InvoicingTab() {
         invoice={followUpTarget}
         open={followUpTarget !== null}
         onOpenChange={(d) => !d.open && setFollowUpTarget(null)}
+      />
+      <SendInvoiceDialog
+        invoice={sendTarget}
+        open={sendTarget !== null}
+        onOpenChange={(d) => !d.open && setSendTarget(null)}
       />
     </Box>
   );

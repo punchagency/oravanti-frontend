@@ -216,7 +216,6 @@ export function NewInvoiceDialog({
           issueDate: values.issueDate,
           dueDate: values.dueDate,
           notes: values.notes?.trim() || undefined,
-          status: "sent",
           lineItems: filledLines.map((l) => ({
             description: l.description.trim(),
             quantity: Number(l.quantity) || 1,
@@ -237,7 +236,7 @@ export function NewInvoiceDialog({
       onOpenChange={onOpenChange}
       size="xl"
       title="New invoice"
-      subtitle="Bill manual line items, approved unbilled time, or both"
+      subtitle="Creates a draft — you review it, then send it to the client"
       footer={
         <Flex
           justify="space-between"

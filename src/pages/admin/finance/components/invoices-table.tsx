@@ -23,21 +23,30 @@ const HEADERS = [
  * comparison — the firm's timezone decides what "overdue" means, and the two
  * would disagree either side of midnight.
  *
- *   paid                → View
- *   unpaid, due ahead   → Record payment
+ *   draft               → Send to client
+ *   paid / void         → View
  *   past due            → Follow up + Pay
+ *   otherwise           → Record payment
  */
 function RowActions({
   row,
   onView,
   onRecordPayment,
   onFollowUp,
+  onSend,
 }: {
   row: InvoiceListRow;
   onView: (row: InvoiceListRow) => void;
   onRecordPayment: (row: InvoiceListRow) => void;
   onFollowUp: (row: InvoiceListRow) => void;
+  onSend: (row: InvoiceListRow) => void;
 }) {
+  // A draft has not reached the client, so the only thing to do with it is
+  // send it — recording a payment against one is refused by the server.
+  if (row.status === "draft") {
+    return <BrandButton onClick={() => onSend(row)}>Send to client</BrandButton>;
+  }
+
   if (row.status === "paid" || row.status === "void") {
     return <OutlineButton onClick={() => onView(row)}>View</OutlineButton>;
   }
@@ -64,6 +73,7 @@ export function InvoicesTable({
   onView,
   onRecordPayment,
   onFollowUp,
+  onSend,
 }: {
   rows: InvoiceListRow[];
   totals: InvoiceListTotals | undefined;
@@ -72,6 +82,7 @@ export function InvoicesTable({
   onView: (row: InvoiceListRow) => void;
   onRecordPayment: (row: InvoiceListRow) => void;
   onFollowUp: (row: InvoiceListRow) => void;
+  onSend: (row: InvoiceListRow) => void;
 }) {
   const headers = trustVisible ? HEADERS : HEADERS.filter((h) => h !== "Trust");
 
@@ -188,6 +199,7 @@ export function InvoicesTable({
                 onView={onView}
                 onRecordPayment={onRecordPayment}
                 onFollowUp={onFollowUp}
+                onSend={onSend}
               />
             </Table.Cell>
           </Table.Row>

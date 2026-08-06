@@ -52,6 +52,7 @@ export const TIME_STATUS_LABEL: Record<TimeEntryStatus, string> = {
 
 export const INVOICE_STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
+  { value: "draft", label: "Drafts (not yet sent)" },
   { value: "paid", label: "Paid" },
   { value: "unpaid", label: "Unpaid" },
   { value: "partial", label: "Partial" },

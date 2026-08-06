@@ -14,11 +14,14 @@ import {
   getTimeBillingStats,
   getTimeEntries,
   getTopMatters,
+  getInvoiceDeliveries,
   getUnbilledTime,
   logTime,
   recordPayment,
   rejectTimeEntry,
+  resendInvoice,
   sendFollowUp,
+  sendInvoice,
   setBillingRate,
   voidInvoice,
   type GetInvoicesParams,
@@ -49,6 +52,7 @@ export const financeKeys = {
       ...(params?.limit ? [`l${params.limit}`] : []),
     ] as const,
   invoice: (id: string) => ["finance", "invoice", id] as const,
+  deliveries: (id: string) => ["finance", "deliveries", id] as const,
   stats: () => ["finance", "stats"] as const,
   aging: () => ["finance", "aging"] as const,
   activity: () => ["finance", "activity"] as const,
@@ -126,12 +130,64 @@ export function useUnbilledTime(
   });
 }
 
+export function useInvoiceDeliveries(id: string | null) {
+  return useQuery({
+    queryKey: financeKeys.deliveries(id ?? ""),
+    queryFn: () => getInvoiceDeliveries(id!),
+    enabled: Boolean(id),
+    staleTime: THIRTY_SECONDS,
+  });
+}
+
+/**
+ * A failed send resolves rather than throws — the attempt was recorded and the
+ * caller needs the reason. Only an unusable request (voided invoice, client
+ * with no email) lands in onError.
+ */
+const deliveryToast = (result: { status: string; failureReason: string | null }) => {
+  if (result.status === "sent") {
+    toast.success("Invoice sent to the client");
+  } else {
+    toast.error(
+      result.failureReason
+        ? `Delivery failed: ${result.failureReason}`
+        : "Delivery failed — the attempt was recorded",
+    );
+  }
+};
+
+export function useSendInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: sendInvoice,
+    onSuccess: (result) => {
+      deliveryToast(result);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't send that invoice"),
+  });
+}
+
+export function useResendInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: resendInvoice,
+    onSuccess: (result) => {
+      deliveryToast(result);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't resend that invoice"),
+  });
+}
+
 export function useCreateInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createInvoice,
     onSuccess: (invoice) => {
-      toast.success(`Invoice ${invoice.invoiceNumber} created`);
+      toast.success(`Invoice ${invoice.invoiceNumber} created as a draft`);
       qc.invalidateQueries({ queryKey: financeKeys.all });
     },
     onError: (err: APIError) =>
