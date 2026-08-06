@@ -1,11 +1,12 @@
 import type { ConsultationSettings } from "@/api/consultation-settings";
+import { FormSelect } from "@/components/ui/form-select";
 import {
   useConsultationSettings,
   useUpdateConsultationSettings,
 } from "@/hooks/use-consultation-settings";
 import { useAuthStore } from "@/store/auth-store";
 import { listTimezones } from "@/utils/timezones";
-import { Box, Button, Flex, NativeSelect, Spinner, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Text } from "@chakra-ui/react";
 import { useState } from "react";
 
 const TIMEZONES = listTimezones();
@@ -77,19 +78,14 @@ export function FirmTimezone() {
           <Spinner size="sm" />
         ) : (
           <Flex gap="3" align="center" wrap="wrap">
-            <NativeSelect.Root maxW="320px">
-              <NativeSelect.Field
+            <Box maxW="320px" flex="1">
+              <FormSelect
+                options={TIMEZONES.map((tz) => ({ label: tz, value: tz }))}
                 value={timezone}
-                onChange={(e) => setTimezone(e.currentTarget.value)}
-              >
-                {TIMEZONES.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz}
-                  </option>
-                ))}
-              </NativeSelect.Field>
-              <NativeSelect.Indicator />
-            </NativeSelect.Root>
+                onChange={setTimezone}
+                size="sm"
+              />
+            </Box>
 
             <Button
               onClick={handleSave}
