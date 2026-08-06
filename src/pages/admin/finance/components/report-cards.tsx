@@ -188,25 +188,25 @@ export function PracticeAreaTable({
             <Table.Cell py={REPORT_CELL_PY}>
               <StatusPill tone="info">{row.name}</StatusPill>
             </Table.Cell>
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right">
+            <Table.Cell py={REPORT_CELL_PY}>
               <Text fontSize="13px">{row.invoiceCount}</Text>
             </Table.Cell>
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right">
+            <Table.Cell py={REPORT_CELL_PY}>
               <Text fontSize="13px" fontWeight="600">
                 {formatCurrency(row.invoiced)}
               </Text>
             </Table.Cell>
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right">
+            <Table.Cell py={REPORT_CELL_PY}>
               <Text fontSize="13px" color="#2e9e6b">
                 {formatCurrency(row.collected)}
               </Text>
             </Table.Cell>
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right">
+            <Table.Cell py={REPORT_CELL_PY}>
               <Text fontSize="13px" color="#b5851f">
                 {formatCurrency(row.outstanding)}
               </Text>
             </Table.Cell>
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right">
+            <Table.Cell py={REPORT_CELL_PY}>
               <Text
                 fontSize="13px"
                 fontWeight="600"
