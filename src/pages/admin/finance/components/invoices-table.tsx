@@ -67,7 +67,7 @@ function RowActions({
 
   if (row.status === "overdue") {
     return (
-      <Flex gap="6px" justify="flex-end">
+      <Flex gap="6px">
         <OutlineButton onClick={() => onFollowUp(row)}>Follow up</OutlineButton>
         <BrandButton onClick={() => onRecordPayment(row)}>Pay</BrandButton>
       </Flex>
@@ -228,7 +228,6 @@ export function InvoicesTable({
 
             <Table.Cell
               py={REPORT_CELL_PY}
-              textAlign="right"
               whiteSpace="nowrap"
             >
               <RowActions
