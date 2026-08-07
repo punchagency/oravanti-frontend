@@ -253,7 +253,7 @@ export default function InvoicingTab() {
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
-            <Box p="8px">
+            <Box p="18px">
               <PaginationControls
                 total={invoices.data.pagination.total}
                 currentPage={currentPage}

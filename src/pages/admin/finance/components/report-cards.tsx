@@ -167,13 +167,19 @@ export function PracticeAreaTable({
   rows: FinanceReport["byPracticeArea"];
 }) {
   return (
-    <SurfaceCard>
-      <CardTitle>Revenue by practice area</CardTitle>
-      <Text fontSize="12px" color="fg.muted" mt="2px" mb="14px">
-        Invoiced amounts broken down by practice area
-      </Text>
+    // Same framing as the Invoicing and Time & billing tables: the card is
+    // unpadded so the table reaches its edges, the heading pads itself back in,
+    // and overflow hidden clips the table's square corners to the card radius.
+    <SurfaceCard p="0" overflow="hidden">
+      <Box p="18px" pb="14px">
+        <CardTitle>Revenue by practice area</CardTitle>
+        <Text fontSize="12px" color="fg.muted" mt="2px">
+          Invoiced amounts broken down by practice area
+        </Text>
+      </Box>
 
       <ReportTable
+        flush
         headers={[
           "Practice area",
           "Invoices",

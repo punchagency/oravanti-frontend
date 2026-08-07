@@ -82,7 +82,7 @@ export function TimeEntriesTable({
             </Text>
           </Table.Cell>
 
-          <Table.Cell py={REPORT_CELL_PY} textAlign="right" whiteSpace="nowrap">
+          <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
             <Text fontSize="13px" fontWeight="600" color="#3b82c4">
               {row.hoursWorked.toFixed(1)}h
             </Text>
@@ -91,7 +91,7 @@ export function TimeEntriesTable({
             </Text>
           </Table.Cell>
 
-          <Table.Cell py={REPORT_CELL_PY} textAlign="right" whiteSpace="nowrap">
+          <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
             {/* A missing rate is reported, not rendered as $0.00 — the firm
                 needs to know it is unconfigured rather than worthless. */}
             {row.rateUnset ? (
@@ -113,7 +113,7 @@ export function TimeEntriesTable({
             </StatusPill>
           </Table.Cell>
 
-          <Table.Cell py={REPORT_CELL_PY} textAlign="right" whiteSpace="nowrap">
+          <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
             {row.status === "pending" ? (
               <Flex gap="6px" justify="flex-end">
                 <OutlineButton
@@ -145,12 +145,12 @@ export function TimeEntriesTable({
               {rows.length} entr{rows.length === 1 ? "y" : "ies"}
             </Text>
           </Table.Cell>
-          <Table.Cell py="12px" textAlign="right">
+          <Table.Cell py="12px">
             <Text fontSize="12px" fontWeight="700" color="#3b82c4">
               {totals.hours.toFixed(1)} hrs
             </Text>
           </Table.Cell>
-          <Table.Cell py="12px" textAlign="right">
+          <Table.Cell py="12px">
             <Text fontSize="12px" fontWeight="700" color="#6a5cc7">
               {formatCurrency(totals.amount)}
             </Text>
