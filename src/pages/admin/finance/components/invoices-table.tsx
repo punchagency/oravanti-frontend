@@ -104,7 +104,7 @@ export function InvoicesTable({
 
   if (isLoading) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted" mx="-18px">
+      <Box borderTop="1px solid" borderColor="border.muted">
         <Center py={16}>
           <Spinner />
         </Center>
@@ -114,7 +114,7 @@ export function InvoicesTable({
 
   if (rows.length === 0) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted" mx="-18px">
+      <Box borderTop="1px solid" borderColor="border.muted">
         <VStack py={16} gap={2} textAlign="center">
           <Text color="fg.muted" textStyle="lg" fontWeight="600">
             No invoices found
@@ -131,8 +131,6 @@ export function InvoicesTable({
     <ReportTable
       headers={headers}
       flush
-      mx="-18px"
-      w="auto"
       // borderTop="1px solid"
       borderColor="bg.muted"
       borderBottomRadius="10px"

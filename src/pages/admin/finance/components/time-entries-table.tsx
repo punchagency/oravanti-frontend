@@ -33,7 +33,7 @@ export function TimeEntriesTable({
 }) {
   if (isLoading) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted" mx="-18px">
+      <Box borderTop="1px solid" borderColor="border.muted">
         <Center py={16}>
           <Spinner />
         </Center>
@@ -43,7 +43,7 @@ export function TimeEntriesTable({
 
   if (rows.length === 0) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted" mx="-18px">
+      <Box borderTop="1px solid" borderColor="border.muted">
         <VStack py={16} gap={2} textAlign="center">
           <Text color="fg.muted" textStyle="lg" fontWeight="600">
             No time entries
@@ -60,8 +60,6 @@ export function TimeEntriesTable({
     <ReportTable
       headers={HEADERS}
       flush
-      mx="-18px"
-      w="auto"
       borderTop="1px solid"
       borderColor="border.muted"
     >

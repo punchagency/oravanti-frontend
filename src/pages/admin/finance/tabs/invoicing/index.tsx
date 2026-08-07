@@ -171,13 +171,19 @@ export default function InvoicingTab() {
         mt="20px"
         alignItems="start"
       >
-        <SurfaceCard paddingBottom="0px">
+        {/* p="0" so the table can reach the card's edges as it does in the
+            design. Everything that is NOT the table pads itself back in. */}
+        {/* overflow hidden so the table's square bottom corners are clipped to
+            the card's radius — with no padding it now reaches the edge. Doing
+            it here means no child has to know about the card's corners. */}
+        <SurfaceCard p="0" overflow="hidden">
           <Flex
             justify="space-between"
             align="center"
             gap="12px"
             flexWrap="wrap"
-            mb="14px"
+            p="18px"
+            pb="14px"
           >
             <Text textStyle="label" fontWeight="700">
               All invoices
@@ -229,7 +235,7 @@ export default function InvoicingTab() {
           </Flex>
 
           {status === "draft" && (
-            <Text fontSize="11px" color="fg.muted" mb="10px">
+            <Text fontSize="11px" color="fg.muted" px="18px" mb="10px">
               Drafts have not been sent to the client and are excluded from the
               totals above — they are not invoiced revenue until delivered.
             </Text>
@@ -247,7 +253,7 @@ export default function InvoicingTab() {
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
-            <Box mt="14px">
+            <Box p="18px">
               <PaginationControls
                 total={invoices.data.pagination.total}
                 currentPage={currentPage}
