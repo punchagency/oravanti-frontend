@@ -104,7 +104,7 @@ export function InvoicesTable({
 
   if (isLoading) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted">
+      <Box>
         <Center py={16}>
           <Spinner />
         </Center>
@@ -114,7 +114,7 @@ export function InvoicesTable({
 
   if (rows.length === 0) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted">
+      <Box>
         <VStack py={16} gap={2} textAlign="center">
           <Text color="fg.muted" textStyle="lg" fontWeight="600">
             No invoices found
@@ -127,15 +127,11 @@ export function InvoicesTable({
     );
   }
 
+  // flush: the card draws the frame and clips the corners, so the table needs
+  // no border of its own. The header band's own background separates it from
+  // the controls above.
   return (
-    <ReportTable
-      headers={headers}
-      flush
-      // borderTop="1px solid"
-      borderColor="bg.muted"
-      borderBottomRadius="10px"
-      borderBottom="0"
-    >
+    <ReportTable headers={headers} flush>
       {rows.map((row) => {
         const partialDue = row.status === "partial" && row.balanceDue > 0;
         return (

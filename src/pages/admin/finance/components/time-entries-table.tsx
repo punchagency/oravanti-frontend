@@ -33,7 +33,7 @@ export function TimeEntriesTable({
 }) {
   if (isLoading) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted">
+      <Box>
         <Center py={16}>
           <Spinner />
         </Center>
@@ -43,7 +43,7 @@ export function TimeEntriesTable({
 
   if (rows.length === 0) {
     return (
-      <Box borderTop="1px solid" borderColor="border.muted">
+      <Box>
         <VStack py={16} gap={2} textAlign="center">
           <Text color="fg.muted" textStyle="lg" fontWeight="600">
             No time entries
@@ -56,13 +56,9 @@ export function TimeEntriesTable({
     );
   }
 
+  // Matches the invoices table: the card frames and clips it.
   return (
-    <ReportTable
-      headers={HEADERS}
-      flush
-      borderTop="1px solid"
-      borderColor="border.muted"
-    >
+    <ReportTable headers={HEADERS} flush>
       {rows.map((row) => (
         <Table.Row key={row.id}>
           <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
