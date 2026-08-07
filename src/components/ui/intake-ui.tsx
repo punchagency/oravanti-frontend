@@ -1,5 +1,5 @@
 import { Box, Button, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
-import type { ButtonProps } from "@chakra-ui/react";
+import type { BoxProps, ButtonProps } from "@chakra-ui/react";
 import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -36,7 +36,18 @@ const intakeColors = {
 
 type Tone = keyof typeof intakeColors;
 
-export function SurfaceCard({ children }: { children: ReactNode }) {
+/**
+ * The standard panel surface.
+ *
+ * Every Box style prop passes through and wins over the defaults below, because
+ * the spread comes last — so `<SurfaceCard p="0">` or
+ * `<SurfaceCard borderRadius="0">` do what they say. Same convention as
+ * `ReportTable`.
+ */
+export function SurfaceCard({
+  children,
+  ...rest
+}: { children: ReactNode } & BoxProps) {
   return (
     <Box
       bg="bg"
@@ -44,6 +55,7 @@ export function SurfaceCard({ children }: { children: ReactNode }) {
       borderColor="border"
       borderRadius="10px"
       p="18px"
+      {...rest}
     >
       {children}
     </Box>

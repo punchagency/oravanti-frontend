@@ -1,9 +1,21 @@
 import type { InvoiceListRow, InvoiceListTotals } from "@/api/finance";
-import { BrandButton, OutlineButton, StatusPill } from "@/components/ui/intake-ui";
+import {
+  BrandButton,
+  OutlineButton,
+  StatusPill,
+} from "@/components/ui/intake-ui";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
-import { Box, Center, Flex, Spinner, Table, Text, VStack } from "@chakra-ui/react";
+import {
+  Box,
+  Center,
+  Flex,
+  Spinner,
+  Table,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "../data";
 
 const HEADERS = [
@@ -44,7 +56,9 @@ function RowActions({
   // A draft has not reached the client, so the only thing to do with it is
   // send it — recording a payment against one is refused by the server.
   if (row.status === "draft") {
-    return <BrandButton onClick={() => onSend(row)}>Send to client</BrandButton>;
+    return (
+      <BrandButton onClick={() => onSend(row)}>Send to client</BrandButton>
+    );
   }
 
   if (row.status === "paid" || row.status === "void") {
@@ -61,7 +75,9 @@ function RowActions({
   }
 
   return (
-    <BrandButton onClick={() => onRecordPayment(row)}>Record payment</BrandButton>
+    <BrandButton onClick={() => onRecordPayment(row)}>
+      Record payment
+    </BrandButton>
   );
 }
 
@@ -117,8 +133,10 @@ export function InvoicesTable({
       flush
       mx="-18px"
       w="auto"
-      borderTop="1px solid"
-      borderColor="border.muted"
+      // borderTop="1px solid"
+      borderColor="bg.muted"
+      borderBottomRadius="10px"
+      borderBottom="0"
     >
       {rows.map((row) => {
         const partialDue = row.status === "partial" && row.balanceDue > 0;
@@ -134,14 +152,16 @@ export function InvoicesTable({
             </Table.Cell>
 
             <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
-              <Text fontSize="13px" fontWeight="600">
-                {row.clientName}
-              </Text>
-              {row.clientEmail && (
-                <Text fontSize="11px" color="fg.muted">
-                  {row.clientEmail}
+              <Box maxW="150px">
+                <Text fontSize="13px" fontWeight="600" textWrap="auto">
+                  {row.clientName}
                 </Text>
-              )}
+                {row.clientEmail && (
+                  <Text fontSize="11px" color="fg.muted" textWrap="auto">
+                    {row.clientEmail}
+                  </Text>
+                )}
+              </Box>
             </Table.Cell>
 
             <Table.Cell py={REPORT_CELL_PY}>
@@ -212,7 +232,11 @@ export function InvoicesTable({
               </Text>
             </Table.Cell>
 
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right" whiteSpace="nowrap">
+            <Table.Cell
+              py={REPORT_CELL_PY}
+              textAlign="right"
+              whiteSpace="nowrap"
+            >
               <RowActions
                 row={row}
                 onView={onView}

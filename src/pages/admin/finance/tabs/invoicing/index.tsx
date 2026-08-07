@@ -1,6 +1,9 @@
-import type { AccountFilter, InvoiceListRow, InvoiceStatusFilter } from "@/api/finance";
+import type {
+  AccountFilter,
+  InvoiceListRow,
+  InvoiceStatusFilter,
+} from "@/api/finance";
 import { FilterCombobox } from "@/components/ui/filter-combobox";
-import { SurfaceCard } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { StatTile } from "@/components/ui/stat-tile";
 import {
@@ -31,6 +34,7 @@ import { SendInvoiceDialog } from "../../components/dialogs/send-invoice-dialog"
 import { InvoicesTable } from "../../components/invoices-table";
 import { RecentActivityCard } from "../../components/recent-activity-card";
 import { ACCOUNT_OPTIONS, INVOICE_STATUS_OPTIONS } from "../../data";
+import { SurfaceCard } from "@/components/ui/intake-ui";
 
 export default function InvoicingTab() {
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
@@ -46,7 +50,9 @@ export default function InvoicingTab() {
   const debouncedSearch = useDebounce(search, 300);
 
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [paymentTarget, setPaymentTarget] = useState<InvoiceListRow | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<InvoiceListRow | null>(
+    null,
+  );
   const [followUpTarget, setFollowUpTarget] = useState<InvoiceListRow | null>(
     null,
   );
@@ -94,7 +100,10 @@ export default function InvoicingTab() {
         border="1px solid"
         borderColor="#cfe0f5"
         bg="#eef5fd"
-        _dark={{ bg: "rgba(59, 130, 196, 0.12)", borderColor: "rgba(59,130,196,0.35)" }}
+        _dark={{
+          bg: "rgba(59, 130, 196, 0.12)",
+          borderColor: "rgba(59,130,196,0.35)",
+        }}
       >
         <Box color="#3b82c4" mt="1px">
           <Info size={16} />
@@ -104,8 +113,8 @@ export default function InvoicingTab() {
             Consultation fee tracking coming soon
           </Text>
           <Text fontSize="12px" color="fg.muted">
-            Consultation fee tracking will appear here once the Finance module is
-            fully built. Fees are currently tracked in Analytics → Revenue.
+            Consultation fee tracking will appear here once the Finance module
+            is fully built. Fees are currently tracked in Analytics → Revenue.
           </Text>
         </Box>
       </Flex>
@@ -138,7 +147,10 @@ export default function InvoicingTab() {
           caption={`${stats?.outstandingCount ?? 0} invoices pending`}
           icon={<Clock size={15} />}
           tone="warning"
-          progress={percentOf(stats?.outstanding ?? 0, stats?.totalInvoiced ?? 0)}
+          progress={percentOf(
+            stats?.outstanding ?? 0,
+            stats?.totalInvoiced ?? 0,
+          )}
         />
         <StatTile
           label="Overdue invoices"
@@ -146,7 +158,10 @@ export default function InvoicingTab() {
           caption={`${formatCurrency(stats?.pastDueAmount ?? 0)} past due`}
           icon={<AlertTriangle size={15} />}
           tone="critical"
-          progress={percentOf(stats?.pastDueAmount ?? 0, stats?.totalInvoiced ?? 0)}
+          progress={percentOf(
+            stats?.pastDueAmount ?? 0,
+            stats?.totalInvoiced ?? 0,
+          )}
         />
       </Grid>
 
@@ -156,7 +171,7 @@ export default function InvoicingTab() {
         mt="20px"
         alignItems="start"
       >
-        <SurfaceCard>
+        <SurfaceCard paddingBottom="0px">
           <Flex
             justify="space-between"
             align="center"
@@ -237,7 +252,9 @@ export default function InvoicingTab() {
                 total={invoices.data.pagination.total}
                 currentPage={currentPage}
                 limit={limit}
-                onPageChange={(page) => void setPagination({ currentPage: page })}
+                onPageChange={(page) =>
+                  void setPagination({ currentPage: page })
+                }
                 onLimitChange={(l) =>
                   void setPagination({ currentPage: 1, limit: l })
                 }
