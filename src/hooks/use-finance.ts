@@ -48,6 +48,7 @@ export const financeKeys = {
       params?.status ?? "",
       params?.account ?? "",
       params?.search ?? "",
+      params?.includeDrafts ? "drafts" : "",
       ...(params?.page ? [`p${params.page}`] : []),
       ...(params?.limit ? [`l${params.limit}`] : []),
     ] as const,

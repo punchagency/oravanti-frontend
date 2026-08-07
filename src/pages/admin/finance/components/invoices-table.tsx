@@ -248,6 +248,15 @@ export function InvoicesTable({
             <Text fontSize="12px" color="fg.muted">
               {rows.length} invoice{rows.length === 1 ? "" : "s"}
             </Text>
+            {/* Drafts can be on screen but are never in the totals beside this,
+                because they are not invoiced revenue. Saying so is what stops
+                the two figures looking like they disagree. */}
+            {totals.draftCount > 0 && (
+              <Text fontSize="11px" color="fg.subtle">
+                includes {totals.draftCount} draft
+                {totals.draftCount === 1 ? "" : "s"}, not counted in the totals
+              </Text>
+            )}
           </Table.Cell>
           <Table.Cell py="12px" colSpan={trustVisible ? 6 : 5}>
             <Flex gap="16px" justify="flex-end" flexWrap="wrap">

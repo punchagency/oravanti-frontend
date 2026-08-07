@@ -14,7 +14,7 @@ import {
 } from "@/hooks/use-finance";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { formatCurrency, percentOf } from "@/utils/currency";
-import { Box, Flex, Grid, Input, Text } from "@chakra-ui/react";
+import { Box, Checkbox, Flex, Grid, Input, Text } from "@chakra-ui/react";
 import { useDebounce } from "@uidotdev/usehooks";
 import {
   AlertTriangle,
@@ -25,7 +25,7 @@ import {
   Search,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { AgingSummaryCard } from "../../components/aging-summary-card";
 import { InvoiceDetailDialog } from "../../components/dialogs/invoice-detail-dialog";
 import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-up-dialog";
@@ -46,6 +46,11 @@ export default function InvoicingTab() {
     "account",
     parseAsString.withDefault("all"),
   );
+  // Only meaningful on "all" — every other bucket names a non-draft state.
+  const [includeDrafts, setIncludeDrafts] = useQueryState(
+    "drafts",
+    parseAsBoolean.withDefault(false),
+  );
   const { currentPage, limit, setPagination } = usePaginationQueryStates();
   const debouncedSearch = useDebounce(search, 300);
 
@@ -63,10 +68,11 @@ export default function InvoicingTab() {
       search: debouncedSearch || undefined,
       status: status as InvoiceStatusFilter,
       account: account as AccountFilter,
+      includeDrafts,
       page: currentPage,
       limit,
     }),
-    [debouncedSearch, status, account, currentPage, limit],
+    [debouncedSearch, status, account, includeDrafts, currentPage, limit],
   );
 
   const invoices = useInvoices(params);
@@ -227,6 +233,27 @@ export default function InvoicingTab() {
                 placeholder="All accounts"
                 noun="account"
               />
+
+              {status === "all" && (
+                <Checkbox.Root
+                  size="sm"
+                  checked={includeDrafts}
+                  onCheckedChange={(d) => {
+                    void setIncludeDrafts(Boolean(d.checked) || null);
+                    void setPagination({ currentPage: 1 });
+                  }}
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                  <Checkbox.Label
+                    fontSize="12px"
+                    color="fg.muted"
+                    whiteSpace="nowrap"
+                  >
+                    Include drafts
+                  </Checkbox.Label>
+                </Checkbox.Root>
+              )}
 
               <Text fontSize="12px" color="fg.muted" whiteSpace="nowrap">
                 {invoices.data?.pagination.total ?? 0} invoices

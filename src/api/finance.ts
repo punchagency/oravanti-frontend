@@ -86,6 +86,8 @@ export type InvoiceListTotals = {
   operating: number;
   trust: number | null;
   total: number;
+  /** Rows on screen that the totals deliberately exclude. */
+  draftCount: number;
 };
 
 export type GetInvoicesParams = {
@@ -94,6 +96,8 @@ export type GetInvoicesParams = {
   search?: string;
   clientId?: string;
   caseId?: string;
+  /** Show drafts alongside the rest. Only honoured when status is "all". */
+  includeDrafts?: boolean;
   page?: number;
   limit?: number;
 };
@@ -252,6 +256,8 @@ const toQuery = (params: Record<string, unknown>) => {
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
     if (value === "all") continue;
+    // Omit rather than send "false" — a present flag reads as opt-in.
+    if (value === false) continue;
     query[key] = String(value);
   }
   return query;
