@@ -88,7 +88,7 @@ export function InvoicesTable({
 
   if (isLoading) {
     return (
-      <Box border="1px solid" borderColor="border" borderRadius="10px">
+      <Box borderTop="1px solid" borderColor="border.muted" mx="-18px">
         <Center py={16}>
           <Spinner />
         </Center>
@@ -98,7 +98,7 @@ export function InvoicesTable({
 
   if (rows.length === 0) {
     return (
-      <Box border="1px solid" borderColor="border" borderRadius="10px">
+      <Box borderTop="1px solid" borderColor="border.muted" mx="-18px">
         <VStack py={16} gap={2} textAlign="center">
           <Text color="fg.muted" textStyle="lg" fontWeight="600">
             No invoices found
@@ -112,12 +112,19 @@ export function InvoicesTable({
   }
 
   return (
-    <ReportTable headers={headers}>
+    <ReportTable
+      headers={headers}
+      flush
+      mx="-18px"
+      w="auto"
+      borderTop="1px solid"
+      borderColor="border.muted"
+    >
       {rows.map((row) => {
         const partialDue = row.status === "partial" && row.balanceDue > 0;
         return (
           <Table.Row key={row.id}>
-            <Table.Cell py={REPORT_CELL_PY}>
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <Text fontSize="13px" fontWeight="600">
                 {row.invoiceNumber}
               </Text>
@@ -126,7 +133,7 @@ export function InvoicesTable({
               </Text>
             </Table.Cell>
 
-            <Table.Cell py={REPORT_CELL_PY}>
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <Text fontSize="13px" fontWeight="600">
                 {row.clientName}
               </Text>
@@ -138,24 +145,36 @@ export function InvoicesTable({
             </Table.Cell>
 
             <Table.Cell py={REPORT_CELL_PY}>
-              <Text fontSize="12px" color="fg.muted">
-                {row.caseNumber ?? "—"}
-              </Text>
-              {row.caseTypeLabel && (
-                <Box mt="4px">
-                  <StatusPill tone="success">{row.caseTypeLabel}</StatusPill>
-                </Box>
-              )}
+              {/* The matter column is the flexible one, so it is the one that
+                  gets capped. A Box rather than maxW on the cell: table
+                  auto-layout treats a cell's max-width as a hint, but it has
+                  to respect a constrained child. Both the reference and the
+                  case-type label wrap here, exactly as they do in the design —
+                  held on one line they steal the width DUE DATE and ACTION
+                  need, which is what was pushing the action button out of the
+                  card. */}
+              <Box maxW="150px">
+                <Text fontSize="12px" color="fg.muted" lineHeight="1.35">
+                  {row.caseNumber ?? "—"}
+                </Text>
+                {row.caseTypeLabel && (
+                  <Box mt="4px">
+                    <StatusPill tone="success" wrap>
+                      {row.caseTypeLabel}
+                    </StatusPill>
+                  </Box>
+                )}
+              </Box>
             </Table.Cell>
 
-            <Table.Cell py={REPORT_CELL_PY}>
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <Text fontSize="13px" fontWeight="600" color="#6a5cc7">
                 {formatCurrency(row.operatingAmount)}
               </Text>
             </Table.Cell>
 
             {trustVisible && (
-              <Table.Cell py={REPORT_CELL_PY}>
+              <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
                 <Text
                   fontSize="13px"
                   fontWeight="600"
@@ -166,7 +185,7 @@ export function InvoicesTable({
               </Table.Cell>
             )}
 
-            <Table.Cell py={REPORT_CELL_PY}>
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <Text fontSize="13px" fontWeight="700">
                 {formatCurrency(row.totalAmount)}
               </Text>
@@ -177,13 +196,13 @@ export function InvoicesTable({
               )}
             </Table.Cell>
 
-            <Table.Cell py={REPORT_CELL_PY}>
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <StatusPill tone={INVOICE_STATUS_TONE[row.status]}>
                 {INVOICE_STATUS_LABEL[row.status]}
               </StatusPill>
             </Table.Cell>
 
-            <Table.Cell py={REPORT_CELL_PY}>
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <Text
                 fontSize="12px"
                 color={row.status === "overdue" ? "#d64545" : "fg.muted"}
@@ -193,7 +212,7 @@ export function InvoicesTable({
               </Text>
             </Table.Cell>
 
-            <Table.Cell py={REPORT_CELL_PY} textAlign="right">
+            <Table.Cell py={REPORT_CELL_PY} textAlign="right" whiteSpace="nowrap">
               <RowActions
                 row={row}
                 onView={onView}
