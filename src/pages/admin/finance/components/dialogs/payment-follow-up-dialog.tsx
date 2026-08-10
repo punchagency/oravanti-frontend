@@ -42,16 +42,24 @@ export function PaymentFollowUpDialog({
   onOpenChange: (details: { open: boolean }) => void;
 }) {
   const sendFollowUp = useSendFollowUp();
-  const overdueDays = invoice ? daysOverdue(invoice.dueDate) : 0;
+
+  // On a plan the client is behind on an instalment, not on the invoice. The
+  // header date is the FINAL instalment, so chasing against it would name a
+  // date that has not arrived and an amount they do not yet owe.
+  const chaseDate = invoice?.schedule?.nextDueDate ?? invoice?.dueDate ?? null;
+  const overdueDays = chaseDate ? daysOverdue(chaseDate) : 0;
+  const scheduled = Boolean(invoice?.schedule);
 
   const defaults: FollowUpForm = useMemo(
     () => ({
       message: invoice
-        ? `Dear ${invoice.clientName}, this is a reminder that invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.balanceDue)} was due on ${formatDate(invoice.dueDate)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
+        ? scheduled
+          ? `Dear ${invoice.clientName}, this is a reminder that a scheduled payment on invoice ${invoice.invoiceNumber} was due on ${formatDate(chaseDate!)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
+          : `Dear ${invoice.clientName}, this is a reminder that invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.balanceDue)} was due on ${formatDate(invoice.dueDate)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
         : "",
       channel: "email",
     }),
-    [invoice],
+    [invoice, scheduled, chaseDate],
   );
 
   const {
@@ -130,8 +138,19 @@ export function PaymentFollowUpDialog({
               Overdue reminder
             </Text>
             <Text fontSize="12px" color="fg.muted">
-              {formatCurrency(invoice?.balanceDue ?? 0)} has been outstanding for{" "}
-              {overdueDays} day{overdueDays === 1 ? "" : "s"}.
+              {scheduled ? (
+                <>
+                  A scheduled payment has been outstanding for {overdueDays} day
+                  {overdueDays === 1 ? "" : "s"}.{" "}
+                  {invoice?.schedule?.paidCount ?? 0} of{" "}
+                  {invoice?.schedule?.count ?? 0} instalments are paid.
+                </>
+              ) : (
+                <>
+                  {formatCurrency(invoice?.balanceDue ?? 0)} has been outstanding
+                  for {overdueDays} day{overdueDays === 1 ? "" : "s"}.
+                </>
+              )}
             </Text>
           </Box>
         </Flex>
