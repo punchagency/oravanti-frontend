@@ -4,6 +4,7 @@ import { BrandButton, OutlineButton, StatusPill } from "@/components/ui/intake-u
 import { useCases } from "@/hooks/use-cases";
 import { useClients } from "@/hooks/use-clients";
 import {
+  useCaseDefaults,
   useCreateInvoice,
   useInvoice,
   useUnbilledTime,
@@ -26,7 +27,7 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Save, Send, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { DialogShell, FormField } from "./dialog-shell";
@@ -141,6 +142,11 @@ const formFromInvoice = (invoice: InvoiceDetail): InvoiceForm => {
   };
 };
 
+const PREFILL_HINT = {
+  team_lead: "Prefilled from the matter's team lead",
+  sole_attorney: "Prefilled — the only attorney on this matter's team",
+} as const;
+
 export function InvoiceFormDialog({
   invoiceId,
   open,
@@ -189,6 +195,8 @@ export function InvoiceFormDialog({
   // useWatch, not watch(): watch() returns a fresh function each render, which
   // the React Compiler cannot memoize.
   const clientId = useWatch({ control, name: "clientId" });
+  const caseId = useWatch({ control, name: "caseId" });
+  const attorneyId = useWatch({ control, name: "attorneyId" });
   const lines = useWatch({ control, name: "lines" });
   const timeEntryIds = useWatch({ control, name: "timeEntryIds" });
 
@@ -201,6 +209,36 @@ export function InvoiceFormDialog({
     open,
     invoiceId ?? undefined,
   );
+  const caseDefaults = useCaseDefaults(open ? caseId : null);
+
+  /**
+   * Which matter the author just picked and is still owed an attorney for.
+   *
+   * The attorney is filled in as a *consequence of choosing a matter*, never by
+   * an effect watching the resolved value — otherwise it would overwrite a
+   * choice the author made by hand, and would fight the prefill when editing a
+   * draft that already names someone.
+   */
+  const awaitingAttorneyFor = useRef<string | null>(null);
+
+  const defaults = caseDefaults.data;
+  useEffect(() => {
+    if (!defaults?.attorneyId) return;
+    if (awaitingAttorneyFor.current !== defaults.caseId) return;
+    awaitingAttorneyFor.current = null;
+    setValue("attorneyId", defaults.attorneyId, { shouldDirty: true });
+  }, [defaults, setValue]);
+
+  // Derived, not remembered: the hint is true whenever the selected attorney is
+  // the one this matter resolves to, whether it got there automatically or by
+  // hand. Storing "was it prefilled?" would only let the two drift apart.
+  const prefillHint =
+    defaults?.source &&
+    defaults.caseId === caseId &&
+    defaults.attorneyId != null &&
+    defaults.attorneyId === attorneyId
+      ? PREFILL_HINT[defaults.source]
+      : undefined;
 
   const clientOptions = useMemo(
     () =>
@@ -405,7 +443,13 @@ export function InvoiceFormDialog({
                   <FormSelect
                     options={caseOptions}
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(v) => {
+                      field.onChange(v);
+                      // Ask for the matter's attorney; the effect above fills it
+                      // in when the answer arrives.
+                      awaitingAttorneyFor.current = v || null;
+                      if (!v) setValue("attorneyId", "");
+                    }}
                     placeholder={
                       clientId ? "Select matter" : "Choose a client first"
                     }
@@ -414,7 +458,7 @@ export function InvoiceFormDialog({
               />
             </FormField>
 
-            <FormField label="Attorney">
+            <FormField label="Attorney" hint={prefillHint}>
               <Controller
                 control={control}
                 name="attorneyId"

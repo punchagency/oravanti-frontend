@@ -256,6 +256,19 @@ export type UpdateInvoiceInput = {
   timeEntryIds?: string[];
 };
 
+/**
+ * Who to bill a matter under. A case belongs to a team, not a person, so the
+ * server resolves it — `source` says which rule fired so the dialog can explain
+ * a prefill instead of just asserting one.
+ */
+export type CaseDefaults = {
+  caseId: string;
+  attorneyId: string | null;
+  attorneyName: string | null;
+  source: "team_lead" | "sole_attorney" | null;
+  attorneyCount: number;
+};
+
 export type RecordPaymentInput = {
   amount: number;
   amountOperating?: number;
@@ -334,6 +347,14 @@ export async function getFinanceActivity(
 export async function getInvoiceById(id: string): Promise<InvoiceDetail> {
   const { data } = await API.get<{ data: InvoiceDetail }>(
     `/finance/invoices/${id}`,
+  );
+  return data.data;
+}
+
+export async function getCaseDefaults(caseId: string): Promise<CaseDefaults> {
+  const { data } = await API.get<{ data: CaseDefaults }>(
+    "/finance/invoices/case-defaults",
+    { params: { caseId } },
   );
   return data.data;
 }

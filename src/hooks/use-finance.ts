@@ -4,6 +4,7 @@ import {
   approveTimeEntry,
   createInvoice,
   getBillingRates,
+  getCaseDefaults,
   getEarningsByStaff,
   getFinanceActivity,
   getFinanceReport,
@@ -67,6 +68,7 @@ export const financeKeys = {
       caseId ?? "",
       forInvoiceId ?? "",
     ] as const,
+  caseDefaults: (caseId: string) => ["finance", "case-defaults", caseId] as const,
   timeEntries: (params?: GetTimeEntriesParams) =>
     [
       "finance",
@@ -137,6 +139,20 @@ export function useUnbilledTime(
     queryKey: financeKeys.unbilledTime(clientId, caseId, forInvoiceId),
     queryFn: () => getUnbilledTime({ clientId, caseId, forInvoiceId }),
     enabled: enabled && Boolean(clientId || caseId),
+    staleTime: THIRTY_SECONDS,
+  });
+}
+
+/**
+ * The attorney to bill a matter under. Resolved server-side because a case is
+ * assigned to a team, not a person, and the team's lead lives outside anything
+ * the case list returns.
+ */
+export function useCaseDefaults(caseId: string | null | undefined) {
+  return useQuery({
+    queryKey: financeKeys.caseDefaults(caseId ?? ""),
+    queryFn: () => getCaseDefaults(caseId!),
+    enabled: Boolean(caseId),
     staleTime: THIRTY_SECONDS,
   });
 }
