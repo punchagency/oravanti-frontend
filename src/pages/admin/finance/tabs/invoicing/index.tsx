@@ -31,6 +31,7 @@ import { InvoiceDetailDialog } from "../../components/dialogs/invoice-detail-dia
 import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-up-dialog";
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
 import { InvoiceFormDialog } from "../../components/dialogs/invoice-form-dialog";
+import { RescheduleDialog } from "../../components/dialogs/reschedule-dialog";
 import {
   SendInvoiceDialog,
   type SendableInvoice,
@@ -67,6 +68,7 @@ export default function InvoicingTab() {
   );
   const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
@@ -283,6 +285,7 @@ export default function InvoicingTab() {
             onFollowUp={setFollowUpTarget}
             onSend={setSendTarget}
             onEdit={(row) => setEditId(row.id)}
+            onReschedule={(row) => setRescheduleId(row.id)}
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
@@ -333,6 +336,11 @@ export default function InvoicingTab() {
         invoice={sendTarget}
         open={sendTarget !== null}
         onOpenChange={(d) => !d.open && setSendTarget(null)}
+      />
+      <RescheduleDialog
+        invoiceId={rescheduleId}
+        open={rescheduleId !== null}
+        onOpenChange={(d) => !d.open && setRescheduleId(null)}
       />
       <InvoiceFormDialog
         invoiceId={editId}

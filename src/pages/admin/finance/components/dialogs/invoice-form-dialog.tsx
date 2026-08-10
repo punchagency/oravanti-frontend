@@ -32,6 +32,8 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { DialogShell, FormField } from "./dialog-shell";
 import { fieldStyles } from "./dialog-styles";
+import { ScheduleEditor } from "./schedule-editor";
+import { isScheduleBalanced, toInstalmentInput } from "./schedule-utils";
 
 /**
  * Compose an invoice from manual lines and/or approved unbilled time — for a
@@ -74,6 +76,12 @@ const schema = z
     notes: z.string().max(4000).optional(),
     lines: z.array(lineSchema),
     timeEntryIds: z.array(z.string()),
+    // In the form rather than beside it, so `reset()` restores the schedule
+    // along with everything else and no effect has to setState to sync it.
+    scheduled: z.boolean(),
+    schedule: z.array(
+      z.object({ dueDate: z.string(), amount: z.string() }),
+    ),
   })
   .refine((v) => v.dueDate >= v.issueDate, {
     message: "Due date cannot precede the issue date",
@@ -116,6 +124,8 @@ const blankForm = (): InvoiceForm => ({
   notes: "",
   lines: [emptyLine()],
   timeEntryIds: [],
+  scheduled: false,
+  schedule: [],
 });
 
 /** Split a saved draft back into the two halves this form edits. */
@@ -139,6 +149,11 @@ const formFromInvoice = (invoice: InvoiceDetail): InvoiceForm => {
     timeEntryIds: invoice.lineItems
       .map((l) => l.timeEntryId)
       .filter((id): id is string => id != null),
+    scheduled: invoice.instalments.length > 0,
+    schedule: invoice.instalments.map((i) => ({
+      dueDate: i.dueDate,
+      amount: i.amount.toFixed(2),
+    })),
   };
 };
 
@@ -179,6 +194,7 @@ export function InvoiceFormDialog({
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
+
   // Reset on open rather than unmounting Dialog.Root, which would break the
   // focus trap. In edit mode this runs again when the draft arrives — until
   // then there is nothing to prefill with.
@@ -192,12 +208,20 @@ export function InvoiceFormDialog({
     }
   }, [open, isEdit, loaded, reset]);
 
+  // Settled instalments cannot be edited away: the money has arrived, and
+  // rewriting the row it paid would only make the schedule disagree with the
+  // ledger. Allocation is oldest-first, so the paid ones are always the first N.
+  const paidInstalmentCount =
+    loaded?.instalments.filter((i) => i.state === "paid").length ?? 0;
+
   // useWatch, not watch(): watch() returns a fresh function each render, which
   // the React Compiler cannot memoize.
   const clientId = useWatch({ control, name: "clientId" });
   const caseId = useWatch({ control, name: "caseId" });
   const attorneyId = useWatch({ control, name: "attorneyId" });
   const lines = useWatch({ control, name: "lines" });
+  const scheduled = useWatch({ control, name: "scheduled" });
+  const scheduleRows = useWatch({ control, name: "schedule" });
   const timeEntryIds = useWatch({ control, name: "timeEntryIds" });
 
   const clients = useClients();
@@ -312,6 +336,13 @@ export function InvoiceFormDialog({
         if (intent === "send") onReadyToSend(invoice);
       };
 
+      // Sent as [] when the toggle is off, so switching a scheduled invoice
+      // back to a single payment actually clears it. Omitting the key would
+      // mean "leave the schedule alone".
+      const instalments = values.scheduled
+        ? toInstalmentInput(values.schedule)
+        : [];
+
       if (isEdit) {
         updateInvoice.mutate(
           {
@@ -321,10 +352,13 @@ export function InvoiceFormDialog({
               // null unassigns; "" would fail uuid validation.
               attorneyId: values.attorneyId || null,
               issueDate: values.issueDate,
-              dueDate: values.dueDate,
+              // The schedule owns the due date once there is one; sending both
+              // is refused, since they could contradict each other.
+              ...(instalments.length ? {} : { dueDate: values.dueDate }),
               notes: values.notes?.trim() || undefined,
               lineItems: filledLines,
               timeEntryIds: values.timeEntryIds,
+              ...(instalments.length ? { instalments } : {}),
             },
           },
           { onSuccess: done },
@@ -342,15 +376,28 @@ export function InvoiceFormDialog({
           notes: values.notes?.trim() || undefined,
           lineItems: filledLines,
           timeEntryIds: values.timeEntryIds,
+          ...(instalments.length ? { instalments } : {}),
         },
         { onSuccess: done },
       );
     },
-    [createInvoice, updateInvoice, invoiceId, isEdit, onOpenChange, onReadyToSend],
+    [
+      createInvoice,
+      updateInvoice,
+      invoiceId,
+      isEdit,
+      onOpenChange,
+      onReadyToSend,
+    ],
   );
 
   const isSaving = createInvoice.isPending || updateInvoice.isPending;
   const isLoadingDraft = isEdit && existing.isLoading;
+
+  // The server rejects a schedule that does not sum to the total, so hold the
+  // save here where the author can still see which figure to change.
+  const scheduleUnbalanced =
+    scheduled && !isScheduleBalanced(scheduleRows, totals.total);
 
   return (
     <DialogShell
@@ -384,7 +431,7 @@ export function InvoiceFormDialog({
             </OutlineButton>
             <OutlineButton
               loading={isSaving}
-              disabled={isLoadingDraft}
+              disabled={isLoadingDraft || scheduleUnbalanced}
               onClick={handleSubmit((v) => save(v, "draft"))}
             >
               <Save size={14} />
@@ -392,7 +439,7 @@ export function InvoiceFormDialog({
             </OutlineButton>
             <BrandButton
               loading={isSaving}
-              disabled={isLoadingDraft}
+              disabled={isLoadingDraft || scheduleUnbalanced}
               onClick={handleSubmit((v) => save(v, "send"))}
             >
               <Send size={14} />
@@ -654,6 +701,44 @@ export function InvoiceFormDialog({
                   their time.
                 </Text>
               </Flex>
+            )}
+          </Box>
+
+          <Box>
+            <Flex justify="space-between" align="center" mb="8px" gap="10px">
+              <Text fontSize="12px" fontWeight="600">
+                Payment schedule
+              </Text>
+              <Checkbox.Root
+                size="sm"
+                checked={scheduled}
+                onCheckedChange={(d) => {
+                  const on = Boolean(d.checked);
+                  setValue("scheduled", on);
+                  // Leaving stale rows behind would send a schedule the author
+                  // had just switched off.
+                  if (!on) setValue("schedule", []);
+                }}
+              >
+                <Checkbox.HiddenInput />
+                <Checkbox.Control />
+                <Checkbox.Label fontSize="12px" color="fg.muted">
+                  Pay in instalments
+                </Checkbox.Label>
+              </Checkbox.Root>
+            </Flex>
+
+            {scheduled ? (
+              <ScheduleEditor
+                rows={scheduleRows}
+                onChange={(rows) => setValue("schedule", rows)}
+                invoiceTotal={totals.total}
+                lockedCount={paidInstalmentCount}
+              />
+            ) : (
+              <Text fontSize="12px" color="fg.muted">
+                Due in full on the due date above.
+              </Text>
             )}
           </Box>
 

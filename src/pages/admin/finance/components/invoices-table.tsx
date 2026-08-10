@@ -38,7 +38,7 @@ const HEADERS = [
  *   draft               → Edit + Send to client
  *   paid / void         → View
  *   past due            → Follow up + Pay
- *   otherwise           → Record payment
+ *   otherwise           → Reschedule/Plan + Record payment
  */
 function RowActions({
   row,
@@ -47,6 +47,7 @@ function RowActions({
   onFollowUp,
   onSend,
   onEdit,
+  onReschedule,
 }: {
   row: InvoiceListRow;
   onView: (row: InvoiceListRow) => void;
@@ -54,6 +55,7 @@ function RowActions({
   onFollowUp: (row: InvoiceListRow) => void;
   onSend: (row: InvoiceListRow) => void;
   onEdit: (row: InvoiceListRow) => void;
+  onReschedule: (row: InvoiceListRow) => void;
 }) {
   // A draft has not reached the client, so it is the one state where changing
   // what the invoice charges is still honest — and where recording a payment
@@ -81,9 +83,16 @@ function RowActions({
   }
 
   return (
-    <BrandButton onClick={() => onRecordPayment(row)}>
-      Record payment
-    </BrandButton>
+    <Flex gap="6px">
+      {/* Renegotiating a plan is the point of offering one, so this is offered
+          on a live invoice — unlike editing its lines, which freeze on send. */}
+      <OutlineButton onClick={() => onReschedule(row)}>
+        {row.schedule ? "Reschedule" : "Plan"}
+      </OutlineButton>
+      <BrandButton onClick={() => onRecordPayment(row)}>
+        Record payment
+      </BrandButton>
+    </Flex>
   );
 }
 
@@ -97,6 +106,7 @@ export function InvoicesTable({
   onFollowUp,
   onSend,
   onEdit,
+  onReschedule,
 }: {
   rows: InvoiceListRow[];
   totals: InvoiceListTotals | undefined;
@@ -107,6 +117,7 @@ export function InvoicesTable({
   onFollowUp: (row: InvoiceListRow) => void;
   onSend: (row: InvoiceListRow) => void;
   onEdit: (row: InvoiceListRow) => void;
+  onReschedule: (row: InvoiceListRow) => void;
 }) {
   const headers = trustVisible ? HEADERS : HEADERS.filter((h) => h !== "Trust");
 
@@ -225,6 +236,10 @@ export function InvoicesTable({
             </Table.Cell>
 
             <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
+              {/* On a plan the header date is the FINAL instalment, so showing
+                  it alone would read as "nothing is due until November" while
+                  a payment is already late. The schedule line below carries
+                  the date that actually matters. */}
               <Text
                 fontSize="12px"
                 color={row.status === "overdue" ? "#d64545" : "fg.muted"}
@@ -232,6 +247,14 @@ export function InvoicesTable({
               >
                 {formatDate(row.dueDate)}
               </Text>
+              {row.schedule && (
+                <Text fontSize="11px" color="fg.subtle">
+                  {row.schedule.paidCount} of {row.schedule.count} paid
+                  {row.schedule.nextDueDate
+                    ? ` · next ${formatDate(row.schedule.nextDueDate)}`
+                    : ""}
+                </Text>
+              )}
             </Table.Cell>
 
             <Table.Cell
@@ -245,6 +268,7 @@ export function InvoicesTable({
                 onFollowUp={onFollowUp}
                 onSend={onSend}
                 onEdit={onEdit}
+                onReschedule={onReschedule}
               />
             </Table.Cell>
           </Table.Row>

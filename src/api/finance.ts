@@ -80,6 +80,12 @@ export type InvoiceListRow = {
   amountPaid: number;
   balanceDue: number;
   status: EffectiveInvoiceStatus;
+  /** Null when the invoice is due in a single payment. */
+  schedule: {
+    count: number;
+    paidCount: number;
+    nextDueDate: string | null;
+  } | null;
 };
 
 export type InvoiceListTotals = {
@@ -163,6 +169,27 @@ export type InvoicePayment = {
   createdAt: string;
 };
 
+/**
+ * One dated slice of the invoice total.
+ *
+ * `amountPaid`, `outstanding` and `state` are all derived SERVER-side by
+ * applying the invoice's total paid down the schedule, oldest first. Never
+ * recompute them here: `state` depends on the firm's today, and a browser-side
+ * comparison would disagree either side of midnight.
+ */
+export type InvoiceInstalment = {
+  id: string;
+  sequence: number;
+  dueDate: string;
+  amount: number;
+  amountPaid: number;
+  outstanding: number;
+  state: "paid" | "partial" | "due" | "overdue";
+};
+
+/** What the schedule editor submits. `sequence` is assigned by the server. */
+export type InstalmentInput = { dueDate: string; amount: number };
+
 export type InvoiceDetail = {
   id: string;
   invoiceNumber: string;
@@ -181,6 +208,8 @@ export type InvoiceDetail = {
   attorney: string | null;
   lineItems: InvoiceLineItem[];
   payments: InvoicePayment[];
+  /** Empty when the invoice is due in a single payment. */
+  instalments: InvoiceInstalment[];
   totals: {
     operating: number;
     trust: number | null;
@@ -228,6 +257,8 @@ export type CreateInvoiceInput = {
     account: "operating" | "trust_iolta";
   }[];
   timeEntryIds: string[];
+  /** Optional payment schedule; must sum to the resulting invoice total. */
+  instalments?: InstalmentInput[];
 };
 
 /**
@@ -254,6 +285,14 @@ export type UpdateInvoiceInput = {
     account: "operating" | "trust_iolta";
   }[];
   timeEntryIds?: string[];
+  /**
+   * Replaces the whole schedule, and must sum to the invoice total.
+   *
+   * The one content field the server accepts on a *sent* invoice — plans get
+   * renegotiated. It must accompany any line change on an invoice that already
+   * has a schedule, since a line change moves the total the rows have to match.
+   */
+  instalments?: InstalmentInput[];
 };
 
 /**
@@ -391,6 +430,26 @@ export async function updateInvoice(
   const { data } = await API.patch<{ data: InvoiceDetail }>(
     `/finance/invoices/${invoiceId}`,
     input,
+  );
+  return data.data;
+}
+
+export async function setInvoiceSchedule(
+  invoiceId: string,
+  instalments: InstalmentInput[],
+): Promise<InvoiceDetail> {
+  const { data } = await API.put<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}/schedule`,
+    { instalments },
+  );
+  return data.data;
+}
+
+export async function removeInvoiceSchedule(
+  invoiceId: string,
+): Promise<InvoiceDetail> {
+  const { data } = await API.delete<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}/schedule`,
   );
   return data.data;
 }
