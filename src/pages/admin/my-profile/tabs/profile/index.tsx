@@ -31,7 +31,7 @@ const schema = z.object({
   lastName: z.string().min(2, "Last name is required").trim(),
   email: z.string().email("Invalid email address.").trim(),
   phoneNumber: z.string().min(10, "Invalid phone number").trim(),
-  barNumber: z.string().min(2, "Bar number is required").trim(),
+  barNumber: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
