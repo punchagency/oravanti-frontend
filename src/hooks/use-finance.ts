@@ -23,11 +23,13 @@ import {
   sendFollowUp,
   sendInvoice,
   setBillingRate,
+  updateInvoice,
   voidInvoice,
   type GetInvoicesParams,
   type GetTimeEntriesParams,
   type RecordPaymentInput,
   type SendFollowUpInput,
+  type UpdateInvoiceInput,
 } from "@/api/finance";
 import type { APIError } from "./types";
 
@@ -57,8 +59,14 @@ export const financeKeys = {
   stats: () => ["finance", "stats"] as const,
   aging: () => ["finance", "aging"] as const,
   activity: () => ["finance", "activity"] as const,
-  unbilledTime: (clientId?: string, caseId?: string) =>
-    ["finance", "unbilled-time", clientId ?? "", caseId ?? ""] as const,
+  unbilledTime: (clientId?: string, caseId?: string, forInvoiceId?: string) =>
+    [
+      "finance",
+      "unbilled-time",
+      clientId ?? "",
+      caseId ?? "",
+      forInvoiceId ?? "",
+    ] as const,
   timeEntries: (params?: GetTimeEntriesParams) =>
     [
       "finance",
@@ -122,10 +130,12 @@ export function useUnbilledTime(
   clientId?: string,
   caseId?: string,
   enabled = true,
+  /** Editing a draft: also offer back the entries it already holds. */
+  forInvoiceId?: string,
 ) {
   return useQuery({
-    queryKey: financeKeys.unbilledTime(clientId, caseId),
-    queryFn: () => getUnbilledTime({ clientId, caseId }),
+    queryKey: financeKeys.unbilledTime(clientId, caseId, forInvoiceId),
+    queryFn: () => getUnbilledTime({ clientId, caseId, forInvoiceId }),
     enabled: enabled && Boolean(clientId || caseId),
     staleTime: THIRTY_SECONDS,
   });
@@ -195,6 +205,29 @@ export function useCreateInvoice() {
       toast.error(
         err.response?.data?.message ?? "Couldn't create that invoice",
       ),
+  });
+}
+
+/**
+ * Edit an invoice. The server refuses anything but header fields on a
+ * non-draft, so the error path here is a real message, not a generic failure.
+ */
+export function useUpdateInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      input,
+    }: {
+      invoiceId: string;
+      input: UpdateInvoiceInput;
+    }) => updateInvoice(invoiceId, input),
+    onSuccess: (invoice) => {
+      toast.success(`Invoice ${invoice.invoiceNumber} updated`);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't save those changes"),
   });
 }
 

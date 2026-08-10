@@ -19,7 +19,11 @@ import { parseAsString, useQueryState } from "nuqs";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { AccountBanner } from "./components/account-banner";
 import { SummaryChips, type SummaryChip } from "./components/summary-chips";
-import { NewInvoiceDialog } from "./components/dialogs/new-invoice-dialog";
+import { InvoiceFormDialog } from "./components/dialogs/invoice-form-dialog";
+import {
+  SendInvoiceDialog,
+  type SendableInvoice,
+} from "./components/dialogs/send-invoice-dialog";
 import {
   buildMonthOptions,
   CHIP_COLORS,
@@ -56,6 +60,7 @@ export function FinancePage() {
   const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   const [newInvoiceOpen, setNewInvoiceOpen] = useState(false);
+  const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
 
   const invoiceStats = useInvoiceStats();
   const timeStats = useTimeBillingStats();
@@ -269,9 +274,28 @@ export function FinancePage() {
         </Box>
       </Tabs.Root>
 
-      <NewInvoiceDialog
+      <InvoiceFormDialog
+        invoiceId={null}
         open={newInvoiceOpen}
         onOpenChange={(d) => setNewInvoiceOpen(d.open)}
+        // Saved as a draft either way; this only fires when the author asked to
+        // go on and send it, and even then the send is confirmed against the
+        // rendered PDF first.
+        onReadyToSend={(invoice) =>
+          setSendTarget({
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.client.name,
+            clientEmail: invoice.client.email,
+            totalAmount: invoice.totals.total,
+            dueDate: invoice.dueDate,
+          })
+        }
+      />
+      <SendInvoiceDialog
+        invoice={sendTarget}
+        open={sendTarget !== null}
+        onOpenChange={(d) => !d.open && setSendTarget(null)}
       />
     </Box>
   );

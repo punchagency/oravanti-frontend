@@ -30,6 +30,7 @@ import { AgingSummaryCard } from "../../components/aging-summary-card";
 import { InvoiceDetailDialog } from "../../components/dialogs/invoice-detail-dialog";
 import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-up-dialog";
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
+import { InvoiceFormDialog } from "../../components/dialogs/invoice-form-dialog";
 import {
   SendInvoiceDialog,
   type SendableInvoice,
@@ -65,6 +66,7 @@ export default function InvoicingTab() {
     null,
   );
   const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
@@ -280,6 +282,7 @@ export default function InvoicingTab() {
             onRecordPayment={setPaymentTarget}
             onFollowUp={setFollowUpTarget}
             onSend={setSendTarget}
+            onEdit={(row) => setEditId(row.id)}
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
@@ -330,6 +333,21 @@ export default function InvoicingTab() {
         invoice={sendTarget}
         open={sendTarget !== null}
         onOpenChange={(d) => !d.open && setSendTarget(null)}
+      />
+      <InvoiceFormDialog
+        invoiceId={editId}
+        open={editId !== null}
+        onOpenChange={(d) => !d.open && setEditId(null)}
+        onReadyToSend={(invoice) =>
+          setSendTarget({
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.client.name,
+            clientEmail: invoice.client.email,
+            totalAmount: invoice.totals.total,
+            dueDate: invoice.dueDate,
+          })
+        }
       />
     </Box>
   );

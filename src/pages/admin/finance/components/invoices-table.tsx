@@ -35,7 +35,7 @@ const HEADERS = [
  * comparison — the firm's timezone decides what "overdue" means, and the two
  * would disagree either side of midnight.
  *
- *   draft               → Send to client
+ *   draft               → Edit + Send to client
  *   paid / void         → View
  *   past due            → Follow up + Pay
  *   otherwise           → Record payment
@@ -46,18 +46,24 @@ function RowActions({
   onRecordPayment,
   onFollowUp,
   onSend,
+  onEdit,
 }: {
   row: InvoiceListRow;
   onView: (row: InvoiceListRow) => void;
   onRecordPayment: (row: InvoiceListRow) => void;
   onFollowUp: (row: InvoiceListRow) => void;
   onSend: (row: InvoiceListRow) => void;
+  onEdit: (row: InvoiceListRow) => void;
 }) {
-  // A draft has not reached the client, so the only thing to do with it is
-  // send it — recording a payment against one is refused by the server.
+  // A draft has not reached the client, so it is the one state where changing
+  // what the invoice charges is still honest — and where recording a payment
+  // against it is refused by the server.
   if (row.status === "draft") {
     return (
-      <BrandButton onClick={() => onSend(row)}>Send to client</BrandButton>
+      <Flex gap="6px">
+        <OutlineButton onClick={() => onEdit(row)}>Edit</OutlineButton>
+        <BrandButton onClick={() => onSend(row)}>Send</BrandButton>
+      </Flex>
     );
   }
 
@@ -90,6 +96,7 @@ export function InvoicesTable({
   onRecordPayment,
   onFollowUp,
   onSend,
+  onEdit,
 }: {
   rows: InvoiceListRow[];
   totals: InvoiceListTotals | undefined;
@@ -99,6 +106,7 @@ export function InvoicesTable({
   onRecordPayment: (row: InvoiceListRow) => void;
   onFollowUp: (row: InvoiceListRow) => void;
   onSend: (row: InvoiceListRow) => void;
+  onEdit: (row: InvoiceListRow) => void;
 }) {
   const headers = trustVisible ? HEADERS : HEADERS.filter((h) => h !== "Trust");
 
@@ -236,6 +244,7 @@ export function InvoicesTable({
                 onRecordPayment={onRecordPayment}
                 onFollowUp={onFollowUp}
                 onSend={onSend}
+                onEdit={onEdit}
               />
             </Table.Cell>
           </Table.Row>

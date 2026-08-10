@@ -175,6 +175,9 @@ export type InvoiceDetail = {
   client: { id: string; name: string; email: string | null };
   matter: { id: string; reference: string | null; type: string | null } | null;
   practiceArea: string | null;
+  /** Ids as well as labels, so the edit dialog can prefill its selects. */
+  practiceAreaId: string | null;
+  attorneyId: string | null;
   attorney: string | null;
   lineItems: InvoiceLineItem[];
   payments: InvoicePayment[];
@@ -225,6 +228,32 @@ export type CreateInvoiceInput = {
     account: "operating" | "trust_iolta";
   }[];
   timeEntryIds: string[];
+};
+
+/**
+ * Editing an invoice.
+ *
+ * The header half applies to any live invoice; sending any of the content half
+ * is refused by the server on anything but a draft. `lineItems` REPLACES the
+ * whole set, so `timeEntryIds` must go with it — the server rejects one without
+ * the other rather than silently dropping the missing half.
+ */
+export type UpdateInvoiceInput = {
+  dueDate?: string;
+  notes?: string;
+  /** `null` unassigns; omitting the key leaves it alone. */
+  attorneyId?: string | null;
+  filingType?: string;
+  issueDate?: string;
+  caseId?: string | null;
+  practiceAreaId?: string | null;
+  lineItems?: {
+    description: string;
+    quantity: number;
+    rate: number;
+    account: "operating" | "trust_iolta";
+  }[];
+  timeEntryIds?: string[];
 };
 
 export type RecordPaymentInput = {
@@ -310,7 +339,12 @@ export async function getInvoiceById(id: string): Promise<InvoiceDetail> {
 }
 
 export async function getUnbilledTime(
-  params: { clientId?: string; caseId?: string } = {},
+  params: {
+    clientId?: string;
+    caseId?: string;
+    /** Also return the entries this draft already holds, so an edit can keep them. */
+    forInvoiceId?: string;
+  } = {},
 ): Promise<UnbilledTimeEntry[]> {
   const { data } = await API.get<{ data: UnbilledTimeEntry[] }>(
     "/finance/invoices/unbilled-time",
@@ -324,6 +358,17 @@ export async function createInvoice(
 ): Promise<InvoiceDetail> {
   const { data } = await API.post<{ data: InvoiceDetail }>(
     "/finance/invoices",
+    input,
+  );
+  return data.data;
+}
+
+export async function updateInvoice(
+  invoiceId: string,
+  input: UpdateInvoiceInput,
+): Promise<InvoiceDetail> {
+  const { data } = await API.patch<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}`,
     input,
   );
   return data.data;
