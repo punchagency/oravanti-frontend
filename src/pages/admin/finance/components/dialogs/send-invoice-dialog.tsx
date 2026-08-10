@@ -1,30 +1,68 @@
-import type { InvoiceListRow } from "@/api/finance";
+import { fetchInvoicePdfBlob } from "@/api/finance";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useSendInvoice } from "@/hooks/use-finance";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
-import { Box, Flex, Text } from "@chakra-ui/react";
-import { AlertTriangle, Mail } from "lucide-react";
-import { useCallback } from "react";
+import { Box, Center, chakra, Flex, Spinner, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, Download, Mail } from "lucide-react";
+import { useCallback, useEffect, useMemo } from "react";
 import { DialogShell } from "./dialog-shell";
 
 /**
- * Confirmation before delivering an invoice.
+ * What the client is about to receive, and the confirmation before they receive
+ * it.
  *
- * This is the irreversible step the draft state exists to protect: voiding
- * afterwards does not unsend an email. Hence a confirm rather than a bare
- * button, showing the address it will actually go to.
+ * The preview is the **actual PDF** the server will attach — same endpoint, same
+ * bytes, same renderer. A confirmation step showing a re-creation of the
+ * document would be worse than no preview at all: it would invite people to
+ * approve one thing and send another.
+ *
+ * Sending is the irreversible step the draft state exists to protect. Voiding
+ * afterwards does not unsend an email, so the Send button sits behind a look at
+ * the document rather than beside it.
  */
+export type SendableInvoice = {
+  id: string;
+  invoiceNumber: string;
+  clientName: string;
+  clientEmail: string | null;
+  totalAmount: number;
+  dueDate: string;
+};
+
 export function SendInvoiceDialog({
   invoice,
   open,
   onOpenChange,
 }: {
-  invoice: InvoiceListRow | null;
+  invoice: SendableInvoice | null;
   open: boolean;
   onOpenChange: (details: { open: boolean }) => void;
 }) {
   const sendInvoice = useSendInvoice();
+
+  const pdf = useQuery({
+    queryKey: ["finance", "invoice-pdf", invoice?.id ?? ""],
+    queryFn: () => fetchInvoicePdfBlob(invoice!.id),
+    enabled: open && Boolean(invoice),
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  // An object URL is a live handle into memory, not a value: it is derived from
+  // the blob during render, and the effect exists only to hand it back when it
+  // is replaced or the dialog closes. Without the revoke the tab leaks one PDF
+  // per preview.
+  const blob = pdf.data;
+  const previewUrl = useMemo(
+    () => (blob ? URL.createObjectURL(blob) : null),
+    [blob],
+  );
+  useEffect(() => {
+    if (!previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const onSend = useCallback(() => {
     if (!invoice) return;
@@ -41,23 +79,33 @@ export function SendInvoiceDialog({
     <DialogShell
       open={open}
       onOpenChange={onOpenChange}
-      title="Send invoice to client"
+      size="xl"
+      title="Review before sending"
       subtitle={
         invoice ? `${invoice.invoiceNumber} · ${invoice.clientName}` : undefined
       }
       footer={
-        <Flex justify="flex-end" gap="8px" w="100%">
-          <OutlineButton onClick={() => onOpenChange({ open: false })}>
-            Cancel
-          </OutlineButton>
-          <BrandButton
-            loading={sendInvoice.isPending}
-            disabled={noEmail}
-            onClick={onSend}
+        <Flex justify="space-between" gap="8px" w="100%" flexWrap="wrap">
+          <OutlineButton
+            disabled={!previewUrl}
+            onClick={() => previewUrl && window.open(previewUrl, "_blank")}
           >
-            <Mail size={14} />
-            Send invoice
-          </BrandButton>
+            <Download size={14} />
+            Open full size
+          </OutlineButton>
+          <Flex gap="8px">
+            <OutlineButton onClick={() => onOpenChange({ open: false })}>
+              Not yet
+            </OutlineButton>
+            <BrandButton
+              loading={sendInvoice.isPending}
+              disabled={noEmail || pdf.isError}
+              onClick={onSend}
+            >
+              <Mail size={14} />
+              Send to client
+            </BrandButton>
+          </Flex>
         </Flex>
       }
     >
@@ -103,6 +151,48 @@ export function SendInvoiceDialog({
             ))}
           </Box>
         )}
+
+        <Box>
+          <Text fontSize="12px" fontWeight="600" mb="6px">
+            The document they will receive
+          </Text>
+          <Box
+            border="1px solid"
+            borderColor="border"
+            borderRadius="10px"
+            overflow="hidden"
+            bg="bg.muted"
+            h={{ base: "320px", md: "440px" }}
+          >
+            {pdf.isLoading ? (
+              <Center h="100%">
+                <Spinner />
+              </Center>
+            ) : pdf.isError ? (
+              <Center h="100%" px="20px">
+                <Text fontSize="12px" color="fg.muted" textAlign="center">
+                  The invoice PDF could not be rendered, so there is nothing to
+                  review. Sending is blocked until it can be — the client would
+                  have received this same document.
+                </Text>
+              </Center>
+            ) : previewUrl ? (
+              // chakra.iframe, not Box as="iframe": the polymorphic `as` keeps
+              // the div's prop types, which have no `src`.
+              <chakra.iframe
+                src={previewUrl}
+                title={`Invoice ${invoice?.invoiceNumber ?? ""} preview`}
+                w="100%"
+                h="100%"
+                border="none"
+              />
+            ) : null}
+          </Box>
+          <Text fontSize="10px" color="fg.subtle" mt="6px">
+            This is the PDF the server renders and attaches — not a preview of
+            it.
+          </Text>
+        </Box>
 
         <Text fontSize="12px" color="fg.muted">
           The client receives the invoice as a PDF attachment. This cannot be

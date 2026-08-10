@@ -701,3 +701,18 @@ export async function downloadInvoicePdf(
   });
   downloadBlob(res.data, `${invoiceNumber}.pdf`);
 }
+
+/**
+ * The PDF as a blob, for previewing before a send.
+ *
+ * Same endpoint as the download and the same bytes that get attached to the
+ * email — a preview rendered any other way would be a mock-up of the document
+ * rather than the document, which is precisely what a confirmation step must
+ * not show.
+ */
+export async function fetchInvoicePdfBlob(invoiceId: string): Promise<Blob> {
+  const res = await API.get(`/finance/invoices/${invoiceId}/pdf`, {
+    responseType: "blob",
+  });
+  return res.data as Blob;
+}

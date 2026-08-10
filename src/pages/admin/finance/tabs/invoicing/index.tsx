@@ -30,7 +30,10 @@ import { AgingSummaryCard } from "../../components/aging-summary-card";
 import { InvoiceDetailDialog } from "../../components/dialogs/invoice-detail-dialog";
 import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-up-dialog";
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
-import { SendInvoiceDialog } from "../../components/dialogs/send-invoice-dialog";
+import {
+  SendInvoiceDialog,
+  type SendableInvoice,
+} from "../../components/dialogs/send-invoice-dialog";
 import { InvoicesTable } from "../../components/invoices-table";
 import { RecentActivityCard } from "../../components/recent-activity-card";
 import { ACCOUNT_OPTIONS, INVOICE_STATUS_OPTIONS } from "../../data";
@@ -61,7 +64,7 @@ export default function InvoicingTab() {
   const [followUpTarget, setFollowUpTarget] = useState<InvoiceListRow | null>(
     null,
   );
-  const [sendTarget, setSendTarget] = useState<InvoiceListRow | null>(null);
+  const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
 
   const params = useMemo(
     () => ({
