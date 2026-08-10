@@ -153,13 +153,19 @@ export default function TimeBillingTab() {
         mt="20px"
         alignItems="start"
       >
-        <SurfaceCard>
+        {/* p="0" so the table reaches the card's edges; the header and
+            pagination pad themselves back in. */}
+        {/* overflow hidden so the table's square bottom corners are clipped to
+            the card's radius — with no padding it now reaches the edge. Doing
+            it here means no child has to know about the card's corners. */}
+        <SurfaceCard p="0" overflow="hidden">
           <Flex
             justify="space-between"
             align="center"
             gap="12px"
             flexWrap="wrap"
-            mb="14px"
+            p="18px"
+            pb="14px"
           >
             <Text textStyle="label" fontWeight="700">
               Time entries
@@ -192,7 +198,7 @@ export default function TimeBillingTab() {
           />
 
           {entries.data && entries.data.pagination.total > limit && (
-            <Box mt="14px">
+            <Box p="18px">
               <PaginationControls
                 total={entries.data.pagination.total}
                 currentPage={currentPage}

@@ -1,5 +1,5 @@
 import { Box, Button, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
-import type { ButtonProps } from "@chakra-ui/react";
+import type { BoxProps, ButtonProps } from "@chakra-ui/react";
 import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -36,7 +36,18 @@ const intakeColors = {
 
 type Tone = keyof typeof intakeColors;
 
-export function SurfaceCard({ children }: { children: ReactNode }) {
+/**
+ * The standard panel surface.
+ *
+ * Every Box style prop passes through and wins over the defaults below, because
+ * the spread comes last — so `<SurfaceCard p="0">` or
+ * `<SurfaceCard borderRadius="0">` do what they say. Same convention as
+ * `ReportTable`.
+ */
+export function SurfaceCard({
+  children,
+  ...rest
+}: { children: ReactNode } & BoxProps) {
   return (
     <Box
       bg="bg"
@@ -44,6 +55,7 @@ export function SurfaceCard({ children }: { children: ReactNode }) {
       borderColor="border"
       borderRadius="10px"
       p="18px"
+      {...rest}
     >
       {children}
     </Box>
@@ -107,10 +119,18 @@ export function StatusPill({
   children,
   tone = "success",
   icon,
+  wrap = false,
 }: {
   children: ReactNode;
   tone?: Tone;
   icon?: ReactNode;
+  /**
+   * Let a long label wrap onto several lines instead of holding one wide line.
+   * Off by default — a status word should never wrap — but a descriptive label
+   * in a table cell (a case type, say) must, or it steals the width the
+   * neighbouring columns need.
+   */
+  wrap?: boolean;
 }) {
   const color = intakeColors[tone];
 
@@ -128,8 +148,9 @@ export function StatusPill({
       color={color.color}
       fontSize="10px"
       fontWeight="500"
-      lineHeight="1"
-      whiteSpace="nowrap"
+      lineHeight={wrap ? "1.35" : "1"}
+      whiteSpace={wrap ? "normal" : "nowrap"}
+      textAlign={wrap ? "left" : undefined}
     >
       {icon}
       <Box as="span">{children}</Box>
@@ -178,6 +199,10 @@ export function BrandButton(props: ButtonProps) {
       layerStyle="brand-button"
       fontSize="13px"
       fontWeight="500"
+      // Table cells squeeze; a button that wraps or clips its label is worse
+      // than a table that scrolls.
+      whiteSpace="nowrap"
+      flexShrink={0}
       {...props}
     />
   );
@@ -196,6 +221,8 @@ export function OutlineButton(props: ButtonProps) {
       color="fg"
       fontSize="13px"
       fontWeight="500"
+      whiteSpace="nowrap"
+      flexShrink={0}
       variant="outline"
       {...props}
     />

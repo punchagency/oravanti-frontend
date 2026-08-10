@@ -4,6 +4,7 @@ import {
   approveTimeEntry,
   createInvoice,
   getBillingRates,
+  getCaseDefaults,
   getEarningsByStaff,
   getFinanceActivity,
   getFinanceReport,
@@ -14,17 +15,22 @@ import {
   getTimeBillingStats,
   getTimeEntries,
   getTopMatters,
+  getInvoiceDeliveries,
   getUnbilledTime,
   logTime,
   recordPayment,
   rejectTimeEntry,
+  resendInvoice,
   sendFollowUp,
+  sendInvoice,
   setBillingRate,
+  updateInvoice,
   voidInvoice,
   type GetInvoicesParams,
   type GetTimeEntriesParams,
   type RecordPaymentInput,
   type SendFollowUpInput,
+  type UpdateInvoiceInput,
 } from "@/api/finance";
 import type { APIError } from "./types";
 
@@ -45,15 +51,24 @@ export const financeKeys = {
       params?.status ?? "",
       params?.account ?? "",
       params?.search ?? "",
+      params?.includeDrafts ? "drafts" : "",
       ...(params?.page ? [`p${params.page}`] : []),
       ...(params?.limit ? [`l${params.limit}`] : []),
     ] as const,
   invoice: (id: string) => ["finance", "invoice", id] as const,
+  deliveries: (id: string) => ["finance", "deliveries", id] as const,
   stats: () => ["finance", "stats"] as const,
   aging: () => ["finance", "aging"] as const,
   activity: () => ["finance", "activity"] as const,
-  unbilledTime: (clientId?: string, caseId?: string) =>
-    ["finance", "unbilled-time", clientId ?? "", caseId ?? ""] as const,
+  unbilledTime: (clientId?: string, caseId?: string, forInvoiceId?: string) =>
+    [
+      "finance",
+      "unbilled-time",
+      clientId ?? "",
+      caseId ?? "",
+      forInvoiceId ?? "",
+    ] as const,
+  caseDefaults: (caseId: string) => ["finance", "case-defaults", caseId] as const,
   timeEntries: (params?: GetTimeEntriesParams) =>
     [
       "finance",
@@ -117,12 +132,80 @@ export function useUnbilledTime(
   clientId?: string,
   caseId?: string,
   enabled = true,
+  /** Editing a draft: also offer back the entries it already holds. */
+  forInvoiceId?: string,
 ) {
   return useQuery({
-    queryKey: financeKeys.unbilledTime(clientId, caseId),
-    queryFn: () => getUnbilledTime({ clientId, caseId }),
+    queryKey: financeKeys.unbilledTime(clientId, caseId, forInvoiceId),
+    queryFn: () => getUnbilledTime({ clientId, caseId, forInvoiceId }),
     enabled: enabled && Boolean(clientId || caseId),
     staleTime: THIRTY_SECONDS,
+  });
+}
+
+/**
+ * The attorney to bill a matter under. Resolved server-side because a case is
+ * assigned to a team, not a person, and the team's lead lives outside anything
+ * the case list returns.
+ */
+export function useCaseDefaults(caseId: string | null | undefined) {
+  return useQuery({
+    queryKey: financeKeys.caseDefaults(caseId ?? ""),
+    queryFn: () => getCaseDefaults(caseId!),
+    enabled: Boolean(caseId),
+    staleTime: THIRTY_SECONDS,
+  });
+}
+
+export function useInvoiceDeliveries(id: string | null) {
+  return useQuery({
+    queryKey: financeKeys.deliveries(id ?? ""),
+    queryFn: () => getInvoiceDeliveries(id!),
+    enabled: Boolean(id),
+    staleTime: THIRTY_SECONDS,
+  });
+}
+
+/**
+ * A failed send resolves rather than throws — the attempt was recorded and the
+ * caller needs the reason. Only an unusable request (voided invoice, client
+ * with no email) lands in onError.
+ */
+const deliveryToast = (result: { status: string; failureReason: string | null }) => {
+  if (result.status === "sent") {
+    toast.success("Invoice sent to the client");
+  } else {
+    toast.error(
+      result.failureReason
+        ? `Delivery failed: ${result.failureReason}`
+        : "Delivery failed — the attempt was recorded",
+    );
+  }
+};
+
+export function useSendInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: sendInvoice,
+    onSuccess: (result) => {
+      deliveryToast(result);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't send that invoice"),
+  });
+}
+
+export function useResendInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: resendInvoice,
+    onSuccess: (result) => {
+      deliveryToast(result);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't resend that invoice"),
   });
 }
 
@@ -131,13 +214,36 @@ export function useCreateInvoice() {
   return useMutation({
     mutationFn: createInvoice,
     onSuccess: (invoice) => {
-      toast.success(`Invoice ${invoice.invoiceNumber} created`);
+      toast.success(`Invoice ${invoice.invoiceNumber} created as a draft`);
       qc.invalidateQueries({ queryKey: financeKeys.all });
     },
     onError: (err: APIError) =>
       toast.error(
         err.response?.data?.message ?? "Couldn't create that invoice",
       ),
+  });
+}
+
+/**
+ * Edit an invoice. The server refuses anything but header fields on a
+ * non-draft, so the error path here is a real message, not a generic failure.
+ */
+export function useUpdateInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      input,
+    }: {
+      invoiceId: string;
+      input: UpdateInvoiceInput;
+    }) => updateInvoice(invoiceId, input),
+    onSuccess: (invoice) => {
+      toast.success(`Invoice ${invoice.invoiceNumber} updated`);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't save those changes"),
   });
 }
 

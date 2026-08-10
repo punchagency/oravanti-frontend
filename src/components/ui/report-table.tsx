@@ -13,13 +13,26 @@ export const REPORT_CELL_PY = "14px";
 export function ReportTable({
   headers,
   children,
+  flush = false,
   ...rest
-}: { headers: string[]; children: ReactNode } & BoxProps) {
+}: {
+  headers: string[];
+  children: ReactNode;
+  /**
+   * Drop the table's own border and rounded corners.
+   *
+   * Standalone the table IS the card, so it draws its own frame. Inside a
+   * `SurfaceCard` that frame is a second box drawn just inside the first, with
+   * the card's 18px padding showing as a gap between them. Flush lets the
+   * caller pull the table out to the card's edges instead.
+   */
+  flush?: boolean;
+} & BoxProps) {
   return (
     <Box
-      border="1px solid"
+      border={flush ? "none" : "1px solid"}
       borderColor="border"
-      borderRadius="10px"
+      borderRadius={flush ? "0" : "10px"}
       overflow="hidden"
       {...rest}
     >
@@ -34,6 +47,10 @@ export function ReportTable({
                   fontSize="10px"
                   letterSpacing="0.06em"
                   color="fg.muted"
+                  // A wrapped heading ("DUE / DATE") makes the column look
+                  // narrower than it is and drags the row height with it. The
+                  // wrapper scrolls horizontally instead.
+                  whiteSpace="nowrap"
                 >
                   {h.toUpperCase()}
                 </Table.ColumnHeader>

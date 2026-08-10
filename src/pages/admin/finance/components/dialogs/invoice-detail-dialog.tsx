@@ -1,11 +1,15 @@
-import { PAYMENT_METHOD_LABELS, printInvoice } from "@/api/finance";
+import { PAYMENT_METHOD_LABELS, downloadInvoicePdf } from "@/api/finance";
 import { OutlineButton, StatusPill } from "@/components/ui/intake-ui";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
-import { useInvoice } from "@/hooks/use-finance";
+import {
+  useInvoice,
+  useInvoiceDeliveries,
+  useResendInvoice,
+} from "@/hooks/use-finance";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
 import { Box, Center, Flex, Grid, Spinner, Table, Text } from "@chakra-ui/react";
-import { Download } from "lucide-react";
+import { Download, Send } from "lucide-react";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "../../data";
 import { DialogShell } from "./dialog-shell";
 
@@ -32,6 +36,8 @@ export function InvoiceDetailDialog({
   onOpenChange: (details: { open: boolean }) => void;
 }) {
   const { data: invoice, isLoading } = useInvoice(open ? invoiceId : null);
+  const { data: deliveries } = useInvoiceDeliveries(open ? invoiceId : null);
+  const resend = useResendInvoice();
 
   return (
     <DialogShell
@@ -58,7 +64,9 @@ export function InvoiceDetailDialog({
       footer={
         <Flex justify="space-between" w="100%" gap="8px">
           <OutlineButton
-            onClick={() => invoice && printInvoice(invoice)}
+            onClick={() =>
+              invoice && downloadInvoicePdf(invoice.id, invoice.invoiceNumber)
+            }
             disabled={!invoice}
           >
             <Download size={14} />
@@ -197,6 +205,88 @@ export function InvoiceDetailDialog({
               ))}
             </>
           )}
+
+          <Box mt="20px">
+            <Flex justify="space-between" align="center" mb="8px">
+              <Text textStyle="label" fontWeight="700">
+                Delivery
+              </Text>
+              {invoice.status !== "draft" && invoice.status !== "void" && (
+                <OutlineButton
+                  loading={resend.isPending}
+                  onClick={() => resend.mutate(invoice.id)}
+                >
+                  <Send size={13} />
+                  Resend
+                </OutlineButton>
+              )}
+            </Flex>
+
+            {!deliveries || deliveries.length === 0 ? (
+              /* Honest for invoices issued before delivery tracking existed —
+                 claiming a send we have no record of is the original bug. */
+              <Text fontSize="12px" color="fg.muted">
+                No delivery recorded. This invoice has not been emailed to the
+                client from Oravanti.
+              </Text>
+            ) : (
+              deliveries.map((delivery, index) => (
+                <Flex
+                  key={delivery.id}
+                  justify="space-between"
+                  align="flex-start"
+                  gap="10px"
+                  py="8px"
+                  borderTop={index === 0 ? "none" : "1px solid"}
+                  borderColor="border.muted"
+                >
+                  <Box minW={0}>
+                    <Text fontSize="12px" fontWeight="600" truncate>
+                      {delivery.recipientEmail}
+                    </Text>
+                    <Text fontSize="11px" color="fg.muted">
+                      {[
+                        delivery.deliveredAt
+                          ? formatDate(delivery.deliveredAt)
+                          : formatDate(delivery.createdAt),
+                        delivery.sentBy,
+                        delivery.attemptCount > 1
+                          ? `attempt ${delivery.attemptCount}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                    {delivery.failureReason && (
+                      <Text fontSize="11px" color="#c0392b" mt="2px">
+                        {delivery.failureReason}
+                      </Text>
+                    )}
+                  </Box>
+                  <StatusPill
+                    tone={
+                      delivery.status === "sent"
+                        ? "success"
+                        : delivery.status === "failed"
+                          ? "danger"
+                          : "warning"
+                    }
+                  >
+                    {delivery.status === "sent" ? "Sent" : delivery.status === "failed" ? "Failed" : "Pending"}
+                  </StatusPill>
+                </Flex>
+              ))
+            )}
+
+            {deliveries && deliveries.some((d) => d.status === "sent") && (
+              /* Same honesty as smsDelivered: we know the provider took it, not
+                 that it reached an inbox. */
+              <Text fontSize="10px" color="fg.subtle" mt="8px">
+                "Sent" means the email provider accepted the message. Bounces are
+                not yet tracked.
+              </Text>
+            )}
+          </Box>
 
           {invoice.notes && (
             <Box mt="20px">

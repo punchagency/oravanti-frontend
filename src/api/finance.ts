@@ -23,6 +23,7 @@ export type PaginationMeta = {
 
 export type InvoiceStatusFilter =
   | "all"
+  | "draft"
   | "paid"
   | "unpaid"
   | "partial"
@@ -85,6 +86,8 @@ export type InvoiceListTotals = {
   operating: number;
   trust: number | null;
   total: number;
+  /** Rows on screen that the totals deliberately exclude. */
+  draftCount: number;
 };
 
 export type GetInvoicesParams = {
@@ -93,6 +96,8 @@ export type GetInvoicesParams = {
   search?: string;
   clientId?: string;
   caseId?: string;
+  /** Show drafts alongside the rest. Only honoured when status is "all". */
+  includeDrafts?: boolean;
   page?: number;
   limit?: number;
 };
@@ -170,6 +175,9 @@ export type InvoiceDetail = {
   client: { id: string; name: string; email: string | null };
   matter: { id: string; reference: string | null; type: string | null } | null;
   practiceArea: string | null;
+  /** Ids as well as labels, so the edit dialog can prefill its selects. */
+  practiceAreaId: string | null;
+  attorneyId: string | null;
   attorney: string | null;
   lineItems: InvoiceLineItem[];
   payments: InvoicePayment[];
@@ -211,7 +219,8 @@ export type CreateInvoiceInput = {
   issueDate: string;
   dueDate: string;
   notes?: string;
-  status?: "draft" | "sent";
+  /** Server-side default is draft; delivery is what makes an invoice sent. */
+  status?: "draft";
   lineItems: {
     description: string;
     quantity: number;
@@ -219,6 +228,45 @@ export type CreateInvoiceInput = {
     account: "operating" | "trust_iolta";
   }[];
   timeEntryIds: string[];
+};
+
+/**
+ * Editing an invoice.
+ *
+ * The header half applies to any live invoice; sending any of the content half
+ * is refused by the server on anything but a draft. `lineItems` REPLACES the
+ * whole set, so `timeEntryIds` must go with it — the server rejects one without
+ * the other rather than silently dropping the missing half.
+ */
+export type UpdateInvoiceInput = {
+  dueDate?: string;
+  notes?: string;
+  /** `null` unassigns; omitting the key leaves it alone. */
+  attorneyId?: string | null;
+  filingType?: string;
+  issueDate?: string;
+  caseId?: string | null;
+  practiceAreaId?: string | null;
+  lineItems?: {
+    description: string;
+    quantity: number;
+    rate: number;
+    account: "operating" | "trust_iolta";
+  }[];
+  timeEntryIds?: string[];
+};
+
+/**
+ * Who to bill a matter under. A case belongs to a team, not a person, so the
+ * server resolves it — `source` says which rule fired so the dialog can explain
+ * a prefill instead of just asserting one.
+ */
+export type CaseDefaults = {
+  caseId: string;
+  attorneyId: string | null;
+  attorneyName: string | null;
+  source: "team_lead" | "sole_attorney" | null;
+  attorneyCount: number;
 };
 
 export type RecordPaymentInput = {
@@ -250,6 +298,8 @@ const toQuery = (params: Record<string, unknown>) => {
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
     if (value === "all") continue;
+    // Omit rather than send "false" — a present flag reads as opt-in.
+    if (value === false) continue;
     query[key] = String(value);
   }
   return query;
@@ -301,8 +351,21 @@ export async function getInvoiceById(id: string): Promise<InvoiceDetail> {
   return data.data;
 }
 
+export async function getCaseDefaults(caseId: string): Promise<CaseDefaults> {
+  const { data } = await API.get<{ data: CaseDefaults }>(
+    "/finance/invoices/case-defaults",
+    { params: { caseId } },
+  );
+  return data.data;
+}
+
 export async function getUnbilledTime(
-  params: { clientId?: string; caseId?: string } = {},
+  params: {
+    clientId?: string;
+    caseId?: string;
+    /** Also return the entries this draft already holds, so an edit can keep them. */
+    forInvoiceId?: string;
+  } = {},
 ): Promise<UnbilledTimeEntry[]> {
   const { data } = await API.get<{ data: UnbilledTimeEntry[] }>(
     "/finance/invoices/unbilled-time",
@@ -316,6 +379,17 @@ export async function createInvoice(
 ): Promise<InvoiceDetail> {
   const { data } = await API.post<{ data: InvoiceDetail }>(
     "/finance/invoices",
+    input,
+  );
+  return data.data;
+}
+
+export async function updateInvoice(
+  invoiceId: string,
+  input: UpdateInvoiceInput,
+): Promise<InvoiceDetail> {
+  const { data } = await API.patch<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}`,
     input,
   );
   return data.data;
@@ -633,71 +707,78 @@ export async function exportFinanceReport(
   downloadBlob(res.data, `finance-report-${month ?? "current"}.${format}`);
 }
 
-/**
- * Invoice PDF, rendered client-side from the detail the dialog already has.
- *
- * The server has no per-invoice PDF endpoint; adding one would duplicate the
- * document layout that already exists for fee agreements. Print-to-PDF via the
- * browser keeps one source of truth for how an invoice looks.
- */
-export const printInvoice = (invoice: InvoiceDetail): void => {
-  const win = window.open("", "_blank", "width=900,height=1000");
-  if (!win) return;
-  win.document.write(renderInvoiceHtml(invoice));
-  win.document.close();
-  win.focus();
-  win.print();
+export type DeliveryStatus = "pending" | "sent" | "failed";
+
+export type InvoiceDelivery = {
+  id: string;
+  channel: "email";
+  recipientEmail: string;
+  status: DeliveryStatus;
+  failureReason: string | null;
+  attemptCount: number;
+  createdAt: string;
+  deliveredAt: string | null;
+  sentBy: string | null;
 };
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+export type SendResult = {
+  deliveryId: string;
+  /** A failed send is a successful request — check this, not the HTTP status. */
+  status: "sent" | "failed";
+  recipientEmail: string;
+  failureReason: string | null;
+  attemptCount: number;
+};
 
-const fmt = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+export async function sendInvoice(invoiceId: string): Promise<SendResult> {
+  const { data } = await API.post<{ data: SendResult }>(
+    `/finance/invoices/${invoiceId}/send`,
+  );
+  return data.data;
+}
 
-const renderInvoiceHtml = (inv: InvoiceDetail): string => `
-<!doctype html><html><head><meta charset="utf-8">
-<title>${escapeHtml(inv.invoiceNumber)}</title>
-<style>
-  body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a1a; padding: 40px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .muted { color: #666; font-size: 13px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-  th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
-       color: #666; border-bottom: 1px solid #ddd; padding: 8px 0; }
-  td { padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
-  .num { text-align: right; }
-  .totals { margin-top: 20px; margin-left: auto; width: 260px; font-size: 13px; }
-  .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px;
-          margin-top: 20px; font-size: 13px; background: #faf9f6; padding: 16px; border-radius: 8px; }
-</style></head><body>
-<h1>Invoice ${escapeHtml(inv.invoiceNumber)}</h1>
-<div class="muted">${escapeHtml(inv.client.name)}${inv.matter?.reference ? ` · ${escapeHtml(inv.matter.reference)}` : ""}</div>
-<div class="grid">
-  <div><b>Client:</b> ${escapeHtml(inv.client.name)}</div>
-  <div><b>Email:</b> ${escapeHtml(inv.client.email ?? "—")}</div>
-  <div><b>Matter:</b> ${escapeHtml(inv.matter?.reference ?? "—")}</div>
-  <div><b>Filing type:</b> ${escapeHtml(inv.filingType ?? "—")}</div>
-  <div><b>Attorney:</b> ${escapeHtml(inv.attorney ?? "—")}</div>
-  <div><b>Issue date:</b> ${escapeHtml(inv.issueDate)}</div>
-  <div><b>Due date:</b> ${escapeHtml(inv.dueDate)}</div>
-  <div><b>Payment method:</b> ${escapeHtml(inv.lastPaymentMethod ? PAYMENT_METHOD_LABELS[inv.lastPaymentMethod] : "—")}</div>
-</div>
-<table><thead><tr>
-  <th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Total</th>
-</tr></thead><tbody>
-${inv.lineItems
-  .map(
-    (l) => `<tr><td>${escapeHtml(l.description)}</td><td class="num">${l.quantity}</td>
-      <td class="num">${fmt(l.rate)}</td><td class="num">${fmt(l.amount)}</td></tr>`,
-  )
-  .join("")}
-</tbody></table>
-<div class="totals">
-  <div><span>Total:</span><b>${fmt(inv.totals.total)}</b></div>
-  <div><span>Amount paid:</span><span>${fmt(inv.totals.amountPaid)}</span></div>
-  <div><span>Balance due:</span><b>${fmt(inv.totals.balanceDue)}</b></div>
-</div>
-${inv.notes ? `<p class="muted" style="margin-top:24px"><b>Notes</b><br>${escapeHtml(inv.notes)}</p>` : ""}
-</body></html>`;
+export async function resendInvoice(invoiceId: string): Promise<SendResult> {
+  const { data } = await API.post<{ data: SendResult }>(
+    `/finance/invoices/${invoiceId}/resend`,
+  );
+  return data.data;
+}
+
+export async function getInvoiceDeliveries(
+  invoiceId: string,
+): Promise<InvoiceDelivery[]> {
+  const { data } = await API.get<{ data: InvoiceDelivery[] }>(
+    `/finance/invoices/${invoiceId}/deliveries`,
+  );
+  return data.data;
+}
+
+/**
+ * The PDF comes from the server — the same bytes that are emailed to the client
+ * and archived. Rendering a second copy in the browser would drift from the
+ * archived one, so there is deliberately no client-side invoice renderer.
+ */
+export async function downloadInvoicePdf(
+  invoiceId: string,
+  invoiceNumber: string,
+): Promise<void> {
+  const res = await API.get(`/finance/invoices/${invoiceId}/pdf`, {
+    responseType: "blob",
+  });
+  downloadBlob(res.data, `${invoiceNumber}.pdf`);
+}
+
+/**
+ * The PDF as a blob, for previewing before a send.
+ *
+ * Same endpoint as the download and the same bytes that get attached to the
+ * email — a preview rendered any other way would be a mock-up of the document
+ * rather than the document, which is precisely what a confirmation step must
+ * not show.
+ */
+export async function fetchInvoicePdfBlob(invoiceId: string): Promise<Blob> {
+  const res = await API.get(`/finance/invoices/${invoiceId}/pdf`, {
+    responseType: "blob",
+  });
+  return res.data as Blob;
+}

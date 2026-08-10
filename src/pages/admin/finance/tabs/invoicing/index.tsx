@@ -1,6 +1,9 @@
-import type { AccountFilter, InvoiceListRow, InvoiceStatusFilter } from "@/api/finance";
+import type {
+  AccountFilter,
+  InvoiceListRow,
+  InvoiceStatusFilter,
+} from "@/api/finance";
 import { FilterCombobox } from "@/components/ui/filter-combobox";
-import { SurfaceCard } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { StatTile } from "@/components/ui/stat-tile";
 import {
@@ -11,7 +14,7 @@ import {
 } from "@/hooks/use-finance";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { formatCurrency, percentOf } from "@/utils/currency";
-import { Box, Flex, Grid, Input, Text } from "@chakra-ui/react";
+import { Box, Checkbox, Flex, Grid, Input, Text } from "@chakra-ui/react";
 import { useDebounce } from "@uidotdev/usehooks";
 import {
   AlertTriangle,
@@ -22,14 +25,20 @@ import {
   Search,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 import { AgingSummaryCard } from "../../components/aging-summary-card";
 import { InvoiceDetailDialog } from "../../components/dialogs/invoice-detail-dialog";
 import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-up-dialog";
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
+import { InvoiceFormDialog } from "../../components/dialogs/invoice-form-dialog";
+import {
+  SendInvoiceDialog,
+  type SendableInvoice,
+} from "../../components/dialogs/send-invoice-dialog";
 import { InvoicesTable } from "../../components/invoices-table";
 import { RecentActivityCard } from "../../components/recent-activity-card";
 import { ACCOUNT_OPTIONS, INVOICE_STATUS_OPTIONS } from "../../data";
+import { SurfaceCard } from "@/components/ui/intake-ui";
 
 export default function InvoicingTab() {
   const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
@@ -41,24 +50,34 @@ export default function InvoicingTab() {
     "account",
     parseAsString.withDefault("all"),
   );
+  // Only meaningful on "all" — every other bucket names a non-draft state.
+  const [includeDrafts, setIncludeDrafts] = useQueryState(
+    "drafts",
+    parseAsBoolean.withDefault(false),
+  );
   const { currentPage, limit, setPagination } = usePaginationQueryStates();
   const debouncedSearch = useDebounce(search, 300);
 
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [paymentTarget, setPaymentTarget] = useState<InvoiceListRow | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<InvoiceListRow | null>(
+    null,
+  );
   const [followUpTarget, setFollowUpTarget] = useState<InvoiceListRow | null>(
     null,
   );
+  const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
       search: debouncedSearch || undefined,
       status: status as InvoiceStatusFilter,
       account: account as AccountFilter,
+      includeDrafts,
       page: currentPage,
       limit,
     }),
-    [debouncedSearch, status, account, currentPage, limit],
+    [debouncedSearch, status, account, includeDrafts, currentPage, limit],
   );
 
   const invoices = useInvoices(params);
@@ -92,7 +111,10 @@ export default function InvoicingTab() {
         border="1px solid"
         borderColor="#cfe0f5"
         bg="#eef5fd"
-        _dark={{ bg: "rgba(59, 130, 196, 0.12)", borderColor: "rgba(59,130,196,0.35)" }}
+        _dark={{
+          bg: "rgba(59, 130, 196, 0.12)",
+          borderColor: "rgba(59,130,196,0.35)",
+        }}
       >
         <Box color="#3b82c4" mt="1px">
           <Info size={16} />
@@ -102,8 +124,8 @@ export default function InvoicingTab() {
             Consultation fee tracking coming soon
           </Text>
           <Text fontSize="12px" color="fg.muted">
-            Consultation fee tracking will appear here once the Finance module is
-            fully built. Fees are currently tracked in Analytics → Revenue.
+            Consultation fee tracking will appear here once the Finance module
+            is fully built. Fees are currently tracked in Analytics → Revenue.
           </Text>
         </Box>
       </Flex>
@@ -136,7 +158,10 @@ export default function InvoicingTab() {
           caption={`${stats?.outstandingCount ?? 0} invoices pending`}
           icon={<Clock size={15} />}
           tone="warning"
-          progress={percentOf(stats?.outstanding ?? 0, stats?.totalInvoiced ?? 0)}
+          progress={percentOf(
+            stats?.outstanding ?? 0,
+            stats?.totalInvoiced ?? 0,
+          )}
         />
         <StatTile
           label="Overdue invoices"
@@ -144,7 +169,10 @@ export default function InvoicingTab() {
           caption={`${formatCurrency(stats?.pastDueAmount ?? 0)} past due`}
           icon={<AlertTriangle size={15} />}
           tone="critical"
-          progress={percentOf(stats?.pastDueAmount ?? 0, stats?.totalInvoiced ?? 0)}
+          progress={percentOf(
+            stats?.pastDueAmount ?? 0,
+            stats?.totalInvoiced ?? 0,
+          )}
         />
       </Grid>
 
@@ -154,13 +182,19 @@ export default function InvoicingTab() {
         mt="20px"
         alignItems="start"
       >
-        <SurfaceCard>
+        {/* p="0" so the table can reach the card's edges as it does in the
+            design. Everything that is NOT the table pads itself back in. */}
+        {/* overflow hidden so the table's square bottom corners are clipped to
+            the card's radius — with no padding it now reaches the edge. Doing
+            it here means no child has to know about the card's corners. */}
+        <SurfaceCard p="0" overflow="hidden">
           <Flex
             justify="space-between"
             align="center"
             gap="12px"
             flexWrap="wrap"
-            mb="14px"
+            p="18px"
+            pb="14px"
           >
             <Text textStyle="label" fontWeight="700">
               All invoices
@@ -205,11 +239,39 @@ export default function InvoicingTab() {
                 noun="account"
               />
 
+              {status === "all" && (
+                <Checkbox.Root
+                  size="sm"
+                  checked={includeDrafts}
+                  onCheckedChange={(d) => {
+                    void setIncludeDrafts(Boolean(d.checked) || null);
+                    void setPagination({ currentPage: 1 });
+                  }}
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                  <Checkbox.Label
+                    fontSize="12px"
+                    color="fg.muted"
+                    whiteSpace="nowrap"
+                  >
+                    Include drafts
+                  </Checkbox.Label>
+                </Checkbox.Root>
+              )}
+
               <Text fontSize="12px" color="fg.muted" whiteSpace="nowrap">
                 {invoices.data?.pagination.total ?? 0} invoices
               </Text>
             </Flex>
           </Flex>
+
+          {status === "draft" && (
+            <Text fontSize="11px" color="fg.muted" px="18px" mb="10px">
+              Drafts have not been sent to the client and are excluded from the
+              totals above — they are not invoiced revenue until delivered.
+            </Text>
+          )}
 
           <InvoicesTable
             rows={invoices.data?.data ?? []}
@@ -219,15 +281,19 @@ export default function InvoicingTab() {
             onView={(row) => setDetailId(row.id)}
             onRecordPayment={setPaymentTarget}
             onFollowUp={setFollowUpTarget}
+            onSend={setSendTarget}
+            onEdit={(row) => setEditId(row.id)}
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
-            <Box mt="14px">
+            <Box p="18px">
               <PaginationControls
                 total={invoices.data.pagination.total}
                 currentPage={currentPage}
                 limit={limit}
-                onPageChange={(page) => void setPagination({ currentPage: page })}
+                onPageChange={(page) =>
+                  void setPagination({ currentPage: page })
+                }
                 onLimitChange={(l) =>
                   void setPagination({ currentPage: 1, limit: l })
                 }
@@ -262,6 +328,26 @@ export default function InvoicingTab() {
         invoice={followUpTarget}
         open={followUpTarget !== null}
         onOpenChange={(d) => !d.open && setFollowUpTarget(null)}
+      />
+      <SendInvoiceDialog
+        invoice={sendTarget}
+        open={sendTarget !== null}
+        onOpenChange={(d) => !d.open && setSendTarget(null)}
+      />
+      <InvoiceFormDialog
+        invoiceId={editId}
+        open={editId !== null}
+        onOpenChange={(d) => !d.open && setEditId(null)}
+        onReadyToSend={(invoice) =>
+          setSendTarget({
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            clientName: invoice.client.name,
+            clientEmail: invoice.client.email,
+            totalAmount: invoice.totals.total,
+            dueDate: invoice.dueDate,
+          })
+        }
       />
     </Box>
   );
