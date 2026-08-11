@@ -2,8 +2,20 @@ import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
 import { Link } from "react-router";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-export function NotFoundPage() {
-  useDocumentTitle("Page not found - Oravanti");
+type ComingSoonPageProps = {
+  title?: string;
+  description?: string;
+  showBack?: boolean;
+  backTo?: string;
+};
+
+export function ComingSoonPage({
+  title = "Coming soon",
+  description = "This feature is currently in development and will be available soon.",
+  showBack = true,
+  backTo = "/",
+}: ComingSoonPageProps) {
+  useDocumentTitle("Coming soon - Oravanti");
 
   return (
     <VStack
@@ -19,27 +31,28 @@ export function NotFoundPage() {
         w="12"
         h="12"
         borderRadius="xl"
-        bg="bg.muted"
+        bg="brand.subtle"
         display="flex"
         alignItems="center"
         justifyContent="center"
-        fontSize="sm"
-        fontWeight="600"
-        color="fg.muted"
+        fontSize="xl"
+        color="brand.fg"
       >
-        404
+        &#9670;
       </Box>
       <VStack gap="1">
         <Heading as="h1" fontSize="2xl" fontWeight="600" color="fg">
-          Page not found
+          {title}
         </Heading>
         <Text color="fg.muted" maxW="md" lineHeight="1.6">
-          The page you're looking for doesn't exist or may have been moved.
+          {description}
         </Text>
       </VStack>
-      <Button asChild layerStyle="brand-button" size="sm" borderRadius="8px">
-        <Link to="/">Return to dashboard</Link>
-      </Button>
+      {showBack ? (
+        <Button asChild layerStyle="brand-button" size="sm" borderRadius="8px">
+          <Link to={backTo}>Return to dashboard</Link>
+        </Button>
+      ) : null}
     </VStack>
   );
 }

@@ -1,5 +1,5 @@
-import { Placeholder } from "../../components/placeholder";
+import { ComingSoonPage } from "@/pages/coming-soon";
 
 export default function TimeTracking() {
-  return <Placeholder label="Time tracking" />;
+  return <ComingSoonPage title="Time tracking" showBack={false} />;
 }
