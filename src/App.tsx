@@ -27,6 +27,10 @@ import {
   InterviewPackagesPage,
 } from "@/pages/admin/documents";
 import { AdminDashboard } from "@/pages/admin/dashboard";
+import { FinancePage } from "@/pages/admin/finance";
+import InvoicingTab from "@/pages/admin/finance/tabs/invoicing";
+import ReportsTab from "@/pages/admin/finance/tabs/reports";
+import TimeBillingTab from "@/pages/admin/finance/tabs/time-billing";
 import { LeadReviewQueuePage } from "@/pages/admin/lead-review-queue";
 import {
   LeadDetailPage,
@@ -199,6 +203,12 @@ function createAppRouter() {
             <Route path="timeline" element={<TimelineTabRoute />} />
             <Route path="audit-log" element={<LeadAuditLogTabRoute />} />
             <Route path="notes" element={<NotesTabRoute />} />
+          </Route>
+          <Route path="finance" element={<FinancePage />}>
+            <Route index element={<Navigate to="/finance/invoicing" replace />} />
+            <Route path="invoicing" element={<InvoicingTab />} />
+            <Route path="time-billing" element={<TimeBillingTab />} />
+            <Route path="reports" element={<ReportsTab />} />
           </Route>
           <Route
             path="leads/:leadId/conflict-check"
