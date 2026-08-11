@@ -2,6 +2,7 @@ import { useFirmProfile, useUpdateFirmProfile } from "@/hooks/use-firm-settings"
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { FormSelect } from "@/components/ui/form-select";
 import useUnsavedChangesPrompt from "@/hooks/useUnsavedChangesPrompt";
+import { US_STATES, getCitiesForState } from "@/data/us-states-cities";
 import {
   Box,
   Button,
@@ -12,23 +13,12 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { dayjs, formatDateTime } from "@/utils/date";
 import { listTimezones } from "@/utils/timezones";
 import type { FirmProfile } from "@/api/firm-settings";
-
-const US_STATES = [
-  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
-  "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
-  "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
-  "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada",
-  "New Hampshire","New Jersey","New Mexico","New York","North Carolina",
-  "North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
-  "South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
-  "Virginia","Washington","West Virginia","Wisconsin","Wyoming",
-];
 
 const TIMEZONES = listTimezones();
 
@@ -41,7 +31,7 @@ const PRACTICE_TYPES = [
   "Corporate legal department",
 ];
 
-const STATE_OPTIONS = US_STATES.map((s) => ({ label: s, value: s }));
+const STATE_OPTIONS = US_STATES.map((s) => ({ label: s.name, value: s.name }));
 const TIMEZONE_OPTIONS = TIMEZONES.map((tz) => ({ label: tz, value: tz }));
 const PRACTICE_TYPE_OPTIONS = PRACTICE_TYPES.map((pt) => ({
   label: pt,
@@ -144,11 +134,24 @@ export function FirmInformationCard() {
     control,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isDirty },
   } = useForm<FirmProfileForm>({
     resolver: zodResolver(firmProfileSchema),
     defaultValues: EMPTY_FORM,
   });
+
+  const selectedState = watch("state");
+
+  const stateCode = useMemo(() => {
+    const match = US_STATES.find((s) => s.name === selectedState);
+    return match?.code ?? "";
+  }, [selectedState]);
+
+  const cityOptions = useMemo(() => {
+    return getCitiesForState(stateCode).map((c) => ({ label: c, value: c }));
+  }, [stateCode]);
 
   useEffect(() => {
     if (profile) reset(toForm(profile));
@@ -368,19 +371,6 @@ export function FirmInformationCard() {
           >
             <Box>
               <Text fontSize="13px" fontWeight="600" color="fg" mb="2">
-                City
-              </Text>
-              <Input
-                {...register("city")}
-                placeholder="Chicago"
-                borderColor="border"
-                bg="bg.input"
-                h="40px"
-                fontSize="14px"
-              />
-            </Box>
-            <Box>
-              <Text fontSize="13px" fontWeight="600" color="fg" mb="2">
                 State
               </Text>
               <Controller
@@ -390,10 +380,33 @@ export function FirmInformationCard() {
                   <FormSelect
                     options={STATE_OPTIONS}
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      setValue("city", "");
+                    }}
                     placeholder="Select state"
                     size="sm"
                     invalid={!!errors.state}
+                  />
+                )}
+              />
+            </Box>
+            <Box>
+              <Text fontSize="13px" fontWeight="600" color="fg" mb="2">
+                City
+              </Text>
+              <Controller
+                control={control}
+                name="city"
+                render={({ field }) => (
+                  <FormSelect
+                    options={cityOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={selectedState ? "Select city" : "Select state first"}
+                    size="sm"
+                    invalid={!!errors.city}
+                    disabled={!selectedState}
                   />
                 )}
               />
