@@ -2,7 +2,6 @@ export type PrimarySection =
   | "overview"
   | "intake"
   | "cases"
-  | "documents"
   | "staff-management"
   | "billing-and-finance"
   | "calendar"
@@ -83,12 +82,6 @@ export const primaryNavigation: PrimaryNavigationItem[] = [
     section: "cases",
     path: "/cases",
     icon: "folder",
-  },
-  {
-    label: "Documents",
-    section: "documents",
-    path: "/documents",
-    icon: "documents",
   },
   {
     label: "Calendar",
@@ -188,43 +181,6 @@ export const contextNavigation: Record<
           label: "Policy alerts",
           path: "/cases/policy-alerts",
           icon: "rss",
-        },
-      ],
-    },
-  ],
-  documents: [
-    {
-      label: "Document management",
-      items: [
-        {
-          label: "All documents",
-          path: "/documents",
-          icon: "documents",
-        },
-        {
-          label: "Case filings",
-          path: "/documents/case-filings",
-          icon: "file",
-        },
-        {
-          label: "Interview packages",
-          path: "/documents/interview-packages",
-          icon: "package",
-        },
-      ],
-    },
-    {
-      label: "Create",
-      items: [
-        {
-          label: "Document creator",
-          path: "/documents/creator",
-          icon: "file-plus",
-        },
-        {
-          label: "Templates",
-          path: "/documents/templates",
-          icon: "template",
         },
       ],
     },
@@ -451,7 +407,6 @@ export function getSectionForPath(pathname: string): PrimarySection {
   if (pathname.startsWith("/intake") || pathname.startsWith("/leads"))
     return "intake";
   if (pathname.startsWith("/cases")) return "cases";
-  if (pathname.startsWith("/documents")) return "documents";
   if (pathname.startsWith("/ai-review")) return "ai-review";
   if (pathname.startsWith("/staff")) return "staff-management";
   if (pathname.startsWith("/finance")) return "billing-and-finance";
