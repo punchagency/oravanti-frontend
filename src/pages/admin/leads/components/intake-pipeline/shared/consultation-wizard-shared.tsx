@@ -328,6 +328,11 @@ export function ScheduleDetailsStep({
     );
   }, [attorneySelected, participantOptions, participantIds, attendeeQuery]);
 
+  // Open on any non-empty search, not just on hits — an empty result needs to
+  // say so rather than leave the user staring at a dropdown that never appears.
+  const showAttendeeResults =
+    attorneySelected && attendeeQuery.trim().length > 0;
+
   const addParticipant = (id: string) => {
     onParticipantsChange([...participantIds, id]);
     setAttendeeQuery("");
@@ -587,7 +592,7 @@ export function ScheduleDetailsStep({
             {...fieldStyles}
             _disabled={{ bg: "bg.subtle", opacity: 0.6, cursor: "not-allowed" }}
           />
-          {attendeeMatches.length > 0 ? (
+          {showAttendeeResults ? (
             <Stack
               gap="0"
               position="absolute"
@@ -604,6 +609,11 @@ export function ScheduleDetailsStep({
               overflowY="auto"
               p="4px"
             >
+              {attendeeMatches.length === 0 ? (
+                <Text m="0" px="10px" py="8px" fontSize="13px" color="fg.muted">
+                  No attorney or paralegal matches your search.
+                </Text>
+              ) : null}
               {attendeeMatches.map((member) => (
                 <chakra.button
                   key={member.id}
