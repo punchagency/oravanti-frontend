@@ -2317,8 +2317,20 @@ export function ScheduleConsultationDialog({
   // The dropdowns are memoized on their handler identity, so these two have to
   // survive a keystroke unchanged.
   const handleAttorneyChange = useCallback(
-    (value: string) => setField("attorneyId", value),
-    [setField],
+    (value: string) => {
+      setField("attorneyId", value);
+      // The lead attorney can't also be an additional attendee: the picker
+      // hides their chip and the API drops the id outright, but the review
+      // step reads participantIds directly and would still list them. Prune.
+      const current = getValues("participantIds");
+      if (current.includes(value)) {
+        setField(
+          "participantIds",
+          current.filter((id) => id !== value),
+        );
+      }
+    },
+    [setField, getValues],
   );
   const handleLocationChange = useCallback(
     (value: string) => setField("locationId", value),
