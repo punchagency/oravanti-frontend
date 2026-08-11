@@ -1,8 +1,10 @@
 import { Button, Center, Heading, Text, VStack } from "@chakra-ui/react";
+import { useNavigate } from "react-router";
 
 export const ClientSuccessStep = () => {
+  const navigate = useNavigate();
   const handlePortalRedirect = () => {
-    window.location.href = "/dashboard";
+    navigate("/dashboard");
   };
 
   return (

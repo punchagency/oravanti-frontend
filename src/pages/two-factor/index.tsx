@@ -72,10 +72,19 @@ const TwoFactorVerification = () => {
         needsPasswordChange: needsSetup.needsPasswordChange,
       });
 
+      // Restore the path the user originally tried to visit (saved by the
+      // public router catch-all) so deep links survive the 2FA step too.
+      const postLoginRedirect = sessionStorage.getItem("postLoginRedirect");
+      sessionStorage.removeItem("postLoginRedirect");
+      const validRedirect =
+        postLoginRedirect && postLoginRedirect.startsWith("/")
+          ? postLoginRedirect
+          : null;
+
       if (needsSetup.needsAcceptInvitation) {
         navigate("/accept-invitation", { replace: true });
       } else {
-        navigate("/", { replace: true });
+        navigate(validRedirect ?? "/", { replace: true });
       }
     } catch {
       toast.error("Unable to complete sign in. Please try again.");
