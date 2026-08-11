@@ -17,6 +17,7 @@ import type { Lead } from "@/api/leads";
 import type { ConsultationLocation } from "@/api/consultation-settings";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
+import { hasStaffRole } from "@/hooks/use-consultation-staff";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   BrandButton,
@@ -295,7 +296,7 @@ export function ScheduleDetailsStep({
       allStaff.filter(
         (s) =>
           s.id !== attorneyId &&
-          (s.role === "attorney" || s.role === "paralegal"),
+          (hasStaffRole(s, "attorney") || hasStaffRole(s, "paralegal")),
       ),
     [allStaff, attorneyId],
   );

@@ -40,6 +40,7 @@ import {
   useResponseDetail,
   useUploadResponseFile,
 } from "@/hooks/use-questionnaires";
+import { useConsultationStaff } from "@/hooks/use-consultation-staff";
 import { useStaffsList } from "@/hooks/use-staff-list";
 import { dayjs, formatTime } from "@/utils/date";
 import {
@@ -2305,12 +2306,7 @@ export function ScheduleConsultationDialog({
     ];
   }, [questionnaireData, consultationData]);
 
-  const { data: staffData } = useStaffsList({ status: "active", limit: 1000 });
-  const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
-  const attorneys = useMemo(
-    () => allStaff.filter((s) => s.role === "attorney"),
-    [allStaff],
-  );
+  const { allStaff, attorneys } = useConsultationStaff();
 
   const { data: feeSettings } = useConsultationSettings();
   const { data: locations = [] } = useConsultationLocations();
