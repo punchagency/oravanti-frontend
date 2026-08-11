@@ -12,6 +12,7 @@ type AuthState = {
   refetch: () => void;
   needsAcceptInvitation: boolean;
   needsPasswordChange: boolean;
+  twoFactorPending: boolean;
 };
 
 type AuthActions = {
@@ -19,6 +20,7 @@ type AuthActions = {
   clearAuth: () => void;
   setNeedsAcceptInvitation: (v: boolean) => void;
   setNeedsPasswordChange: (v: boolean) => void;
+  setTwoFactorPending: (v: boolean) => void;
 };
 
 export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
@@ -31,6 +33,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
   refetch: () => {},
   needsAcceptInvitation: false,
   needsPasswordChange: false,
+  twoFactorPending: false,
   setAuth: (auth) =>
     set({
       user: auth.user,
@@ -42,6 +45,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       refetch: auth.refetch,
       needsAcceptInvitation: auth.needsAcceptInvitation,
       needsPasswordChange: auth.needsPasswordChange,
+      twoFactorPending: false,
     }),
   clearAuth: () =>
     set({
@@ -54,7 +58,9 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       refetch: () => {},
       needsAcceptInvitation: false,
       needsPasswordChange: false,
+      twoFactorPending: false,
     }),
   setNeedsAcceptInvitation: (v) => set({ needsAcceptInvitation: v }),
   setNeedsPasswordChange: (v) => set({ needsPasswordChange: v }),
+  setTwoFactorPending: (v) => set({ twoFactorPending: v }),
 }));

@@ -26,6 +26,7 @@ import { CalendarDate } from "@internationalized/date";
 import { CalendarDays, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
 import { z } from "zod";
 import {
   CALENDAR_FILTER_TYPES,
@@ -106,6 +107,7 @@ export function EventDetailDialog({
   const updateEvent = useUpdateCalendarEvent();
   const deleteEvent = useDeleteCalendarEvent();
   const { showSuccess, showError } = useFeedbackDialog();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -827,7 +829,7 @@ export function EventDetailDialog({
                         variant="ghost"
                         color="fg.muted"
                         onClick={() => {
-                          window.location.href = `/cases/${event.case!.id}`;
+                          navigate(`/cases/${event.case!.id}`);
                         }}
                       >
                         View case
@@ -842,7 +844,7 @@ export function EventDetailDialog({
                         variant="ghost"
                         color="fg.muted"
                         onClick={() => {
-                          window.location.href = `/cases/${event.case!.id}`;
+                          navigate(`/cases/${event.case!.id}`);
                         }}
                       >
                         View case
@@ -857,7 +859,7 @@ export function EventDetailDialog({
                         variant="ghost"
                         color="fg.muted"
                         onClick={() => {
-                          window.location.href = `/cases/${event.case!.id}`;
+                          navigate(`/cases/${event.case!.id}`);
                         }}
                       >
                         View case

@@ -1,5 +1,5 @@
 import { Box, Text } from "@chakra-ui/react";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 
 export function StaffPageHeader() {
   return (

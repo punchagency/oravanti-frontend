@@ -1,5 +1,5 @@
-import { Placeholder } from "../../components/placeholder";
+import { ComingSoonPage } from "@/pages/coming-soon";
 
 export default function Leave() {
-  return <Placeholder label="Leave" />;
+  return <ComingSoonPage title="Leave" showBack={false} />;
 }

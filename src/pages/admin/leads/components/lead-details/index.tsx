@@ -24,6 +24,7 @@ import {
   useParams,
 } from "react-router";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { EntityNotFound } from "@/components/ui/entity-not-found";
 import {
   pipelineStageColors,
   pipelineStageLabels,
@@ -60,7 +61,7 @@ export function LeadDetailPage() {
     }
   }, [leadId, qc]);
 
-  const { data: lead, isLoading } = useQuery({
+  const { data: lead, isLoading, isError } = useQuery({
     queryKey: ["lead", leadId],
     queryFn: () => getLeadById(leadId!),
     enabled: Boolean(leadId),
@@ -68,6 +69,10 @@ export function LeadDetailPage() {
   });
 
   useDocumentTitle(lead ? `${lead.name} – Lead – Oravanti` : "Lead – Oravanti");
+
+  if (!isLoading && (isError || !lead)) {
+    return <EntityNotFound entityName="Lead" backTo="/leads" backLabel="Back to leads" />;
+  }
 
   const colors =
     taskStatusColors[lead?.status as keyof typeof taskStatusColors] ??

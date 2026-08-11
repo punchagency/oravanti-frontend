@@ -22,8 +22,8 @@ const authChannel = new BroadcastChannel("auth_session_sync");
 authChannel.onmessage = (event) => {
   if (event.data.type === "AUTH_EXPIRED") {
     processQueue(new Error("Session expired"));
-    // Force redirect or clear local auth state because another tab failed to refresh
-    window.location.href = "/login";
+    // Clear local auth state and let AppRouter drop to the public router.
+    useAuthStore.getState().clearAuth();
   } else if (event.data.type === "SESSION_REFRESHED") {
     // Another tab successfully renewed the cookie!
     // We can safely process any requests that were waiting in this tab
@@ -61,6 +61,7 @@ const shouldSkipRefresh = (url?: string) => {
     "/auth/send-verification-otp",
     "/auth/two-factor/verify-totp",
     "/auth/two-factor/verify-backup-code",
+    "/practice-areas/public",
   ];
 
   return excludedPaths.some((path) => url.includes(path));
@@ -116,7 +117,8 @@ API.interceptors.response.use(
         // Tell other tabs to boot the user to login immediately
         authChannel.postMessage({ type: "AUTH_EXPIRED" });
 
-        window.location.href = "/login";
+        // Clear local auth state; AppRouter drops to the public router.
+        useAuthStore.getState().clearAuth();
         return Promise.reject(refreshError);
       }
     }
