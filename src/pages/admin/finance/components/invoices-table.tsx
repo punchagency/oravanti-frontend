@@ -1,9 +1,5 @@
 import type { InvoiceListRow, InvoiceListTotals } from "@/api/finance";
-import {
-  BrandButton,
-  OutlineButton,
-  StatusPill,
-} from "@/components/ui/intake-ui";
+import { StatusPill } from "@/components/ui/intake-ui";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
@@ -16,7 +12,16 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
+import {
+  BellRing,
+  CalendarClock,
+  CreditCard,
+  Eye,
+  Pencil,
+  Send,
+} from "lucide-react";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "../data";
+import { RowActionMenu, type RowAction } from "./row-action-menu";
 
 const HEADERS = [
   "Invoice #",
@@ -40,60 +45,74 @@ const HEADERS = [
  *   past due            → Follow up + Pay
  *   otherwise           → Reschedule/Plan + Record payment
  */
-function RowActions({
-  row,
-  onView,
-  onRecordPayment,
-  onFollowUp,
-  onSend,
-  onEdit,
-  onReschedule,
-}: {
-  row: InvoiceListRow;
-  onView: (row: InvoiceListRow) => void;
-  onRecordPayment: (row: InvoiceListRow) => void;
-  onFollowUp: (row: InvoiceListRow) => void;
-  onSend: (row: InvoiceListRow) => void;
-  onEdit: (row: InvoiceListRow) => void;
-  onReschedule: (row: InvoiceListRow) => void;
-}) {
+function rowActions(
+  row: InvoiceListRow,
+  handlers: {
+    onView: (row: InvoiceListRow) => void;
+    onRecordPayment: (row: InvoiceListRow) => void;
+    onFollowUp: (row: InvoiceListRow) => void;
+    onSend: (row: InvoiceListRow) => void;
+    onEdit: (row: InvoiceListRow) => void;
+    onReschedule: (row: InvoiceListRow) => void;
+  },
+): RowAction[] {
   // A draft has not reached the client, so it is the one state where changing
   // what the invoice charges is still honest — and where recording a payment
   // against it is refused by the server.
   if (row.status === "draft") {
-    return (
-      <Flex gap="6px">
-        <OutlineButton onClick={() => onEdit(row)}>Edit</OutlineButton>
-        <BrandButton onClick={() => onSend(row)}>Send</BrandButton>
-      </Flex>
-    );
+    return [
+      {
+        label: "Edit invoice",
+        icon: <Pencil size={14} />,
+        onSelect: () => handlers.onEdit(row),
+      },
+      {
+        label: "Send to client",
+        icon: <Send size={14} />,
+        onSelect: () => handlers.onSend(row),
+      },
+    ];
   }
 
   if (row.status === "paid" || row.status === "void") {
-    return <OutlineButton onClick={() => onView(row)}>View</OutlineButton>;
+    return [
+      {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
+    ];
   }
 
   if (row.status === "overdue") {
-    return (
-      <Flex gap="6px">
-        <OutlineButton onClick={() => onFollowUp(row)}>Follow up</OutlineButton>
-        <BrandButton onClick={() => onRecordPayment(row)}>Pay</BrandButton>
-      </Flex>
-    );
+    return [
+      {
+        label: "Follow up",
+        icon: <BellRing size={14} />,
+        onSelect: () => handlers.onFollowUp(row),
+      },
+      {
+        label: "Record payment",
+        icon: <CreditCard size={14} />,
+        onSelect: () => handlers.onRecordPayment(row),
+      },
+    ];
   }
 
-  return (
-    <Flex gap="6px">
-      {/* Renegotiating a plan is the point of offering one, so this is offered
-          on a live invoice — unlike editing its lines, which freeze on send. */}
-      <OutlineButton onClick={() => onReschedule(row)}>
-        {row.schedule ? "Reschedule" : "Plan"}
-      </OutlineButton>
-      <BrandButton onClick={() => onRecordPayment(row)}>
-        Record payment
-      </BrandButton>
-    </Flex>
-  );
+  return [
+    // Renegotiating a plan is the point of offering one, so this is offered on
+    // a live invoice — unlike editing its lines, which freeze on send.
+    {
+      label: row.schedule ? "Reschedule plan" : "Create payment plan",
+      icon: <CalendarClock size={14} />,
+      onSelect: () => handlers.onReschedule(row),
+    },
+    {
+      label: "Record payment",
+      icon: <CreditCard size={14} />,
+      onSelect: () => handlers.onRecordPayment(row),
+    },
+  ];
 }
 
 export function InvoicesTable({
@@ -265,18 +284,17 @@ export function InvoicesTable({
               )}
             </Table.Cell>
 
-            <Table.Cell
-              py={REPORT_CELL_PY}
-              whiteSpace="nowrap"
-            >
-              <RowActions
-                row={row}
-                onView={onView}
-                onRecordPayment={onRecordPayment}
-                onFollowUp={onFollowUp}
-                onSend={onSend}
-                onEdit={onEdit}
-                onReschedule={onReschedule}
+            <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
+              <RowActionMenu
+                ariaLabel={`Actions for invoice ${row.invoiceNumber}`}
+                actions={rowActions(row, {
+                  onView,
+                  onRecordPayment,
+                  onFollowUp,
+                  onSend,
+                  onEdit,
+                  onReschedule,
+                })}
               />
             </Table.Cell>
           </Table.Row>

@@ -25,7 +25,7 @@ import {
   useRunConflictCheck,
 } from "@/hooks/use-leads";
 import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
-import { useStaffsList } from "@/hooks/use-staff-list";
+import { useConsultationStaff } from "@/hooks/use-consultation-staff";
 import {
   useConsultationLocations,
   useConsultationSettings,
@@ -333,12 +333,7 @@ export function InstantConsultationDialog({
     ];
   }, [questionnaireData, consultationData]);
 
-  const { data: staffData } = useStaffsList({ status: "active" });
-  const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
-  const attorneys = useMemo(
-    () => allStaff.filter((s) => s.role === "attorney"),
-    [allStaff],
-  );
+  const { allStaff, attorneys } = useConsultationStaff();
 
   const { data: feeSettings } = useConsultationSettings();
   const { data: locations = [] } = useConsultationLocations();
@@ -377,8 +372,20 @@ export function InstantConsultationDialog({
   // The dropdowns are memoized on their handler identity, so these have to
   // survive a keystroke in the name/email/phone/notes fields unchanged.
   const handleAttorneyChange = useCallback(
-    (value: string) => setField("attorneyId", value),
-    [setField],
+    (value: string) => {
+      setField("attorneyId", value);
+      // The lead attorney can't also be an additional attendee: the picker
+      // hides their chip and the API drops the id outright, so don't keep
+      // carrying it in the payload.
+      const current = getValues("participantIds");
+      if (current.includes(value)) {
+        setField(
+          "participantIds",
+          current.filter((id) => id !== value),
+        );
+      }
+    },
+    [setField, getValues],
   );
   const handleLocationChange = useCallback(
     (value: string) => setField("locationId", value),
