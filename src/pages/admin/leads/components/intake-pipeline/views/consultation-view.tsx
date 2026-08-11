@@ -40,6 +40,7 @@ import {
   useResponseDetail,
   useUploadResponseFile,
 } from "@/hooks/use-questionnaires";
+import { useConsultationStaff } from "@/hooks/use-consultation-staff";
 import { useStaffsList } from "@/hooks/use-staff-list";
 import { dayjs, formatTime } from "@/utils/date";
 import {
@@ -2305,12 +2306,7 @@ export function ScheduleConsultationDialog({
     ];
   }, [questionnaireData, consultationData]);
 
-  const { data: staffData } = useStaffsList({ status: "active", limit: 1000 });
-  const allStaff = useMemo(() => staffData?.data ?? [], [staffData]);
-  const attorneys = useMemo(
-    () => allStaff.filter((s) => s.role === "attorney"),
-    [allStaff],
-  );
+  const { allStaff, attorneys } = useConsultationStaff();
 
   const { data: feeSettings } = useConsultationSettings();
   const { data: locations = [] } = useConsultationLocations();
@@ -2321,8 +2317,20 @@ export function ScheduleConsultationDialog({
   // The dropdowns are memoized on their handler identity, so these two have to
   // survive a keystroke unchanged.
   const handleAttorneyChange = useCallback(
-    (value: string) => setField("attorneyId", value),
-    [setField],
+    (value: string) => {
+      setField("attorneyId", value);
+      // The lead attorney can't also be an additional attendee: the picker
+      // hides their chip and the API drops the id outright, but the review
+      // step reads participantIds directly and would still list them. Prune.
+      const current = getValues("participantIds");
+      if (current.includes(value)) {
+        setField(
+          "participantIds",
+          current.filter((id) => id !== value),
+        );
+      }
+    },
+    [setField, getValues],
   );
   const handleLocationChange = useCallback(
     (value: string) => setField("locationId", value),
