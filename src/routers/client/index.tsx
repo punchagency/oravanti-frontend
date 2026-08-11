@@ -2,27 +2,32 @@ import { ClientPortalLayout } from "@/components/layout/client-portal-layout";
 import { ClientGuard } from "@/routers/client/guard";
 import { UnsavedChangesProvider } from "@/contexts/unsaved-changes-context";
 import { Route, createBrowserRouter, createRoutesFromElements, Navigate } from "react-router";
+import { lazyPage } from "@/routers/lazy";
+
 import AcceptInvitationPage from "@/pages/accept-invitation";
 import EmailVerifiedPage from "@/pages/email-verified";
 import SetPasswordPage from "@/pages/set-password";
 import VerifyEmailNoticePage from "@/pages/verify-email";
-import ClientOverviewPage from "@/pages/client-portal/overview";
-import CaseFilesPage from "@/pages/client-portal/case-files";
-import TimelinePage from "@/pages/client-portal/timeline";
-import AppointmentsPage from "@/pages/client-portal/appointments";
-import UpcomingAppointmentsPage from "@/pages/client-portal/appointments/upcoming";
-import PastAppointmentsPage from "@/pages/client-portal/appointments/past";
-import PaymentsPage from "@/pages/client-portal/payments";
-import FeeAgreementPage from "@/pages/client-portal/payments/fee-agreement";
-import PaymentHistoryPage from "@/pages/client-portal/payments/history";
-import MessagesPage from "@/pages/client-portal/messages";
-import InboxPage from "@/pages/client-portal/messages/inbox";
-import ResourcesPage from "@/pages/client-portal/resources";
-import { ClientSettingsPage } from "@/pages/client-portal/settings";
-import ClientProfileTab from "@/pages/client-portal/settings/tabs/profile";
-import SecurityTab from "@/pages/admin/my-profile/tabs/security";
-import AppearanceTab from "@/pages/admin/my-profile/tabs/appearance";
 import { NotFoundPage } from "@/pages/not-found";
+
+const ClientOverviewPage = lazyPage(() => import("@/pages/client-portal/overview"));
+const CaseFilesPage = lazyPage(() => import("@/pages/client-portal/case-files"));
+const TimelinePage = lazyPage(() => import("@/pages/client-portal/timeline"));
+const AppointmentsPage = lazyPage(() => import("@/pages/client-portal/appointments"));
+const UpcomingAppointmentsPage = lazyPage(() => import("@/pages/client-portal/appointments/upcoming"));
+const PastAppointmentsPage = lazyPage(() => import("@/pages/client-portal/appointments/past"));
+const PaymentsPage = lazyPage(() => import("@/pages/client-portal/payments"));
+const FeeAgreementPage = lazyPage(() => import("@/pages/client-portal/payments/fee-agreement"));
+const PaymentHistoryPage = lazyPage(() => import("@/pages/client-portal/payments/history"));
+const MessagesPage = lazyPage(() => import("@/pages/client-portal/messages"));
+const InboxPage = lazyPage(() => import("@/pages/client-portal/messages/inbox"));
+const ResourcesPage = lazyPage(() => import("@/pages/client-portal/resources"));
+const ClientSettingsPage = lazyPage(() =>
+  import("@/pages/client-portal/settings").then((m) => ({ default: m.ClientSettingsPage })),
+);
+const ClientProfileTab = lazyPage(() => import("@/pages/client-portal/settings/tabs/profile"));
+const SecurityTab = lazyPage(() => import("@/pages/admin/my-profile/tabs/security"));
+const AppearanceTab = lazyPage(() => import("@/pages/admin/my-profile/tabs/appearance"));
 
 export function createClientPortalRouter() {
   return createBrowserRouter(
@@ -71,7 +76,7 @@ export function createClientPortalRouter() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
-      </Route>,
+      </Route>
     ),
   );
 }

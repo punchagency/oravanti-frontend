@@ -2,34 +2,21 @@ import { Navigate, Route, createBrowserRouter, createRoutesFromElements } from "
 import { GuestGuard } from "@/routers/public/guard";
 import { PublicCatchAll } from "@/routers/public/catch-all";
 import { RouteErrorBoundary } from "@/components/ui/error-boundary";
-import { lazyPage } from "@/routers/lazy";
 
-const AcceptInvitationPage = lazyPage(() => import("@/pages/accept-invitation"));
-const AgreementSigningPage = lazyPage(() =>
-  import("@/pages/agreement-signing").then((m) => ({ default: m.AgreementSigningPage })),
-);
-const DocumentUploadPage = lazyPage(() =>
-  import("@/pages/document-upload").then((m) => ({ default: m.DocumentUploadPage })),
-);
-const ConsultationBookingPage = lazyPage(() =>
-  import("@/pages/consultation-booking").then((m) => ({ default: m.ConsultationBookingPage })),
-);
-const SignUpPage = lazyPage(() =>
-  import("@/pages/contractor-sign-up").then((m) => ({ default: m.SignUpPage })),
-);
-const EmailVerifiedPage = lazyPage(() => import("@/pages/email-verified"));
-const ForgotPassword = lazyPage(() => import("@/pages/forgot-password"));
-const VerifyOtp = lazyPage(() => import("@/pages/forgot-password/verify-otp"));
-const LoginPage = lazyPage(() =>
-  import("@/pages/login").then((m) => ({ default: m.LoginPage })),
-);
-const QuestionnairePortalPage = lazyPage(() =>
-  import("@/pages/questionnaire-portal").then((m) => ({ default: m.QuestionnairePortalPage })),
-);
-const ResetPassword = lazyPage(() => import("@/pages/reset-password"));
-const SetPasswordPage = lazyPage(() => import("@/pages/set-password"));
-const VerifyEmailNoticePage = lazyPage(() => import("@/pages/verify-email"));
-const TwoFactorVerification = lazyPage(() => import("@/pages/two-factor"));
+import AcceptInvitationPage from "@/pages/accept-invitation";
+import { AgreementSigningPage } from "@/pages/agreement-signing";
+import { DocumentUploadPage } from "@/pages/document-upload";
+import { ConsultationBookingPage } from "@/pages/consultation-booking";
+import { SignUpPage } from "@/pages/contractor-sign-up";
+import EmailVerifiedPage from "@/pages/email-verified";
+import ForgotPassword from "@/pages/forgot-password";
+import VerifyOtp from "@/pages/forgot-password/verify-otp";
+import { LoginPage } from "@/pages/login";
+import { QuestionnairePortalPage } from "@/pages/questionnaire-portal";
+import ResetPassword from "@/pages/reset-password";
+import SetPasswordPage from "@/pages/set-password";
+import VerifyEmailNoticePage from "@/pages/verify-email";
+import TwoFactorVerification from "@/pages/two-factor";
 
 export function createPublicRouter() {
   return createBrowserRouter(
@@ -77,7 +64,7 @@ export function createPublicRouter() {
          *  - anything else  → true 404 (no such page in the app)
          */}
         <Route path="*" element={<PublicCatchAll />} />
-      </Route>,
+      </Route>
     ),
   );
 }
