@@ -25,7 +25,7 @@ import {
 import { CalendarDate, today as getToday } from "@internationalized/date";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDays, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -115,6 +115,7 @@ export function QuickAddEventDialog({
     control,
     reset,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -136,6 +137,14 @@ export function QuickAddEventDialog({
 
   const watchedClientId = watch("clientId");
   const watchedDate = watch("date");
+  const watchedStartTime = watch("startTime");
+  const watchedEndTime = watch("endTime");
+
+  useEffect(() => {
+    if (watchedStartTime && watchedEndTime) {
+      trigger(["startTime", "endTime"]);
+    }
+  }, [watchedStartTime, watchedEndTime, trigger]);
 
   const { data: clients = [], isLoading: clientsLoading } = useClients();
 
