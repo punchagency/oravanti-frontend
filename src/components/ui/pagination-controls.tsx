@@ -12,7 +12,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 
-const DEFAULT_PAGE_SIZE_OPTIONS = [5, 10];
+const DEFAULT_PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50];
 
 interface PaginationControlsProps {
   total: number;

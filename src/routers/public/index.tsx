@@ -17,6 +17,7 @@ import ResetPassword from "@/pages/reset-password";
 import SetPasswordPage from "@/pages/set-password";
 import VerifyEmailNoticePage from "@/pages/verify-email";
 import TwoFactorVerification from "@/pages/two-factor";
+import InvoicePaymentPage from "@/pages/invoice-payment";
 
 export function createPublicRouter() {
   return createBrowserRouter(
@@ -56,6 +57,7 @@ export function createPublicRouter() {
         />
         <Route path="/sign/:token" element={<AgreementSigningPage />} />
         <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
+        <Route path="/invoice-payment/:token" element={<InvoicePaymentPage />} />
 
         {/*
          * Catch-all. Paths that only exist in the admin/client routers land

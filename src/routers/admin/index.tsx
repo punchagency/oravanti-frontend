@@ -194,6 +194,14 @@ const TimeTrackingTab = lazyPage(() => import("@/pages/admin/staff-and-users/tab
 const LeaveTab = lazyPage(() => import("@/pages/admin/staff-and-users/tabs/leave"));
 const InvitationsTab = lazyPage(() => import("@/pages/admin/staff-and-users/tabs/invitations"));
 
+// Finance
+const FinancePage = lazyPage(() =>
+  import("@/pages/admin/finance").then((m) => ({ default: m.FinancePage })),
+);
+const InvoicingTab = lazyPage(() => import("@/pages/admin/finance/tabs/invoicing"));
+const TimeBillingTab = lazyPage(() => import("@/pages/admin/finance/tabs/time-billing"));
+const ReportsTab = lazyPage(() => import("@/pages/admin/finance/tabs/reports"));
+
 // Shared
 const ComingSoonPage = lazyPage(() =>
   import("@/pages/coming-soon").then((m) => ({ default: m.ComingSoonPage })),
@@ -322,10 +330,11 @@ export function createAdminRouter() {
             </Route>
 
             {/* Finance */}
-            <Route path="finance">
-              <Route path="invoicing" element={<ComingSoonPage title="Invoicing" showBack={false} />} />
-              <Route path="trust-accounts" element={<ComingSoonPage title="Trust accounts" showBack={false} />} />
-              <Route path="international-payments" element={<ComingSoonPage title="International payments" showBack={false} />} />
+            <Route path="finance" element={<FinancePage />}>
+              <Route index element={<Navigate to="/finance/invoicing" replace />} />
+              <Route path="invoicing" element={<InvoicingTab />} />
+              <Route path="time-billing" element={<TimeBillingTab />} />
+              <Route path="reports" element={<ReportsTab />} />
             </Route>
 
             {/* Analytics */}
