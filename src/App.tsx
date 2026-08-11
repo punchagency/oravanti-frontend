@@ -27,6 +27,7 @@ import {
   InterviewPackagesPage,
 } from "@/pages/admin/documents";
 import { AdminDashboard } from "@/pages/admin/dashboard";
+import { InvoicePaymentPage } from "@/pages/invoice-payment";
 import { FinancePage } from "@/pages/admin/finance";
 import InvoicingTab from "@/pages/admin/finance/tabs/invoicing";
 import ReportsTab from "@/pages/admin/finance/tabs/reports";
@@ -131,6 +132,9 @@ function createAppRouter() {
 
       {/* Public fee-agreement signing page (token-gated, no auth) */}
       <Route path="/sign/:token" element={<AgreementSigningPage />} />
+
+      {/* Public invoice payment page (token-gated, no auth) */}
+      <Route path="/invoice-payment/:token" element={<InvoicePaymentPage />} />
 
       {/* Public document upload for an external request (token-gated, no auth) */}
       <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
