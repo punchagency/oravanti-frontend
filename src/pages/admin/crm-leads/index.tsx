@@ -1,36 +1,26 @@
-import { Box, Flex, Grid, HStack, Text, chakra } from "@chakra-ui/react";
+import { Box, Flex, Grid, HStack, Tabs, Text } from "@chakra-ui/react";
 import { Download, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useLeads, useLeadsStageCount } from "@/hooks/use-leads";
 import { ArchivedLeadsTab } from "./components/archived-leads-tab";
+import { ClientsTab } from "./components/clients-tab";
 import { ConversionMetricsTab } from "./components/conversion-metrics-tab";
 import { EducationFlywheelTab } from "./components/education-flywheel-tab";
-import { PipelineTab } from "./components/pipeline-tab";
-import { type CrmTab, crmTabs } from "./data";
 
 export function CrmLeadsPage() {
   useDocumentTitle("CRM & leads - Oravanti");
-  const [activeTab, setActiveTab] = useState<CrmTab>("Pipeline");
   const [addLeadOpen, setAddLeadOpen] = useState(false);
 
-  // Counts come from the API rather than being derived client-side from every
-  // lead in the firm, which is what the previous `useLeads({ all: true })` +
-  // five .filter() passes did.
   const { data: stageCounts } = useLeadsStageCount();
-
-  // "Active clients" is not a pipeline stage — it counts leads that converted
-  // to a case — so it isn't in stage-counts and needs its own query. Mapping it
-  // onto case_opening would quietly report a different thing.
   const { data: convertedData } = useLeads({ limit: 1, converted: true });
 
   const crmStats = [
     {
-
       label: "CONFLICT CHECK",
       count: stageCounts?.conflict_check ?? 0,
       color: "#d18400",
@@ -138,43 +128,64 @@ export function CrmLeadsPage() {
         ))}
       </Grid>
 
-      <HStack
-        as="nav"
-        gap="0"
-        borderBottom="1px solid"
-        borderColor="border.subtle"
-        aria-label="CRM & leads views"
-      >
-        {crmTabs.map((tab) => {
-          const active = tab === activeTab;
-          return (
-            <chakra.button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              display="inline-flex"
-              alignItems="center"
-              minH="42px"
-              px="14px"
-              borderBottom="2px solid"
-              borderColor={active ? "brand.solid" : "transparent"}
-              bg="transparent"
-              color={active ? "fg" : "fg.muted"}
-              fontSize="13px"
-              fontWeight={active ? "500" : "400"}
-              whiteSpace="nowrap"
-              cursor="pointer"
-            >
-              {tab}
-            </chakra.button>
-          );
-        })}
-      </HStack>
+      <Tabs.Root defaultValue="clients">
+        <Tabs.List
+          gap="0"
+          borderBottom="1px solid"
+          borderColor="border.subtle"
+          aria-label="CRM & leads views"
+        >
+          <Tabs.Trigger
+            value="clients"
+            minH="42px"
+            px="14px"
+            fontSize="13px"
+            whiteSpace="nowrap"
+          >
+            Clients
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="conversion-metrics"
+            minH="42px"
+            px="14px"
+            fontSize="13px"
+            whiteSpace="nowrap"
+          >
+            Conversion metrics
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="education-flywheel"
+            minH="42px"
+            px="14px"
+            fontSize="13px"
+            whiteSpace="nowrap"
+          >
+            Education flywheel
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="archived-leads"
+            minH="42px"
+            px="14px"
+            fontSize="13px"
+            whiteSpace="nowrap"
+          >
+            Archived leads
+          </Tabs.Trigger>
+        </Tabs.List>
 
-      {activeTab === "Pipeline" && <PipelineTab />}
-      {activeTab === "Conversion metrics" && <ConversionMetricsTab />}
-      {activeTab === "Education flywheel" && <EducationFlywheelTab />}
-      {activeTab === "Archived leads" && <ArchivedLeadsTab />}
+        <Tabs.Content value="clients">
+          <ClientsTab />
+        </Tabs.Content>
+        <Tabs.Content value="conversion-metrics">
+          <ConversionMetricsTab />
+        </Tabs.Content>
+        <Tabs.Content value="education-flywheel">
+          <EducationFlywheelTab />
+        </Tabs.Content>
+        <Tabs.Content value="archived-leads">
+          <ArchivedLeadsTab />
+        </Tabs.Content>
+      </Tabs.Root>
 
       <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
     </>
