@@ -285,8 +285,9 @@ export function FinancePage() {
           setSendTarget({
             id: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
-            clientName: invoice.client.name,
-            clientEmail: invoice.client.email,
+            clientName: invoice.party.name,
+            clientEmail: invoice.party.email,
+            isLead: invoice.party.type === "lead",
             totalAmount: invoice.totals.total,
             dueDate: invoice.dueDate,
           })

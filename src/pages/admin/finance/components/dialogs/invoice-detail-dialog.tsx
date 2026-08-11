@@ -10,7 +10,12 @@ import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
 import { Box, Center, Flex, Grid, Spinner, Table, Text } from "@chakra-ui/react";
 import { Download, Send } from "lucide-react";
-import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "../../data";
+import {
+  INSTALMENT_LABEL,
+  INSTALMENT_TONE,
+  INVOICE_STATUS_LABEL,
+  INVOICE_STATUS_TONE,
+} from "../../data";
 import { DialogShell } from "./dialog-shell";
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -56,7 +61,7 @@ export function InvoiceDetailDialog({
       }
       subtitle={
         invoice
-          ? [invoice.client.name, invoice.matter?.reference]
+          ? [invoice.party.name, invoice.matter?.reference]
               .filter(Boolean)
               .join(" · ")
           : undefined
@@ -91,8 +96,11 @@ export function InvoiceDetailDialog({
             borderRadius="10px"
             bg="bg.muted"
           >
-            <Field label="Client" value={invoice.client.name} />
-            <Field label="Email" value={invoice.client.email ?? "—"} />
+            <Field
+              label={invoice.party.type === "lead" ? "Billed to (lead)" : "Client"}
+              value={invoice.party.name}
+            />
+            <Field label="Email" value={invoice.party.email ?? "—"} />
             <Field label="Matter" value={invoice.matter?.reference ?? "—"} />
             <Field label="Filing type" value={invoice.filingType ?? "—"} />
             <Field label="Attorney" value={invoice.attorney ?? "—"} />
@@ -180,6 +188,52 @@ export function InvoiceDetailDialog({
             </Box>
           </Flex>
 
+          {invoice.instalments.length > 0 && (
+            <>
+              <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
+                Payment schedule
+              </Text>
+              {/* State comes from the server: it depends on the firm's today,
+                  and a browser-side comparison would disagree either side of
+                  midnight. */}
+              {invoice.instalments.map((inst, index) => (
+                <Flex
+                  key={inst.id}
+                  justify="space-between"
+                  align="center"
+                  gap="10px"
+                  py="8px"
+                  borderTop={index === 0 ? "none" : "1px solid"}
+                  borderColor="border.muted"
+                >
+                  <Flex align="center" gap="10px" minW={0}>
+                    <Text fontSize="12px" color="fg.subtle" w="18px">
+                      {inst.sequence}.
+                    </Text>
+                    <Box minW={0}>
+                      <Text fontSize="12px" fontWeight="600">
+                        {formatDate(inst.dueDate)}
+                      </Text>
+                      {inst.amountPaid > 0 && inst.outstanding > 0 && (
+                        <Text fontSize="11px" color="fg.muted">
+                          {formatCurrency(inst.outstanding)} still outstanding
+                        </Text>
+                      )}
+                    </Box>
+                  </Flex>
+                  <Flex align="center" gap="10px" flexShrink={0}>
+                    <Text fontSize="13px" fontWeight="700">
+                      {formatCurrency(inst.amount)}
+                    </Text>
+                    <StatusPill tone={INSTALMENT_TONE[inst.state]}>
+                      {INSTALMENT_LABEL[inst.state]}
+                    </StatusPill>
+                  </Flex>
+                </Flex>
+              ))}
+            </>
+          )}
+
           {invoice.payments.length > 0 && (
             <>
               <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
@@ -246,6 +300,9 @@ export function InvoiceDetailDialog({
                     </Text>
                     <Text fontSize="11px" color="fg.muted">
                       {[
+                        delivery.kind === "schedule_update"
+                          ? "Payment schedule"
+                          : "Invoice",
                         delivery.deliveredAt
                           ? formatDate(delivery.deliveredAt)
                           : formatDate(delivery.createdAt),

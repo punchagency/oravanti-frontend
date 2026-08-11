@@ -1,5 +1,6 @@
 import type {
   EffectiveInvoiceStatus,
+  InvoiceInstalment,
   TimeEntryStatus,
 } from "@/api/finance";
 
@@ -33,6 +34,27 @@ export const INVOICE_STATUS_LABEL: Record<EffectiveInvoiceStatus, string> = {
   overdue: "Overdue",
   draft: "Draft",
   void: "Void",
+};
+
+/**
+ * Per-instalment state. `overdue` is decided by the SERVER against the firm's
+ * timezone, so these are labels for a value that arrives already resolved.
+ */
+export const INSTALMENT_TONE: Record<
+  InvoiceInstalment["state"],
+  "success" | "warning" | "danger" | "info" | "neutral"
+> = {
+  paid: "success",
+  partial: "info",
+  due: "neutral",
+  overdue: "danger",
+};
+
+export const INSTALMENT_LABEL: Record<InvoiceInstalment["state"], string> = {
+  paid: "Paid",
+  partial: "Part paid",
+  due: "Due",
+  overdue: "Overdue",
 };
 
 export const TIME_STATUS_TONE: Record<

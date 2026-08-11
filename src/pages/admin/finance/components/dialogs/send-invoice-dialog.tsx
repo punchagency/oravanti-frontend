@@ -27,6 +27,8 @@ export type SendableInvoice = {
   invoiceNumber: string;
   clientName: string;
   clientEmail: string | null;
+  /** A lead has not retained the firm yet — the confirmation says so. */
+  isLead: boolean;
   totalAmount: number;
   dueDate: string;
 };
@@ -195,8 +197,12 @@ export function SendInvoiceDialog({
         </Box>
 
         <Text fontSize="12px" color="fg.muted">
-          The client receives the invoice as a PDF attachment. This cannot be
-          unsent — voiding the invoice afterwards does not retract the email.
+          {invoice?.isLead
+            ? // They have not retained the firm yet — worth saying, because a
+              // consultation fee is often the first bill someone ever gets and
+              // "your invoice" reads oddly before they are a client.
+              "This goes to a lead who has not yet retained the firm. They receive the invoice as a PDF attachment. This cannot be unsent — voiding it afterwards does not retract the email."
+            : "The client receives the invoice as a PDF attachment. This cannot be unsent — voiding the invoice afterwards does not retract the email."}
         </Text>
       </Flex>
     </DialogShell>

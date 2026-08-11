@@ -62,14 +62,25 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 // ─── Invoicing ───────────────────────────────────────────────────────────────
 
+/** A lead during intake, a client after conversion. */
+export type InvoiceParty = {
+  type: "client" | "lead";
+  id: string;
+  name: string;
+  email: string | null;
+};
+
 export type InvoiceListRow = {
   id: string;
   invoiceNumber: string;
   issueDate: string;
   dueDate: string;
-  clientId: string;
-  clientName: string;
-  clientEmail: string | null;
+  /**
+    * Who the invoice bills. A CLIENT after conversion, a LEAD during intake —
+    * consultation fees and fee agreements are charged before a client record
+    * exists. Never assume `type === "client"`.
+    */
+  party: InvoiceParty;
   caseId: string | null;
   caseNumber: string | null;
   caseTypeLabel: string | null;
@@ -80,6 +91,12 @@ export type InvoiceListRow = {
   amountPaid: number;
   balanceDue: number;
   status: EffectiveInvoiceStatus;
+  /** Null when the invoice is due in a single payment. */
+  schedule: {
+    count: number;
+    paidCount: number;
+    nextDueDate: string | null;
+  } | null;
 };
 
 export type InvoiceListTotals = {
@@ -163,6 +180,27 @@ export type InvoicePayment = {
   createdAt: string;
 };
 
+/**
+ * One dated slice of the invoice total.
+ *
+ * `amountPaid`, `outstanding` and `state` are all derived SERVER-side by
+ * applying the invoice's total paid down the schedule, oldest first. Never
+ * recompute them here: `state` depends on the firm's today, and a browser-side
+ * comparison would disagree either side of midnight.
+ */
+export type InvoiceInstalment = {
+  id: string;
+  sequence: number;
+  dueDate: string;
+  amount: number;
+  amountPaid: number;
+  outstanding: number;
+  state: "paid" | "partial" | "due" | "overdue";
+};
+
+/** What the schedule editor submits. `sequence` is assigned by the server. */
+export type InstalmentInput = { dueDate: string; amount: number };
+
 export type InvoiceDetail = {
   id: string;
   invoiceNumber: string;
@@ -172,8 +210,10 @@ export type InvoiceDetail = {
   dueDate: string;
   notes: string | null;
   filingType: string | null;
-  client: { id: string; name: string; email: string | null };
   matter: { id: string; reference: string | null; type: string | null } | null;
+  party: InvoiceParty;
+  /** Null on an invoice billed to a lead. Prefer `party`. */
+  client: { id: string; name: string; email: string | null } | null;
   practiceArea: string | null;
   /** Ids as well as labels, so the edit dialog can prefill its selects. */
   practiceAreaId: string | null;
@@ -181,6 +221,8 @@ export type InvoiceDetail = {
   attorney: string | null;
   lineItems: InvoiceLineItem[];
   payments: InvoicePayment[];
+  /** Empty when the invoice is due in a single payment. */
+  instalments: InvoiceInstalment[];
   totals: {
     operating: number;
     trust: number | null;
@@ -228,6 +270,8 @@ export type CreateInvoiceInput = {
     account: "operating" | "trust_iolta";
   }[];
   timeEntryIds: string[];
+  /** Optional payment schedule; must sum to the resulting invoice total. */
+  instalments?: InstalmentInput[];
 };
 
 /**
@@ -254,6 +298,14 @@ export type UpdateInvoiceInput = {
     account: "operating" | "trust_iolta";
   }[];
   timeEntryIds?: string[];
+  /**
+   * Replaces the whole schedule, and must sum to the invoice total.
+   *
+   * The one content field the server accepts on a *sent* invoice — plans get
+   * renegotiated. It must accompany any line change on an invoice that already
+   * has a schedule, since a line change moves the total the rows have to match.
+   */
+  instalments?: InstalmentInput[];
 };
 
 /**
@@ -391,6 +443,40 @@ export async function updateInvoice(
   const { data } = await API.patch<{ data: InvoiceDetail }>(
     `/finance/invoices/${invoiceId}`,
     input,
+  );
+  return data.data;
+}
+
+/**
+ * Saving a schedule on an invoice the client already holds emails them the new
+ * dates. `notification` reports what happened to that email: `null` when there
+ * was nobody to tell (a draft, or a client with no address on file). The
+ * schedule is saved regardless — a failed send does not retract it.
+ */
+export type SetScheduleResult = InvoiceDetail & {
+  notification: {
+    status: "sent" | "failed";
+    recipientEmail: string;
+    failureReason: string | null;
+  } | null;
+};
+
+export async function setInvoiceSchedule(
+  invoiceId: string,
+  instalments: InstalmentInput[],
+): Promise<SetScheduleResult> {
+  const { data } = await API.put<{ data: SetScheduleResult }>(
+    `/finance/invoices/${invoiceId}/schedule`,
+    { instalments },
+  );
+  return data.data;
+}
+
+export async function removeInvoiceSchedule(
+  invoiceId: string,
+): Promise<InvoiceDetail> {
+  const { data } = await API.delete<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}/schedule`,
   );
   return data.data;
 }
@@ -711,6 +797,12 @@ export type DeliveryStatus = "pending" | "sent" | "failed";
 
 export type InvoiceDelivery = {
   id: string;
+  /**
+   * `invoice` is the bill itself; `schedule_update` is a payment plan being set
+   * or revised on an invoice the client already holds. Only the former is
+   * evidence they were ever billed.
+   */
+  kind: "invoice" | "schedule_update";
   channel: "email";
   recipientEmail: string;
   status: DeliveryStatus;

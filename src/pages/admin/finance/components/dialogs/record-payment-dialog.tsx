@@ -7,6 +7,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { useInvoice, useRecordPayment } from "@/hooks/use-finance";
 import { formatCurrency } from "@/utils/currency";
+import { formatDate } from "@/utils/date";
 import { Box, Flex, Grid, Input, Text, Textarea, chakra } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useMemo } from "react";
@@ -56,9 +57,14 @@ export function RecordPaymentDialog({
   const { data: detail } = useInvoice(open ? (row?.id ?? null) : null);
   const recordPayment = useRecordPayment();
 
+  // On a plan the client is paying an instalment, not the balance. Defaulting
+  // to the whole balance would invite recording four months of payments at
+  // once, so the next unpaid instalment's outstanding is the offer.
+  const nextInstalment = detail?.instalments.find((i) => i.outstanding > 0);
+
   const defaults: PaymentForm = useMemo(
     () => ({
-      amount: row?.balanceDue ?? 0,
+      amount: nextInstalment?.outstanding ?? row?.balanceDue ?? 0,
       paymentDate: today(),
       method: "bank_transfer",
       reference: "",
@@ -66,7 +72,7 @@ export function RecordPaymentDialog({
       overrideSplit: false,
       amountTrust: 0,
     }),
-    [row?.balanceDue],
+    [row?.balanceDue, nextInstalment?.outstanding],
   );
 
   const {
@@ -89,6 +95,35 @@ export function RecordPaymentDialog({
   // useWatch, not watch(): watch() returns a fresh function each render, which
   // the React Compiler cannot memoize.
   const amount = Number(useWatch({ control, name: "amount" }) ?? 0);
+
+  // Which instalments this amount reaches, walking oldest first — the same
+  // rule the server applies. Preview only; the server does the real allocation.
+  const instalments = detail?.instalments;
+  const settles = useMemo(() => {
+    if (!instalments?.length || amount <= 0) return [];
+    let left = amount;
+    const reached: {
+      id: string;
+      sequence: number;
+      dueDate: string;
+      outstanding: number;
+      covers: number;
+    }[] = [];
+    for (const inst of instalments) {
+      if (left <= 0) break;
+      if (inst.outstanding <= 0) continue;
+      const covers = Math.min(left, inst.outstanding);
+      left = Math.round((left - covers) * 100) / 100;
+      reached.push({
+        id: inst.id,
+        sequence: inst.sequence,
+        dueDate: inst.dueDate,
+        outstanding: inst.outstanding,
+        covers,
+      });
+    }
+    return reached;
+  }, [instalments, amount]);
   const overrideSplit = useWatch({ control, name: "overrideSplit" });
   const amountTrust = Number(useWatch({ control, name: "amountTrust" }) ?? 0);
 
@@ -167,7 +202,7 @@ export function RecordPaymentDialog({
       onOpenChange={onOpenChange}
       title="Record payment"
       subtitle={
-        row ? `${row.invoiceNumber} · ${row.clientName}` : undefined
+        row ? `${row.invoiceNumber} · ${row.party.name}` : undefined
       }
       footer={
         <Flex justify="flex-end" gap="8px" w="100%">
@@ -184,9 +219,40 @@ export function RecordPaymentDialog({
       }
     >
       <Flex direction="column" gap="14px">
-        <FormField label="Amount received" error={errors.amount?.message}>
+        <FormField
+          label="Amount received"
+          error={errors.amount?.message}
+          hint={
+            nextInstalment
+              ? `Instalment ${nextInstalment.sequence}, due ${formatDate(nextInstalment.dueDate)}`
+              : undefined
+          }
+        >
           <Input type="number" step="0.01" {...register("amount")} {...fieldStyles} />
         </FormField>
+
+        {/* Payments settle instalments in date order, so which ones this
+            amount clears is worth showing rather than leaving to be
+            discovered after saving. */}
+        {settles.length > 0 && (
+          <Box p="10px 12px" borderRadius="10px" bg="bg.muted">
+            <Text fontSize="11px" color="fg.muted" mb="4px">
+              This payment settles
+            </Text>
+            {settles.map((s) => (
+              <Flex key={s.id} justify="space-between" py="2px" gap="10px">
+                <Text fontSize="12px">
+                  {s.sequence}. {formatDate(s.dueDate)}
+                </Text>
+                <Text fontSize="12px" fontWeight="600">
+                  {s.covers >= s.outstanding
+                    ? "in full"
+                    : `${formatCurrency(s.covers)} of ${formatCurrency(s.outstanding)}`}
+                </Text>
+              </Flex>
+            ))}
+          </Box>
+        )}
 
         <FormField label="Payment date" error={errors.paymentDate?.message}>
           <Input type="date" {...register("paymentDate")} {...fieldStyles} />

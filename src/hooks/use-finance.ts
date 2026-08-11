@@ -20,14 +20,17 @@ import {
   logTime,
   recordPayment,
   rejectTimeEntry,
+  removeInvoiceSchedule,
   resendInvoice,
   sendFollowUp,
   sendInvoice,
   setBillingRate,
+  setInvoiceSchedule,
   updateInvoice,
   voidInvoice,
   type GetInvoicesParams,
   type GetTimeEntriesParams,
+  type InstalmentInput,
   type RecordPaymentInput,
   type SendFollowUpInput,
   type UpdateInvoiceInput,
@@ -244,6 +247,58 @@ export function useUpdateInvoice() {
     },
     onError: (err: APIError) =>
       toast.error(err.response?.data?.message ?? "Couldn't save those changes"),
+  });
+}
+
+/**
+ * Set or revise a payment schedule.
+ *
+ * The server refuses a schedule that does not sum to the invoice total, so the
+ * error path here carries a real message naming both figures.
+ */
+export function useSetInvoiceSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      instalments,
+    }: {
+      invoiceId: string;
+      instalments: InstalmentInput[];
+    }) => setInvoiceSchedule(invoiceId, instalments),
+    onSuccess: (invoice) => {
+      // The schedule is saved whatever happened to the email, so a failed
+      // notification is a warning rather than an error — but it must not read
+      // as success, or the firm will think the client knows about dates they
+      // have never seen.
+      if (invoice.notification?.status === "failed") {
+        toast.warning(
+          `Schedule saved, but ${invoice.invoiceNumber} could not be emailed to the client`,
+        );
+      } else if (invoice.notification?.status === "sent") {
+        toast.success(
+          `Schedule saved and sent to ${invoice.notification.recipientEmail}`,
+        );
+      } else {
+        toast.success(`Payment schedule saved for ${invoice.invoiceNumber}`);
+      }
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't save that schedule"),
+  });
+}
+
+export function useRemoveInvoiceSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: removeInvoiceSchedule,
+    onSuccess: (invoice) => {
+      toast.success(`${invoice.invoiceNumber} is now due in one payment`);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't remove that schedule"),
   });
 }
 
