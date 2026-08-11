@@ -448,13 +448,18 @@ export function FirmInformationCard() {
               <Text fontSize="13px" fontWeight="600" color="fg" mb="2">
                 Country
               </Text>
-              <Input
-                {...register("country")}
-                placeholder="United States"
-                borderColor="border"
-                bg="bg.input"
-                h="40px"
-                fontSize="14px"
+              <Controller
+                control={control}
+                name="country"
+                render={({ field }) => (
+                  <FormSelect
+                    options={[{ label: "United States", value: "United States" }]}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select country"
+                    size="sm"
+                  />
+                )}
               />
             </Box>
           </Grid>
