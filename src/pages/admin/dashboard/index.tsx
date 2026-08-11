@@ -1,5 +1,5 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { ActivityView } from "./views/activity";
 import { OverviewView } from "./views/overview";
 import { PipelineView } from "./views/pipeline";

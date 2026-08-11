@@ -1,4 +1,4 @@
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import type { CalendarEventType } from "./types";

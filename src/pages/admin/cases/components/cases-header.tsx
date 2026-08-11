@@ -1,7 +1,7 @@
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download } from "lucide-react";
 import { OutlineButton } from "@/components/ui/intake-ui";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { OpenMatterButton } from "./open-matter-dialog";
 
 export function CasesPageHeader() {

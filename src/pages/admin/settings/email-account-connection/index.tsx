@@ -1,6 +1,6 @@
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { Box, Heading, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";

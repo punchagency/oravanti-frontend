@@ -1,6 +1,6 @@
 import type { MyTaskItem } from "@/api/workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { useMyTasks, useSubmitForReview } from "@/hooks/use-workflows";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useAuthStore } from "@/store/auth-store";

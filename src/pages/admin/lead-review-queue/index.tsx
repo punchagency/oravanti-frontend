@@ -8,7 +8,7 @@ import {
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useAuthStore } from "@/store/auth-store";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { Box, Button, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {

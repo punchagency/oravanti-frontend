@@ -1,6 +1,6 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download, UserPlus } from "lucide-react";
 import { InviteStaffDialog } from "../../invite-staff/dialog";

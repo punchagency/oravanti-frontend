@@ -1,7 +1,7 @@
 import { Flex, Text, chakra } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { NavContent } from "./nav-content";
-import { useNav } from "./nav-context";
+import { useNav } from "@/components/layout/shared/nav-context";
 
 export function DesktopNav() {
   const { collapsed, suppressCollapse, collapseSignal } = useNav();

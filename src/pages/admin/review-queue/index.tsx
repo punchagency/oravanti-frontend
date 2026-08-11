@@ -1,6 +1,6 @@
 import type { ReviewQueueItem } from "@/api/workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import {
   useApproveStep,
   useRejectStep,
