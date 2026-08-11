@@ -55,12 +55,23 @@ export function ScheduleEditor({
   const balanced = Math.abs(total - invoiceTotal) < 0.005;
   const difference = round2(invoiceTotal - total);
 
+  // Instalments the payments have already covered. Generating leaves them
+  // alone and spreads only what is left — the whole schedule still has to sum
+  // to the invoice total, because allocation walks it against `amount_paid`
+  // from the beginning, but the money already in is not up for rescheduling.
+  const settledRows = useMemo(() => rows.slice(0, lockedCount), [rows, lockedCount]);
+  const settled = useMemo(() => scheduleTotal(settledRows), [settledRows]);
+  const remaining = round2(invoiceTotal - settled);
+
   const generate = useCallback(() => {
     const n = Number(count);
     if (!Number.isInteger(n) || n < 1 || n > 120) return;
-    if (!start || invoiceTotal <= 0) return;
-    onChange(buildSchedule(invoiceTotal, n, start, frequency));
-  }, [count, start, frequency, invoiceTotal, onChange]);
+    if (!start || remaining <= 0) return;
+    onChange([
+      ...settledRows,
+      ...buildSchedule(remaining, n, start, frequency),
+    ]);
+  }, [count, start, frequency, remaining, settledRows, onChange]);
 
   const setRow = useCallback(
     (index: number, patch: Partial<ScheduleDraft>) =>
@@ -145,10 +156,21 @@ export function ScheduleEditor({
             />
           </Box>
         </Box>
-        <OutlineButton onClick={generate} disabled={invoiceTotal <= 0}>
+        <OutlineButton onClick={generate} disabled={remaining <= 0}>
           Generate
         </OutlineButton>
       </Flex>
+
+      {/* Say what Generate will actually do. Without this the count reads as
+          "instalments in the plan" when it means "instalments for the balance",
+          and the amounts come out smaller than expected with no explanation. */}
+      {settled > 0 && (
+        <Text fontSize="11px" color="fg.muted" mb="10px">
+          {formatCurrency(settled)} is already paid and stays as instalment
+          {settledRows.length === 1 ? " 1" : `s 1–${settledRows.length}`}.
+          Generating spreads the remaining {formatCurrency(remaining)}.
+        </Text>
+      )}
 
       {rows.length === 0 ? (
         <Text fontSize="12px" color="fg.muted">

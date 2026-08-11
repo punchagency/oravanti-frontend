@@ -38,6 +38,7 @@ export function RescheduleDialog({
   const removeSchedule = useRemoveInvoiceSchedule();
 
   const [rows, setRows] = useState<ScheduleDraft[]>([]);
+  const paidAlready = invoice?.totals.amountPaid ?? 0;
 
   // Seed the editor from the saved schedule when the dialog opens on an
   // invoice. Adjusted during render rather than in an effect: React re-runs the
@@ -50,18 +51,40 @@ export function RescheduleDialog({
     setSeededFor(readyFor);
     if (readyFor && invoice) {
       setRows(
-        invoice.instalments.map((i) => ({
-          dueDate: i.dueDate,
-          amount: i.amount.toFixed(2),
-        })),
+        invoice.instalments.length > 0
+          ? invoice.instalments.map((i) => ({
+              dueDate: i.dueDate,
+              amount: i.amount.toFixed(2),
+            }))
+          : // Putting a plan on an invoice that has already been part paid.
+            // The schedule has to sum to the invoice TOTAL, because allocation
+            // runs against `amount_paid` from the first instalment onwards — so
+            // the money already in becomes instalment 1, and the editor spreads
+            // only the balance from there. Without this row, generating three
+            // instalments would split the whole total and the first would show
+            // as paid on a future date.
+            paidAlready > 0
+            ? [
+                {
+                  dueDate:
+                    invoice.lastPaymentDate ?? invoice.issueDate,
+                  amount: paidAlready.toFixed(2),
+                },
+              ]
+            : [],
       );
     }
   }
 
-  // Oldest-first allocation means the settled instalments are always the
-  // leading ones, so a count is enough to lock them.
+  // Oldest-first allocation means settled instalments are always the leading
+  // ones, so a count is enough to lock them. With no saved schedule the seeded
+  // "already paid" row above is the one to lock.
   const paidCount =
-    invoice?.instalments.filter((i) => i.state === "paid").length ?? 0;
+    invoice && invoice.instalments.length > 0
+      ? invoice.instalments.filter((i) => i.state === "paid").length
+      : paidAlready > 0
+        ? 1
+        : 0;
 
   const total = invoice?.totals.total ?? 0;
   const balanced = isScheduleBalanced(rows, total);
@@ -149,12 +172,14 @@ export function RescheduleDialog({
             </Text>
           </Flex>
 
-          {invoice.totals.amountPaid > 0 && (
+          {paidAlready > 0 && (
             <Text fontSize="12px" color="fg.muted">
-              {formatCurrency(invoice.totals.amountPaid)} has already been paid
-              against this invoice. Payments settle instalments in date order, so
-              the schedule must still add up to the full{" "}
-              {formatCurrency(invoice.totals.total)}.
+              {formatCurrency(paidAlready)} has already been paid against this
+              invoice. Payments settle instalments in date order, so the schedule
+              still has to add up to the full{" "}
+              {formatCurrency(invoice.totals.total)} — what is already in sits at
+              the top, and only the remaining{" "}
+              {formatCurrency(invoice.totals.balanceDue)} gets spread.
             </Text>
           )}
 
