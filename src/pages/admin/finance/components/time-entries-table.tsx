@@ -1,10 +1,12 @@
 import type { TimeEntryRow } from "@/api/finance";
-import { BrandButton, OutlineButton, StatusPill } from "@/components/ui/intake-ui";
+import { StatusPill } from "@/components/ui/intake-ui";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
-import { Box, Center, Flex, Spinner, Table, Text, VStack } from "@chakra-ui/react";
+import { Box, Center, Spinner, Table, Text, VStack } from "@chakra-ui/react";
+import { Check, X } from "lucide-react";
 import { TIME_STATUS_LABEL, TIME_STATUS_TONE } from "../data";
+import { RowActionMenu } from "./row-action-menu";
 
 const HEADERS = [
   "Staff member",
@@ -115,20 +117,24 @@ export function TimeEntriesTable({
 
           <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
             {row.status === "pending" ? (
-              <Flex gap="6px" justify="flex-end">
-                <OutlineButton
-                  disabled={isMutating}
-                  onClick={() => onReject(row)}
-                >
-                  Reject
-                </OutlineButton>
-                <BrandButton
-                  disabled={isMutating}
-                  onClick={() => onApprove(row)}
-                >
-                  Approve
-                </BrandButton>
-              </Flex>
+              <RowActionMenu
+                ariaLabel={`Actions for ${row.staffName}'s time entry`}
+                actions={[
+                  {
+                    label: "Approve",
+                    icon: <Check size={14} />,
+                    disabled: isMutating,
+                    onSelect: () => onApprove(row),
+                  },
+                  {
+                    label: "Reject",
+                    icon: <X size={14} />,
+                    disabled: isMutating,
+                    danger: true,
+                    onSelect: () => onReject(row),
+                  },
+                ]}
+              />
             ) : (
               <Text fontSize="11px" color="fg.muted">
                 {row.invoicedAt ? "Invoiced" : "—"}
