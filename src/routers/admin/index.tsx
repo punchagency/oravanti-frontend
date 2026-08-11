@@ -220,6 +220,7 @@ export function createAdminRouter() {
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
 
+            
         {/* Protected admin routes */}
         <Route element={<AdminGuard />}>
           {/* Onboarding (no dashboard chrome yet) */}

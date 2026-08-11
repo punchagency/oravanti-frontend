@@ -1,6 +1,7 @@
 import { useColorMode } from "@/hooks/use-color-mode";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useOnboardingStore } from "@/store/onboarding-store";
+import { US_STATES, getCitiesForState } from "@/data/us-states-cities";
 import {
   firmInformationSchema,
   type FirmInformationInput,
@@ -29,157 +30,7 @@ import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router";
 
 const stateCollection = createListCollection({
-  items: [
-    { label: "Alabama", value: "Alabama" },
-    { label: "Alaska", value: "Alaska" },
-    { label: "Arizona", value: "Arizona" },
-    { label: "Arkansas", value: "Arkansas" },
-    { label: "California", value: "California" },
-    { label: "Colorado", value: "Colorado" },
-    { label: "Connecticut", value: "Connecticut" },
-    { label: "Delaware", value: "Delaware" },
-    { label: "Florida", value: "Florida" },
-    { label: "Georgia", value: "Georgia" },
-    { label: "Hawaii", value: "Hawaii" },
-    { label: "Idaho", value: "Idaho" },
-    { label: "Illinois", value: "Illinois" },
-    { label: "Indiana", value: "Indiana" },
-    { label: "Iowa", value: "Iowa" },
-    { label: "Kansas", value: "Kansas" },
-    { label: "Kentucky", value: "Kentucky" },
-    { label: "Louisiana", value: "Louisiana" },
-    { label: "Maine", value: "Maine" },
-    { label: "Maryland", value: "Maryland" },
-    { label: "Massachusetts", value: "Massachusetts" },
-    { label: "Michigan", value: "Michigan" },
-    { label: "Minnesota", value: "Minnesota" },
-    { label: "Mississippi", value: "Mississippi" },
-    { label: "Missouri", value: "Missouri" },
-    { label: "Montana", value: "Montana" },
-    { label: "Nebraska", value: "Nebraska" },
-    { label: "Nevada", value: "Nevada" },
-    { label: "New Hampshire", value: "New Hampshire" },
-    { label: "New Jersey", value: "New Jersey" },
-    { label: "New Mexico", value: "New Mexico" },
-    { label: "New York", value: "New York" },
-    { label: "North Carolina", value: "North Carolina" },
-    { label: "North Dakota", value: "North Dakota" },
-    { label: "Ohio", value: "Ohio" },
-    { label: "Oklahoma", value: "Oklahoma" },
-    { label: "Oregon", value: "Oregon" },
-    { label: "Pennsylvania", value: "Pennsylvania" },
-    { label: "Rhode Island", value: "Rhode Island" },
-    { label: "South Carolina", value: "South Carolina" },
-    { label: "South Dakota", value: "South Dakota" },
-    { label: "Tennessee", value: "Tennessee" },
-    { label: "Texas", value: "Texas" },
-    { label: "Utah", value: "Utah" },
-    { label: "Vermont", value: "Vermont" },
-    { label: "Virginia", value: "Virginia" },
-    { label: "Washington", value: "Washington" },
-    { label: "West Virginia", value: "West Virginia" },
-    { label: "Wisconsin", value: "Wisconsin" },
-    { label: "Wyoming", value: "Wyoming" },
-  ],
-});
-
-const cityCollection = createListCollection({
-  items: [
-    { label: "New York", value: "New York" },
-    { label: "Los Angeles", value: "Los Angeles" },
-    { label: "Chicago", value: "Chicago" },
-    { label: "Houston", value: "Houston" },
-    { label: "Phoenix", value: "Phoenix" },
-    { label: "Philadelphia", value: "Philadelphia" },
-    { label: "San Antonio", value: "San Antonio" },
-    { label: "San Diego", value: "San Diego" },
-    { label: "Dallas", value: "Dallas" },
-    { label: "Austin", value: "Austin" },
-    { label: "San Jose", value: "San Jose" },
-    { label: "Jacksonville", value: "Jacksonville" },
-    { label: "Fort Worth", value: "Fort Worth" },
-    { label: "Columbus", value: "Columbus" },
-    { label: "Charlotte", value: "Charlotte" },
-    { label: "Indianapolis", value: "Indianapolis" },
-    { label: "San Francisco", value: "San Francisco" },
-    { label: "Seattle", value: "Seattle" },
-    { label: "Denver", value: "Denver" },
-    { label: "Nashville", value: "Nashville" },
-    { label: "Oklahoma City", value: "Oklahoma City" },
-    { label: "El Paso", value: "El Paso" },
-    { label: "Washington", value: "Washington" },
-    { label: "Boston", value: "Boston" },
-    { label: "Las Vegas", value: "Las Vegas" },
-    { label: "Portland", value: "Portland" },
-    { label: "Memphis", value: "Memphis" },
-    { label: "Louisville", value: "Louisville" },
-    { label: "Baltimore", value: "Baltimore" },
-    { label: "Milwaukee", value: "Milwaukee" },
-    { label: "Albuquerque", value: "Albuquerque" },
-    { label: "Tucson", value: "Tucson" },
-    { label: "Fresno", value: "Fresno" },
-    { label: "Sacramento", value: "Sacramento" },
-    { label: "Mesa", value: "Mesa" },
-    { label: "Kansas City", value: "Kansas City" },
-    { label: "Atlanta", value: "Atlanta" },
-    { label: "Omaha", value: "Omaha" },
-    { label: "Colorado Springs", value: "Colorado Springs" },
-    { label: "Raleigh", value: "Raleigh" },
-    { label: "Long Beach", value: "Long Beach" },
-    { label: "Virginia Beach", value: "Virginia Beach" },
-    { label: "Miami", value: "Miami" },
-    { label: "Oakland", value: "Oakland" },
-    { label: "Minneapolis", value: "Minneapolis" },
-    { label: "Tampa", value: "Tampa" },
-    { label: "Tulsa", value: "Tulsa" },
-    { label: "Arlington", value: "Arlington" },
-    { label: "New Orleans", value: "New Orleans" },
-    { label: "Cleveland", value: "Cleveland" },
-    { label: "Bakersfield", value: "Bakersfield" },
-    { label: "Honolulu", value: "Honolulu" },
-    { label: "Anaheim", value: "Anaheim" },
-    { label: "Riverside", value: "Riverside" },
-    { label: "Santa Ana", value: "Santa Ana" },
-    { label: "Corpus Christi", value: "Corpus Christi" },
-    { label: "Lexington", value: "Lexington" },
-    { label: "Stockton", value: "Stockton" },
-    { label: "St. Louis", value: "St. Louis" },
-    { label: "Pittsburgh", value: "Pittsburgh" },
-    { label: "Cincinnati", value: "Cincinnati" },
-    { label: "Anchorage", value: "Anchorage" },
-    { label: "Henderson", value: "Henderson" },
-    { label: "Greensboro", value: "Greensboro" },
-    { label: "Plano", value: "Plano" },
-    { label: "Newark", value: "Newark" },
-    { label: "Lincoln", value: "Lincoln" },
-    { label: "Orlando", value: "Orlando" },
-    { label: "Irvine", value: "Irvine" },
-    { label: "Toledo", value: "Toledo" },
-    { label: "Durham", value: "Durham" },
-    { label: "St. Paul", value: "St. Paul" },
-    { label: "Laredo", value: "Laredo" },
-    { label: "Buffalo", value: "Buffalo" },
-    { label: "Madison", value: "Madison" },
-    { label: "Lubbock", value: "Lubbock" },
-    { label: "Scottsdale", value: "Scottsdale" },
-    { label: "Glendale", value: "Glendale" },
-    { label: "Winston-Salem", value: "Winston-Salem" },
-    { label: "Boise", value: "Boise" },
-    { label: "Norfolk", value: "Norfolk" },
-    { label: "Baton Rouge", value: "Baton Rouge" },
-    { label: "Richmond", value: "Richmond" },
-    { label: "Spokane", value: "Spokane" },
-    { label: "Des Moines", value: "Des Moines" },
-    { label: "Rochester", value: "Rochester" },
-    { label: "Salt Lake City", value: "Salt Lake City" },
-    { label: "Birmingham", value: "Birmingham" },
-    { label: "Grand Rapids", value: "Grand Rapids" },
-    { label: "Hartford", value: "Hartford" },
-    { label: "Providence", value: "Providence" },
-    { label: "Worcester", value: "Worcester" },
-    { label: "Bridgeport", value: "Bridgeport" },
-    { label: "Albany", value: "Albany" },
-  ],
+  items: US_STATES.map((s) => ({ label: s.name, value: s.name })),
 });
 
 export default function Step2FirmDetailsPage() {
@@ -191,6 +42,8 @@ export default function Step2FirmDetailsPage() {
     register,
     handleSubmit,
     control,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<FirmInformationInput>({
     resolver: zodResolver(firmInformationSchema),
@@ -216,6 +69,26 @@ export default function Step2FirmDetailsPage() {
   const [cityInput, setCityInput] = useState("");
   const [stateInput, setStateInput] = useState("");
 
+  const selectedState = watch("state");
+
+  const stateCode = useMemo(() => {
+    const match = US_STATES.find((s) => s.name === selectedState);
+    return match?.code ?? "";
+  }, [selectedState]);
+
+  const citiesForState = useMemo(
+    () => getCitiesForState(stateCode),
+    [stateCode],
+  );
+
+  const cityCollection = useMemo(
+    () =>
+      createListCollection({
+        items: citiesForState.map((c) => ({ label: c, value: c })),
+      }),
+    [citiesForState],
+  );
+
   const filteredCityCollection = useMemo(
     () =>
       createListCollection({
@@ -223,7 +96,7 @@ export default function Step2FirmDetailsPage() {
           contains(item.label, cityInput),
         ),
       }),
-    [cityInput],
+    [cityInput, cityCollection.items],
   );
 
   const filteredStateCollection = useMemo(
@@ -441,63 +314,6 @@ export default function Step2FirmDetailsPage() {
                 gridTemplateColumns={{ base: "1fr", sm: "1fr 1fr 1fr" }}
                 gap="4"
               >
-                <Field.Root invalid={!!errors.city} textAlign="left">
-                  <Field.Label textStyle="label" color="fg.muted">
-                    City
-                  </Field.Label>
-                  <Controller
-                    control={control}
-                    name="city"
-                    render={({ field }) => (
-                      <Combobox.Root
-                        name={field.name}
-                        value={field.value ? [field.value] : []}
-                        onValueChange={({ value }) =>
-                          field.onChange(value[0] ?? "")
-                        }
-                        onInteractOutside={() => field.onBlur()}
-                        collection={filteredCityCollection}
-                        size="lg"
-                        openOnClick
-                        inputBehavior="autohighlight"
-                        onInputValueChange={(details) =>
-                          setCityInput(details.inputValue)
-                        }
-                      >
-                        <Combobox.Control>
-                          <Combobox.Input
-                            bg="bg.input"
-                            borderColor="border.input"
-                            focusRingColor="brand.focusRing"
-                            placeholder="Select a city"
-                          />
-                          <Combobox.IndicatorGroup>
-                            <Combobox.Trigger />
-                          </Combobox.IndicatorGroup>
-                        </Combobox.Control>
-                        <Portal>
-                          <Combobox.Positioner>
-                            <Combobox.Content>
-                              {cityCollection.items.map((item) => (
-                                <Combobox.Item
-                                  item={item}
-                                  key={item.value}
-                                >
-                                  <Combobox.ItemText>
-                                    {item.label}
-                                  </Combobox.ItemText>
-                                  <Combobox.ItemIndicator />
-                                </Combobox.Item>
-                              ))}
-                            </Combobox.Content>
-                          </Combobox.Positioner>
-                        </Portal>
-                      </Combobox.Root>
-                    )}
-                  />
-                  <Field.ErrorText>{errors.city?.message}</Field.ErrorText>
-                </Field.Root>
-
                 <Field.Root invalid={!!errors.state} textAlign="left">
                   <Field.Label textStyle="label" color="fg.muted">
                     State
@@ -509,9 +325,10 @@ export default function Step2FirmDetailsPage() {
                       <Combobox.Root
                         name={field.name}
                         value={field.value ? [field.value] : []}
-                        onValueChange={({ value }) =>
-                          field.onChange(value[0] ?? "")
-                        }
+                        onValueChange={({ value }) => {
+                          field.onChange(value[0] ?? "");
+                          setValue("city", "");
+                        }}
                         onInteractOutside={() => field.onBlur()}
                         collection={filteredStateCollection}
                         size="lg"
@@ -529,13 +346,14 @@ export default function Step2FirmDetailsPage() {
                             placeholder="Select a state"
                           />
                           <Combobox.IndicatorGroup>
+                            <Combobox.ClearTrigger />
                             <Combobox.Trigger />
                           </Combobox.IndicatorGroup>
                         </Combobox.Control>
                         <Portal>
                           <Combobox.Positioner>
                             <Combobox.Content>
-                              {stateCollection.items.map((item) => (
+                              {filteredStateCollection.items.map((item) => (
                                 <Combobox.Item
                                   item={item}
                                   key={item.value}
@@ -553,6 +371,65 @@ export default function Step2FirmDetailsPage() {
                     )}
                   />
                   <Field.ErrorText>{errors.state?.message}</Field.ErrorText>
+                </Field.Root>
+
+                <Field.Root invalid={!!errors.city} textAlign="left">
+                  <Field.Label textStyle="label" color="fg.muted">
+                    City
+                  </Field.Label>
+                  <Controller
+                    control={control}
+                    name="city"
+                    render={({ field }) => (
+                      <Combobox.Root
+                        name={field.name}
+                        value={field.value ? [field.value] : []}
+                        onValueChange={({ value }) =>
+                          field.onChange(value[0] ?? "")
+                        }
+                        onInteractOutside={() => field.onBlur()}
+                        collection={filteredCityCollection}
+                        disabled={!selectedState}
+                        size="lg"
+                        openOnClick
+                        inputBehavior="autohighlight"
+                        onInputValueChange={(details) =>
+                          setCityInput(details.inputValue)
+                        }
+                      >
+                        <Combobox.Control>
+                          <Combobox.Input
+                            bg="bg.input"
+                            borderColor="border.input"
+                            focusRingColor="brand.focusRing"
+                            placeholder={selectedState ? "Select a city" : "Select a state first"}
+                          />
+                          <Combobox.IndicatorGroup>
+                            <Combobox.ClearTrigger />
+                            <Combobox.Trigger />
+                          </Combobox.IndicatorGroup>
+                        </Combobox.Control>
+                        <Portal>
+                          <Combobox.Positioner>
+                            <Combobox.Content>
+                              {filteredCityCollection.items.map((item) => (
+                                <Combobox.Item
+                                  item={item}
+                                  key={item.value}
+                                >
+                                  <Combobox.ItemText>
+                                    {item.label}
+                                  </Combobox.ItemText>
+                                  <Combobox.ItemIndicator />
+                                </Combobox.Item>
+                              ))}
+                            </Combobox.Content>
+                          </Combobox.Positioner>
+                        </Portal>
+                      </Combobox.Root>
+                    )}
+                  />
+                  <Field.ErrorText>{errors.city?.message}</Field.ErrorText>
                 </Field.Root>
 
                 <Field.Root invalid={!!errors.zipcode} textAlign="left">

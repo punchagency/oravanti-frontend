@@ -1,3 +1,4 @@
+import { US_STATES } from "@/data/us-states-cities";
 import {
   Box,
   createListCollection,
@@ -21,11 +22,7 @@ interface FirmDetailsStepProps {
 }
 
 const statesCollection = createListCollection({
-  items: [
-    { label: "Florida", value: "Florida" },
-    { label: "California", value: "California" },
-    { label: "New York", value: "New York" },
-  ],
+  items: US_STATES.map((s) => ({ label: s.name, value: s.name })),
 });
 
 export const FirmDetailsStep = ({
