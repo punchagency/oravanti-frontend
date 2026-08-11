@@ -30,6 +30,7 @@ import {
   useParams,
 } from "react-router";
 import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
+import { EntityNotFound } from "@/components/ui/entity-not-found";
 import { statusBadgeStyle } from "./components/case-details/shared";
 
 const TAB_CONFIG = [
@@ -56,7 +57,7 @@ export function CaseDetailPage() {
     ? last
     : DEFAULT_TAB;
 
-  const { data: caseRow, isLoading } = useQuery({
+  const { data: caseRow, isLoading, isError } = useQuery({
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId!),
     enabled: Boolean(caseId),
@@ -66,6 +67,10 @@ export function CaseDetailPage() {
   useDocumentTitle(
     caseRow ? `${caseRow.caseNumber} – Case – Oravanti` : "Case – Oravanti",
   );
+
+  if (!isLoading && (isError || !caseRow)) {
+    return <EntityNotFound entityName="Case" backTo="/cases" backLabel="Back to cases" />;
+  }
 
   const statusColors =
     statusBadgeStyle[caseRow?.status as keyof typeof statusBadgeStyle] ??

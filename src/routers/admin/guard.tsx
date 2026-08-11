@@ -3,7 +3,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { Center, Spinner, Text, VStack } from "@chakra-ui/react";
 import { Navigate, Outlet, useLocation } from "react-router";
 
-export function AuthGuard() {
+export function AdminGuard() {
   const location = useLocation();
   const { isLoading: queryLoading } = useAuthRefresh();
   const {
@@ -29,8 +29,15 @@ export function AuthGuard() {
     );
   }
 
+  // Not authenticated -> kick to central root login (firm.com/login)
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" replace />;
+  }
+
+  // Client user should be on the client portal router; router selection by
+  // accountType in AppRouter makes this unreachable, but guard defensively.
+  if (user.accountType === "client") {
+    return <Navigate to="/" replace />;
   }
 
   if (!user.emailVerified) {
@@ -49,16 +56,6 @@ export function AuthGuard() {
     return <Navigate to="/set-password" replace />;
   }
 
-  // // if user is not an admin, show a page with the logout button
-  // if (!user.accountType || user.accountType !== "firm_admin") {
-  //   return (
-  //     <Box>
-  //       <p>Dashboard not ready</p>
-  //       <Button onClick={() => logOut()}>log out</Button>
-  //     </Box>
-  //   );
-  // }
-
   const isOnboarding = location.pathname.startsWith("/onboarding");
   const authPaths = ["/email-verified", "/verify-email", "/accept-invitation", "/set-password"];
   const isAdmin = !isOnboarding && !authPaths.includes(location.pathname);
@@ -69,10 +66,6 @@ export function AuthGuard() {
 
   if (user.onboardingState !== "completed" && isAdmin) {
     return <Navigate to="/onboarding/step-0-source" replace />;
-  }
-
-  if (isOnboarding) {
-    return <Outlet />;
   }
 
   return <Outlet />;

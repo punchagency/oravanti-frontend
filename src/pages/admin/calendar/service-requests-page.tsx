@@ -1,4 +1,4 @@
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { Badge, Box, Flex, Table, Text } from "@chakra-ui/react";
 import { AlertTriangle, CalendarClock, Send } from "lucide-react";
 

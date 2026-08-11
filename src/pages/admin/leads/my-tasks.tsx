@@ -5,7 +5,7 @@ import {
   useUpdateLeadTaskStatus,
 } from "@/hooks/use-lead-workflows";
 import { useRunConflictCheck } from "@/hooks/use-leads";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import {
   Box,
   Button,

@@ -1,5 +1,5 @@
-import { Placeholder } from "../../components/placeholder";
+import { ComingSoonPage } from "@/pages/coming-soon";
 
 export default function Certifications() {
-  return <Placeholder label="Certifications" />;
+  return <ComingSoonPage title="Certifications" showBack={false} />;
 }

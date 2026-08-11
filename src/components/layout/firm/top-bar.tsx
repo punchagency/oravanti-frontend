@@ -2,7 +2,9 @@ import { useColorMode } from "@/hooks/use-color-mode";
 import { useCurrentStaff } from "@/hooks/use-current-staff";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
-import { Box, Button, Flex, Image, Menu, Portal, Text } from "@chakra-ui/react";
+import { AvatarChip } from "@/components/layout/shared/avatar-chip";
+import { useNav, usePageTitle } from "@/components/layout/shared/nav-context";
+import { Box, Button, Flex, Menu, Portal, Text } from "@chakra-ui/react";
 import {
   Check,
   ChevronRight,
@@ -15,45 +17,6 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNavigate } from "react-router";
-import { useNav, usePageTitle } from "./nav-context";
-
-type AvatarChipProps = {
-  src?: string;
-  alt?: string;
-  fallback: string;
-  size?: string;
-  fontSize?: string;
-};
-
-function AvatarChip({
-  src,
-  alt,
-  fallback,
-  size = "28px",
-  fontSize = "10px",
-}: AvatarChipProps) {
-  return (
-    <Box
-      display="grid"
-      placeItems="center"
-      w={size}
-      h={size}
-      minW={size}
-      borderRadius="full"
-      bg="accent.admin"
-      color="white"
-      fontSize={fontSize}
-      fontWeight={500}
-      overflow="hidden"
-    >
-      {src ? (
-        <Image src={src} alt={alt} boxSize="full" objectFit="cover" />
-      ) : (
-        fallback || "?"
-      )}
-    </Box>
-  );
-}
 
 export function TopBar() {
   const { collapsed, toggleCollapsed, onMobileOpen } = useNav();

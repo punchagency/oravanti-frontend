@@ -1,4 +1,4 @@
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Box, ScrollArea, Tabs } from "@chakra-ui/react";
 import { Outlet, useLocation, useNavigate } from "react-router";

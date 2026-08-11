@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export function NotFoundPage() {
-  useDocumentTitle("Coming soon - Oravanti");
+  useDocumentTitle("Page not found - Oravanti");
 
   return (
     <VStack
@@ -11,6 +11,7 @@ export function NotFoundPage() {
       justify="center"
       gap="6"
       h="100%"
+      minH="320px"
       p="8"
       textAlign="center"
     >
@@ -18,21 +19,22 @@ export function NotFoundPage() {
         w="12"
         h="12"
         borderRadius="xl"
-        bg="brand.subtle"
+        bg="bg.muted"
         display="flex"
         alignItems="center"
         justifyContent="center"
-        fontSize="xl"
-        color="brand.fg"
+        fontSize="sm"
+        fontWeight="600"
+        color="fg.muted"
       >
-        &#9670;
+        404
       </Box>
       <VStack gap="1">
         <Heading as="h1" fontSize="2xl" fontWeight="600" color="fg">
-          Coming soon
+          Page not found
         </Heading>
         <Text color="fg.muted" maxW="md" lineHeight="1.6">
-          This feature is currently in development and will be available soon.
+          The page you're looking for doesn't exist or may have been moved.
         </Text>
       </VStack>
       <Button asChild layerStyle="brand-button" size="sm" borderRadius="8px">

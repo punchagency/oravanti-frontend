@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Link as RouterLink, useLocation } from "react-router";
 import { intakeStages, intakeTabs } from "../../../data";
 import { OutlineButton } from "@/components/ui/intake-ui";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { useLeadsStageCount } from "@/hooks/use-leads";
 
 export function PipelineFrame({

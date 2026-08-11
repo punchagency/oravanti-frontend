@@ -1,7 +1,7 @@
 import { dayjs, guessTimezone } from "@/utils/date";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { PageTitle } from "@/components/layout/navigation";
+import { PageTitle } from "@/components/layout/shared/nav-context";
 import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useCancelInvitation } from "@/hooks/useCancelInvitation";

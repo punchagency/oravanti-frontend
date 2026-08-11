@@ -2,7 +2,7 @@ import type { LeadSource, PipelineStage } from "@/api/leads";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 
 export const crmTabs = [
-  "Pipeline",
+  "Clients",
   "Conversion metrics",
   "Education flywheel",
   "Archived leads",

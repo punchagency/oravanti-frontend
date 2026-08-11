@@ -23,12 +23,12 @@ export function GuestGuard() {
   }
 
   if (isAuthenticated && user) {
-    const targetRoute =
-      user.onboardingState === "completed"
-        ? "/"
-        : "/onboarding/step-0-source";
+    // Authenticated user hitting a public route -> send to their portal root.
+    // Router selection by accountType in AppRouter picks the right router.
+    const targetPath =
+      user.onboardingState === "completed" ? "/" : "/onboarding/step-0-source";
 
-    return <Navigate to={targetRoute} replace />;
+    return <Navigate to={targetPath} replace />;
   }
 
   return <Outlet />;

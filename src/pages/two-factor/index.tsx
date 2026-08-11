@@ -70,6 +70,7 @@ const TwoFactorVerification = () => {
         refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
         needsAcceptInvitation: needsSetup.needsAcceptInvitation,
         needsPasswordChange: needsSetup.needsPasswordChange,
+        twoFactorPending: false,
       });
 
       if (needsSetup.needsAcceptInvitation) {

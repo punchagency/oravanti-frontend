@@ -11,6 +11,7 @@ import {
 } from "@/api/firm-settings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/auth-store";
 import type { APIError } from "./types";
 
 export function useFirmProfile() {
@@ -60,11 +61,13 @@ export function useExportFirmData() {
 }
 
 export function useDeleteFirmAccount() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteFirmAccount,
     onSuccess: () => {
       toast.success("Firm account deleted");
-      window.location.href = "/login";
+      useAuthStore.getState().clearAuth();
+      queryClient.clear();
     },
     onError: (err: APIError) => {
       toast.error(

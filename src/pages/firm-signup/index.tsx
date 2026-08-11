@@ -21,7 +21,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { Link as RouterLink } from "react-router";
+import { Link as RouterLink, useNavigate } from "react-router";
 import { z } from "zod";
 
 const signupSchema = z.object({
@@ -42,6 +42,7 @@ type SignupFormData = z.infer<typeof signupSchema>;
 export const FirmSignupFlow = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { showError, showSuccess } = useFeedbackDialog();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -61,7 +62,7 @@ export const FirmSignupFlow = () => {
         title: "Account created",
         description: "Check your email for the verification link.",
       });
-      window.location.href = "/login";
+      navigate("/login");
     },
     onError: (error: APIError) => {
       showError({

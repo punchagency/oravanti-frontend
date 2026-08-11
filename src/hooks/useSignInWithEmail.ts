@@ -10,9 +10,9 @@ import { type APIError } from "./types";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
 export const useSignInWithEmail = () => {
-  const { showError, showSuccess } = useFeedbackDialog();
-  const navigate = useNavigate();
+  const { showError } = useFeedbackDialog();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async (data: any) => {
@@ -22,45 +22,45 @@ export const useSignInWithEmail = () => {
       });
     },
     onSuccess: async (data: any) => {
-      showSuccess({
-        title: "Sign in successful",
-        description: "You have been signed in successfully.",
-      });
       if (data?.data?.twoFactorRedirect) {
-        navigate("/two-factor");
-      } else {
-        const sessionData: {
-          user: SessionUser;
-          session: AuthSession;
-          memberRole?: MemberRole | null;
-          firmTimezone?: string | null;
-        } = await queryClient.fetchQuery({
-          queryKey: ["session"],
-          queryFn: async () => {
-            const response = await getSession();
-            return response.data;
-          },
-        });
+        // 2FA pending — navigate to the verification page on the public router.
+        useAuthStore.getState().setTwoFactorPending(true);
+        navigate("/two-factor", { replace: true });
+        return;
+      }
 
-        const needsSetup = await getNeedsSetup();
+      const sessionData: {
+        user: SessionUser;
+        session: AuthSession;
+        memberRole?: MemberRole | null;
+        firmTimezone?: string | null;
+      } = await queryClient.fetchQuery({
+        queryKey: ["session"],
+        queryFn: async () => {
+          const response = await getSession();
+          return response.data;
+        },
+      });
 
-        useAuthStore.getState().setAuth({
-          user: sessionData?.user ?? null,
-          session: sessionData?.session ?? null,
-          memberRole: sessionData?.memberRole ?? null,
-          firmTimezone: sessionData?.firmTimezone ?? null,
-          isAuthenticated: !!sessionData?.session,
-          isLoading: false,
-          refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
-          needsAcceptInvitation: needsSetup.needsAcceptInvitation,
-          needsPasswordChange: needsSetup.needsPasswordChange,
-        });
+      const needsSetup = await getNeedsSetup();
 
-        if (needsSetup.needsAcceptInvitation) {
-          navigate("/accept-invitation", { replace: true });
-        } else {
-          navigate("/", { replace: true });
-        }
+      useAuthStore.getState().setAuth({
+        user: sessionData?.user ?? null,
+        session: sessionData?.session ?? null,
+        memberRole: sessionData?.memberRole ?? null,
+        firmTimezone: sessionData?.firmTimezone ?? null,
+        isAuthenticated: !!sessionData?.session,
+        isLoading: false,
+        refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
+        needsAcceptInvitation: needsSetup.needsAcceptInvitation,
+        needsPasswordChange: needsSetup.needsPasswordChange,
+        twoFactorPending: false,
+      });
+
+      // AppRouter re-selects the router by accountType after setAuth().
+      // No redirect path needed — the new router starts at its index route.
+      if (needsSetup.needsAcceptInvitation) {
+        window.location.href = "/accept-invitation";
       }
     },
     onError: (error: APIError) => {
