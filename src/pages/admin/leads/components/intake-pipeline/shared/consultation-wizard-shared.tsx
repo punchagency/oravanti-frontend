@@ -540,7 +540,7 @@ export function ScheduleDetailsStep({
         </StepFieldLabel>
         <Text m="0 0 8px" fontSize="12px" color="fg.muted">
           {attorneySelected
-            ? "Add paralegals or staff who need to attend."
+            ? "Add attorneys or paralegals who need to attend."
             : "Select the assigned attorney first."}
         </Text>
         {addedParticipants.length > 0 ? (
