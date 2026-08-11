@@ -62,14 +62,25 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 // ─── Invoicing ───────────────────────────────────────────────────────────────
 
+/** A lead during intake, a client after conversion. */
+export type InvoiceParty = {
+  type: "client" | "lead";
+  id: string;
+  name: string;
+  email: string | null;
+};
+
 export type InvoiceListRow = {
   id: string;
   invoiceNumber: string;
   issueDate: string;
   dueDate: string;
-  clientId: string;
-  clientName: string;
-  clientEmail: string | null;
+  /**
+    * Who the invoice bills. A CLIENT after conversion, a LEAD during intake —
+    * consultation fees and fee agreements are charged before a client record
+    * exists. Never assume `type === "client"`.
+    */
+  party: InvoiceParty;
   caseId: string | null;
   caseNumber: string | null;
   caseTypeLabel: string | null;
@@ -199,8 +210,10 @@ export type InvoiceDetail = {
   dueDate: string;
   notes: string | null;
   filingType: string | null;
-  client: { id: string; name: string; email: string | null };
   matter: { id: string; reference: string | null; type: string | null } | null;
+  party: InvoiceParty;
+  /** Null on an invoice billed to a lead. Prefer `party`. */
+  client: { id: string; name: string; email: string | null } | null;
   practiceArea: string | null;
   /** Ids as well as labels, so the edit dialog can prefill its selects. */
   practiceAreaId: string | null;

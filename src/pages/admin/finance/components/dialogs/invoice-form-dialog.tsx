@@ -132,7 +132,9 @@ const blankForm = (): InvoiceForm => ({
 const formFromInvoice = (invoice: InvoiceDetail): InvoiceForm => {
   const manual = invoice.lineItems.filter((l) => l.timeEntryId == null);
   return {
-    clientId: invoice.client.id,
+    // Empty on a lead-billed invoice. The client select is disabled in edit
+    // mode regardless, so there is nothing to prefill and nothing to lose.
+    clientId: invoice.client?.id ?? "",
     caseId: invoice.matter?.id ?? "",
     attorneyId: invoice.attorneyId ?? "",
     issueDate: invoice.issueDate,

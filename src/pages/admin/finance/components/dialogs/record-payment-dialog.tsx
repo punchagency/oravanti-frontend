@@ -202,7 +202,7 @@ export function RecordPaymentDialog({
       onOpenChange={onOpenChange}
       title="Record payment"
       subtitle={
-        row ? `${row.invoiceNumber} · ${row.clientName}` : undefined
+        row ? `${row.invoiceNumber} · ${row.party.name}` : undefined
       }
       footer={
         <Flex justify="flex-end" gap="8px" w="100%">

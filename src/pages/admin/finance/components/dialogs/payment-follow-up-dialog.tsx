@@ -54,8 +54,8 @@ export function PaymentFollowUpDialog({
     () => ({
       message: invoice
         ? scheduled
-          ? `Dear ${invoice.clientName}, this is a reminder that a scheduled payment on invoice ${invoice.invoiceNumber} was due on ${formatDate(chaseDate!)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
-          : `Dear ${invoice.clientName}, this is a reminder that invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.balanceDue)} was due on ${formatDate(invoice.dueDate)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
+          ? `Dear ${invoice.party.name}, this is a reminder that a scheduled payment on invoice ${invoice.invoiceNumber} was due on ${formatDate(chaseDate!)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
+          : `Dear ${invoice.party.name}, this is a reminder that invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.balanceDue)} was due on ${formatDate(invoice.dueDate)}. Please arrange payment at your earliest convenience. Contact us if you have any questions.`
         : "",
       channel: "email",
     }),

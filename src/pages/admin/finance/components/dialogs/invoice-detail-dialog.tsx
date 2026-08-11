@@ -61,7 +61,7 @@ export function InvoiceDetailDialog({
       }
       subtitle={
         invoice
-          ? [invoice.client.name, invoice.matter?.reference]
+          ? [invoice.party.name, invoice.matter?.reference]
               .filter(Boolean)
               .join(" · ")
           : undefined
@@ -96,8 +96,11 @@ export function InvoiceDetailDialog({
             borderRadius="10px"
             bg="bg.muted"
           >
-            <Field label="Client" value={invoice.client.name} />
-            <Field label="Email" value={invoice.client.email ?? "—"} />
+            <Field
+              label={invoice.party.type === "lead" ? "Billed to (lead)" : "Client"}
+              value={invoice.party.name}
+            />
+            <Field label="Email" value={invoice.party.email ?? "—"} />
             <Field label="Matter" value={invoice.matter?.reference ?? "—"} />
             <Field label="Filing type" value={invoice.filingType ?? "—"} />
             <Field label="Attorney" value={invoice.attorney ?? "—"} />

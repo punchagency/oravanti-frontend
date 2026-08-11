@@ -283,7 +283,17 @@ export default function InvoicingTab() {
             onView={(row) => setDetailId(row.id)}
             onRecordPayment={setPaymentTarget}
             onFollowUp={setFollowUpTarget}
-            onSend={setSendTarget}
+            onSend={(row) =>
+              setSendTarget({
+                id: row.id,
+                invoiceNumber: row.invoiceNumber,
+                clientName: row.party.name,
+                clientEmail: row.party.email,
+                isLead: row.party.type === "lead",
+                totalAmount: row.totalAmount,
+                dueDate: row.dueDate,
+              })
+            }
             onEdit={(row) => setEditId(row.id)}
             onReschedule={(row) => setRescheduleId(row.id)}
           />
@@ -350,8 +360,9 @@ export default function InvoicingTab() {
           setSendTarget({
             id: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
-            clientName: invoice.client.name,
-            clientEmail: invoice.client.email,
+            clientName: invoice.party.name,
+            clientEmail: invoice.party.email,
+            isLead: invoice.party.type === "lead",
             totalAmount: invoice.totals.total,
             dueDate: invoice.dueDate,
           })

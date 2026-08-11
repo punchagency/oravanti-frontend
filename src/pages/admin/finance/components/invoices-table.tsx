@@ -20,7 +20,7 @@ import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "../data";
 
 const HEADERS = [
   "Invoice #",
-  "Client",
+  "Billed to",
   "Matter",
   "Operating",
   "Trust",
@@ -166,12 +166,20 @@ export function InvoicesTable({
 
             <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
               <Box maxW="150px">
-                <Text fontSize="13px" fontWeight="600" textWrap="auto">
-                  {row.clientName}
-                </Text>
-                {row.clientEmail && (
+                <Flex align="center" gap="6px">
+                  <Text fontSize="13px" fontWeight="600" textWrap="auto">
+                    {row.party.name}
+                  </Text>
+                  {/* Consultation fees and fee agreements are billed before the
+                      lead retains the firm. Labelling it stops the list reading
+                      as though they were already a client. */}
+                  {row.party.type === "lead" && (
+                    <StatusPill tone="neutral">Lead</StatusPill>
+                  )}
+                </Flex>
+                {row.party.email && (
                   <Text fontSize="11px" color="fg.muted" textWrap="auto">
-                    {row.clientEmail}
+                    {row.party.email}
                   </Text>
                 )}
               </Box>
