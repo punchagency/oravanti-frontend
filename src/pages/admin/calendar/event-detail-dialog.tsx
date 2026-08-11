@@ -24,7 +24,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDate } from "@internationalized/date";
 import { CalendarDays, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { z } from "zod";
@@ -114,11 +114,22 @@ export function EventDetailDialog({
     handleSubmit,
     control,
     reset,
+    watch,
+    trigger,
     formState: { errors },
   } = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
     mode: "onBlur",
   });
+
+  const watchedStartTime = watch("startTime");
+  const watchedEndTime = watch("endTime");
+
+  useEffect(() => {
+    if (watchedStartTime && watchedEndTime) {
+      trigger(["startTime", "endTime"]);
+    }
+  }, [watchedStartTime, watchedEndTime, trigger]);
 
   const typeCollection = useMemo(
     () =>
@@ -453,8 +464,13 @@ export function EventDetailDialog({
                     }}
                     gap="10px"
                   >
-                    <Field.Root>
-                      <Field.Label>Start time</Field.Label>
+                    <Field.Root invalid={!!errors.startTime}>
+                      <Field.Label>
+                        Start time
+                        <Text as="span" color="red.500" ml="2px">
+                          *
+                        </Text>
+                      </Field.Label>
                       <Controller
                         name="startTime"
                         control={control}
@@ -491,9 +507,19 @@ export function EventDetailDialog({
                           </Select.Root>
                         )}
                       />
+                      {errors.startTime && (
+                        <Field.ErrorText>
+                          {errors.startTime.message}
+                        </Field.ErrorText>
+                      )}
                     </Field.Root>
-                    <Field.Root>
-                      <Field.Label>End time</Field.Label>
+                    <Field.Root invalid={!!errors.endTime}>
+                      <Field.Label>
+                        End time
+                        <Text as="span" color="red.500" ml="2px">
+                          *
+                        </Text>
+                      </Field.Label>
                       <Controller
                         name="endTime"
                         control={control}
@@ -530,6 +556,11 @@ export function EventDetailDialog({
                           </Select.Root>
                         )}
                       />
+                      {errors.endTime && (
+                        <Field.ErrorText>
+                          {errors.endTime.message}
+                        </Field.ErrorText>
+                      )}
                     </Field.Root>
                   </Grid>
 

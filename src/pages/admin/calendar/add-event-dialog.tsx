@@ -112,6 +112,7 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
     control,
     reset,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -133,6 +134,14 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
 
   const watchedClientId = watch("clientId");
   const watchedDate = watch("date");
+  const watchedStartTime = watch("startTime");
+  const watchedEndTime = watch("endTime");
+
+  useEffect(() => {
+    if (watchedStartTime && watchedEndTime) {
+      trigger(["startTime", "endTime"]);
+    }
+  }, [watchedStartTime, watchedEndTime, trigger]);
 
   useEffect(() => {
     if (slotData) {
@@ -595,8 +604,13 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                     }}
                     gap="10px"
                   >
-                    <Field.Root>
-                      <Field.Label>Start time</Field.Label>
+                    <Field.Root invalid={!!errors.startTime}>
+                      <Field.Label>
+                        Start time
+                        <Text as="span" color="red.500" ml="2px">
+                          *
+                        </Text>
+                      </Field.Label>
                       <Controller
                         name="startTime"
                         control={control}
@@ -633,9 +647,19 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           </Select.Root>
                         )}
                       />
+                      {errors.startTime && (
+                        <Field.ErrorText>
+                          {errors.startTime.message}
+                        </Field.ErrorText>
+                      )}
                     </Field.Root>
-                    <Field.Root>
-                      <Field.Label>End time</Field.Label>
+                    <Field.Root invalid={!!errors.endTime}>
+                      <Field.Label>
+                        End time
+                        <Text as="span" color="red.500" ml="2px">
+                          *
+                        </Text>
+                      </Field.Label>
                       <Controller
                         name="endTime"
                         control={control}
@@ -672,6 +696,11 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                           </Select.Root>
                         )}
                       />
+                      {errors.endTime && (
+                        <Field.ErrorText>
+                          {errors.endTime.message}
+                        </Field.ErrorText>
+                      )}
                     </Field.Root>
                   </Grid>
 
