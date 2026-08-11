@@ -17,6 +17,7 @@ import type { Lead } from "@/api/leads";
 import type { ConsultationLocation } from "@/api/consultation-settings";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormSelect } from "@/components/ui/form-select";
+import { hasStaffRole } from "@/hooks/use-consultation-staff";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   BrandButton,
@@ -295,7 +296,7 @@ export function ScheduleDetailsStep({
       allStaff.filter(
         (s) =>
           s.id !== attorneyId &&
-          (s.role === "attorney" || s.role === "paralegal"),
+          (hasStaffRole(s, "attorney") || hasStaffRole(s, "paralegal")),
       ),
     [allStaff, attorneyId],
   );
@@ -303,7 +304,21 @@ export function ScheduleDetailsStep({
     () => participantOptions.filter((s) => participantIds.includes(s.id)),
     [participantOptions, participantIds],
   );
+  // Attendees are picked relative to the lead attorney — they're the people
+  // joining *them*, and the attorney is excluded from the candidate list — so
+  // the search stays closed until an attorney is chosen.
+  const attorneySelected = Boolean(attorneyId);
+
+  // Switching attorneys changes who's eligible, so drop a half-typed search
+  // rather than leave it showing results for the previous attorney.
+  const [lastAttorneyId, setLastAttorneyId] = useState(attorneyId);
+  if (attorneyId !== lastAttorneyId) {
+    setLastAttorneyId(attorneyId);
+    setAttendeeQuery("");
+  }
+
   const attendeeMatches = useMemo(() => {
+    if (!attorneySelected) return [];
     const query = attendeeQuery.trim().toLowerCase();
     if (!query) return [];
     return participantOptions.filter(
@@ -311,7 +326,12 @@ export function ScheduleDetailsStep({
         !participantIds.includes(s.id) &&
         `${s.firstName} ${s.lastName}`.toLowerCase().includes(query),
     );
-  }, [participantOptions, participantIds, attendeeQuery]);
+  }, [attorneySelected, participantOptions, participantIds, attendeeQuery]);
+
+  // Open on any non-empty search, not just on hits — an empty result needs to
+  // say so rather than leave the user staring at a dropdown that never appears.
+  const showAttendeeResults =
+    attorneySelected && attendeeQuery.trim().length > 0;
 
   const addParticipant = (id: string) => {
     onParticipantsChange([...participantIds, id]);
@@ -524,7 +544,9 @@ export function ScheduleDetailsStep({
           </chakra.span>
         </StepFieldLabel>
         <Text m="0 0 8px" fontSize="12px" color="fg.muted">
-          Add paralegals or staff who need to attend.
+          {attorneySelected
+            ? "Add attorneys or paralegals who need to attend."
+            : "Select the assigned attorney first."}
         </Text>
         {addedParticipants.length > 0 ? (
           <HStack gap="6px" wrap="wrap" mb="8px">
@@ -561,10 +583,16 @@ export function ScheduleDetailsStep({
           <Input
             value={attendeeQuery}
             onChange={(e) => setAttendeeQuery(e.currentTarget.value)}
-            placeholder="Search staff to add…"
+            placeholder={
+              attorneySelected
+                ? "Search staff to add…"
+                : "Select an attorney first"
+            }
+            disabled={!attorneySelected}
             {...fieldStyles}
+            _disabled={{ bg: "bg.subtle", opacity: 0.6, cursor: "not-allowed" }}
           />
-          {attendeeMatches.length > 0 ? (
+          {showAttendeeResults ? (
             <Stack
               gap="0"
               position="absolute"
@@ -581,6 +609,11 @@ export function ScheduleDetailsStep({
               overflowY="auto"
               p="4px"
             >
+              {attendeeMatches.length === 0 ? (
+                <Text m="0" px="10px" py="8px" fontSize="13px" color="fg.muted">
+                  No attorney or paralegal matches your search.
+                </Text>
+              ) : null}
               {attendeeMatches.map((member) => (
                 <chakra.button
                   key={member.id}
