@@ -2,6 +2,7 @@ import type {
   ConsultationFeeStructure,
   ConsultationSettings,
 } from "@/api/consultation-settings";
+import { MINIMUM_CONSULTATION_FEE } from "@/config/constants";
 import {
   useConsultationSettings,
   useUpdateConsultationSettings,
@@ -52,12 +53,12 @@ const consultationFeeSchema = z
     if (
       data.defaultAmount.trim() === "" ||
       Number.isNaN(amount) ||
-      amount <= 0
+      amount < MINIMUM_CONSULTATION_FEE
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["defaultAmount"],
-        message: "Enter a valid default fee amount",
+        message: `Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`,
       });
     }
 
