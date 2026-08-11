@@ -24,7 +24,6 @@ authChannel.onmessage = (event) => {
     processQueue(new Error("Session expired"));
     // Clear local auth state and let AppRouter drop to the public router.
     useAuthStore.getState().clearAuth();
-    useAuthStore.getState().setRedirectPath("/login");
   } else if (event.data.type === "SESSION_REFRESHED") {
     // Another tab successfully renewed the cookie!
     // We can safely process any requests that were waiting in this tab
@@ -120,7 +119,6 @@ API.interceptors.response.use(
 
         // Clear local auth state; AppRouter drops to the public router.
         useAuthStore.getState().clearAuth();
-        useAuthStore.getState().setRedirectPath("/login");
         return Promise.reject(refreshError);
       }
     }

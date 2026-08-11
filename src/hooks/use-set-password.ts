@@ -13,9 +13,7 @@ import { useFeedbackDialog } from "./useFeedbackDialog";
  *    auth guard no longer forces the user to the /set-password page.
  * 2. Invalidates the session query so the backend can re-issue a
  *    session token tied to the new credentials.
- * 3. Redirects to the login page on the main domain (e.g. /login) using
- *    AppRouter's redirectPath so the router is re-selected by account type
- *    on the next render without a full page reload.
+ * 3. AppRouter re-selects the router by account type on the next render.
  */
 export function useSetPassword() {
   const queryClient = useQueryClient();
@@ -27,7 +25,6 @@ export function useSetPassword() {
     onSuccess: () => {
       useAuthStore.getState().setNeedsPasswordChange(false);
       queryClient.invalidateQueries({ queryKey: ["session"] });
-      useAuthStore.getState().setRedirectPath("/login");
     },
     onError: (err) => {
       showError({

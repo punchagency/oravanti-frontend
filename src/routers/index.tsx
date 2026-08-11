@@ -1,4 +1,3 @@
-import { useLayoutEffect } from "react";
 import { Center, Spinner, Text, VStack } from "@chakra-ui/react";
 import { RouterProvider } from "react-router";
 import { useAuthRefresh } from "@/hooks/useAuthRefresh";
@@ -30,7 +29,7 @@ export function AppRouter() {
     user,
     isAuthenticated,
     isLoading: storeLoading,
-    redirectPath,
+    twoFactorPending,
   } = useAuthStore();
 
   const isLoading = queryLoading || storeLoading;
@@ -39,27 +38,24 @@ export function AppRouter() {
   const isAuthed = isAuthenticated && !!user;
   const router = isLoading
     ? publicRouter
-    : isAuthed
-      ? user!.accountType === "client"
-        ? clientPortalRouter
-        : adminRouter
-      : publicRouter;
-
-  // Apply any redirect requested outside the router (login, logout, 2FA,
-  // session expiry). Runs before paint so there is no flash of the previous
-  // route, and navigates whichever router is now active. Must be called
-  // unconditionally (before any early return) to satisfy the Rules of Hooks.
-  useLayoutEffect(() => {
-    if (!isLoading && redirectPath) {
-      router.navigate(redirectPath, { replace: true });
-      useAuthStore.getState().setRedirectPath(null);
-    }
-  }, [router, redirectPath, isLoading]);
+    : twoFactorPending
+      ? publicRouter
+      : isAuthed
+        ? user!.accountType === "client"
+          ? clientPortalRouter
+          : adminRouter
+        : publicRouter;
 
   if (isLoading) {
     return <FullPageLoader />;
   }
 
+  // When 2FA is pending the public router is active and the /two-factor
+  // route will render.  Once the user verifies, setAuth() clears the flag
+  // and AppRouter re-renders with the correct authenticated router.
+
+  // 2FA uses the same public router — no key change, so the router stays
+  // mounted and preserves the current URL (/two-factor).
   const routerKey = isAuthed
     ? user!.accountType === "client"
       ? "client"

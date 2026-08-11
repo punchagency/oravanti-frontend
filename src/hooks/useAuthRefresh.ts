@@ -44,6 +44,7 @@ export function useAuthRefresh() {
             needsSetup !== null
               ? needsSetup.needsPasswordChange
               : state.needsPasswordChange,
+          twoFactorPending: false,
         });
 
         return sessionData;

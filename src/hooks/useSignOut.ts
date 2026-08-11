@@ -19,7 +19,6 @@ export const useSignOut = () => {
       });
       useAuthStore.getState().clearAuth();
       queryClient.clear();
-      useAuthStore.getState().setRedirectPath("/login");
     },
     onError: (error: any) => {
       showError({

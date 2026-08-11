@@ -5,12 +5,14 @@ import { useAuthStore } from "@/store/auth-store";
 import type { AuthSession, MemberRole, SessionUser } from "@/types/auth";
 import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { type APIError } from "./types";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
 export const useSignInWithEmail = () => {
   const { showError } = useFeedbackDialog();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
     mutationFn: async (data: any) => {
@@ -21,8 +23,9 @@ export const useSignInWithEmail = () => {
     },
     onSuccess: async (data: any) => {
       if (data?.data?.twoFactorRedirect) {
-        // 2FA is only for admin/staff, stays on the public router
-        useAuthStore.getState().setRedirectPath("/two-factor");
+        // 2FA pending — navigate to the verification page on the public router.
+        useAuthStore.getState().setTwoFactorPending(true);
+        navigate("/two-factor", { replace: true });
         return;
       }
 
@@ -51,24 +54,14 @@ export const useSignInWithEmail = () => {
         refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
         needsAcceptInvitation: needsSetup.needsAcceptInvitation,
         needsPasswordChange: needsSetup.needsPasswordChange,
+        twoFactorPending: false,
       });
 
-      // AppRouter re-selects the router by accountType and navigates here.
-      // Restore the path the user originally tried to visit (saved by the
-      // public router catch-all) so deep links like /settings/email-accounts
-      // survive the login flow.
-      const postLoginRedirect = sessionStorage.getItem("postLoginRedirect");
-      sessionStorage.removeItem("postLoginRedirect");
-      const validRedirect =
-        postLoginRedirect && postLoginRedirect.startsWith("/")
-          ? postLoginRedirect
-          : null;
-
-      useAuthStore.getState().setRedirectPath(
-        needsSetup.needsAcceptInvitation
-          ? "/accept-invitation"
-          : validRedirect ?? "/",
-      );
+      // AppRouter re-selects the router by accountType after setAuth().
+      // No redirect path needed — the new router starts at its index route.
+      if (needsSetup.needsAcceptInvitation) {
+        window.location.href = "/accept-invitation";
+      }
     },
     onError: (error: APIError) => {
       showError({

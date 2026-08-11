@@ -68,7 +68,6 @@ export function useDeleteFirmAccount() {
       toast.success("Firm account deleted");
       useAuthStore.getState().clearAuth();
       queryClient.clear();
-      useAuthStore.getState().setRedirectPath("/login");
     },
     onError: (err: APIError) => {
       toast.error(
