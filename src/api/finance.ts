@@ -434,11 +434,25 @@ export async function updateInvoice(
   return data.data;
 }
 
+/**
+ * Saving a schedule on an invoice the client already holds emails them the new
+ * dates. `notification` reports what happened to that email: `null` when there
+ * was nobody to tell (a draft, or a client with no address on file). The
+ * schedule is saved regardless — a failed send does not retract it.
+ */
+export type SetScheduleResult = InvoiceDetail & {
+  notification: {
+    status: "sent" | "failed";
+    recipientEmail: string;
+    failureReason: string | null;
+  } | null;
+};
+
 export async function setInvoiceSchedule(
   invoiceId: string,
   instalments: InstalmentInput[],
-): Promise<InvoiceDetail> {
-  const { data } = await API.put<{ data: InvoiceDetail }>(
+): Promise<SetScheduleResult> {
+  const { data } = await API.put<{ data: SetScheduleResult }>(
     `/finance/invoices/${invoiceId}/schedule`,
     { instalments },
   );
@@ -770,6 +784,12 @@ export type DeliveryStatus = "pending" | "sent" | "failed";
 
 export type InvoiceDelivery = {
   id: string;
+  /**
+   * `invoice` is the bill itself; `schedule_update` is a payment plan being set
+   * or revised on an invoice the client already holds. Only the former is
+   * evidence they were ever billed.
+   */
+  kind: "invoice" | "schedule_update";
   channel: "email";
   recipientEmail: string;
   status: DeliveryStatus;

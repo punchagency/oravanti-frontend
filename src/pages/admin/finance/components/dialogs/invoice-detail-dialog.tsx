@@ -297,6 +297,9 @@ export function InvoiceDetailDialog({
                     </Text>
                     <Text fontSize="11px" color="fg.muted">
                       {[
+                        delivery.kind === "schedule_update"
+                          ? "Payment schedule"
+                          : "Invoice",
                         delivery.deliveredAt
                           ? formatDate(delivery.deliveredAt)
                           : formatDate(delivery.createdAt),

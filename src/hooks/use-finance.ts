@@ -267,7 +267,21 @@ export function useSetInvoiceSchedule() {
       instalments: InstalmentInput[];
     }) => setInvoiceSchedule(invoiceId, instalments),
     onSuccess: (invoice) => {
-      toast.success(`Payment schedule saved for ${invoice.invoiceNumber}`);
+      // The schedule is saved whatever happened to the email, so a failed
+      // notification is a warning rather than an error — but it must not read
+      // as success, or the firm will think the client knows about dates they
+      // have never seen.
+      if (invoice.notification?.status === "failed") {
+        toast.warning(
+          `Schedule saved, but ${invoice.invoiceNumber} could not be emailed to the client`,
+        );
+      } else if (invoice.notification?.status === "sent") {
+        toast.success(
+          `Schedule saved and sent to ${invoice.notification.recipientEmail}`,
+        );
+      } else {
+        toast.success(`Payment schedule saved for ${invoice.invoiceNumber}`);
+      }
       qc.invalidateQueries({ queryKey: financeKeys.all });
     },
     onError: (err: APIError) =>

@@ -166,9 +166,9 @@ export function RescheduleDialog({
               <Info size={16} />
             </Box>
             <Text fontSize="12px" color="fg.muted">
-              The client already has this invoice. Changing the schedule is
-              recorded here, but it does not notify them — resend the invoice if
-              they need the new dates.
+              {hadSchedule
+                ? "Saving emails the client the revised dates, with an updated copy of the invoice attached."
+                : "Saving emails the client the new payment plan, with an updated copy of the invoice attached."}
             </Text>
           </Flex>
 
