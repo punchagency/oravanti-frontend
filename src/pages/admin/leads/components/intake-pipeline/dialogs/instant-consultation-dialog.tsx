@@ -10,6 +10,7 @@ import {
   Text,
   chakra,
 } from "@chakra-ui/react";
+import { MINIMUM_CONSULTATION_FEE } from "@/config/constants";
 import { Info, UserPlus, Users, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -542,11 +543,20 @@ export function InstantConsultationDialog({
       return;
     }
 
+    if (chargesCustomFee && Number(data.feeAmount) < MINIMUM_CONSULTATION_FEE) {
+      toast.error(`Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`);
+      setStep(3);
+      return;
+    }
+
     // Send the BASE fee, never `emergencyFee`. The backend multiplies by
     // `emergencyMultiplier` itself, so sending the multiplied amount here
     // applied the surcharge twice — base x 2 was charged as base x 4, and the
     // invoice line named the wrong base in its description. `emergencyFee` is
     // for display only (the summary below shows the client what they will owe).
+    //
+    // The minimum above is checked against the base for the same reason: it is
+    // a floor on the firm's standard fee, not on the surcharged total.
     const resolvedFee = !chargesFee
       ? undefined
       : chargesCustomFee && data.feeAmount.trim()
