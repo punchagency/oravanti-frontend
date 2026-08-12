@@ -542,15 +542,16 @@ export function InstantConsultationDialog({
       return;
     }
 
-    // Always send a concrete amount when charging so the backend records the
-    // exact (possibly emergency-multiplied) fee shown to the user.
+    // Send the BASE fee, never `emergencyFee`. The backend multiplies by
+    // `emergencyMultiplier` itself, so sending the multiplied amount here
+    // applied the surcharge twice — base x 2 was charged as base x 4, and the
+    // invoice line named the wrong base in its description. `emergencyFee` is
+    // for display only (the summary below shows the client what they will owe).
     const resolvedFee = !chargesFee
       ? undefined
-      : data.isEmergency
-        ? emergencyFee
-        : chargesCustomFee && data.feeAmount.trim()
-          ? Number(data.feeAmount)
-          : (feeSettings?.defaultAmount ?? undefined);
+      : chargesCustomFee && data.feeAmount.trim()
+        ? Number(data.feeAmount)
+        : (feeSettings?.defaultAmount ?? undefined);
 
     initiateConsultation.mutate(
       {
