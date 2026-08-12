@@ -2274,6 +2274,9 @@ export function ScheduleConsultationDialog({
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
+  // Firm-wide text messaging switch; the SMS option stays disabled without it.
+  const { data: firmConsultationSettings } = useConsultationSettings();
+  const smsEnabled = firmConsultationSettings?.smsEnabled ?? false;
   // Stable across renders so the memoized step components can skip re-rendering
   // while the user types (setValue is a stable RHF reference).
   const setField = useCallback(
@@ -2610,6 +2613,9 @@ export function ScheduleConsultationDialog({
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }
+                  notifySms={notifySms}
+                  smsEnabled={smsEnabled}
+                  onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
               {step === 3 && selectedLead ? (
