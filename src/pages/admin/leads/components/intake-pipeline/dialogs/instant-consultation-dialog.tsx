@@ -10,6 +10,7 @@ import {
   Text,
   chakra,
 } from "@chakra-ui/react";
+import { MINIMUM_CONSULTATION_FEE } from "@/config/constants";
 import { Info, UserPlus, Users, X, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -538,6 +539,12 @@ export function InstantConsultationDialog({
 
     if (chargesCustomFee && !data.feeAmount.trim()) {
       toast.error("Enter the consultation fee for this case type");
+      setStep(3);
+      return;
+    }
+
+    if (chargesCustomFee && Number(data.feeAmount) < MINIMUM_CONSULTATION_FEE) {
+      toast.error(`Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`);
       setStep(3);
       return;
     }
