@@ -1,6 +1,8 @@
 import { getLeadById } from "@/api/leads";
 import { Box, Text, VStack } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
+import { CommunicationsPanel } from "@/components/communications-panel";
+import { SmsConsentBadge } from "@/components/sms-consent-badge";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { pipelineStageLabels } from "../../intake-pipeline/shared/constants";
 import { FieldRow, SectionLabel } from "../shared";
@@ -71,6 +73,19 @@ export function LeadOverview({ leadId, isActive }: LeadOverviewProps) {
       <FieldRow label="Full name" value={lead.name} />
       <FieldRow label="Email" value={lead.email} />
       <FieldRow label="Phone" value={lead.phone ?? "—"} />
+      {/*
+        Whether this lead can be texted, shown next to the number it applies to.
+        Three states rather than two — "no consent" can be resolved by asking
+        them, "opted out" cannot be resolved by the firm at all.
+      */}
+      <Box px={3} pb={2}>
+        <SmsConsentBadge
+          smsConsent={lead.smsConsent ?? false}
+          smsConsentAt={lead.smsConsentAt}
+          smsOptOutAt={lead.smsOptOutAt}
+          hasPhone={Boolean(lead.phone)}
+        />
+      </Box>
       <FieldRow
         label="Entity type"
         value={lead.entityType === "company" ? "Company" : "Individual"}
@@ -119,6 +134,15 @@ export function LeadOverview({ leadId, isActive }: LeadOverviewProps) {
           lead.receivedAt ? new Date(lead.receivedAt).toLocaleDateString() : "—"
         }
       />
+
+      {/*
+        Every message sent about this lead, including the ones deliberately not
+        sent. "Skipped — no SMS consent" is the answer to "why didn't they get
+        the questionnaire", which previously had nowhere to be asked.
+      */}
+      <Box mt={5}>
+        <CommunicationsPanel leadId={leadId} />
+      </Box>
     </Box>
   );
 }
