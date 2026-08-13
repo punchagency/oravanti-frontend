@@ -57,7 +57,10 @@ const TwoFactorVerification = () => {
         },
       });
 
-      const needsSetup = await getNeedsSetup();
+      const needsSetup =
+        sessionData?.user?.accountType === "staff"
+          ? await getNeedsSetup()
+          : { needsAcceptInvitation: false, needsPasswordChange: false };
 
       useAuthStore.getState().setAuth({
         user: sessionData?.user ?? null,
