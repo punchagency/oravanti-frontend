@@ -20,6 +20,7 @@ export function TopBar() {
   const navigate = useNavigate();
 
   const displayName = [client?.firstName, client?.lastName].filter(Boolean).join(" ") || user?.name || "User";
+  const avatarUrl = client?.avatarUrl ?? "";
   const initials = displayName.split(" ").map((n) => n[0]).join("").toUpperCase();
 
   return (
@@ -43,7 +44,7 @@ export function TopBar() {
       <Menu.Root>
         <Menu.Trigger asChild>
           <Button variant="ghost" p="1" borderRadius="full" _hover={{ bg: "bg.subtle" }}>
-            <AvatarChip alt={displayName} fallback={initials} />
+            <AvatarChip src={avatarUrl} alt={displayName} fallback={initials} />
           </Button>
         </Menu.Trigger>
         <Portal>
@@ -51,7 +52,7 @@ export function TopBar() {
             <Menu.Content w="240px" maxW="full" bg="bg.panel" border="1px solid"
               borderColor="border" borderRadius="lg" p="4px">
               <Flex align="center" gap="10px" px="12px" py="8px">
-                <AvatarChip alt={displayName} fallback={initials} />
+                <AvatarChip src={avatarUrl} alt={displayName} fallback={initials} />
                 <Box>
                   <Text m={0} color="fg" fontSize="13px" fontWeight={500}>{displayName}</Text>
                   <Text m={0} color="fg.subtle" fontSize="11px">Client</Text>
