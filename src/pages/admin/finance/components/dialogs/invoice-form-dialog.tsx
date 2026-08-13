@@ -219,11 +219,13 @@ export function InvoiceFormDialog({
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
   /**
-   * Whether the catalog picker is showing.
+   * Whether the catalog picker is showing — subject to `canAddLines` below,
+   * which is what actually decides whether it can be shown at all.
    *
-   * Open by default on a new invoice: picking from the catalog is the intended
-   * way in, and a dialog that opens on an empty grid teaches the old habit.
-   * Closed when editing, where the lines already exist.
+   * Armed by default on a new invoice: picking from the catalog is the intended
+   * way in, and a dialog that opens on an empty grid teaches the old habit. It
+   * then appears the moment a matter makes the catalog answerable. Closed when
+   * editing, where the lines already exist.
    *
    * Reset during render rather than from the effect below — React's documented
    * "adjusting state when a prop changes" pattern. Doing it in the effect
@@ -294,6 +296,32 @@ export function InvoiceFormDialog({
     awaitingAttorneyFor.current = null;
     setValue("attorneyId", defaults.attorneyId, { shouldDirty: true });
   }, [defaults, setValue]);
+
+  /**
+   * The matter's scope, and only once it belongs to the matter now selected.
+   *
+   * `caseDefaults` keeps returning the previous matter's answer while the new
+   * one is in flight, so the id comparison is what stops the catalog showing
+   * one matter's charges under another's name for a beat.
+   */
+  const scope = defaults?.caseId === caseId ? defaults : undefined;
+
+  /**
+   * Lines cannot be composed before a matter is chosen.
+   *
+   * The catalog is scoped by the matter's practice area and case type — that
+   * is the whole mechanism by which it offers the right charges and the right
+   * account. Without a matter there is nothing correct to show, and offering
+   * the general tier in the meantime would be worse than offering nothing: the
+   * list would silently rewrite itself the moment the scope arrived, after the
+   * author had already read it.
+   *
+   * Existing lines are still rendered and still editable below — this gates
+   * ADDING, never what an invoice already holds. A draft saved without a
+   * matter must remain fixable.
+   */
+  const canAddLines = scope != null;
+  const awaitingScope = Boolean(caseId) && scope == null;
 
   // Derived, not remembered: the hint is true whenever the selected attorney is
   // the one this matter resolves to, whether it got there automatically or by
@@ -539,6 +567,12 @@ export function InvoiceFormDialog({
                       // in when the answer arrives.
                       awaitingAttorneyFor.current = v || null;
                       if (!v) setValue("attorneyId", "");
+                      // The catalog becomes answerable the moment a matter is
+                      // known, so offer it then rather than making the author
+                      // ask twice. Set here in the handler, not from an effect
+                      // watching the scope — that would reopen a picker the
+                      // author had deliberately closed.
+                      if (v && !isEdit) setPickerOpen(true);
                     }}
                     placeholder={
                       clientId ? "Select matter" : "Choose a client first"
@@ -578,28 +612,38 @@ export function InvoiceFormDialog({
               <Text fontSize="12px" fontWeight="600">
                 Line items
               </Text>
-              <Flex gap="6px">
-                <OutlineButton onClick={() => append(emptyLine())}>
-                  <Plus size={13} />
-                  Blank line
-                </OutlineButton>
-                {!pickerOpen && (
-                  <BrandButton onClick={() => setPickerOpen(true)}>
-                    <ListPlus size={13} />
-                    Add from catalog
-                  </BrandButton>
-                )}
-              </Flex>
+              {canAddLines && (
+                <Flex gap="6px">
+                  <OutlineButton onClick={() => append(emptyLine())}>
+                    <Plus size={13} />
+                    Blank line
+                  </OutlineButton>
+                  {!pickerOpen && (
+                    <BrandButton onClick={() => setPickerOpen(true)}>
+                      <ListPlus size={13} />
+                      Add from catalog
+                    </BrandButton>
+                  )}
+                </Flex>
+              )}
             </Flex>
 
-            {pickerOpen && (
+            {!canAddLines && (
+              <Text fontSize="12px" color="fg.muted" mb="10px">
+                {awaitingScope
+                  ? "Loading this matter's charges…"
+                  : "Choose a matter first — its practice area and case type decide which charges you can pick from."}
+              </Text>
+            )}
+
+            {canAddLines && pickerOpen && (
               <Box mb="10px">
                 <LinePresetPicker
-                  // From the matter, so the catalog narrows to what this kind
-                  // of case actually attracts. Undefined until a matter is
-                  // picked — the general tier still applies.
-                  practiceAreaId={defaults?.practiceAreaId ?? undefined}
-                  caseTypeId={defaults?.caseTypeId ?? undefined}
+                  // Narrowed to what this kind of case actually attracts. Both
+                  // are resolved before the picker mounts, so its first fetch
+                  // is already the right one.
+                  practiceAreaId={scope.practiceAreaId ?? undefined}
+                  caseTypeId={scope.caseTypeId ?? undefined}
                   onAdd={(pick: PickedLine) => append(lineFromPick(pick))}
                   onClose={() => setPickerOpen(false)}
                 />
@@ -662,7 +706,7 @@ export function InvoiceFormDialog({
                   </IconButton>
                 </Grid>
               ))}
-              {fields.length === 0 && !pickerOpen && (
+              {fields.length === 0 && canAddLines && !pickerOpen && (
                 <Text fontSize="12px" color="fg.muted">
                   No line items yet. Add them from the catalog, or select
                   unbilled time below.
