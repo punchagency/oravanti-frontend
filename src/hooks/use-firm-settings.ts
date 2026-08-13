@@ -4,6 +4,7 @@ import {
   getFirmProfile,
   getFirmSnapshot,
   getNotificationSettings,
+  setFirmSmsEnabled,
   updateFirmProfile,
   updateNotificationSettings,
   type FirmNotificationSettingsInput,
@@ -101,6 +102,29 @@ export function useUpdateNotificationSettings() {
       toast.error(
         err.response?.data?.message ??
           "Failed to save notification preferences",
+      );
+    },
+  });
+}
+
+export function useSetFirmSmsEnabled() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => setFirmSmsEnabled(enabled),
+    onSuccess: ({ smsEnabled }) => {
+      toast.success(
+        smsEnabled
+          ? "Text messaging enabled for your firm"
+          : "Text messaging disabled for your firm",
+      );
+      qc.invalidateQueries({ queryKey: ["notificationSettings"] });
+      // The consultation settings query holds the same column, so it would
+      // otherwise serve a stale value to the channel pickers that read it.
+      qc.invalidateQueries({ queryKey: ["consultationSettings"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err.response?.data?.message ?? "Failed to change text messaging",
       );
     },
   });

@@ -1,9 +1,6 @@
 import {
-  useConsultationSettings,
-  useUpdateConsultationSettings,
-} from "@/hooks/use-consultation-settings";
-import {
   useNotificationSettings,
+  useSetFirmSmsEnabled,
   useUpdateNotificationSettings,
 } from "@/hooks/use-firm-settings";
 import type { NotificationPreference } from "@/api/firm-settings";
@@ -105,15 +102,28 @@ function NotificationSwitch({
       onCheckedChange={(e) => onToggle(e.checked)}
       size="sm"
       title={title}
-      opacity={disabled ? 0.4 : 1}
+      // 0.4 made a disabled switch invisible rather than merely inactive; the
+      // SMS column looked like an empty gap instead of a locked control.
+      opacity={disabled ? 0.65 : 1}
       cursor={disabled ? "not-allowed" : "pointer"}
     >
       <Switch.HiddenInput />
+      {/*
+        The off state was a white thumb on a light track with no border, which
+        disappeared entirely against bg.subtle — the switch read as empty space.
+        A border gives the track an edge on any surface, and the thumb darkens
+        when off so it is visible against the track itself.
+      */}
       <Switch.Control
         bg={checked ? "brand.solid" : "bg.muted"}
-        _hover={{ bg: checked ? "brand.solid" : "bg.muted" }}
+        border="1px solid"
+        borderColor={checked ? "brand.solid" : "border"}
+        _hover={{
+          bg: checked ? "brand.solid" : "bg.muted",
+          borderColor: checked ? "brand.solid" : "fg.muted",
+        }}
       >
-        <Switch.Thumb bg="white" />
+        <Switch.Thumb bg={checked ? "white" : "fg.muted"} />
       </Switch.Control>
     </Switch.Root>
   );
@@ -127,11 +137,14 @@ function NotificationSwitch({
  * and defaulted to false; until this control there was no way to turn it on, so
  * the SMS column below toggled preferences that could never take effect.
  */
-function SmsMasterSwitch() {
-  const { data: consultation, isLoading } = useConsultationSettings();
-  const updateConsultation = useUpdateConsultationSettings();
-
-  const enabled = consultation?.smsEnabled ?? false;
+function SmsMasterSwitch({
+  enabled,
+  isLoading,
+}: {
+  enabled: boolean;
+  isLoading: boolean;
+}) {
+  const setSmsEnabled = useSetFirmSmsEnabled();
 
   if (isLoading) {
     return <ThemeSkeleton h="60px" w="100%" borderRadius="8px" mb="20px" />;
@@ -166,14 +179,8 @@ function SmsMasterSwitch() {
       </Box>
       <NotificationSwitch
         checked={enabled}
-        onToggle={(checked) => {
-          // chargesFee is required by the upsert contract, so the current value
-          // is echoed back rather than silently reset.
-          updateConsultation.mutate({
-            chargesFee: consultation?.chargesFee ?? false,
-            smsEnabled: checked,
-          });
-        }}
+        disabled={setSmsEnabled.isPending}
+        onToggle={(checked) => setSmsEnabled.mutate(checked)}
       />
     </Flex>
   );
@@ -182,11 +189,11 @@ function SmsMasterSwitch() {
 export default function NotificationsTab() {
   const { data: settings, isLoading } = useNotificationSettings();
   const updateSettings = useUpdateNotificationSettings();
-  const { data: consultation } = useConsultationSettings();
-
   // When SMS is off firm-wide, the per-event SMS toggles cannot do anything.
   // Showing them as operable would promise a delivery that never happens.
-  const smsEnabled = consultation?.smsEnabled ?? false;
+  // Read from the notification settings payload rather than the consultation
+  // one, so this screen talks to a single endpoint.
+  const smsEnabled = settings?.smsEnabled ?? false;
 
   const [preferences, setPreferences] = useState<NotificationPreference[]>(() =>
     buildDefaultPreferences(),
@@ -247,7 +254,7 @@ export default function NotificationsTab() {
 
       {/* Content */}
       <Box p="20px">
-        <SmsMasterSwitch />
+        <SmsMasterSwitch enabled={smsEnabled} isLoading={isLoading} />
 
         {/* Channel labels */}
         <HStack gap={{ base: "4", md: "6" }} mb="4" flexWrap="wrap">
