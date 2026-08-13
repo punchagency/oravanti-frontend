@@ -10,7 +10,7 @@ export function ClientGuard() {
     user,
     isAuthenticated,
     isLoading: storeLoading,
-    needsPasswordChange,
+    portalStatus,
   } = useAuthStore();
 
   const isLoading = queryLoading || storeLoading;
@@ -28,26 +28,20 @@ export function ClientGuard() {
     );
   }
 
-  // Not authenticated -> kick to central root login (firm.com/login)
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Staff/Admin should be on the admin router; router selection by accountType
-  // in AppRouter makes this unreachable, but guard defensively.
   if (user.accountType !== "client") {
     return <Navigate to="/" replace />;
   }
 
-  if (!user.emailVerified) {
-    if (location.pathname !== "/verify-email") {
-      return <Navigate to="/verify-email" replace />;
-    }
-    return <Outlet />;
+  if (portalStatus === "disabled" && location.pathname !== "/portal-access-disabled") {
+    return <Navigate to="/portal-access-disabled" replace />;
   }
 
-  if (needsPasswordChange && location.pathname !== "/set-password") {
-    return <Navigate to="/set-password" replace />;
+  if (portalStatus === "active" && location.pathname === "/portal-access-disabled") {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

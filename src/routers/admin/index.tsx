@@ -209,12 +209,17 @@ const ComingSoonPage = lazyPage(() =>
 const NotFoundPage = lazyPage(() =>
   import("@/pages/not-found").then((m) => ({ default: m.NotFoundPage })),
 );
+const PortalAccessDisabledPage = lazyPage(() =>
+  import("@/pages/portal-access-disabled"),
+);
 
 export function createAdminRouter() {
   return createBrowserRouter(
     createRoutesFromElements(
       <Route errorElement={<RouteErrorBoundary />}>
         {/* Auth callback routes */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/two-factor" element={<Navigate to="/" replace />} />
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
@@ -378,6 +383,7 @@ export function createAdminRouter() {
 
             {/* Unknown admin paths render the 404 inside the dashboard layout. */}
             <Route path="*" element={<NotFoundPage />} />
+            <Route path="portal-access-disabled" element={<PortalAccessDisabledPage />} />
           </Route>
         </Route>
       </Route>,

@@ -20,7 +20,6 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -39,7 +38,6 @@ type TotpFormData = z.infer<typeof totpSchema>;
 type BackupFormData = z.infer<typeof backupSchema>;
 
 const TwoFactorVerification = () => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { colorMode, toggleColorMode } = useColorMode();
 
@@ -50,6 +48,7 @@ const TwoFactorVerification = () => {
         session: AuthSession;
         memberRole?: MemberRole | null;
         firmTimezone?: string | null;
+        portalStatus?: string | null;
       } = await queryClient.fetchQuery({
         queryKey: ["session"],
         queryFn: async () => {
@@ -58,13 +57,17 @@ const TwoFactorVerification = () => {
         },
       });
 
-      const needsSetup = await getNeedsSetup();
+      const needsSetup =
+        sessionData?.user?.accountType === "staff"
+          ? await getNeedsSetup()
+          : { needsAcceptInvitation: false, needsPasswordChange: false };
 
       useAuthStore.getState().setAuth({
         user: sessionData?.user ?? null,
         session: sessionData?.session ?? null,
         memberRole: sessionData?.memberRole ?? null,
         firmTimezone: sessionData?.firmTimezone ?? null,
+        portalStatus: sessionData?.portalStatus ?? null,
         isAuthenticated: !!sessionData?.session,
         isLoading: false,
         refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
@@ -74,9 +77,9 @@ const TwoFactorVerification = () => {
       });
 
       if (needsSetup.needsAcceptInvitation) {
-        navigate("/accept-invitation", { replace: true });
+        window.location.replace("/accept-invitation");
       } else {
-        navigate("/", { replace: true });
+        window.location.replace("/");
       }
     } catch {
       toast.error("Unable to complete sign in. Please try again.");

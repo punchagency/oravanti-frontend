@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // hooks/useAuthRefresh.ts
 import { getSession } from "@/api/auth";
-import { getNeedsSetup } from "@/api/organization";
+import { getNeedsSetup, type NeedsSetupResponse } from "@/api/organization";
 import { useAuthStore } from "@/store/auth-store";
 import type { AuthSession, MemberRole, SessionUser } from "@/types/auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,17 +15,20 @@ export function useAuthRefresh() {
     queryKey: ["session"],
     queryFn: async () => {
       try {
-        const [res, needsSetup] = await Promise.all([
-          getSession(),
-          getNeedsSetup().catch(() => null),
-        ]);
+        const res = await getSession();
 
         const sessionData = res.data as {
           user: SessionUser;
           session: AuthSession;
           memberRole?: MemberRole | null;
           firmTimezone?: string | null;
+          portalStatus?: string | null;
         };
+
+        let needsSetup: NeedsSetupResponse | null = null;
+        if (sessionData.user?.accountType === "staff") {
+          needsSetup = await getNeedsSetup().catch(() => null);
+        }
 
         const state = useAuthStore.getState();
         setAuth({
@@ -33,6 +36,7 @@ export function useAuthRefresh() {
           session: sessionData.session,
           memberRole: sessionData.memberRole ?? null,
           firmTimezone: sessionData.firmTimezone ?? null,
+          portalStatus: sessionData.portalStatus ?? null,
           isAuthenticated: !!sessionData.user,
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),

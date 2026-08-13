@@ -27,6 +27,7 @@ import {
 } from "../../../data";
 import { useStaffData } from "../staff-data-context";
 import { StaffDetailsDrawer } from "./staff-details/drawer";
+import { StaffPortalAccessBadge } from "../../../components/staff-portal-access-badge";
 
 function TableActionMenu({ staff }: { staff: StaffMember }) {
   const [open, setOpen] = useState(false);
@@ -176,6 +177,15 @@ export function StaffTable() {
                       whiteSpace="nowrap"
                     >
                       STATUS
+                    </Table.ColumnHeader>
+                    <Table.ColumnHeader
+                      textStyle="body-sm"
+                      fontWeight="bold"
+                      color="fg.subtle"
+                      pb={3}
+                      whiteSpace="nowrap"
+                    >
+                      PORTAL ACCESS
                     </Table.ColumnHeader>
                     <Table.ColumnHeader
                       textStyle="body-sm"
@@ -426,6 +436,10 @@ export function StaffTable() {
                         >
                           {getStatusLabel(staff.status)}
                         </Badge>
+                      </Table.Cell>
+
+                      <Table.Cell py={4} whiteSpace="nowrap">
+                        <StaffPortalAccessBadge status={staff.portalStatus} />
                       </Table.Cell>
 
                       <Table.Cell py={4} textAlign="right" whiteSpace="nowrap">

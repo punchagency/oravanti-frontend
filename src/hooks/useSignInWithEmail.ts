@@ -34,6 +34,7 @@ export const useSignInWithEmail = () => {
         session: AuthSession;
         memberRole?: MemberRole | null;
         firmTimezone?: string | null;
+        portalStatus?: string | null;
       } = await queryClient.fetchQuery({
         queryKey: ["session"],
         queryFn: async () => {
@@ -42,13 +43,17 @@ export const useSignInWithEmail = () => {
         },
       });
 
-      const needsSetup = await getNeedsSetup();
+      const needsSetup =
+        sessionData?.user?.accountType === "staff"
+          ? await getNeedsSetup()
+          : { needsAcceptInvitation: false, needsPasswordChange: false };
 
       useAuthStore.getState().setAuth({
         user: sessionData?.user ?? null,
         session: sessionData?.session ?? null,
         memberRole: sessionData?.memberRole ?? null,
         firmTimezone: sessionData?.firmTimezone ?? null,
+        portalStatus: sessionData?.portalStatus ?? null,
         isAuthenticated: !!sessionData?.session,
         isLoading: false,
         refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
@@ -57,10 +62,10 @@ export const useSignInWithEmail = () => {
         twoFactorPending: false,
       });
 
-      // AppRouter re-selects the router by accountType after setAuth().
-      // No redirect path needed — the new router starts at its index route.
       if (needsSetup.needsAcceptInvitation) {
-        window.location.href = "/accept-invitation";
+        window.location.replace("/accept-invitation");
+      } else {
+        window.location.replace("/");
       }
     },
     onError: (error: APIError) => {

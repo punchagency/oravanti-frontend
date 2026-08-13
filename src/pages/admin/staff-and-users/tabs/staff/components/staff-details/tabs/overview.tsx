@@ -8,7 +8,7 @@ import {
   VStack,
   HStack,
 } from "@chakra-ui/react";
-import { CalendarOff, FileText, Pencil } from "lucide-react";
+import { CalendarOff, FileText, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   getProgressColor,
@@ -16,6 +16,9 @@ import {
   getStatusLabel,
   type StaffMember,
 } from "../../../../../data";
+import { useUpdateStaffPortalStatus } from "@/hooks/use-update-staff-portal-status";
+import { useAuthStore } from "@/store/auth-store";
+import { StaffPortalAccessBadge } from "../../../../../components/staff-portal-access-badge";
 import { EditStaffDialog } from "../../edit-staff/dialog";
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (
@@ -55,6 +58,9 @@ function SectionLabel({ children }: { children: string }) {
 export function Overview({ staff }: { staff: StaffMemberDTO }) {
   const caseloadCurrent = 0;
   const caseloadMax = staff.maxCaseload ?? 7;
+  const updatePortalStatus = useUpdateStaffPortalStatus();
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const isSelf = staff.userId === currentUserId;
   return (
     <VStack gap={0} align="stretch" px={5} pb={5}>
       <HStack gap={0} wrap="wrap">
@@ -174,6 +180,63 @@ export function Overview({ staff }: { staff: StaffMemberDTO }) {
         >
           {getStatusLabel(staff.status)}
         </Badge>
+      </Box>
+
+      <Separator borderColor="border" my={3} />
+
+      <SectionLabel>Portal access</SectionLabel>
+      <Box
+        border="1px solid"
+        borderColor="border"
+        borderRadius="lg"
+        p={3}
+      >
+        <HStack justify="space-between" align="center" mb={2}>
+          <Text color="fg.muted" fontSize="12px" fontWeight="500">
+            Status
+          </Text>
+          <StaffPortalAccessBadge status={staff.portalStatus} />
+        </HStack>
+        {isSelf &&
+        (staff.portalStatus === "active" || staff.portalStatus === "pending") ? null : staff.portalStatus ===
+            "active" ||
+          staff.portalStatus === "pending" ? (
+          <Button
+            size="xs"
+            variant="outline"
+            w="full"
+            color="fg.error"
+            _hover={{ bg: "bg.error", color: "fg.error" }}
+            onClick={() =>
+              updatePortalStatus.mutate({
+                staffId: staff.id,
+                status: "disabled",
+              })
+            }
+            loading={updatePortalStatus.isPending}
+          >
+            <ShieldOff size={12} />
+            Disable access
+          </Button>
+        ) : (
+          <Button
+            size="xs"
+            variant="outline"
+            w="full"
+            color="fg.success"
+            _hover={{ bg: "bg.success", color: "fg.success" }}
+            onClick={() =>
+              updatePortalStatus.mutate({
+                staffId: staff.id,
+                status: "active",
+              })
+            }
+            loading={updatePortalStatus.isPending}
+          >
+            <ShieldCheck size={12} />
+            Enable access
+          </Button>
+        )}
       </Box>
 
       <Separator borderColor="border" my={3} />

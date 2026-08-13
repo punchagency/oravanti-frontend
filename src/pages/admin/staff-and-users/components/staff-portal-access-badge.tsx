@@ -1,13 +1,22 @@
 import { Badge, type BadgeProps } from "@chakra-ui/react";
 
-const statusConfig: Record<string, { label: string; colorScheme: BadgeProps["colorScheme"] }> = {
+const statusConfig: Record<
+  string,
+  { label: string; colorScheme: BadgeProps["colorScheme"] }
+> = {
   active: { label: "Active", colorScheme: "green" },
-  invited: { label: "Invited", colorScheme: "yellow" },
+  pending: { label: "Pending", colorScheme: "yellow" },
+  none: { label: "No access", colorScheme: "gray" },
   disabled: { label: "Disabled", colorScheme: "red" },
 };
 
-export function PortalAccessBadge({ status, hasAccount }: { status: string; hasAccount?: boolean }) {
-  if (!hasAccount) {
+export function StaffPortalAccessBadge({
+  status,
+}: {
+  status?: string | null;
+}) {
+  const config = status ? statusConfig[status] : undefined;
+  if (!config) {
     return (
       <Badge
         colorScheme="gray"
@@ -21,8 +30,6 @@ export function PortalAccessBadge({ status, hasAccount }: { status: string; hasA
       </Badge>
     );
   }
-
-  const config = statusConfig[status] ?? statusConfig.invited;
   return (
     <Badge
       colorScheme={config.colorScheme}

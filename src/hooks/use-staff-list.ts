@@ -19,6 +19,7 @@ export interface StaffMemberDTO {
   role: string | null;
   memberId: string | null;
   status: string;
+  portalStatus: string | null;
   jobTitle: string | null;
   barNumber: string | null;
   startDate: string | null;

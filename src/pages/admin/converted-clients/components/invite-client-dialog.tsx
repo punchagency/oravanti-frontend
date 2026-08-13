@@ -5,9 +5,8 @@ import {
   VStack,
   Text,
   Button,
-  HStack,
 } from "@chakra-ui/react";
-import { Mail, AlertTriangle } from "lucide-react";
+import { Mail } from "lucide-react";
 
 interface InviteClientDialogProps {
   client: ConvertedClient;
@@ -40,29 +39,13 @@ export function InviteClientDialog({
           </Dialog.Header>
           <Dialog.Body>
             <VStack align="stretch" gap={4}>
-              {client.hasPortalAccess ? (
-                <HStack
-                  gap={3}
-                  p={3}
-                  bg="yellow.50"
-                  borderRadius="md"
-                  border="1px solid"
-                  borderColor="yellow.200"
-                >
-                  <AlertTriangle size={18} color="#B7791F" />
-                  <Text fontSize="13px" color="yellow.800">
-                    This client already has a portal account. Sending another
-                    invitation will re-send the verification email.
-                  </Text>
-                </HStack>
-              ) : null}
               <Text fontSize="13px" color="fg.muted">
                 A portal invitation will be sent to{" "}
                 <Text as="span" fontWeight="500" color="fg">
                   {client.email}
                 </Text>
-                . The client will receive an email with a link to set their
-                password and access the client portal.
+                . The client will receive an email with a link to sign in and
+                access the client portal.
               </Text>
             </VStack>
           </Dialog.Body>

@@ -6,6 +6,7 @@ import { lazyPage } from "@/routers/lazy";
 
 import AcceptInvitationPage from "@/pages/accept-invitation";
 import EmailVerifiedPage from "@/pages/email-verified";
+import PortalAccessDisabledPage from "@/pages/portal-access-disabled";
 import SetPasswordPage from "@/pages/set-password";
 import VerifyEmailNoticePage from "@/pages/verify-email";
 import { NotFoundPage } from "@/pages/not-found";
@@ -28,12 +29,15 @@ const ClientSettingsPage = lazyPage(() =>
 const ClientProfileTab = lazyPage(() => import("@/pages/client-portal/settings/tabs/profile"));
 const SecurityTab = lazyPage(() => import("@/pages/admin/my-profile/tabs/security"));
 const AppearanceTab = lazyPage(() => import("@/pages/admin/my-profile/tabs/appearance"));
+const PreferencesTab = lazyPage(() => import("@/pages/client-portal/settings/tabs/preferences"));
 
 export function createClientPortalRouter() {
   return createBrowserRouter(
     createRoutesFromElements(
       <Route>
         {/* Auth callback routes */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/two-factor" element={<Navigate to="/" replace />} />
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
@@ -43,6 +47,7 @@ export function createClientPortalRouter() {
         <Route element={<ClientGuard />}>
           <Route path="/" element={<UnsavedChangesProvider><ClientPortalLayout /></UnsavedChangesProvider>}>
             <Route index element={<ClientOverviewPage />} />
+            <Route path="portal-access-disabled" element={<PortalAccessDisabledPage />} />
             <Route path="case-files" element={<CaseFilesPage />} />
             <Route path="timeline" element={<TimelinePage />} />
 
@@ -68,6 +73,7 @@ export function createClientPortalRouter() {
             <Route path="settings" element={<ClientSettingsPage />}>
               <Route index element={<Navigate to="/settings/profile" replace />} />
               <Route path="profile" element={<ClientProfileTab />} />
+              <Route path="preferences" element={<PreferencesTab />} />
               <Route path="security" element={<SecurityTab />} />
               <Route path="appearance" element={<AppearanceTab />} />
             </Route>
