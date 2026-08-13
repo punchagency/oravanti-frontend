@@ -12,6 +12,7 @@ export function AdminGuard() {
     isLoading: storeLoading,
     needsAcceptInvitation,
     needsPasswordChange,
+    portalStatus,
   } = useAuthStore();
 
   const isLoading = queryLoading || storeLoading;
@@ -66,6 +67,22 @@ export function AdminGuard() {
 
   if (user.onboardingState !== "completed" && isAdmin) {
     return <Navigate to="/onboarding/step-0-source" replace />;
+  }
+
+  // Staff with disabled portal access can only see the portal-access-disabled
+  // page (rendered inside the admin layout so the dashboard chrome stays).
+  if (
+    portalStatus === "disabled" &&
+    location.pathname !== "/portal-access-disabled"
+  ) {
+    return <Navigate to="/portal-access-disabled" replace />;
+  }
+
+  if (
+    portalStatus === "active" &&
+    location.pathname === "/portal-access-disabled"
+  ) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
