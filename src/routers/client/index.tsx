@@ -28,6 +28,7 @@ const ClientSettingsPage = lazyPage(() =>
 const ClientProfileTab = lazyPage(() => import("@/pages/client-portal/settings/tabs/profile"));
 const SecurityTab = lazyPage(() => import("@/pages/admin/my-profile/tabs/security"));
 const AppearanceTab = lazyPage(() => import("@/pages/admin/my-profile/tabs/appearance"));
+const PreferencesTab = lazyPage(() => import("@/pages/client-portal/settings/tabs/preferences"));
 
 export function createClientPortalRouter() {
   return createBrowserRouter(
@@ -68,6 +69,7 @@ export function createClientPortalRouter() {
             <Route path="settings" element={<ClientSettingsPage />}>
               <Route index element={<Navigate to="/settings/profile" replace />} />
               <Route path="profile" element={<ClientProfileTab />} />
+              <Route path="preferences" element={<PreferencesTab />} />
               <Route path="security" element={<SecurityTab />} />
               <Route path="appearance" element={<AppearanceTab />} />
             </Route>
