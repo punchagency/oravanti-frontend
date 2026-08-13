@@ -16,12 +16,14 @@ import {
   getTimeEntries,
   getTopMatters,
   getInvoiceDeliveries,
+  getLinePresets,
   getUnbilledTime,
   logTime,
   recordPayment,
   rejectTimeEntry,
   removeInvoiceSchedule,
   resendInvoice,
+  saveLinePreset,
   sendFollowUp,
   sendInvoice,
   setBillingRate,
@@ -32,6 +34,7 @@ import {
   type GetTimeEntriesParams,
   type InstalmentInput,
   type RecordPaymentInput,
+  type SaveLinePresetInput,
   type SendFollowUpInput,
   type UpdateInvoiceInput,
 } from "@/api/finance";
@@ -72,6 +75,18 @@ export const financeKeys = {
       forInvoiceId ?? "",
     ] as const,
   caseDefaults: (caseId: string) => ["finance", "case-defaults", caseId] as const,
+  linePresets: (
+    practiceAreaId?: string,
+    caseTypeId?: string,
+    account?: string,
+  ) =>
+    [
+      "finance",
+      "line-presets",
+      practiceAreaId ?? "",
+      caseTypeId ?? "",
+      account ?? "",
+    ] as const,
   timeEntries: (params?: GetTimeEntriesParams) =>
     [
       "finance",
@@ -157,6 +172,54 @@ export function useCaseDefaults(caseId: string | null | undefined) {
     queryFn: () => getCaseDefaults(caseId!),
     enabled: Boolean(caseId),
     staleTime: THIRTY_SECONDS,
+  });
+}
+
+/**
+ * The catalog the line picker offers.
+ *
+ * Keyed on the scope AND the account, because the server narrows on both — a
+ * single cached list would show family-law fees on an immigration invoice the
+ * moment the matter changed.
+ */
+export function useLinePresets(
+  params: {
+    practiceAreaId?: string;
+    caseTypeId?: string;
+    account?: "operating" | "trust_iolta";
+  },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: financeKeys.linePresets(
+      params.practiceAreaId,
+      params.caseTypeId,
+      params.account,
+    ),
+    queryFn: () => getLinePresets(params),
+    enabled,
+    staleTime: THIRTY_SECONDS,
+  });
+}
+
+/**
+ * Save a custom line to the firm's list.
+ *
+ * Saving is an EXTRA, never a precondition for adding the line — the dialog
+ * appends it either way. So a failure here is a toast, not a blocked submit.
+ */
+export function useSaveLinePreset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SaveLinePresetInput) => saveLinePreset(input),
+    onSuccess: (preset) => {
+      toast.success(`Saved "${preset.name}" to your firm's list`);
+      qc.invalidateQueries({ queryKey: ["finance", "line-presets"] });
+    },
+    onError: (err: APIError) =>
+      toast.error(
+        err.response?.data?.message ?? "Couldn't save that to your list",
+      ),
   });
 }
 
