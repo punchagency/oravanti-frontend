@@ -1,10 +1,10 @@
 import {
   useConvertedClientDetail,
   useSendClientPortalInvite,
-  useResetClientPassword,
   useClientPortalSessions,
   useRevokeClientSession,
   useClientPortalStatus,
+  useUpdateClientPortalStatus,
 } from "@/hooks/use-converted-clients";
 import { leadSourceLabels } from "@/api/converted-clients";
 import { PortalAccessBadge } from "./portal-access-badge";
@@ -24,10 +24,11 @@ import {
 } from "@chakra-ui/react";
 import {
   ExternalLink,
-  KeyRound,
   LogOut,
   Mail,
   Monitor,
+  ShieldOff,
+  ShieldCheck,
 } from "lucide-react";
 import { Link } from "react-router";
 import dayjs from "dayjs";
@@ -50,8 +51,8 @@ export function ClientDetailDrawer({
   const { data: portalStatus } = useClientPortalStatus(clientId);
   const { data: sessions = [] } = useClientPortalSessions(clientId);
   const inviteMutation = useSendClientPortalInvite();
-  const resetMutation = useResetClientPassword();
   const revokeMutation = useRevokeClientSession();
+  const portalStatusMutation = useUpdateClientPortalStatus();
 
   return (
     <Drawer.Root
@@ -111,6 +112,7 @@ export function ClientDetailDrawer({
                         {portalStatus ? (
                           <PortalAccessBadge
                             status={portalStatus.accountStatus}
+                            hasAccount={portalStatus.hasAccount}
                           />
                         ) : null}
                       </Flex>
@@ -146,17 +148,41 @@ export function ClientDetailDrawer({
                           </Button>
                         ) : (
                           <>
-                            <Button
-                              size="xs"
-                              variant="outline"
-                              onClick={() =>
-                                resetMutation.mutate(client.id)
-                              }
-                              loading={resetMutation.isPending}
-                            >
-                              <KeyRound size={12} />
-                              Reset password
-                            </Button>
+                            {portalStatus?.accountStatus === "active" ? (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                color="fg.error"
+                                _hover={{ bg: "bg.error", color: "fg.error" }}
+                                onClick={() =>
+                                  portalStatusMutation.mutate({
+                                    clientId: client.id,
+                                    status: "disabled",
+                                  })
+                                }
+                                loading={portalStatusMutation.isPending}
+                              >
+                                <ShieldOff size={12} />
+                                Disable access
+                              </Button>
+                            ) : portalStatus?.accountStatus === "disabled" ? (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                color="fg.success"
+                                _hover={{ bg: "bg.success", color: "fg.success" }}
+                                onClick={() =>
+                                  portalStatusMutation.mutate({
+                                    clientId: client.id,
+                                    status: "active",
+                                  })
+                                }
+                                loading={portalStatusMutation.isPending}
+                              >
+                                <ShieldCheck size={12} />
+                                Enable access
+                              </Button>
+                            ) : null}
                           </>
                         )}
                       </HStack>

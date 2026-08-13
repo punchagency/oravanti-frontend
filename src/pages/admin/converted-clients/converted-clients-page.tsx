@@ -442,7 +442,7 @@ function ConvertedClientsPageContent() {
                     </Text>
                   </Table.Cell>
                   <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
-                    <PortalAccessBadge status={client.hasPortalAccess ? (client.activeSessions > 0 ? "active" : "invited") : "never_invited"} />
+                    <PortalAccessBadge status={client.hasPortalAccess ? (client.activeSessions > 0 ? "active" : "invited") : "invited"} hasAccount={client.hasPortalAccess} />
                   </Table.Cell>
                   <Table.Cell px="16px" py="9px" borderBottom="1px solid" borderColor="border.subtle">
                     <Text fontSize="13px" color="fg.muted">
@@ -473,13 +473,15 @@ function ConvertedClientsPageContent() {
                               <Eye size={13} />
                               <Box flex="1">View details</Box>
                             </Menu.Item>
-                            <Menu.Item
-                              value="invite"
-                              onClick={() => setInviteClient(client)}
-                            >
-                              <Mail size={13} />
-                              <Box flex="1">Send invitation</Box>
-                            </Menu.Item>
+                            {!client.hasPortalAccess ? (
+                              <Menu.Item
+                                value="invite"
+                                onClick={() => setInviteClient(client)}
+                              >
+                                <Mail size={13} />
+                                <Box flex="1">Send invitation</Box>
+                              </Menu.Item>
+                            ) : null}
                             {client.convertedCaseId ? (
                               <Menu.Item
                                 value="case"
@@ -577,7 +579,7 @@ function ConvertedClientsPageContent() {
                     <Text fontSize="10px" color="fg.subtle">
                       {leadSourceLabels[client.leadSource] ?? client.leadSource}
                     </Text>
-                    <PortalAccessBadge status={client.hasPortalAccess ? (client.activeSessions > 0 ? "active" : "invited") : "never_invited"} />
+                    <PortalAccessBadge status={client.hasPortalAccess ? (client.activeSessions > 0 ? "active" : "invited") : "invited"} hasAccount={client.hasPortalAccess} />
                   </HStack>
                 </Box>
                 <Menu.Root>
@@ -601,13 +603,15 @@ function ConvertedClientsPageContent() {
                           <Eye size={13} />
                           <Box flex="1">View details</Box>
                         </Menu.Item>
-                        <Menu.Item
-                          value="invite"
-                          onClick={() => setInviteClient(client)}
-                        >
-                          <Mail size={13} />
-                          <Box flex="1">Send invitation</Box>
-                        </Menu.Item>
+                        {!client.hasPortalAccess ? (
+                          <Menu.Item
+                            value="invite"
+                            onClick={() => setInviteClient(client)}
+                          >
+                            <Mail size={13} />
+                            <Box flex="1">Send invitation</Box>
+                          </Menu.Item>
+                        ) : null}
                       </Menu.Content>
                     </Menu.Positioner>
                   </Portal>

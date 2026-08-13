@@ -5,8 +5,8 @@ type AuthState = {
   user: SessionUser | null;
   session: AuthSession | null;
   memberRole: MemberRole | null;
-  // Firm IANA timezone, hydrated from the session (customSession payload).
   firmTimezone: string | null;
+  portalStatus: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   refetch: () => void;
@@ -28,6 +28,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
   session: null,
   memberRole: null,
   firmTimezone: null,
+  portalStatus: null,
   isAuthenticated: false,
   isLoading: true,
   refetch: () => {},
@@ -40,6 +41,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       session: auth.session,
       memberRole: auth.memberRole,
       firmTimezone: auth.firmTimezone,
+      portalStatus: auth.portalStatus,
       isAuthenticated: auth.isAuthenticated,
       isLoading: auth.isLoading,
       refetch: auth.refetch,
@@ -53,6 +55,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       session: null,
       memberRole: null,
       firmTimezone: null,
+      portalStatus: null,
       isAuthenticated: false,
       isLoading: false,
       refetch: () => {},

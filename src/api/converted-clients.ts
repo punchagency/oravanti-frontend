@@ -47,7 +47,7 @@ export interface PortalStatus {
   emailVerified: boolean;
   lastLoginAt: string | null;
   activeSessionCount: number;
-  accountStatus: "invited" | "active" | "never_invited";
+  accountStatus: "invited" | "active" | "disabled";
 }
 
 export interface PortalSession {
@@ -118,10 +118,11 @@ export async function resendClientPortalInvite(
   return res.data.data;
 }
 
-export async function resetClientPassword(
+export async function updateClientPortalStatus(
   id: string,
-): Promise<{ resetSent: boolean; sentAt: string }> {
-  const res = await API.post(`/clients/${id}/reset-password`);
+  status: "none" | "pending" | "active" | "disabled",
+): Promise<{ clientId: string; portalStatus: string }> {
+  const res = await API.patch(`/clients/${id}/portal-status`, { status });
   return res.data.data;
 }
 
@@ -163,7 +164,7 @@ export const leadSourceLabels: Record<string, string> = {
 export const portalStatusLabel: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "green" },
   invited: { label: "Invited", color: "yellow" },
-  never_invited: { label: "No access", color: "gray" },
+  disabled: { label: "Disabled", color: "red" },
 };
 
 // ─── Client Profile ─────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ export function useAuthRefresh() {
           session: AuthSession;
           memberRole?: MemberRole | null;
           firmTimezone?: string | null;
+          portalStatus?: string | null;
         };
 
         const state = useAuthStore.getState();
@@ -33,6 +34,7 @@ export function useAuthRefresh() {
           session: sessionData.session,
           memberRole: sessionData.memberRole ?? null,
           firmTimezone: sessionData.firmTimezone ?? null,
+          portalStatus: sessionData.portalStatus ?? null,
           isAuthenticated: !!sessionData.user,
           isLoading: false,
           refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),

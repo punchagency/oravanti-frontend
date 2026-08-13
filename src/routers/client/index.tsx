@@ -6,6 +6,7 @@ import { lazyPage } from "@/routers/lazy";
 
 import AcceptInvitationPage from "@/pages/accept-invitation";
 import EmailVerifiedPage from "@/pages/email-verified";
+import PortalAccessDisabledPage from "@/pages/portal-access-disabled";
 import SetPasswordPage from "@/pages/set-password";
 import VerifyEmailNoticePage from "@/pages/verify-email";
 import { NotFoundPage } from "@/pages/not-found";
@@ -44,6 +45,7 @@ export function createClientPortalRouter() {
         <Route element={<ClientGuard />}>
           <Route path="/" element={<UnsavedChangesProvider><ClientPortalLayout /></UnsavedChangesProvider>}>
             <Route index element={<ClientOverviewPage />} />
+            <Route path="portal-access-disabled" element={<PortalAccessDisabledPage />} />
             <Route path="case-files" element={<CaseFilesPage />} />
             <Route path="timeline" element={<TimelinePage />} />
 

@@ -34,6 +34,7 @@ export const useSignInWithEmail = () => {
         session: AuthSession;
         memberRole?: MemberRole | null;
         firmTimezone?: string | null;
+        portalStatus?: string | null;
       } = await queryClient.fetchQuery({
         queryKey: ["session"],
         queryFn: async () => {
@@ -49,6 +50,7 @@ export const useSignInWithEmail = () => {
         session: sessionData?.session ?? null,
         memberRole: sessionData?.memberRole ?? null,
         firmTimezone: sessionData?.firmTimezone ?? null,
+        portalStatus: sessionData?.portalStatus ?? null,
         isAuthenticated: !!sessionData?.session,
         isLoading: false,
         refetch: () => queryClient.refetchQueries({ queryKey: ["session"] }),
