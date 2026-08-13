@@ -36,6 +36,8 @@ export function createClientPortalRouter() {
     createRoutesFromElements(
       <Route>
         {/* Auth callback routes */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/two-factor" element={<Navigate to="/" replace />} />
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />

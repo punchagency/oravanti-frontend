@@ -59,10 +59,10 @@ export const useSignInWithEmail = () => {
         twoFactorPending: false,
       });
 
-      // AppRouter re-selects the router by accountType after setAuth().
-      // No redirect path needed — the new router starts at its index route.
       if (needsSetup.needsAcceptInvitation) {
-        window.location.href = "/accept-invitation";
+        window.location.replace("/accept-invitation");
+      } else {
+        window.location.replace("/");
       }
     },
     onError: (error: APIError) => {

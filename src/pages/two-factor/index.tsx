@@ -20,7 +20,6 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -39,7 +38,6 @@ type TotpFormData = z.infer<typeof totpSchema>;
 type BackupFormData = z.infer<typeof backupSchema>;
 
 const TwoFactorVerification = () => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { colorMode, toggleColorMode } = useColorMode();
 
@@ -76,9 +74,9 @@ const TwoFactorVerification = () => {
       });
 
       if (needsSetup.needsAcceptInvitation) {
-        navigate("/accept-invitation", { replace: true });
+        window.location.replace("/accept-invitation");
       } else {
-        navigate("/", { replace: true });
+        window.location.replace("/");
       }
     } catch {
       toast.error("Unable to complete sign in. Please try again.");

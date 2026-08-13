@@ -14,8 +14,9 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { Link as RouterLink } from "react-router";
+import { Link as RouterLink, useSearchParams } from "react-router";
 import * as z from "zod";
 
 const loginSchema = z.object({
@@ -34,17 +35,29 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export const LoginPage = () => {
   const { mutate: login, isPending: isSubmitting } = useSignInWithEmail();
   const { colorMode, toggleColorMode } = useColorMode();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
+
+  // Auto-fill email/password from URL params (invitation links)
+  useEffect(() => {
+    const email = searchParams.get("email");
+    const password = searchParams.get("password");
+    if (email) setValue("email", email);
+    if (password) setValue("password", password);
+    // Clean up URL params after populating the form
+    if (email || password) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setValue, setSearchParams]);
 
   const onSubmit: SubmitHandler<LoginFormData> = (data) => {
     login(data);
