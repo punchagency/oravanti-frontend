@@ -9,6 +9,7 @@ import type {
   Lead,
 } from "@/api/leads";
 import { formatReceivedDate } from "@/api/leads";
+import { MINIMUM_CONSULTATION_FEE } from "@/config/constants";
 import { downloadResponseFile } from "@/api/questionnaires";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useCanDownloadDocuments } from "@/hooks/use-can-download-documents";
@@ -2421,6 +2422,12 @@ export function ScheduleConsultationDialog({
 
     if (chargesCustomFee && !data.feeAmount.trim()) {
       toast.error("Enter the consultation fee for this case type");
+      setStep(3);
+      return;
+    }
+
+    if (chargesCustomFee && Number(data.feeAmount) < MINIMUM_CONSULTATION_FEE) {
+      toast.error(`Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`);
       setStep(3);
       return;
     }
