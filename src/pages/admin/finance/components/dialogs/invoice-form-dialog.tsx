@@ -26,12 +26,13 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Save, Send, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { ListPlus, Plus, Save, Send, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { DialogShell, FormField } from "./dialog-shell";
 import { fieldStyles } from "./dialog-styles";
+import { LinePresetPicker, type PickedLine } from "./line-preset-picker";
 import { ScheduleEditor } from "./schedule-editor";
 import { isScheduleBalanced, toInstalmentInput } from "./schedule-utils";
 
@@ -59,6 +60,12 @@ const lineSchema = z.object({
   quantity: z.string(),
   rate: z.string(),
   account: z.enum(["operating", "trust_iolta"]),
+  /**
+   * The catalog preset this line came from, when it came from one. Provenance
+   * only — the three fields above are what gets billed, and editing any of
+   * them afterwards is expected rather than a contradiction.
+   */
+  presetId: z.string().optional(),
 });
 
 const schema = z
@@ -109,6 +116,17 @@ const emptyLine = () => ({
   quantity: "1",
   rate: "",
   account: "operating" as const,
+  presetId: undefined,
+});
+
+/** A line the picker composed. Quantity is always 1 — it is per-use, not a
+ *  property of the charge, so it stays on the row for the author to change. */
+const lineFromPick = (pick: PickedLine) => ({
+  description: pick.description,
+  quantity: "1",
+  rate: pick.rate,
+  account: pick.account,
+  presetId: pick.presetId,
 });
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -122,7 +140,10 @@ const blankForm = (): InvoiceForm => ({
   issueDate: today(),
   dueDate: inDays(14),
   notes: "",
-  lines: [emptyLine()],
+  // No blank row: the picker is the way in, and an empty grid sitting above it
+  // only invites the retyping this catalog exists to end. "Add line" is still
+  // there for anything the catalog does not cover.
+  lines: [],
   timeEntryIds: [],
   scheduled: false,
   schedule: [],
@@ -140,14 +161,15 @@ const formFromInvoice = (invoice: InvoiceDetail): InvoiceForm => {
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     notes: invoice.notes ?? "",
-    lines: manual.length
-      ? manual.map((l) => ({
-          description: l.description,
-          quantity: String(l.quantity),
-          rate: String(l.rate),
-          account: l.account,
-        }))
-      : [emptyLine()],
+    lines: manual.map((l) => ({
+      description: l.description,
+      quantity: String(l.quantity),
+      rate: String(l.rate),
+      account: l.account,
+      // Round-trips provenance, so re-saving a draft does not orphan every
+      // line the picker composed.
+      presetId: l.presetId ?? undefined,
+    })),
     timeEntryIds: invoice.lineItems
       .map((l) => l.timeEntryId)
       .filter((id): id is string => id != null),
@@ -195,6 +217,24 @@ export function InvoiceFormDialog({
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+
+  /**
+   * Whether the catalog picker is showing.
+   *
+   * Open by default on a new invoice: picking from the catalog is the intended
+   * way in, and a dialog that opens on an empty grid teaches the old habit.
+   * Closed when editing, where the lines already exist.
+   *
+   * Reset during render rather than from the effect below — React's documented
+   * "adjusting state when a prop changes" pattern. Doing it in the effect
+   * triggers a cascading render, which the lint rule correctly objects to.
+   */
+  const [pickerOpen, setPickerOpen] = useState(!isEdit);
+  const [openedAs, setOpenedAs] = useState(open);
+  if (open !== openedAs) {
+    setOpenedAs(open);
+    setPickerOpen(open && !isEdit);
+  }
 
 
   // Reset on open rather than unmounting Dialog.Root, which would break the
@@ -331,6 +371,7 @@ export function InvoiceFormDialog({
           quantity: Number(l.quantity) || 1,
           rate: Number(l.rate),
           account: l.account,
+          presetId: l.presetId,
         }));
 
       const done = (invoice: InvoiceDetail) => {
@@ -537,11 +578,33 @@ export function InvoiceFormDialog({
               <Text fontSize="12px" fontWeight="600">
                 Line items
               </Text>
-              <OutlineButton onClick={() => append(emptyLine())}>
-                <Plus size={13} />
-                Add line
-              </OutlineButton>
+              <Flex gap="6px">
+                <OutlineButton onClick={() => append(emptyLine())}>
+                  <Plus size={13} />
+                  Blank line
+                </OutlineButton>
+                {!pickerOpen && (
+                  <BrandButton onClick={() => setPickerOpen(true)}>
+                    <ListPlus size={13} />
+                    Add from catalog
+                  </BrandButton>
+                )}
+              </Flex>
             </Flex>
+
+            {pickerOpen && (
+              <Box mb="10px">
+                <LinePresetPicker
+                  // From the matter, so the catalog narrows to what this kind
+                  // of case actually attracts. Undefined until a matter is
+                  // picked — the general tier still applies.
+                  practiceAreaId={defaults?.practiceAreaId ?? undefined}
+                  caseTypeId={defaults?.caseTypeId ?? undefined}
+                  onAdd={(pick: PickedLine) => append(lineFromPick(pick))}
+                  onClose={() => setPickerOpen(false)}
+                />
+              </Box>
+            )}
 
             <Flex direction="column" gap="8px">
               {fields.map((field, index) => (
@@ -590,13 +653,21 @@ export function InvoiceFormDialog({
                     size="sm"
                     variant="ghost"
                     color="fg.muted"
-                    disabled={fields.length === 1}
+                    // No longer guarded on being the last row: the form starts
+                    // with none and the picker is how lines arrive, so removing
+                    // the only one is a legitimate way back to an empty list.
                     onClick={() => remove(index)}
                   >
                     <Trash2 size={14} />
                   </IconButton>
                 </Grid>
               ))}
+              {fields.length === 0 && !pickerOpen && (
+                <Text fontSize="12px" color="fg.muted">
+                  No line items yet. Add them from the catalog, or select
+                  unbilled time below.
+                </Text>
+              )}
             </Flex>
             {errors.lines?.message && (
               <Text fontSize="11px" color="#c0392b" mt="6px">
