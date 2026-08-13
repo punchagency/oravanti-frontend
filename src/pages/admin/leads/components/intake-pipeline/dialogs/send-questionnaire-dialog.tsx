@@ -272,7 +272,8 @@ export function SendQuestionnaireDialog({
               <StepProgress step={step} />
             </Box>
 
-            <Box flex="1" minH="0" px="24px" pb="20px">
+            {/* Same clipping bug as the schedule dialog — see the note there. */}
+            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="20px">
               {step === 1 ? (
                 <RecipientStep
                   leads={leads}

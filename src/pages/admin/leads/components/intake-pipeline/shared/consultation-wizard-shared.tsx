@@ -667,11 +667,13 @@ export function ScheduleDetailsStep({
             onToggle={() => onNotifyEmailChange(!notifyEmail)}
           />
           {/*
-            SMS is real now, but only offerable when this wizard models it
-            (onNotifySmsChange) and the firm has text messaging switched on.
-            The instant-consultation wizard passes neither: an instant
-            consultation begins immediately, so there is no booking link to
-            text.
+            Offerable when the wizard models it (onNotifySmsChange) and the firm
+            has text messaging switched on.
+
+            Both wizards model it. An instant consultation looks like it has
+            nothing to send, but a pay_now one with an unpaid fee does not
+            actually begin until the client pays — it sends a payment link
+            first, and that link is worth texting.
           */}
           <CheckOption
             checked={Boolean(notifySms) && Boolean(smsEnabled)}

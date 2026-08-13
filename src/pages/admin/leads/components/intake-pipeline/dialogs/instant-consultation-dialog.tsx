@@ -140,6 +140,7 @@ const instantSchema = z
     feeAmount: z.string(),
     notes: z.string(),
     notifyEmail: z.boolean(),
+    notifySms: z.boolean(),
     // Fee & confirm
     isEmergency: z.boolean(),
     emergencyMultiplier: z.string(),
@@ -230,6 +231,7 @@ const INSTANT_DEFAULTS: InstantForm = {
   feeAmount: "",
   notes: "",
   notifyEmail: true,
+  notifySms: false,
   isEmergency: false,
   emergencyMultiplier: "2",
   paymentTiming: "pay_now",
@@ -297,6 +299,10 @@ export function InstantConsultationDialog({
   // Deliberately not watched: a subscription here would re-render the whole
   // dialog on every keystroke. NotesField owns the value and writes through.
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
+  const notifySms = useWatch({ control, name: "notifySms" });
+  // Firm-wide text messaging switch; the SMS option stays disabled without it.
+  const { data: firmConsultationSettings } = useConsultationSettings();
+  const smsEnabled = firmConsultationSettings?.smsEnabled ?? false;
   const isEmergency = useWatch({ control, name: "isEmergency" });
   const emergencyMultiplier = useWatch({
     control,
@@ -579,7 +585,14 @@ export function InstantConsultationDialog({
               : undefined,
           feeAmount: resolvedFee,
           preConsultationNotes: data.notes || undefined,
-          notifyChannels: data.notifyEmail ? ["email"] : [],
+          // An instant consultation with pay_now and an unpaid fee does NOT
+          // begin immediately — it sends a payment link and starts once the
+          // client pays. That link is worth texting, which is why SMS is
+          // offered here at all.
+          notifyChannels: [
+            ...(data.notifyEmail ? (["email"] as const) : []),
+            ...(data.notifySms ? (["sms"] as const) : []),
+          ],
           urgent: true,
           startNow: true,
           paymentTiming: data.paymentTiming,
@@ -775,6 +788,8 @@ export function InstantConsultationDialog({
                   locations={locations}
                   defaultNotes={getValues("notes")}
                   notifyEmail={notifyEmail}
+                  notifySms={notifySms}
+                  smsEnabled={smsEnabled}
                   urgent
                   hideUrgent
                   touchedField={
@@ -810,6 +825,7 @@ export function InstantConsultationDialog({
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }
+                  onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
               {step === 3 ? (
