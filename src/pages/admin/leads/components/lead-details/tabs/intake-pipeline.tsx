@@ -1,5 +1,6 @@
 import type { LeadTask, LeadTaskStatus } from "@/api/lead-workflows";
 import { conflictStatusLabels, type LeadDetail } from "@/api/leads";
+import { StaffSelect } from "@/components/ui/staff-select";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import {
   useAssignLeadTask,
@@ -7,8 +8,7 @@ import {
   useLeadTasks,
   useUpdateLeadTaskStatus,
 } from "@/hooks/use-lead-workflows";
-import { useLeadById, useRunConflictCheck } from "@/hooks/use-leads";
-import { useStaffs } from "@/hooks/use-staff";
+import { useLeadById } from "@/hooks/use-leads";
 import {
   Badge,
   Box,
@@ -18,13 +18,12 @@ import {
   HStack,
   Menu,
   Portal,
-  Select,
   Table,
   Text,
   VStack,
-  createListCollection,
 } from "@chakra-ui/react";
 import {
+  ArrowUpRight,
   Check,
   ChevronDown,
   ExternalLink,
@@ -34,8 +33,10 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
+  leadStagePath,
+  pipelineOrigin,
   pipelineStageColors,
   pipelineStageLabels,
   taskStatusColors,
@@ -211,39 +212,26 @@ export function IntakePipelineTab({
   isActive,
 }: IntakePipelineTabProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: tasks, isLoading } = useLeadTasks(isActive ? leadId : "");
   const { data: leadDetail } = useLeadById(isActive ? leadId : "");
   const updateStatus = useUpdateLeadTaskStatus(leadId);
   const completeTask = useCompleteLeadTask(leadId);
   const assignTask = useAssignLeadTask(leadId);
-  const runConflictCheck = useRunConflictCheck();
-  const { data: staffList } = useStaffs();
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignTaskId, setAssignTaskId] = useState<string | null>(null);
   const [assignTaskTitle, setAssignTaskTitle] = useState("");
 
-  function stagePath(stage: string) {
-    const suffix: Record<string, string> = {
-      conflict_check: "conflict-check",
-      questionnaire: "questionnaire",
-      consultation: "consultation",
-      fee_agreement: "consultation",
-      case_opening: "case-opening",
-    };
-    return `/leads/${leadId}/${suffix[stage] ?? "conflict-check"}`;
-  }
-
-  function handleAction(task: LeadTask) {
-    if (task.actionType === "run_conflict_check") {
-      runConflictCheck.mutate(task.leadId, {
-        onSuccess: () => {
-          completeTask.mutate(task.id);
-        },
-      });
-      return;
-    }
-    navigate(stagePath(task.pipelineStage));
+  // Stage pages live outside the lead detail layout, so they need to be told
+  // where the reader came from to render a way back to this tab.
+  function openStage(stage: string) {
+    navigate(leadStagePath(leadId, stage), {
+      state: pipelineOrigin(
+        `${location.pathname}${location.search}`,
+        "Back to intake pipeline",
+      ),
+    });
   }
 
   if (isLoading) {
@@ -336,7 +324,21 @@ export function IntakePipelineTab({
             <Box key={group.stage} mb={5}>
               <HStack gap={2} mb={2} align="center">
                 <Box w="8px" h="8px" borderRadius="full" bg={group.color} />
-                <SectionLabel>{group.label}</SectionLabel>
+                {/* The stage heading opens the stage — the same destination the
+                    row menus offer, without having to find a menu first. */}
+                <Button
+                  variant="plain"
+                  h="auto"
+                  minH="auto"
+                  p={0}
+                  gap={1}
+                  color="fg"
+                  _hover={{ color: "brand.solid", textDecoration: "underline" }}
+                  onClick={() => openStage(group.stage)}
+                >
+                  <SectionLabel>{group.label}</SectionLabel>
+                  <ArrowUpRight size={12} />
+                </Button>
                 {stageStatus && statusColors ? (
                   <Badge
                     size="xs"
@@ -356,73 +358,110 @@ export function IntakePipelineTab({
                 ) : null}
               </HStack>
 
-              {/* Desktop table */}
-              <Box
-                border="1px solid"
-                borderColor="border"
-                borderRadius="8px"
-                overflow="hidden"
-                display={{ base: "none", md: "block" }}
-              >
-                <Table.Root w="full" tableLayout="fixed">
-                  <Table.Header>
-                    <Table.Row bg="bg.subtle">
-                      <Table.ColumnHeader
-                        px={3}
-                        py={2}
-                        fontSize="10px"
-                        textTransform="uppercase"
-                        color="fg.muted"
-                        fontWeight="500"
-                        w="38%"
-                      >
-                        Task
-                      </Table.ColumnHeader>
-                      <Table.ColumnHeader
-                        px={3}
-                        py={2}
-                        fontSize="10px"
-                        textTransform="uppercase"
-                        color="fg.muted"
-                        fontWeight="500"
-                        w="14%"
-                      >
-                        Status
-                      </Table.ColumnHeader>
-                      <Table.ColumnHeader
-                        px={3}
-                        py={2}
-                        fontSize="10px"
-                        textTransform="uppercase"
-                        color="fg.muted"
-                        fontWeight="500"
-                        w="18%"
-                      >
-                        Assigned To
-                      </Table.ColumnHeader>
-                      <Table.ColumnHeader
-                        px={3}
-                        py={2}
-                        fontSize="10px"
-                        textTransform="uppercase"
-                        color="fg.muted"
-                        fontWeight="500"
-                        w="30%"
-                      >
-                        Actions
-                      </Table.ColumnHeader>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
+              {group.tasks.length === 0 ? (
+                <Box
+                  border="1px dashed"
+                  borderColor="border.muted"
+                  borderRadius="8px"
+                  px={3}
+                  py={5}
+                  textAlign="center"
+                >
+                  <Text color="fg.muted" fontSize="12px">
+                    No tasks in this stage yet.
+                  </Text>
+                </Box>
+              ) : (
+                <>
+                  {/* Desktop table */}
+                  <Box
+                    border="1px solid"
+                    borderColor="border"
+                    borderRadius="8px"
+                    overflow="hidden"
+                    display={{ base: "none", md: "block" }}
+                  >
+                    <Table.Root w="full" tableLayout="fixed">
+                      <Table.Header>
+                        <Table.Row bg="bg.subtle">
+                          <Table.ColumnHeader
+                            px={3}
+                            py={2}
+                            fontSize="10px"
+                            textTransform="uppercase"
+                            color="fg.muted"
+                            fontWeight="500"
+                            w="38%"
+                          >
+                            Task
+                          </Table.ColumnHeader>
+                          <Table.ColumnHeader
+                            px={3}
+                            py={2}
+                            fontSize="10px"
+                            textTransform="uppercase"
+                            color="fg.muted"
+                            fontWeight="500"
+                            w="14%"
+                          >
+                            Status
+                          </Table.ColumnHeader>
+                          <Table.ColumnHeader
+                            px={3}
+                            py={2}
+                            fontSize="10px"
+                            textTransform="uppercase"
+                            color="fg.muted"
+                            fontWeight="500"
+                            w="18%"
+                          >
+                            Assigned To
+                          </Table.ColumnHeader>
+                          <Table.ColumnHeader
+                            px={3}
+                            py={2}
+                            fontSize="10px"
+                            textTransform="uppercase"
+                            color="fg.muted"
+                            fontWeight="500"
+                            w="30%"
+                          >
+                            Actions
+                          </Table.ColumnHeader>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {group.tasks.map((task) => (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            onStatusChange={(status) =>
+                              updateStatus.mutate({ taskId: task.id, status })
+                            }
+                            onComplete={() => completeTask.mutate(task.id)}
+                            onAction={() => openStage(task.pipelineStage)}
+                            onOpenAssignDialog={() => {
+                              setAssignTaskId(task.id);
+                              setAssignTaskTitle(task.title);
+                              setAssignDialogOpen(true);
+                            }}
+                          />
+                        ))}
+                      </Table.Body>
+                    </Table.Root>
+                  </Box>
+
+                  {/* Mobile cards */}
+                  <Box display={{ base: "block", md: "none" }}>
                     {group.tasks.map((task) => (
-                      <TaskRow
+                      <MobileTaskCard
                         key={task.id}
                         task={task}
                         onStatusChange={(status) =>
                           updateStatus.mutate({ taskId: task.id, status })
                         }
                         onComplete={() => completeTask.mutate(task.id)}
-                        onAction={() => handleAction(task)}
+                        onAction={() => openStage(task.pipelineStage)}
                         onOpenAssignDialog={() => {
                           setAssignTaskId(task.id);
                           setAssignTaskTitle(task.title);
@@ -430,29 +469,9 @@ export function IntakePipelineTab({
                         }}
                       />
                     ))}
-                  </Table.Body>
-                </Table.Root>
-              </Box>
-
-              {/* Mobile cards */}
-              <Box display={{ base: "block", md: "none" }}>
-                {group.tasks.map((task) => (
-                  <MobileTaskCard
-                    key={task.id}
-                    task={task}
-                    onStatusChange={(status) =>
-                      updateStatus.mutate({ taskId: task.id, status })
-                    }
-                    onComplete={() => completeTask.mutate(task.id)}
-                    onAction={() => handleAction(task)}
-                    onOpenAssignDialog={() => {
-                      setAssignTaskId(task.id);
-                      setAssignTaskTitle(task.title);
-                      setAssignDialogOpen(true);
-                    }}
-                  />
-                ))}
-              </Box>
+                  </Box>
+                </>
+              )}
             </Box>
           );
         })}
@@ -462,7 +481,6 @@ export function IntakePipelineTab({
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
         taskTitle={assignTaskTitle}
-        staffList={staffList ?? []}
         onAssign={(staffId) => {
           if (assignTaskId) {
             assignTask.mutate(
@@ -500,9 +518,23 @@ function TaskRow({
         borderBottom="1px solid"
         borderColor="border.subtle"
       >
-        <Text color="fg" fontSize="12px" fontWeight="500" truncate>
-          {task.title}
-        </Text>
+        {/* The title is the primary way into the stage; the row menu keeps
+            "Go to stage" for anyone who looks for it there. */}
+        <Button
+          variant="plain"
+          h="auto"
+          minH="auto"
+          p={0}
+          w="full"
+          justifyContent="flex-start"
+          color="fg"
+          fontSize="12px"
+          fontWeight="500"
+          _hover={{ color: "brand.solid", textDecoration: "underline" }}
+          onClick={onAction}
+        >
+          <Text truncate>{task.title}</Text>
+        </Button>
         {task.description ? (
           <Text color="fg.muted" fontSize="10px" mt={0.5} truncate>
             {task.description}
@@ -548,12 +580,17 @@ function TaskRow({
         borderColor="border.subtle"
       >
         <HStack gap={1}>
-          {task.actionType === "run_conflict_check" &&
-          task.status !== "completed" ? (
-            <Button size="xs" h="24px" fontSize="10px" onClick={onAction}>
-              Run check
-            </Button>
-          ) : null}
+          <Button
+            size="xs"
+            h="24px"
+            fontSize="10px"
+            variant="outline"
+            borderColor="border"
+            onClick={onAction}
+          >
+            <ExternalLink size={10} />
+            Go to stage
+          </Button>
 
           <Menu.Root>
             <Menu.Trigger asChild>
@@ -572,12 +609,10 @@ function TaskRow({
             <Portal>
               <Menu.Positioner>
                 <Menu.Content minW="160px">
-                  {task.actionType !== "run_conflict_check" && (
-                    <Menu.Item value="go" onClick={onAction}>
-                      <ExternalLink size={13} />
-                      <Box flex="1">Go to stage</Box>
-                    </Menu.Item>
-                  )}
+                  <Menu.Item value="go" onClick={onAction}>
+                    <ExternalLink size={13} />
+                    <Box flex="1">Go to stage</Box>
+                  </Menu.Item>
                   {task.status !== "completed" && (
                     <Menu.Item value="complete" onClick={onComplete}>
                       <Check size={13} />
@@ -652,9 +687,23 @@ function MobileTaskCard({
     >
       <Flex justify="space-between" align="flex-start" gap={2}>
         <Box flex={1} minW={0}>
-          <Text color="fg" fontSize="13px" fontWeight="500">
+          <Button
+            variant="plain"
+            h="auto"
+            minH="auto"
+            p={0}
+            w="full"
+            justifyContent="flex-start"
+            color="fg"
+            fontSize="13px"
+            fontWeight="500"
+            whiteSpace="normal"
+            textAlign="left"
+            _hover={{ color: "brand.solid", textDecoration: "underline" }}
+            onClick={onAction}
+          >
             {task.title}
-          </Text>
+          </Button>
           {task.description ? (
             <Text color="fg.muted" fontSize="11px" mt={0.5}>
               {task.description}
@@ -684,12 +733,17 @@ function MobileTaskCard({
           Assigned: {task.staff?.name ?? "—"}
         </Text>
         <HStack gap={1}>
-          {task.actionType === "run_conflict_check" &&
-          task.status !== "completed" ? (
-            <Button size="2xs" h="22px" fontSize="10px" onClick={onAction}>
-              Run check
-            </Button>
-          ) : null}
+          <Button
+            size="2xs"
+            h="22px"
+            fontSize="10px"
+            variant="outline"
+            borderColor="border"
+            onClick={onAction}
+          >
+            <ExternalLink size={10} />
+            Go to stage
+          </Button>
 
           <Menu.Root>
             <Menu.Trigger asChild>
@@ -708,12 +762,10 @@ function MobileTaskCard({
             <Portal>
               <Menu.Positioner>
                 <Menu.Content minW="160px">
-                  {task.actionType !== "run_conflict_check" && (
-                    <Menu.Item value="go" onClick={onAction}>
-                      <ExternalLink size={13} />
-                      <Box flex="1">Go to stage</Box>
-                    </Menu.Item>
-                  )}
+                  <Menu.Item value="go" onClick={onAction}>
+                    <ExternalLink size={13} />
+                    <Box flex="1">Go to stage</Box>
+                  </Menu.Item>
                   {task.status !== "completed" && (
                     <Menu.Item value="complete" onClick={onComplete}>
                       <Check size={13} />
@@ -766,32 +818,23 @@ function AssignStaffDialog({
   open,
   onOpenChange,
   taskTitle,
-  staffList,
   onAssign,
   isPending,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   taskTitle: string;
-  staffList: { id: string; firstName: string; lastName: string }[];
   onAssign: (staffId: string) => void;
   isPending: boolean;
 }) {
-  const staffCollection = createListCollection({
-    items: staffList.map((s) => ({
-      label: `${s.firstName} ${s.lastName}`,
-      value: s.id,
-    })),
-  });
-
-  const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState("");
 
   return (
     <Dialog.Root
       open={open}
       onOpenChange={(details) => {
         onOpenChange(details.open);
-        if (!details.open) setSelectedStaff([]);
+        if (!details.open) setSelectedStaff("");
       }}
       size="sm"
     >
@@ -833,29 +876,11 @@ function AssignStaffDialog({
                   >
                     Staff member
                   </Text>
-                  <Select.Root
-                    collection={staffCollection}
+                  <StaffSelect
                     value={selectedStaff}
-                    onValueChange={(e) => setSelectedStaff(e.value)}
-                  >
-                    <Select.Control>
-                      <Select.Trigger>
-                        <Select.ValueText placeholder="Select staff member" />
-                      </Select.Trigger>
-                    </Select.Control>
-                    <Portal>
-                      <Select.Positioner>
-                        <Select.Content>
-                          {staffCollection.items.map((item) => (
-                            <Select.Item key={item.value} item={item}>
-                              <Select.ItemText>{item.label}</Select.ItemText>
-                              <Select.ItemIndicator />
-                            </Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select.Positioner>
-                    </Portal>
-                  </Select.Root>
+                    onChange={setSelectedStaff}
+                    ariaLabel="Staff member to assign"
+                  />
                 </Box>
               </VStack>
             </Dialog.Body>
@@ -878,9 +903,9 @@ function AssignStaffDialog({
                 size="sm"
                 fontSize="12px"
                 h="32px"
-                onClick={() => onAssign(selectedStaff[0] ?? "")}
+                onClick={() => onAssign(selectedStaff)}
                 loading={isPending}
-                disabled={selectedStaff.length === 0}
+                disabled={!selectedStaff}
                 _hover={{ bg: "brand.solid/90" }}
               >
                 <UserPlus size={14} />

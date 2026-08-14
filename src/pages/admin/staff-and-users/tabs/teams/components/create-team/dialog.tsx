@@ -1,7 +1,10 @@
 import { type CreateTeamPayload } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useCreateTeam } from "@/hooks/use-create-team";
-import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
+import {
+  buildNameLookup,
+  usePracticeAreaTreeData,
+} from "@/hooks/use-practice-area-tree-data";
 import { useStaffsList } from "@/hooks/use-staff-list";
 import {
   Box,
@@ -39,6 +42,12 @@ export function CreateTeamDialog({
   const treeDataQuery = usePracticeAreaTreeData();
   const treeData = treeDataQuery.data;
   const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
+  // Derived here rather than shipped by the API, which used to duplicate every
+  // name in the tree a second time just to provide this map.
+  const practiceAreaNameLookup = useMemo(
+    () => buildNameLookup(treeData?.practiceAreaTreeNodes ?? []),
+    [treeData],
+  );
   const { data: allStaffData } = useStaffsList({ limit: 200 });
 
   const attorneys = useMemo(
@@ -265,7 +274,7 @@ export function CreateTeamDialog({
               {currentStep == "REVIEW" && (
                 <StepReview
                   formValues={formValues}
-                  practiceAreaNameLookup={treeData?.practiceAreaNameLookup ?? {}}
+                  practiceAreaNameLookup={practiceAreaNameLookup}
                   practiceAreaTreeNodes={practiceAreaTreeNodes}
                   allStaff={allStaff}
                   leadName={leadName}

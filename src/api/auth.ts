@@ -69,14 +69,26 @@ export interface PracticeAreaTreeNode {
 
 export interface PracticeAreaTreeData {
   practiceAreaTreeNodes: PracticeAreaTreeNode[];
-  practiceAreaIds: string[];
-  subcategoryIds: string[];
-  caseTypeIds: string[];
-  practiceAreaNameLookup: Record<string, string>;
 }
 
-export const getPracticeAreaTreeData = async (): Promise<PracticeAreaTreeData> => {
-  const response = await API.get("/practice-areas/tree-data");
+export interface PracticeAreaTreeDataParams {
+  /** 1 = practice areas only, 2 = + subcategories, 3 = + case types. */
+  depth?: 1 | 2 | 3;
+  /** Limits the response to these practice areas' subtrees. */
+  practiceAreaIds?: string[];
+}
+
+export const getPracticeAreaTreeData = async (
+  params: PracticeAreaTreeDataParams = {},
+): Promise<PracticeAreaTreeData> => {
+  const response = await API.get("/practice-areas/tree-data", {
+    params: {
+      depth: params.depth,
+      practiceAreaIds: params.practiceAreaIds?.length
+        ? params.practiceAreaIds.join(",")
+        : undefined,
+    },
+  });
   return response.data.data;
 };
 

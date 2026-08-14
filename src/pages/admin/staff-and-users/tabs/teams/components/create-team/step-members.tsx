@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   Avatar,
@@ -71,20 +72,21 @@ function MemberStaffMultiSelect({
 }) {
   const [search, setSearch] = useState("");
 
+  // The input stays responsive; only the filter waits for a pause in typing.
+  const query = useDebouncedValue(search.trim().toLowerCase(), 200);
+
   const filteredStaff = useMemo(
     () =>
       staffList.filter((s) => {
         const matchSearch =
-          !search ||
-          `${s.firstName} ${s.lastName}`
-            .toLowerCase()
-            .includes(search.toLowerCase()) ||
-          (s.jobTitle ?? "").toLowerCase().includes(search.toLowerCase());
+          !query ||
+          `${s.firstName} ${s.lastName}`.toLowerCase().includes(query) ||
+          (s.jobTitle ?? "").toLowerCase().includes(query);
         const notAlreadySelected = !selectedIds.includes(s.id);
         const notLead = s.id !== leadId;
         return matchSearch && notAlreadySelected && notLead;
       }),
-    [staffList, search, selectedIds, leadId],
+    [staffList, query, selectedIds, leadId],
   );
 
   const selectedStaff = useMemo(

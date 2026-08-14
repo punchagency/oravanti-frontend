@@ -1,10 +1,11 @@
 import { Box, Dialog, Flex, Input, Portal, Spinner, Stack, Text, chakra } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Users, X, Check } from "lucide-react";
+import { Users, X, Check, SearchX } from "lucide-react";
 import { getEligibleTeams } from "@/api/leads";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { getErrorMessage } from "@/utils/getErrorMessage";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
 
 interface TeamSelectionModalProps {
@@ -23,6 +24,8 @@ export function TeamSelectionModal({
   const { showError } = useFeedbackDialog();
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // The input stays uncontrolled-fast; only the filter waits for the pause.
+  const query = useDebouncedValue(search.trim().toLowerCase(), 200);
 
   const { data: teams, isLoading, error } = useQuery({
     queryKey: ["eligible-teams", leadId],
@@ -39,19 +42,23 @@ export function TeamSelectionModal({
     }
   }, [error, showError]);
 
-  useEffect(() => {
+  // Reset on open rather than unmounting the dialog, which would break the focus
+  // trap. Adjusted during render instead of in an effect — setState in an effect
+  // costs an extra render pass, and React recommends this for prop-driven resets.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setSelectedTeamId(null);
       setSearch("");
     }
-  }, [open]);
+  }
+
+  const hasTeams = (teams?.length ?? 0) > 0;
 
   const filteredTeams = useMemo(
-    () =>
-      (teams ?? []).filter(
-        (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [teams, search],
+    () => (teams ?? []).filter((t) => !query || t.name.toLowerCase().includes(query)),
+    [teams, query],
   );
 
   const sortedTeams = useMemo(() => {
@@ -125,24 +132,40 @@ export function TeamSelectionModal({
                   <Box textAlign="center" py={10}>
                     <Spinner color="brand.solid" />
                   </Box>
-                ) : !teams || teams.length === 0 ? (
-                  <Stack
-                    align="center"
-                    py={10}
-                    gap={3}
-                    border="1px dashed"
-                    borderColor="border.muted"
-                    borderRadius="lg"
-                  >
-                    <Box color="fg.muted">
-                      <Users size={24} />
-                    </Box>
-                    <Text color="fg.muted" fontSize="14px" fontWeight="500">
-                      No eligible teams found
-                    </Text>
-                    <Text color="fg.subtle" fontSize="13px" textAlign="center">
-                      No teams are configured for this case type.
-                    </Text>
+                ) : !hasTeams ? (
+                  /*
+                   * Empty state still carries an action. Team assignment is
+                   * optional — the case can be opened unassigned and a team
+                   * added later — so a firm that has configured no teams yet
+                   * must not be stuck here with nothing but the close button.
+                   */
+                  <Stack gap={3}>
+                    <Stack
+                      align="center"
+                      py={10}
+                      gap={3}
+                      border="1px dashed"
+                      borderColor="border.muted"
+                      borderRadius="lg"
+                    >
+                      <Box color="fg.muted">
+                        <Users size={24} />
+                      </Box>
+                      <Text color="fg.muted" fontSize="14px" fontWeight="500">
+                        No eligible teams found
+                      </Text>
+                      <Text color="fg.subtle" fontSize="13px" textAlign="center">
+                        No teams are configured for this case type. You can open
+                        the case now and assign a team later.
+                      </Text>
+                    </Stack>
+
+                    <Flex justify="flex-end" mt="2px">
+                      <BrandButton onClick={() => onSelect(undefined)} minW="100px">
+                        <Check size={14} />
+                        Open without a team
+                      </BrandButton>
+                    </Flex>
                   </Stack>
                 ) : (
                   <Stack gap={3}>
@@ -254,16 +277,26 @@ export function TeamSelectionModal({
                           })}
                         </Stack>
                       ) : (
-                        <Text
-                          p="10px"
-                          fontSize="12px"
-                          color="fg.muted"
-                          textAlign="center"
-                        >
-                          {search
-                            ? `No teams matching "${search}"`
-                            : "No teams available"}
-                        </Text>
+                        <Stack align="center" gap="4px" px="10px" py="20px">
+                          <Box color="fg.subtle">
+                            <SearchX size={20} />
+                          </Box>
+                          <Text
+                            m="0"
+                            fontSize="12px"
+                            color="fg.muted"
+                            textAlign="center"
+                          >
+                            {search
+                              ? `No teams matching "${search}"`
+                              : "No teams available"}
+                          </Text>
+                          {search ? (
+                            <Text m="0" fontSize="11px" color="fg.subtle">
+                              Try a different name.
+                            </Text>
+                          ) : null}
+                        </Stack>
                       )}
                     </Box>
 
