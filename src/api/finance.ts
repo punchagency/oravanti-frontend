@@ -166,6 +166,13 @@ export type InvoiceLineItem = {
   amount: number;
   account: "operating" | "trust_iolta";
   timeEntryId: string | null;
+  /**
+   * Which catalog preset composed this line. Provenance only — the billed
+   * figures are the three fields above, and nothing re-reads the preset to
+   * fill them in. A preset that has since been retired leaves this null and
+   * changes nothing else.
+   */
+  presetId: string | null;
 };
 
 export type InvoicePayment = {
@@ -268,6 +275,8 @@ export type CreateInvoiceInput = {
     quantity: number;
     rate: number;
     account: "operating" | "trust_iolta";
+    /** Provenance for a line composed from the catalog. Optional. */
+    presetId?: string;
   }[];
   timeEntryIds: string[];
   /** Optional payment schedule; must sum to the resulting invoice total. */
@@ -296,6 +305,8 @@ export type UpdateInvoiceInput = {
     quantity: number;
     rate: number;
     account: "operating" | "trust_iolta";
+    /** Provenance for a line composed from the catalog. Optional. */
+    presetId?: string;
   }[];
   timeEntryIds?: string[];
   /**
@@ -319,6 +330,36 @@ export type CaseDefaults = {
   attorneyName: string | null;
   source: "team_lead" | "sole_attorney" | null;
   attorneyCount: number;
+  /** The matter's scope, used to narrow the line preset catalog. */
+  practiceAreaId: string | null;
+  caseTypeId: string | null;
+};
+
+/**
+ * An entry in the catalog invoice lines are composed from.
+ *
+ * `rank` is how the server matched it — case-type presets first, then the
+ * practice area's, then the general ones any matter attracts. The picker groups
+ * on it directly rather than recomputing the rule.
+ */
+export type LinePreset = {
+  id: string;
+  name: string;
+  note: string | null;
+  account: "operating" | "trust_iolta";
+  defaultRate: number;
+  rank: "case_type" | "practice_area" | "general";
+  /** `firm` is this firm's own entry; `shipped` came with the product. */
+  origin: "firm" | "shipped";
+};
+
+export type SaveLinePresetInput = {
+  name: string;
+  note?: string;
+  account: "operating" | "trust_iolta";
+  defaultRate: number;
+  practiceAreaId?: string;
+  caseTypeId?: string;
 };
 
 export type RecordPaymentInput = {
@@ -407,6 +448,42 @@ export async function getCaseDefaults(caseId: string): Promise<CaseDefaults> {
   const { data } = await API.get<{ data: CaseDefaults }>(
     "/finance/invoices/case-defaults",
     { params: { caseId } },
+  );
+  return data.data;
+}
+
+/**
+ * The catalog for a given matter and account.
+ *
+ * Both scope ids are optional: an invoice with no matter still gets the general
+ * tier. Trust presets are omitted server-side for callers who cannot write
+ * trust lines, so an empty result for `trust_iolta` means "not permitted", not
+ * "none exist".
+ */
+export async function getLinePresets(
+  params: {
+    practiceAreaId?: string;
+    caseTypeId?: string;
+    account?: "operating" | "trust_iolta";
+  } = {},
+): Promise<{ presets: LinePreset[]; restrictions: FinanceRestrictions }> {
+  const { data: res } = await API.get("/finance/invoices/line-presets", {
+    params: toQuery(params),
+  });
+  // `restrictions` rides along so the picker can hide the Trust step because
+  // the caller lacks access, rather than inferring it from an empty list — an
+  // empty list also means "this firm has no trust presets yet", which is a
+  // different thing and must not hide the option.
+  return { presets: res.data, restrictions: res.restrictions };
+}
+
+/** Save a custom line to the firm's list. Re-saving a name updates its amount. */
+export async function saveLinePreset(
+  input: SaveLinePresetInput,
+): Promise<LinePreset> {
+  const { data } = await API.post<{ data: LinePreset }>(
+    "/finance/invoices/line-presets",
+    input,
   );
   return data.data;
 }
