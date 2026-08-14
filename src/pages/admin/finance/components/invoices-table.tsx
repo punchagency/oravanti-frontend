@@ -13,6 +13,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import {
+  Ban,
   BellRing,
   CalendarClock,
   CreditCard,
@@ -40,11 +41,35 @@ const HEADERS = [
  * comparison — the firm's timezone decides what "overdue" means, and the two
  * would disagree either side of midnight.
  *
- *   draft               → Edit + Send to client
+ *   draft               → Edit + Send to client + Void
  *   paid / void         → View
- *   past due            → Follow up + Pay
- *   otherwise           → Reschedule/Plan + Record payment
+ *   past due            → Follow up + Pay + Void
+ *   otherwise           → Reschedule/Plan + Record payment + Void
+ *
+ * Void is offered on anything live that has taken NO money. The server refuses
+ * it once `amountPaid > 0` — voiding would drop received money out of every
+ * report while the payments stayed on the ledger, and there is no reversing
+ * entry to correct that with. Offering an action the server will reject is
+ * worse than not offering it, so the same condition is applied here.
+ *
+ * Note `partial` implies a payment, so it never reaches the check.
  */
+function voidAction(
+  row: InvoiceListRow,
+  onVoid: (row: InvoiceListRow) => void,
+): RowAction[] {
+  if (row.status === "void" || row.status === "paid") return [];
+  if (row.amountPaid > 0) return [];
+  return [
+    {
+      label: "Void invoice",
+      icon: <Ban size={14} />,
+      danger: true,
+      onSelect: () => onVoid(row),
+    },
+  ];
+}
+
 function rowActions(
   row: InvoiceListRow,
   handlers: {
@@ -54,6 +79,7 @@ function rowActions(
     onSend: (row: InvoiceListRow) => void;
     onEdit: (row: InvoiceListRow) => void;
     onReschedule: (row: InvoiceListRow) => void;
+    onVoid: (row: InvoiceListRow) => void;
   },
 ): RowAction[] {
   // A draft has not reached the client, so it is the one state where changing
@@ -71,6 +97,7 @@ function rowActions(
         icon: <Send size={14} />,
         onSelect: () => handlers.onSend(row),
       },
+      ...voidAction(row, handlers.onVoid),
     ];
   }
 
@@ -96,6 +123,7 @@ function rowActions(
         icon: <CreditCard size={14} />,
         onSelect: () => handlers.onRecordPayment(row),
       },
+      ...voidAction(row, handlers.onVoid),
     ];
   }
 
@@ -112,6 +140,7 @@ function rowActions(
       icon: <CreditCard size={14} />,
       onSelect: () => handlers.onRecordPayment(row),
     },
+    ...voidAction(row, handlers.onVoid),
   ];
 }
 
@@ -126,6 +155,7 @@ export function InvoicesTable({
   onSend,
   onEdit,
   onReschedule,
+  onVoid,
 }: {
   rows: InvoiceListRow[];
   totals: InvoiceListTotals | undefined;
@@ -137,6 +167,7 @@ export function InvoicesTable({
   onSend: (row: InvoiceListRow) => void;
   onEdit: (row: InvoiceListRow) => void;
   onReschedule: (row: InvoiceListRow) => void;
+  onVoid: (row: InvoiceListRow) => void;
 }) {
   const headers = trustVisible ? HEADERS : HEADERS.filter((h) => h !== "Trust");
 
@@ -294,6 +325,7 @@ export function InvoicesTable({
                   onSend,
                   onEdit,
                   onReschedule,
+                  onVoid,
                 })}
               />
             </Table.Cell>
