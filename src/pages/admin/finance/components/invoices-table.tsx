@@ -44,7 +44,7 @@ const HEADERS = [
  *
  *   draft               → Edit + Send to client + Void
  *   paid / void         → View
- *   past due            → Follow up + Pay + Extend + Void
+ *   past due            → Follow up + Pay + Extend + Reschedule/Plan + Void
  *   otherwise           → Reschedule/Plan + Record payment + Extend + Void
  *
  * Void is offered on anything live that has taken NO money. The server refuses
@@ -97,6 +97,36 @@ function extendAction(
       label: row.schedule ? "Extend next instalment" : "Extend due date",
       icon: <CalendarPlus size={14} />,
       onSelect: () => onExtend(row),
+    },
+  ];
+}
+
+/**
+ * Set a plan, or renegotiate the one that is there.
+ *
+ * Offered on any live invoice INCLUDING an overdue one. A plan that has gone
+ * late is the one most likely to need renegotiating, and the extend dialog
+ * sends people here by name to move anything other than the next instalment —
+ * so leaving it off the overdue menu made that instruction unfollowable from
+ * the row it was written for.
+ *
+ * The server refuses only a paid or void invoice, and the same condition is
+ * applied here rather than a narrower one: offering an action the server will
+ * reject is worse than not offering it, and withholding one it would accept
+ * strands the user with no way to do the thing.
+ */
+function rescheduleAction(
+  row: InvoiceListRow,
+  onReschedule: (row: InvoiceListRow) => void,
+): RowAction[] {
+  if (row.status === "paid" || row.status === "void") return [];
+  return [
+    {
+      // "Create payment plan" on an invoice that has none, because
+      // "Reschedule" implies there is something already there to move.
+      label: row.schedule ? "Reschedule plan" : "Create payment plan",
+      icon: <CalendarClock size={14} />,
+      onSelect: () => onReschedule(row),
     },
   ];
 }
@@ -156,6 +186,12 @@ function rowActions(
         onSelect: () => handlers.onRecordPayment(row),
       },
       ...extendAction(row, handlers.onExtend),
+      // Offered here too, not only on a current invoice. An overdue plan is the
+      // one most likely to need renegotiating, the server allows it on anything
+      // but a paid or void invoice, and the extend dialog explicitly sends
+      // people here to move the rest of a plan — which was a dead end while
+      // this branch omitted it.
+      ...rescheduleAction(row, handlers.onReschedule),
       ...voidAction(row, handlers.onVoid),
     ];
   }
@@ -163,11 +199,7 @@ function rowActions(
   return [
     // Renegotiating a plan is the point of offering one, so this is offered on
     // a live invoice — unlike editing its lines, which freeze on send.
-    {
-      label: row.schedule ? "Reschedule plan" : "Create payment plan",
-      icon: <CalendarClock size={14} />,
-      onSelect: () => handlers.onReschedule(row),
-    },
+    ...rescheduleAction(row, handlers.onReschedule),
     {
       label: "Record payment",
       icon: <CreditCard size={14} />,
