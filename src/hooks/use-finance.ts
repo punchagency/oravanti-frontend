@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   approveTimeEntry,
   createInvoice,
+  extendInvoiceDueDate,
   getBillingRates,
   getCaseDefaults,
   getEarningsByStaff,
@@ -409,6 +410,32 @@ export function useSendFollowUp() {
     },
     onError: (err: APIError) =>
       toast.error(err.response?.data?.message ?? "Couldn't send that follow-up"),
+  });
+}
+
+export function useExtendDueDate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      dueDate,
+      reason,
+    }: {
+      invoiceId: string;
+      dueDate: string;
+      reason?: string;
+    }) => extendInvoiceDueDate(invoiceId, { dueDate, reason }),
+    onSuccess: (invoice) => {
+      toast.success(`${invoice.invoiceNumber} is now due ${invoice.dueDate}`);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      // The server's refusals name the specific reason — a draft, a settled
+      // invoice, a schedule, a date that is not later. Passing them through
+      // beats a generic failure the user cannot act on.
+      toast.error(
+        err.response?.data?.message ?? "Couldn't extend that due date",
+      ),
   });
 }
 

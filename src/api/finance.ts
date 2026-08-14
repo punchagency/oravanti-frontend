@@ -591,6 +591,24 @@ export async function voidInvoice(
   return data.data;
 }
 
+/**
+ * Give the client longer to pay.
+ *
+ * Forward only — the server refuses a date on or before the current one, and
+ * refuses drafts, settled invoices, voids, and anything with a payment
+ * schedule (whose date follows the final instalment).
+ */
+export async function extendInvoiceDueDate(
+  invoiceId: string,
+  input: { dueDate: string; reason?: string },
+): Promise<InvoiceDetail> {
+  const { data } = await API.post<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}/extend-due-date`,
+    input,
+  );
+  return data.data;
+}
+
 // ─── Time & billing ──────────────────────────────────────────────────────────
 
 export type TimeEntryStatus = "pending" | "approved" | "rejected";

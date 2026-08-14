@@ -32,6 +32,8 @@ import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-u
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
 import { InvoiceFormDialog } from "../../components/dialogs/invoice-form-dialog";
 import { RescheduleDialog } from "../../components/dialogs/reschedule-dialog";
+import { ExtendDueDateDialog } from "../../components/dialogs/extend-due-date-dialog";
+import { VoidInvoiceDialog } from "../../components/dialogs/void-invoice-dialog";
 import {
   SendInvoiceDialog,
   type SendableInvoice,
@@ -67,6 +69,11 @@ export default function InvoicingTab() {
     null,
   );
   const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
+  // The whole row, not just an id: the confirmation names the party and the
+  // amount, and asking for the invoice again to render a warning would leave
+  // the dialog briefly claiming to void something it cannot yet describe.
+  const [voidTarget, setVoidTarget] = useState<InvoiceListRow | null>(null);
+  const [extendTarget, setExtendTarget] = useState<InvoiceListRow | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
@@ -296,6 +303,8 @@ export default function InvoicingTab() {
             }
             onEdit={(row) => setEditId(row.id)}
             onReschedule={(row) => setRescheduleId(row.id)}
+            onVoid={setVoidTarget}
+            onExtend={setExtendTarget}
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
@@ -351,6 +360,16 @@ export default function InvoicingTab() {
         invoiceId={rescheduleId}
         open={rescheduleId !== null}
         onOpenChange={(d) => !d.open && setRescheduleId(null)}
+      />
+      <ExtendDueDateDialog
+        invoice={extendTarget}
+        open={extendTarget !== null}
+        onOpenChange={(d) => !d.open && setExtendTarget(null)}
+      />
+      <VoidInvoiceDialog
+        invoice={voidTarget}
+        open={voidTarget !== null}
+        onOpenChange={(d) => !d.open && setVoidTarget(null)}
       />
       <InvoiceFormDialog
         invoiceId={editId}
