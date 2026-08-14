@@ -16,6 +16,7 @@ import {
   Ban,
   BellRing,
   CalendarClock,
+  CalendarPlus,
   CreditCard,
   Eye,
   Pencil,
@@ -43,8 +44,8 @@ const HEADERS = [
  *
  *   draft               → Edit + Send to client + Void
  *   paid / void         → View
- *   past due            → Follow up + Pay + Void
- *   otherwise           → Reschedule/Plan + Record payment + Void
+ *   past due            → Follow up + Pay + Extend + Void
+ *   otherwise           → Reschedule/Plan + Record payment + Extend + Void
  *
  * Void is offered on anything live that has taken NO money. The server refuses
  * it once `amountPaid > 0` — voiding would drop received money out of every
@@ -70,6 +71,32 @@ function voidAction(
   ];
 }
 
+/**
+ * Offered on a live, unsettled invoice — which includes an overdue one, the
+ * case it mostly exists for.
+ *
+ * Withheld on an invoice with a payment schedule: its header date is pinned to
+ * the final instalment, so it moves by revising the schedule, and "Reschedule
+ * plan" is already in this menu. The server refuses it either way; offering an
+ * action that will be rejected is worse than not offering it.
+ */
+function extendAction(
+  row: InvoiceListRow,
+  onExtend: (row: InvoiceListRow) => void,
+): RowAction[] {
+  if (row.status === "draft" || row.status === "paid" || row.status === "void") {
+    return [];
+  }
+  if (row.schedule) return [];
+  return [
+    {
+      label: "Extend due date",
+      icon: <CalendarPlus size={14} />,
+      onSelect: () => onExtend(row),
+    },
+  ];
+}
+
 function rowActions(
   row: InvoiceListRow,
   handlers: {
@@ -80,6 +107,7 @@ function rowActions(
     onEdit: (row: InvoiceListRow) => void;
     onReschedule: (row: InvoiceListRow) => void;
     onVoid: (row: InvoiceListRow) => void;
+    onExtend: (row: InvoiceListRow) => void;
   },
 ): RowAction[] {
   // A draft has not reached the client, so it is the one state where changing
@@ -123,6 +151,7 @@ function rowActions(
         icon: <CreditCard size={14} />,
         onSelect: () => handlers.onRecordPayment(row),
       },
+      ...extendAction(row, handlers.onExtend),
       ...voidAction(row, handlers.onVoid),
     ];
   }
@@ -140,6 +169,7 @@ function rowActions(
       icon: <CreditCard size={14} />,
       onSelect: () => handlers.onRecordPayment(row),
     },
+    ...extendAction(row, handlers.onExtend),
     ...voidAction(row, handlers.onVoid),
   ];
 }
@@ -156,6 +186,7 @@ export function InvoicesTable({
   onEdit,
   onReschedule,
   onVoid,
+  onExtend,
 }: {
   rows: InvoiceListRow[];
   totals: InvoiceListTotals | undefined;
@@ -168,6 +199,7 @@ export function InvoicesTable({
   onEdit: (row: InvoiceListRow) => void;
   onReschedule: (row: InvoiceListRow) => void;
   onVoid: (row: InvoiceListRow) => void;
+  onExtend: (row: InvoiceListRow) => void;
 }) {
   const headers = trustVisible ? HEADERS : HEADERS.filter((h) => h !== "Trust");
 
@@ -326,6 +358,7 @@ export function InvoicesTable({
                   onEdit,
                   onReschedule,
                   onVoid,
+                  onExtend,
                 })}
               />
             </Table.Cell>
