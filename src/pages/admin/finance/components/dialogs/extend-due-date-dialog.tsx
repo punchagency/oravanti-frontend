@@ -20,9 +20,16 @@ import { fieldStyles } from "./dialog-styles";
  * from today. An invoice three weeks overdue extended "by 14 days" from today
  * would be a five-week extension wearing a two-week label.
  *
- * Not offered on an invoice with a payment schedule: its date follows the final
- * instalment, so it moves by revising the schedule. The row menu withholds the
- * action there, and the server refuses it regardless.
+ * **On a scheduled invoice this moves the next unpaid instalment**, which is
+ * the date the invoice is actually overdue against — `dueBy` reads
+ * `next_due_date` first, so a plan goes late on its next slice, never on its
+ * final one. The header date follows the LAST instalment and is deliberately
+ * not what this touches, unless the next unpaid slice happens to be the last.
+ *
+ * The server refuses a move that would push the instalment past the one after
+ * it, since that reorders the plan rather than extending it. That is left to
+ * the server: the row carries no per-instalment dates to check it against here,
+ * and guessing would produce a rule the two could disagree on.
  */
 
 const PRESETS = [7, 14, 30] as const;
@@ -56,15 +63,26 @@ export function ExtendDueDateDialog({
    * the invoice as well as `open`: opening the dialog on a different row must
    * not inherit the previous row's date.
    */
+  /**
+   * The date this action actually moves.
+   *
+   * On a scheduled invoice that is the next unpaid instalment, not the header
+   * date — the header follows the final instalment and moving it is a
+   * different act. `schedule.nextDueDate` is the server's own answer to "what
+   * is this invoice next owed on", so the dialog and the overdue badge agree
+   * by construction.
+   */
+  const current = invoice
+    ? (invoice.schedule?.nextDueDate ?? invoice.dueDate)
+    : "";
+
   const key = open ? (invoice?.id ?? "") : "";
   const [openedFor, setOpenedFor] = useState(key);
   if (key !== openedFor) {
     setOpenedFor(key);
-    setDueDate(invoice ? addDays(invoice.dueDate, PRESETS[0]) : "");
+    setDueDate(current ? addDays(current, PRESETS[0]) : "");
     setReason("");
   }
-
-  const current = invoice?.dueDate ?? "";
   // The server enforces this too; saying so here saves a round trip to be told.
   const isLater = Boolean(dueDate) && dueDate > current;
 
@@ -85,7 +103,11 @@ export function ExtendDueDateDialog({
       open={open}
       onOpenChange={onOpenChange}
       size="md"
-      title={`Extend ${invoice?.invoiceNumber ?? "invoice"}`}
+      title={
+        invoice?.schedule
+          ? `Extend next instalment · ${invoice.invoiceNumber}`
+          : `Extend ${invoice?.invoiceNumber ?? "invoice"}`
+      }
       subtitle={
         invoice
           ? `${invoice.party.name} · ${formatCurrency(invoice.balanceDue)} outstanding`
@@ -105,12 +127,21 @@ export function ExtendDueDateDialog({
       <Flex direction="column" gap="14px">
         <Box>
           <Text fontSize="12px" color="fg.muted">
-            Currently due{" "}
+            {invoice?.schedule ? "Next instalment due " : "Currently due "}
             <Text as="span" fontWeight="600" color="fg">
               {current ? formatDate(current) : "—"}
             </Text>
-            .
+            {invoice?.schedule
+              ? ` · ${invoice.schedule.paidCount} of ${invoice.schedule.count} paid`
+              : ""}
           </Text>
+          {invoice?.schedule && (
+            <Text fontSize="11px" color="fg.muted" mt="4px">
+              Only this instalment moves. The rest of the plan and the invoice's
+              final due date stay as they are — use Reschedule plan to change
+              those.
+            </Text>
+          )}
         </Box>
 
         <Box>

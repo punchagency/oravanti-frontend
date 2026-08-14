@@ -75,10 +75,14 @@ function voidAction(
  * Offered on a live, unsettled invoice — which includes an overdue one, the
  * case it mostly exists for.
  *
- * Withheld on an invoice with a payment schedule: its header date is pinned to
- * the final instalment, so it moves by revising the schedule, and "Reschedule
- * plan" is already in this menu. The server refuses it either way; offering an
- * action that will be rejected is worse than not offering it.
+ * On a scheduled invoice this moves the NEXT UNPAID INSTALMENT, not the header
+ * date, which is pinned to the final instalment and is not what anyone means by
+ * "extend this". The label says so, because "Extend due date" on a four-part
+ * plan would be read as moving all of it.
+ *
+ * Withheld only when the schedule has no next unpaid slice — every instalment
+ * covered on an invoice that is somehow not settled, which leaves nothing to
+ * move and which the server refuses too.
  */
 function extendAction(
   row: InvoiceListRow,
@@ -87,10 +91,10 @@ function extendAction(
   if (row.status === "draft" || row.status === "paid" || row.status === "void") {
     return [];
   }
-  if (row.schedule) return [];
+  if (row.schedule && !row.schedule.nextDueDate) return [];
   return [
     {
-      label: "Extend due date",
+      label: row.schedule ? "Extend next instalment" : "Extend due date",
       icon: <CalendarPlus size={14} />,
       onSelect: () => onExtend(row),
     },
