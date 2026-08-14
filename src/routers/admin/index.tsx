@@ -2,7 +2,7 @@ import { Navigate, Route, createBrowserRouter, createRoutesFromElements } from "
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { UnsavedChangesProvider } from "@/contexts/unsaved-changes-context";
 import { RouteErrorBoundary } from "@/components/ui/error-boundary";
-import { lazyPage } from "@/routers/lazy";
+import { lazyPage, lazyStandalonePage } from "@/routers/lazy";
 import { AdminGuard } from "@/routers/admin/guard";
 import { CalendarDataProvider } from "@/pages/admin/calendar/calendar-data-context";
 
@@ -11,17 +11,37 @@ import { CalendarDataProvider } from "@/pages/admin/calendar/calendar-data-conte
  * readable in one place; each page only loads when first visited.    *
  * ------------------------------------------------------------------ */
 
-// Auth callback pages
-const AcceptInvitationPage = lazyPage(() => import("@/pages/accept-invitation"));
-const EmailVerifiedPage = lazyPage(() => import("@/pages/email-verified"));
-const SetPasswordPage = lazyPage(() => import("@/pages/set-password"));
-const VerifyEmailNoticePage = lazyPage(() => import("@/pages/verify-email"));
+// Auth callback pages. These render without the dashboard chrome, so they use
+// the spinner fallback — a skeleton reads as a broken screen on a centred card.
+const AcceptInvitationPage = lazyStandalonePage(() => import("@/pages/accept-invitation"));
+const EmailVerifiedPage = lazyStandalonePage(() => import("@/pages/email-verified"));
+const SetPasswordPage = lazyStandalonePage(() => import("@/pages/set-password"));
+const VerifyEmailNoticePage = lazyStandalonePage(() => import("@/pages/verify-email"));
 
-// Onboarding
-const Step0SourcePage = lazyPage(() => import("@/pages/onboarding/step-0-source"));
-const Step1ProfilePage = lazyPage(() => import("@/pages/onboarding/step-1-profile"));
-const Step2FirmDetailsPage = lazyPage(() => import("@/pages/onboarding/step-2-firm-details"));
-const Step3TosPage = lazyPage(() => import("@/pages/onboarding/step-3-tos"));
+// Token-gated recipient pages. Declared here as well as in the public router
+// because they're reached from an emailed link: whoever opens it is whoever
+// happens to be signed in in that browser, and that's often a staff member
+// checking the link they just sent. Without these the admin router has no
+// match and drops them on the dashboard 404 instead of the page.
+const QuestionnairePortalPage = lazyStandalonePage(() =>
+  import("@/pages/questionnaire-portal").then((m) => ({ default: m.QuestionnairePortalPage })),
+);
+const ConsultationBookingPage = lazyStandalonePage(() =>
+  import("@/pages/consultation-booking").then((m) => ({ default: m.ConsultationBookingPage })),
+);
+const AgreementSigningPage = lazyStandalonePage(() =>
+  import("@/pages/agreement-signing").then((m) => ({ default: m.AgreementSigningPage })),
+);
+const DocumentUploadPage = lazyStandalonePage(() =>
+  import("@/pages/document-upload").then((m) => ({ default: m.DocumentUploadPage })),
+);
+const InvoicePaymentPage = lazyStandalonePage(() => import("@/pages/invoice-payment"));
+
+// Onboarding — also outside AdminLayout, same reasoning.
+const Step0SourcePage = lazyStandalonePage(() => import("@/pages/onboarding/step-0-source"));
+const Step1ProfilePage = lazyStandalonePage(() => import("@/pages/onboarding/step-1-profile"));
+const Step2FirmDetailsPage = lazyStandalonePage(() => import("@/pages/onboarding/step-2-firm-details"));
+const Step3TosPage = lazyStandalonePage(() => import("@/pages/onboarding/step-3-tos"));
 
 // Dashboard
 const AdminDashboard = lazyPage(() =>
@@ -225,7 +245,18 @@ export function createAdminRouter() {
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
 
-            
+        {/*
+         * Public token-gated routes, mirrored from the public router. Outside
+         * AdminGuard on purpose: the token is the authorisation, and the page
+         * belongs to the lead/client the link was sent to, not to the signed-in
+         * staff member who happens to be opening it.
+         */}
+        <Route path="/questionnaire/:firmSlug/:token" element={<QuestionnairePortalPage />} />
+        <Route path="/consultation-booking/:token" element={<ConsultationBookingPage />} />
+        <Route path="/sign/:token" element={<AgreementSigningPage />} />
+        <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
+        <Route path="/invoice-payment/:token" element={<InvoicePaymentPage />} />
+
         {/* Protected admin routes */}
         <Route element={<AdminGuard />}>
           {/* Onboarding (no dashboard chrome yet) */}

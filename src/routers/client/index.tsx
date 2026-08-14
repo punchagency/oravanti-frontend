@@ -2,7 +2,7 @@ import { ClientPortalLayout } from "@/components/layout/client-portal-layout";
 import { ClientGuard } from "@/routers/client/guard";
 import { UnsavedChangesProvider } from "@/contexts/unsaved-changes-context";
 import { Route, createBrowserRouter, createRoutesFromElements, Navigate } from "react-router";
-import { lazyPage } from "@/routers/lazy";
+import { lazyPage, lazyStandalonePage } from "@/routers/lazy";
 
 import AcceptInvitationPage from "@/pages/accept-invitation";
 import EmailVerifiedPage from "@/pages/email-verified";
@@ -10,6 +10,22 @@ import PortalAccessDisabledPage from "@/pages/portal-access-disabled";
 import SetPasswordPage from "@/pages/set-password";
 import VerifyEmailNoticePage from "@/pages/verify-email";
 import { NotFoundPage } from "@/pages/not-found";
+
+// Token-gated recipient pages, mirrored from the public router — a signed-in
+// client opening their own emailed link would otherwise hit the portal 404.
+const QuestionnairePortalPage = lazyStandalonePage(() =>
+  import("@/pages/questionnaire-portal").then((m) => ({ default: m.QuestionnairePortalPage })),
+);
+const ConsultationBookingPage = lazyStandalonePage(() =>
+  import("@/pages/consultation-booking").then((m) => ({ default: m.ConsultationBookingPage })),
+);
+const AgreementSigningPage = lazyStandalonePage(() =>
+  import("@/pages/agreement-signing").then((m) => ({ default: m.AgreementSigningPage })),
+);
+const DocumentUploadPage = lazyStandalonePage(() =>
+  import("@/pages/document-upload").then((m) => ({ default: m.DocumentUploadPage })),
+);
+const InvoicePaymentPage = lazyStandalonePage(() => import("@/pages/invoice-payment"));
 
 const ClientOverviewPage = lazyPage(() => import("@/pages/client-portal/overview"));
 const CaseFilesPage = lazyPage(() => import("@/pages/client-portal/case-files"));
@@ -42,6 +58,17 @@ export function createClientPortalRouter() {
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
+
+        {/*
+         * Public token-gated routes. Outside ClientGuard on purpose: the token
+         * is the authorisation, and the link may address a different person
+         * than the one signed in.
+         */}
+        <Route path="/questionnaire/:firmSlug/:token" element={<QuestionnairePortalPage />} />
+        <Route path="/consultation-booking/:token" element={<ConsultationBookingPage />} />
+        <Route path="/sign/:token" element={<AgreementSigningPage />} />
+        <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
+        <Route path="/invoice-payment/:token" element={<InvoicePaymentPage />} />
 
         {/* Protected client portal routes */}
         <Route element={<ClientGuard />}>
