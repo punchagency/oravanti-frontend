@@ -1,0 +1,45 @@
+name: CI
+
+# Feature branches are pushed, then opened as PRs into dev. The PR is the
+# gate: every push to an open PR re-runs this. The push trigger covers the
+# merge commit on dev/main afterwards, so a bad merge can't land unnoticed.
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+# A newer push to the same PR makes the in-flight run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck · lint · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      # tsconfig.app.json sets noUnusedLocals/noUnusedParameters, so this
+      # catches dead imports that lint alone would not fail the build on.
+      - name: Typecheck
+        run: npm run typecheck
+
+      # lint:ci pins --max-warnings to the agreed ceiling. Warnings are
+      # tracked debt (no-explicit-any, set-state-in-effect, purity); the
+      # count may fall, never rise. See the rules block in eslint.config.js.
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Build
+        run: npm run build
