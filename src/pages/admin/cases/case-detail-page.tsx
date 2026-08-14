@@ -31,7 +31,7 @@ import {
 } from "react-router";
 import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
 import { EntityNotFound } from "@/components/ui/entity-not-found";
-import { statusBadgeStyle } from "./components/case-details/shared";
+import { statusBadgeStyle } from "./components/case-details/shared-data";
 
 const TAB_CONFIG = [
   { value: "overview", label: "Overview" },

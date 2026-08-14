@@ -7,7 +7,7 @@ import { CreateTeamDialog } from "@/pages/admin/staff-and-users/tabs/teams/compo
 import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { CalendarDays, ChevronDown, Plus, UserRoundPlus, Users, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNav } from "@/components/layout/shared/nav-context";
+import { useNav } from "@/components/layout/shared/use-nav";
 
 export function QuickActions({ collapsed }: { collapsed: boolean }) {
   const { setSuppressCollapse, forceCollapse } = useNav();

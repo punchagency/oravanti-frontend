@@ -1,101 +1,11 @@
-import {
-  type ContextNavigationItem,
-  type NavigationIcon,
-} from "@/utils/navigation";
+import { type ContextNavigationItem } from "@/utils/navigation";
 import { Box, Collapsible, Flex, Text } from "@chakra-ui/react";
-import type { LucideIcon } from "lucide-react";
-import {
-  BarChart3,
-  BookOpenCheck,
-  Bot,
-  BriefcaseBusiness,
-  CalendarCheck,
-  CalendarDays,
-  ChartColumn,
-  ChartColumnBig,
-  ChartNetwork,
-  ChartPie,
-  ChevronDown,
-  ClipboardList,
-  FileClock,
-  FilePlus2,
-  Files,
-  FileText,
-  Folder,
-  FolderOpen,
-  Gavel,
-  Globe,
-  GraduationCap,
-  Landmark,
-  LayoutDashboard,
-  LayoutTemplate,
-  Lock,
-  Mail,
-  MessageSquareText,
-  Moon,
-  Package,
-  Rss,
-  Search,
-  Settings,
-  Shield,
-  ShieldCheck,
-  Signature,
-  UserRoundPlus,
-  Users,
-} from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { NavLink, useLocation } from "react-router";
-
-export const iconMap: Record<NavigationIcon, LucideIcon> = {
-  analytics: ChartNetwork,
-  billing: FileText,
-  briefcase: BriefcaseBusiness,
-  calendar: CalendarDays,
-  "calendar-check": CalendarCheck,
-  chart: BarChart3,
-  "chart-column-big": ChartColumnBig,
-  lock: Lock,
-  chevron: ChevronDown,
-  clipboard: ClipboardList,
-  dashboard: LayoutDashboard,
-  documents: Files,
-  download: ClipboardList,
-  education: GraduationCap,
-  file: FileText,
-  "file-clock": FileClock,
-  "file-plus": FilePlus2,
-  package: Package,
-  template: LayoutTemplate,
-  folder: Folder,
-  "folder-open": FolderOpen,
-  gavel: Gavel,
-  globe: Globe,
-  landmark: Landmark,
-  mail: Mail,
-  message: MessageSquareText,
-  moon: Moon,
-  intake: UserRoundPlus,
-  rss: Rss,
-  search: Search,
-  settings: Settings,
-  shield: Shield,
-  "shield-check": ShieldCheck,
-  signature: Signature,
-  users: Users,
-  overview: ChartColumn,
-  "book-open-check": BookOpenCheck,
-  "chart-pie": ChartPie,
-  "ai-review": Bot,
-};
-
-export function hasActiveChild(
-  currentPath: string,
-  item: ContextNavigationItem,
-): boolean {
-  if (currentPath === item.path) return true;
-  return (
-    item.children?.some((child) => hasActiveChild(currentPath, child)) ?? false
-  );
-}
+import {
+  hasActiveChild,
+  iconMap,
+} from "@/components/layout/shared/nav-item-utils";
 
 export function NavItem({
   item,

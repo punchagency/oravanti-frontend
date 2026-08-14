@@ -1,4 +1,4 @@
-import { useNav } from "@/components/layout/shared/nav-context";
+import { useNav } from "@/components/layout/shared/use-nav";
 import { Flex, Text, chakra } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { ClientNavContent } from "./nav-content";

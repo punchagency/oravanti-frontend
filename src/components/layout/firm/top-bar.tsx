@@ -3,7 +3,7 @@ import { useCurrentStaff } from "@/hooks/use-current-staff";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
 import { AvatarChip } from "@/components/layout/shared/avatar-chip";
-import { useNav, usePageTitle } from "@/components/layout/shared/nav-context";
+import { useNav, usePageTitle } from "@/components/layout/shared/use-nav";
 import { Box, Button, Flex, Menu, Portal, Text } from "@chakra-ui/react";
 import {
   Check,

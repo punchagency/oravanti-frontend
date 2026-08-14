@@ -1,10 +1,6 @@
 import { useMemo } from "react";
-import {
-  FieldRow,
-  matterFields,
-  SectionLabel,
-  type CaseData,
-} from "../../shared";
+import { FieldRow, SectionLabel } from "../../shared";
+import { matterFields, type CaseData } from "../../shared-data";
 
 interface MatterDetailsProps {
   caseData?: CaseData;

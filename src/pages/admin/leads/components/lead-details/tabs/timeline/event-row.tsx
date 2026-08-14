@@ -1,7 +1,8 @@
 import { HStack, Text, Timeline, VStack } from "@chakra-ui/react";
 import type { LeadTimelineEvent } from "@/api/lead-workflows";
 import { formatTime } from "./date-utils";
-import { EventIcon, eventColor } from "./event-icon";
+import { EventIcon } from "./event-icon";
+import { eventColor } from "./event-color";
 
 function actorLine(event: LeadTimelineEvent): string | null {
   const actorName = (event.metadata?.actorName as string | undefined) ?? event.createdBy?.name;

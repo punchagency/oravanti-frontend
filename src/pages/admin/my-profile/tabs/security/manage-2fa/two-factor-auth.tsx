@@ -16,14 +16,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { QRCodeVerify } from "./qr-code-verify";
 
-export const twoFactorAuthSchema = z.object({
-  password: z.string().min(1, "Password is required").trim(),
-});
-
-type TwoFactorAuthForm = z.infer<typeof twoFactorAuthSchema>;
+import {
+  twoFactorAuthSchema,
+  type TwoFactorAuthForm,
+} from "./two-factor-auth-schema";
 
 export function TwoFactorAuth({ onDone }: { onDone: () => void }) {
   const [showPassword, setShowPassword] = useState(false);

@@ -1,7 +1,8 @@
 import { Box, HStack, Text, Timeline, VStack } from "@chakra-ui/react";
 import type { CaseEvent } from "../../../../../../../api/workflows";
 import { formatTime } from "./date-utils";
-import { EventIcon, eventColor } from "./event-icon";
+import { EventIcon } from "./event-icon";
+import { eventColor } from "./event-color";
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;

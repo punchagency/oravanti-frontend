@@ -254,13 +254,6 @@ export function InstantConsultationDialog({
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [conflictState, setConflictState] = useState<ConflictState>("idle");
 
-  useEffect(() => {
-    if (open && presetLeadId) {
-      setStep(2);
-      reset({ ...INSTANT_DEFAULTS, clientMode: "existing", selectedLeadId: presetLeadId });
-    }
-  }, [open, presetLeadId]);
-
   const {
     control,
     setValue,
@@ -278,6 +271,13 @@ export function InstantConsultationDialog({
     },
     mode: "onChange",
   });
+
+  useEffect(() => {
+    if (open && presetLeadId) {
+      setStep(2);
+      reset({ ...INSTANT_DEFAULTS, clientMode: "existing", selectedLeadId: presetLeadId });
+    }
+  }, [open, presetLeadId, reset]);
 
   const clientMode = useWatch({ control, name: "clientMode" });
   const selectedLeadId = useWatch({ control, name: "selectedLeadId" });

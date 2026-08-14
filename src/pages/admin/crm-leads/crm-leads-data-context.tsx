@@ -152,6 +152,13 @@ export function CrmLeadsDataProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/*
+  Fast refresh wants components-only modules. The provider and its
+  consumer hook are one unit here; hoisting the context into a third
+  module to satisfy the rule buys indirection and nothing else. The
+  cost is a full reload, not a hot update, when this file is edited.
+*/
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCrmLeadsData() {
   const ctx = useContext(CrmLeadsDataContext);
   if (!ctx)

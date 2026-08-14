@@ -20,7 +20,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { statusBadgeStyle } from "./shared";
+import { statusBadgeStyle } from "./shared-data";
 import { AuditLogTab } from "./tabs/audit-log";
 import { Documents } from "./tabs/documents";
 import { Notes } from "./tabs/notes";

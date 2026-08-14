@@ -1,21 +1,26 @@
 import { Flex, Text, chakra } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavContent } from "./nav-content";
-import { useNav } from "@/components/layout/shared/nav-context";
+import { useNav } from "@/components/layout/shared/use-nav";
 
 export function DesktopNav() {
   const { collapsed, suppressCollapse, collapseSignal } = useNav();
   const [hovered, setHovered] = useState(false);
-  const expanded = hovered || !collapsed;
 
   /*
     Collapse the sidebar immediately when forceCollapse() is
     called (Quick Actions menu item click). Bumping the signal
-    counter triggers this effect → setHovered(false).
+    counter resets hover during render rather than in an effect —
+    an effect would paint the expanded sidebar for one frame
+    before collapsing it.
   */
-  useEffect(() => {
+  const [prevCollapseSignal, setPrevCollapseSignal] = useState(collapseSignal);
+  if (prevCollapseSignal !== collapseSignal) {
+    setPrevCollapseSignal(collapseSignal);
     setHovered(false);
-  }, [collapseSignal]);
+  }
+
+  const expanded = hovered || !collapsed;
 
   return (
     <Flex
