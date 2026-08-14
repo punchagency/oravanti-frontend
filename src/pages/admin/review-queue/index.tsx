@@ -27,6 +27,7 @@ import { WorkflowActionDialog } from "../my-tasks/workflow-action-dialog";
 const TABS = [
   { value: "all", label: "All" },
   { value: "in_review", label: "In Review" },
+  { value: "rejected", label: "Rejected" },
   { value: "completed", label: "Approved" },
 ] as const;
 
@@ -39,6 +40,7 @@ const statusSummaryCards = [
     color: "orange.500",
     icon: Clock,
   },
+  { key: "rejected", label: "Rejected", color: "red.500", icon: XCircle },
   {
     key: "completed",
     label: "Approved",

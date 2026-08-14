@@ -1,9 +1,14 @@
-import { Box, Breadcrumb, HStack, Stack, Text } from "@chakra-ui/react";
-import { ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import { Box, Breadcrumb, Button, HStack, Stack, Text } from "@chakra-ui/react";
+import { ArrowLeft, ChevronRight, Lock } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router";
 import type { LeadLayout, PipelineStage } from "@/api/leads";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import {
+  leadPipelineTabPath,
+  pipelineStageColors,
+  type PipelineOrigin,
+} from "../shared/constants";
 
 const STAGE_ORDER: Record<PipelineStage, number> = {
   lead_inbox: 0,
@@ -27,6 +32,14 @@ const STEP_TITLES: Record<string, string> = {
   consultation: "Consultation & notes",
   case_opening: "Case opening",
 };
+
+/** The four stage pages, in the order the pipeline runs them. */
+const PIPELINE_STEPS = [
+  { key: "conflict_check", label: "Conflict check", suffix: "conflict-check" },
+  { key: "questionnaire", label: "Questionnaire", suffix: "questionnaire" },
+  { key: "consultation", label: "Consultation", suffix: "consultation" },
+  { key: "case_opening", label: "Case opening", suffix: "case-opening" },
+] as const;
 
 // ─── Skeletons ───────────────────────────────────────────────────────────────
 
@@ -175,6 +188,118 @@ interface PipelineLayoutProps {
   children: React.ReactNode;
 }
 
+/**
+ * Reads the origin a stage page was opened from. Stage pages are top-level
+ * routes rather than lead-detail tabs, so without this the browser's back
+ * button is the only way out — and that breaks entirely on a page opened in a
+ * new tab or reached by a redirect after an action.
+ */
+function usePipelineOrigin(leadId: string): PipelineOrigin {
+  const { state } = useLocation();
+  const origin = state as Partial<PipelineOrigin> | null;
+
+  // Only same-origin app paths, so a crafted state object can't turn the back
+  // button into an off-site link.
+  const from =
+    typeof origin?.from === "string" && origin.from.startsWith("/")
+      ? origin.from
+      : leadPipelineTabPath(leadId);
+
+  return {
+    from,
+    fromLabel:
+      typeof origin?.fromLabel === "string" && origin.fromLabel
+        ? origin.fromLabel
+        : "Back to intake pipeline",
+  };
+}
+
+function StepNav({
+  lead,
+  activeStep,
+}: {
+  lead: LeadLayout;
+  activeStep: string;
+}) {
+  const currentStageIndex = STAGE_ORDER[lead.pipelineStage];
+
+  return (
+    <HStack
+      as="nav"
+      gap="6px"
+      overflowX="auto"
+      pb="2px"
+      aria-label="Intake pipeline steps"
+    >
+      {PIPELINE_STEPS.map((step, index) => {
+        const active = step.key === activeStep;
+        const locked =
+          currentStageIndex < STAGE_ORDER[STEP_REQUIRED_STAGE[step.key]];
+        const color = pipelineStageColors[step.key] ?? "border";
+
+        const content = (
+          <HStack
+            gap="6px"
+            minH="30px"
+            px="10px"
+            border="1px solid"
+            borderColor={active ? color : "border"}
+            borderRadius="full"
+            bg={active ? "bg.subtle" : "bg"}
+            color={locked ? "fg.subtle" : active ? "fg" : "fg.muted"}
+            fontSize="12px"
+            fontWeight={active ? "500" : "400"}
+            whiteSpace="nowrap"
+            opacity={locked ? 0.6 : 1}
+          >
+            <Box
+              display="grid"
+              placeItems="center"
+              w="17px"
+              h="17px"
+              border="1.5px solid"
+              borderColor={locked ? "border" : color}
+              borderRadius="full"
+              color={locked ? "fg.subtle" : color}
+              fontSize="10px"
+              fontWeight="500"
+              flexShrink={0}
+            >
+              {index + 1}
+            </Box>
+            {step.label}
+            {locked ? <Lock size={11} /> : null}
+          </HStack>
+        );
+
+        // A step the lead hasn't reached renders as plain text: its page would
+        // only show the "previous step not completed" notice.
+        return locked || active ? (
+          <Box
+            key={step.key}
+            aria-current={active ? "step" : undefined}
+            title={
+              locked
+                ? "Available once the previous steps are complete"
+                : undefined
+            }
+          >
+            {content}
+          </Box>
+        ) : (
+          <Link
+            key={step.key}
+            to={`/leads/${lead.id}/${step.suffix}`}
+            style={{ textDecoration: "none" }}
+          >
+            {content}
+          </Link>
+        );
+      })}
+    </HStack>
+  );
+}
+
 export function PipelineLayout({
   lead,
   activeStep,
@@ -183,6 +308,8 @@ export function PipelineLayout({
 }: PipelineLayoutProps) {
   const title = STEP_TITLES[activeStep] ?? "Pipeline";
   useDocumentTitle(`${title} – Lead – Oravanti`);
+  const navigate = useNavigate();
+  const { from, fromLabel } = usePipelineOrigin(lead.id);
 
   if (isLoading) {
     return <ConflictCheckSkeleton />;
@@ -191,10 +318,64 @@ export function PipelineLayout({
   const requiredStage = STEP_REQUIRED_STAGE[activeStep];
   const currentStageIndex = STAGE_ORDER[lead.pipelineStage];
   const requiredStageIndex = STAGE_ORDER[requiredStage];
+  const locked = currentStageIndex < requiredStageIndex;
 
-  if (currentStageIndex < requiredStageIndex) {
-    return (
-      <Stack gap="16px" pt="24px">
+  return (
+    <Stack gap="16px" pt="24px">
+      <Button
+        variant="ghost"
+        size="xs"
+        alignSelf="flex-start"
+        h="26px"
+        px="8px"
+        ml="-8px"
+        color="fg.muted"
+        fontSize="12px"
+        fontWeight="400"
+        _hover={{ color: "fg", bg: "bg.subtle" }}
+        onClick={() => navigate(from)}
+      >
+        <ArrowLeft size={14} />
+        {fromLabel}
+      </Button>
+
+      <Breadcrumb.Root>
+        <Breadcrumb.List>
+          <Breadcrumb.Item>
+            <Breadcrumb.Link asChild color="fg.muted" fontSize="12px">
+              <Link to="/leads">Leads</Link>
+            </Breadcrumb.Link>
+          </Breadcrumb.Item>
+          <Breadcrumb.Separator>
+            <ChevronRight size={12} />
+          </Breadcrumb.Separator>
+          <Breadcrumb.Item>
+            <Breadcrumb.Link asChild color="fg.muted" fontSize="12px">
+              <Link to={`/leads/${lead.id}`}>{lead.name}</Link>
+            </Breadcrumb.Link>
+          </Breadcrumb.Item>
+          <Breadcrumb.Separator>
+            <ChevronRight size={12} />
+          </Breadcrumb.Separator>
+          <Breadcrumb.Item>
+            <Breadcrumb.Link asChild color="fg.muted" fontSize="12px">
+              <Link to={leadPipelineTabPath(lead.id)}>Intake pipeline</Link>
+            </Breadcrumb.Link>
+          </Breadcrumb.Item>
+          <Breadcrumb.Separator>
+            <ChevronRight size={12} />
+          </Breadcrumb.Separator>
+          <Breadcrumb.Item>
+            <Breadcrumb.CurrentLink color="fg" fontSize="12px" fontWeight="500">
+              {title}
+            </Breadcrumb.CurrentLink>
+          </Breadcrumb.Item>
+        </Breadcrumb.List>
+      </Breadcrumb.Root>
+
+      <StepNav lead={lead} activeStep={activeStep} />
+
+      {locked ? (
         <Box
           p="16px"
           border="1px solid"
@@ -217,57 +398,9 @@ export function PipelineLayout({
             .
           </Text>
         </Box>
-      </Stack>
-    );
-  }
-
-  return (
-    <Stack gap="16px" pt="24px">
-      <Breadcrumb.Root>
-        <Breadcrumb.List>
-          <Breadcrumb.Item>
-            <Breadcrumb.Link asChild>
-              <Link
-                to="/leads"
-                style={{
-                  color: "fg.muted",
-                  fontSize: "12px",
-                  textDecoration: "none",
-                }}
-              >
-                Leads
-              </Link>
-            </Breadcrumb.Link>
-          </Breadcrumb.Item>
-          <Breadcrumb.Separator>
-            <ChevronRight size={12} />
-          </Breadcrumb.Separator>
-          <Breadcrumb.Item>
-            <Breadcrumb.Link asChild>
-              <Link
-                to={`/leads/${lead.id}`}
-                style={{
-                  color: "fg.muted",
-                  fontSize: "12px",
-                  textDecoration: "none",
-                }}
-              >
-                {lead.name}
-              </Link>
-            </Breadcrumb.Link>
-          </Breadcrumb.Item>
-          <Breadcrumb.Separator>
-            <ChevronRight size={12} />
-          </Breadcrumb.Separator>
-          <Breadcrumb.Item>
-            <Breadcrumb.CurrentLink color="fg" fontSize="12px" fontWeight="500">
-              {title}
-            </Breadcrumb.CurrentLink>
-          </Breadcrumb.Item>
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
-
-      {children}
+      ) : (
+        children
+      )}
     </Stack>
   );
 }

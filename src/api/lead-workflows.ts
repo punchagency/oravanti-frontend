@@ -1,7 +1,15 @@
 import { API } from ".";
 import type { DocumentAiReview } from "./questionnaires";
 
-export type LeadTaskStatus = "pending" | "in_progress" | "in_review" | "completed" | "skipped";
+export type LeadTaskStatus =
+  | "pending"
+  | "in_progress"
+  | "in_review"
+  | "completed"
+  | "skipped"
+  // Terminal until the assignee reopens it. Rejection used to drop a task
+  // straight back to `in_progress`, which told them nothing.
+  | "rejected";
 
 export interface LeadTask {
   id: string;

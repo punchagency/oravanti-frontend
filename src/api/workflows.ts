@@ -17,7 +17,7 @@ export interface PaginatedResponse<T> {
 export interface WorkflowStepInstance {
   stepId: string;
   title: string;
-  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped";
+  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped" | "rejected";
   assignedTo: { id: string; name: string; role: string } | null;
   dueDate: string | null;
   completedAt: string | null;
@@ -245,7 +245,7 @@ export interface MyTaskItem {
   caseId: string;
   caseTitle: string;
   title: string;
-  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped";
+  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped" | "rejected";
   moduleId: string;
   moduleName: string;
   phaseName: string;
@@ -261,7 +261,7 @@ export interface ReviewQueueItem {
   caseId: string;
   caseTitle: string;
   title: string;
-  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped";
+  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped" | "rejected";
   moduleId: string;
   moduleName: string;
   phaseName: string;
@@ -283,6 +283,7 @@ export interface TasksCounts {
   completed: number;
   pending: number;
   skipped: number;
+  rejected: number;
 }
 
 export interface PaginatedTasksResponse {
@@ -297,6 +298,7 @@ export interface ReviewCounts {
   completed: number;
   pending: number;
   skipped: number;
+  rejected: number;
 }
 
 export interface PaginatedReviewResponse {
