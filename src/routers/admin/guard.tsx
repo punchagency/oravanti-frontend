@@ -57,6 +57,14 @@ export function AdminGuard() {
     return <Navigate to="/set-password" replace />;
   }
 
+  // ...and the inverse: nobody who already has a permanent password should be
+  // able to deep-link to the temp-password form. The page used to enforce this
+  // itself with a useEffect + navigate; it belongs here with the other path
+  // rules, alongside the portal-access-disabled pair below.
+  if (!needsPasswordChange && location.pathname === "/set-password") {
+    return <Navigate to="/" replace />;
+  }
+
   const isOnboarding = location.pathname.startsWith("/onboarding");
   const authPaths = ["/email-verified", "/verify-email", "/accept-invitation", "/set-password"];
   const isAdmin = !isOnboarding && !authPaths.includes(location.pathname);

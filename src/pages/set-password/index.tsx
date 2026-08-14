@@ -11,9 +11,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { useNavigate } from "react-router";
 import { z } from "zod";
 
 const setPasswordSchema = z
@@ -33,9 +31,7 @@ const setPasswordSchema = z
 type SetPasswordFormData = z.infer<typeof setPasswordSchema>;
 
 export default function SetPasswordPage() {
-  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const needsPasswordChange = useAuthStore((s) => s.needsPasswordChange);
   const setPasswordMutation = useSetPassword();
 
   const {
@@ -50,12 +46,6 @@ export default function SetPasswordPage() {
       confirmPassword: "",
     },
   });
-
-  useEffect(() => {
-    if (!needsPasswordChange) {
-      navigate("/", { replace: true });
-    }
-  }, [needsPasswordChange, navigate]);
 
   const onSubmit: SubmitHandler<SetPasswordFormData> = (data) => {
     setPasswordMutation.mutate({
