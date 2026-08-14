@@ -26,7 +26,7 @@ import {
   Textarea,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ListPlus, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ListPlus, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -110,14 +110,6 @@ const ACCOUNT_OPTIONS = [
   { value: "operating", label: "Operating" },
   { value: "trust_iolta", label: "Trust (IOLTA)" },
 ];
-
-const emptyLine = () => ({
-  description: "",
-  quantity: "1",
-  rate: "",
-  account: "operating" as const,
-  presetId: undefined,
-});
 
 /** A line the picker composed. Quantity is always 1 — it is per-use, not a
  *  property of the charge, so it stays on the row for the author to change. */
@@ -612,19 +604,19 @@ export function InvoiceFormDialog({
               <Text fontSize="12px" fontWeight="600">
                 Line items
               </Text>
-              {canAddLines && (
-                <Flex gap="6px">
-                  <OutlineButton onClick={() => append(emptyLine())}>
-                    <Plus size={13} />
-                    Blank line
-                  </OutlineButton>
-                  {!pickerOpen && (
-                    <BrandButton onClick={() => setPickerOpen(true)}>
-                      <ListPlus size={13} />
-                      Add from catalog
-                    </BrandButton>
-                  )}
-                </Flex>
+              {/*
+                One way in, deliberately. A "blank line" button beside the
+                catalog would just be the old free-text grid with an extra
+                click, and every line entered through it is a line no report can
+                group. Anything the catalog does not hold is still typeable —
+                as "Add a custom line" inside the picker, which asks for the
+                account first and offers to remember the charge.
+              */}
+              {canAddLines && !pickerOpen && (
+                <BrandButton onClick={() => setPickerOpen(true)}>
+                  <ListPlus size={13} />
+                  Add line
+                </BrandButton>
               )}
             </Flex>
 
