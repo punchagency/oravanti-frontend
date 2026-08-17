@@ -39,6 +39,7 @@ const GeneralTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/t
 const BillingTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/billing"));
 const NotificationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/notifications"));
 const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/compliance"));
+const PaymentsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/payments"));
 
 // Profile
 const MyProfilePage = lazyPage(() =>
@@ -259,6 +260,7 @@ export function createAdminRouter() {
                 <Route path="billing" element={<BillingTab />} />
                 <Route path="notifications" element={<NotificationsTab />} />
                 <Route path="compliance" element={<ComplianceTab />} />
+                <Route path="payments" element={<PaymentsTab />} />
               </Route>
               {/* Routes exist in the nav but aren't implemented yet */}
               <Route path="add-on-activation" element={<ComingSoonPage title="Add-on activation" showBack={false} />} />
