@@ -62,6 +62,7 @@ const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-setting
 const AuditTrailPage = lazyPage(() =>
   import("@/pages/admin/settings/audit-trail").then((m) => ({ default: m.AuditTrailPage })),
 );
+const PaymentsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/payments"));
 
 // Profile
 const MyProfilePage = lazyPage(() =>
@@ -293,6 +294,7 @@ export function createAdminRouter() {
                 <Route path="billing" element={<BillingTab />} />
                 <Route path="notifications" element={<NotificationsTab />} />
                 <Route path="compliance" element={<ComplianceTab />} />
+                <Route path="payments" element={<PaymentsTab />} />
               </Route>
               {/*
                 The firm-wide trail. Gated server-side on the `audit` resource, so an

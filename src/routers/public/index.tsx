@@ -18,6 +18,7 @@ import SetPasswordPage from "@/pages/set-password";
 import VerifyEmailNoticePage from "@/pages/verify-email";
 import TwoFactorVerification from "@/pages/two-factor";
 import InvoicePaymentPage from "@/pages/invoice-payment";
+import ConfidoOwnerFormPage from "@/pages/confido-owner-form";
 
 export function createPublicRouter() {
   return createBrowserRouter(
@@ -58,6 +59,8 @@ export function createPublicRouter() {
         <Route path="/sign/:token" element={<AgreementSigningPage />} />
         <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
         <Route path="/invoice-payment/:token" element={<InvoicePaymentPage />} />
+        {/* A beneficial owner is not a user of ours; the o_code is the credential. */}
+        <Route path="/payments/owner-form" element={<ConfidoOwnerFormPage />} />
 
         {/*
          * Catch-all. Paths that only exist in the admin/client routers land
