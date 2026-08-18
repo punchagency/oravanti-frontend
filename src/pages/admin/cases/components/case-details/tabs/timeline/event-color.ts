@@ -1,43 +1,63 @@
-export function eventColor(eventType: string): string {
-  switch (eventType) {
-    // Completed / approved = green
-    case "step_completed":
-    case "step_approved":
-    case "workflow_initialized":
-    case "case_created":
+/**
+ * The dot colour for one row of a matter's timeline.
+ *
+ * Keyed on the registry action name — the same string the backend stored, with
+ * no re-casing. Grouped by what the event *means* to a reader rather than by
+ * domain, which is why this is a switch and not the category colour from
+ * `@/lib/audit`: an approval and a rejection share a category but must never
+ * share a colour.
+ *
+ * An action with no case here falls through to a neutral dot, so a row written
+ * by a newer deployment renders rather than disappearing.
+ */
+export function eventColor(action: string): string {
+  switch (action) {
+    // Completed / approved
+    case "case.step_completed":
+    case "case.step_approved":
+    case "case.workflow_initialized":
+    case "case.created":
+    case "case.closed":
       return "green.500";
-    // Assigned = blue
-    case "step_assigned":
-    case "step_assigned_override":
-    case "step_reassigned":
-    case "case_team_assigned":
-    case "case_team_reassigned":
+
+    // Assignment
+    case "case.step_assigned":
+    case "case.team_assigned":
+    case "case.team_reassigned":
       return "blue.500";
-    // Submitted for review = yellow
-    case "step_submitted_for_review":
+
+    // Waiting on someone
+    case "case.step_submitted_for_review":
       return "yellow.500";
-    // Rejected / deleted = red
-    case "step_rejected":
-    case "case_deleted":
-    case "case_note_deleted":
-    case "case_document_unlinked":
+
+    // Refused or removed
+    case "case.step_rejected":
+    case "case.step_skipped":
+    case "case.deleted":
+    case "case.note_deleted":
+    case "case.document_unlinked":
       return "red.500";
-    // Activated / pinned = purple
-    case "step_activated":
-    case "module_activated":
-    case "case_note_pinned":
-    case "case_note_unpinned":
+
+    // Started or highlighted
+    case "case.step_started":
+    case "case.step_reopened":
+    case "case.reopened":
+    case "case.module_activated":
+    case "case.note_pinned":
+    case "case.note_unpinned":
       return "purple.500";
-    // Notes, documents, updates = brand
-    case "case_note_created":
-    case "case_note_updated":
-    case "case_document_linked":
-    case "case_updated":
-    case "case_status_changed":
-    case "case_priority_changed":
-    case "case_description_updated":
-    case "case_viewed":
+
+    // Ordinary edits
+    case "case.note_created":
+    case "case.note_updated":
+    case "case.document_linked":
+    case "case.updated":
+    case "case.status_changed":
+    case "case.priority_changed":
+    case "case.description_updated":
+    case "case.viewed":
       return "brand.solid";
+
     default:
       return "fg.subtle";
   }

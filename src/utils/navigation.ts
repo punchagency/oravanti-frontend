@@ -406,6 +406,11 @@ export const contextNavigation: Record<
           icon: "settings",
         },
         {
+          label: "Audit trail",
+          path: "/settings/audit-trail",
+          icon: "clipboard",
+        },
+        {
           label: "Training platform",
           path: "/settings/training-platform",
           icon: "education",

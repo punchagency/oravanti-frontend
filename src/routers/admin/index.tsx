@@ -59,6 +59,9 @@ const GeneralTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/t
 const BillingTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/billing"));
 const NotificationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/notifications"));
 const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/compliance"));
+const AuditTrailPage = lazyPage(() =>
+  import("@/pages/admin/settings/audit-trail").then((m) => ({ default: m.AuditTrailPage })),
+);
 
 // Profile
 const MyProfilePage = lazyPage(() =>
@@ -291,6 +294,12 @@ export function createAdminRouter() {
                 <Route path="notifications" element={<NotificationsTab />} />
                 <Route path="compliance" element={<ComplianceTab />} />
               </Route>
+              {/*
+                The firm-wide trail. Gated server-side on the `audit` resource, so an
+                attorney reaching this URL gets a 403 from the API rather than an
+                empty table — the per-entity activity tabs are their surface.
+              */}
+              <Route path="audit-trail" element={<AuditTrailPage />} />
               {/* Routes exist in the nav but aren't implemented yet */}
               <Route path="add-on-activation" element={<ComingSoonPage title="Add-on activation" showBack={false} />} />
               <Route path="rbac" element={<ComingSoonPage title="RBAC" showBack={false} />} />

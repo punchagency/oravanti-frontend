@@ -462,12 +462,24 @@ export async function deleteCaseNote(
 
 // ─── Case Events (Unified Audit Trail) ───────────────────────────────────────
 
+/**
+ * One row of a matter's activity feed.
+ *
+ * `action` is a registry name (`"case.step_approved"`) — the same string the
+ * backend call site used and the same string stored in the column. Render
+ * `label` and `summary`; never re-derive either from `action`, and never key a
+ * lookup on a re-cased variant of it. See `@/lib/audit`.
+ */
 export interface CaseEvent {
   id: string;
-  eventType: string;
-  title: string;
-  description: string | null;
+  action: string;
+  /** The registry's display name for `action`, e.g. "Step approved". */
+  label: string;
+  /** The sentence written when the event happened, in the vocabulary of the time. */
+  summary: string;
+  /** `staff.id`, or null for a system event. */
   actorId: string | null;
+  /** The name as it stood then — never a live lookup, so renames cannot rewrite history. */
   actorName: string | null;
   metadata: Record<string, unknown> | null;
   ipAddress: string | null;
