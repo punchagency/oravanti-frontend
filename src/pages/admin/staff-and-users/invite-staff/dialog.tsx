@@ -29,7 +29,7 @@ import { CalendarDays, UserPlus, X } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { inputStyles } from "./input-styles";
-import { TeamMultiSelect } from "./team-multi-select";
+import { TeamMultiSelect } from "@/pages/admin/staff-and-users/components/team-multi-select";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

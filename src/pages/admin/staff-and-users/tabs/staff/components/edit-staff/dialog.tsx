@@ -36,7 +36,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import type { StaffMember } from "../../../../data";
 import { inputStyles } from "./input-styles";
-import { TeamMultiSelect } from "./team-multi-select";
+import { TeamMultiSelect } from "@/pages/admin/staff-and-users/components/team-multi-select";
 
 // Built per staff member because the earliest allowed start date depends on
 // whichever date they already have on record.

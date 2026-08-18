@@ -17,16 +17,28 @@ import {
   useState,
 } from "react";
 
+/*
+  One team picker, shared by the invite-staff and edit-staff dialogs.
+
+  These were two files with the same name and near-identical bodies, edited in
+  parallel more than once. They had already diverged: only the edit-staff copy
+  grew a `disabled` prop, so the invite dialog silently had no way to lock the
+  control while a submit was in flight. That copy was the strict superset, so
+  it is the one that survived — `disabled` is optional and defaults to off,
+  which is exactly how the invite dialog behaved before.
+*/
 interface TeamMultiSelectProps {
   teams: TeamListDTO[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  disabled?: boolean;
 }
 
 export function TeamMultiSelect({
   teams,
   selectedIds,
   onToggle,
+  disabled,
 }: TeamMultiSelectProps) {
   const [search, setSearch] = useState("");
 
@@ -74,6 +86,9 @@ export function TeamMultiSelect({
             borderColor: "brand.solid",
             boxShadow: "0 0 0 1px var(--brand-cta)",
           }}
+          disabled={disabled}
+          opacity={disabled ? 0.5 : 1}
+          cursor={disabled ? "not-allowed" : "text"}
         />
       </Box>
 
@@ -93,6 +108,7 @@ export function TeamMultiSelect({
                 key={team.id}
                 team={team}
                 checked={selectedSet.has(team.id)}
+                disabled={disabled}
                 onToggle={handleToggle}
               />
             ))}
@@ -110,23 +126,25 @@ export function TeamMultiSelect({
 interface TeamRowProps {
   team: TeamListDTO;
   checked: boolean;
+  disabled?: boolean;
   onToggle: (id: string) => void;
 }
 
 const TeamRow = memo(function TeamRow({
   team,
   checked,
+  disabled,
   onToggle,
 }: TeamRowProps) {
   return (
     <Flex
-      as="label"
+      as={disabled ? "div" : "label"}
       align="center"
       gap="8px"
       px="10px"
       py="7px"
-      cursor="pointer"
-      _hover={{ bg: "bg.muted" }}
+      cursor={disabled ? "default" : "pointer"}
+      _hover={disabled ? undefined : { bg: "bg.muted" }}
       borderBottom="1px solid"
       borderColor="border"
       _last={{ borderBottom: "none" }}
@@ -137,7 +155,10 @@ const TeamRow = memo(function TeamRow({
         type="checkbox"
         hidden
         checked={checked}
-        onChange={() => onToggle(team.id)}
+        onChange={() => {
+          if (disabled) return;
+          onToggle(team.id);
+        }}
       />
       <Box
         w="16px"
