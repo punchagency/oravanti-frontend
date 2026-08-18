@@ -138,7 +138,7 @@ export function ClientDetailDrawer({
                           <Button
                             size="xs"
                             bg="brand.solid"
-                            color="brand.fg"
+                            color="brand.contrast"
                             _hover={{ bg: "brand.500" }}
                             onClick={() => inviteMutation.mutate(client.id)}
                             loading={inviteMutation.isPending}

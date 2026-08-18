@@ -1266,11 +1266,11 @@ function InstantReviewStep({
         >
           <Flex align="flex-start" justify="space-between" gap="12px">
             <HStack gap="10px" align="flex-start">
-              <Box color="brand.fg" mt="2px">
+              <Box color="brand.contrast" mt="2px">
                 <Zap size={14} />
               </Box>
               <Box>
-                <Text m="0" fontSize="13px" fontWeight="600" color="brand.fg">
+                <Text m="0" fontSize="13px" fontWeight="600" color="brand.contrast">
                   Mark as emergency consultation
                 </Text>
                 <Text m="2px 0 0" fontSize="12px" color="brand.fg">

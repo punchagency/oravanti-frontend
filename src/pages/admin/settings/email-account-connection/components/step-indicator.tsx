@@ -43,7 +43,7 @@ export function StepIndicator({ step, total, onBack, showBack = true }: StepIndi
               border="2px solid"
               borderColor={step >= i ? "brand.solid" : "border"}
               bg={step >= i ? "brand.solid" : "transparent"}
-              color={step >= i ? "brand.fg" : "fg.subtle"}
+              color={step >= i ? "brand.contrast" : "fg.subtle"}
               fontSize="xs"
               fontWeight="500"
             >

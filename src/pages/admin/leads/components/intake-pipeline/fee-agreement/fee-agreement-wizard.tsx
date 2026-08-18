@@ -363,7 +363,7 @@ function WizardStepIndicator({ step }: { step: number }) {
                 border="1px solid"
                 borderColor={done ? "#00785a" : active ? "brand.solid" : "border"}
                 bg={done ? "#00785a" : active ? "brand.solid" : "bg"}
-                color={done ? "white" : active ? "brand.fg" : "fg.muted"}
+                color={done ? "white" : active ? "brand.contrast" : "fg.muted"}
                 fontSize="11px"
                 fontWeight="600"
               >
@@ -526,7 +526,7 @@ function CheckRow({
         border="1px solid"
         borderColor={checked ? "brand.solid" : "border"}
         bg={checked ? "brand.solid" : "bg"}
-        color="brand.fg"
+        color="brand.contrast"
         display="grid"
         placeItems="center"
       >

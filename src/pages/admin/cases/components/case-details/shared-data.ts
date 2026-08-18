@@ -9,8 +9,8 @@ export const matterFields = [
 ];
 
 export const statusBadgeStyle: Record<string, { borderColor: string; textColor: string; bg: string }> = {
-  Filed: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
-  Active: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  Filed: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
+  Active: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
   Closed: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },
   RFE: { borderColor: "brand.solid", textColor: "brand.contrast", bg: "brand.solid" },
 };

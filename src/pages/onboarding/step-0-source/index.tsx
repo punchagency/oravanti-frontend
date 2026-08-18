@@ -147,7 +147,7 @@ export default function Step0SourcePage() {
               borderRadius="sm"
               fontSize="xs"
               fontWeight="bold"
-              color="brand.fg"
+              color="brand.contrast"
               letterSpacing="0.05em"
             >
               STEP 1 OF 4 &bull; ONBOARDING

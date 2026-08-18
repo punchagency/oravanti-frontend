@@ -122,7 +122,7 @@ export function CaseDetailsDrawer({
                       py={0.5}
                     >
                       <Text
-                        color="brand.fg"
+                        color="brand.contrast"
                         fontSize="10px"
                         fontWeight="500"
                         lineHeight="12px"

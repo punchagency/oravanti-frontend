@@ -83,7 +83,7 @@ export function FirmSnapshotCard() {
                 h="80px"
                 borderRadius="16px"
                 bg="brand.solid"
-                color="brand.fg"
+                color="brand.contrast"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"

@@ -35,12 +35,12 @@ const statusColorMap: Record<
   string,
   { borderColor: string; textColor: string; bg: string }
 > = {
-  Interview: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
-  Active: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
-  Filed: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  Interview: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
+  Active: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
+  Filed: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
   Closed: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },
   RFE: { borderColor: "brand.solid", textColor: "brand.contrast", bg: "brand.solid" },
-  Pending: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  Pending: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
 };
 
 import { useNavigate } from "react-router";

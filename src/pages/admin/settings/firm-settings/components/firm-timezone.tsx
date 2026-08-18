@@ -92,7 +92,7 @@ export function FirmTimezone() {
               loading={updateSettings.isPending}
               disabled={!dirty}
               bg="brand.solid"
-              color="brand.fg"
+              color="brand.contrast"
               size="sm"
             >
               Save

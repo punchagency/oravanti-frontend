@@ -52,7 +52,7 @@ export function pipelineOrigin(from: string, fromLabel: string): PipelineOrigin 
 
 export const taskStatusColors: Record<string, { borderColor: string; textColor: string; bg: string }> = {
   pending: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },
-  in_progress: { borderColor: "brand.emphasized", textColor: "brand.fg", bg: "brand.subtle" },
+  in_progress: { borderColor: "brand.emphasized", textColor: "brand.contrast", bg: "brand.subtle" },
   in_review: { borderColor: "orange.400", textColor: "orange.600", bg: "orange.subtle" },
   completed: { borderColor: "green.emphasized", textColor: "green.fg", bg: "green.subtle" },
   skipped: { borderColor: "border", textColor: "fg.muted", bg: "bg.subtle" },

@@ -130,7 +130,7 @@ export function Notes({ caseId }: { caseId: string }) {
           size="sm"
           h="34px"
           bg="brand.solid"
-          color="brand.fg"
+          color="brand.contrast"
           borderRadius="7px"
           fontSize="13px"
           fontWeight="500"

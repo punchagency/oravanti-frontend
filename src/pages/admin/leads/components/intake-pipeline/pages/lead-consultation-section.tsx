@@ -193,7 +193,7 @@ function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
                 border="1px solid"
                 borderColor={done || active ? "brand.solid" : "border.subtle"}
                 bg={done ? "brand.solid" : "bg"}
-                color={done ? "brand.fg" : active ? "brand.solid" : "fg.muted"}
+                color={done ? "brand.contrast" : active ? "brand.solid" : "fg.muted"}
                 fontSize="11px"
                 fontWeight="600"
               >

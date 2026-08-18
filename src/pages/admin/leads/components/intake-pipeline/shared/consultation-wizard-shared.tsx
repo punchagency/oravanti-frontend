@@ -176,7 +176,7 @@ export function CheckOption({
         border="1px solid"
         borderColor={checked ? "brand.solid" : "border"}
         bg={checked ? "brand.solid" : "bg"}
-        color="brand.fg"
+        color="brand.contrast"
         display="grid"
         placeItems="center"
       >
@@ -360,7 +360,7 @@ export function ScheduleDetailsStep({
                 fontSize="13px"
                 fontWeight="500"
                 bg={active ? "brand.subtle" : "bg"}
-                color={active ? "brand.fg" : "fg.muted"}
+                color={active ? "brand.contrast" : "fg.muted"}
                 borderColor={active ? "brand.solid" : "border"}
               >
                 {option.label}
@@ -727,7 +727,7 @@ export function ChoiceChip({
       borderColor={active ? "brand.solid" : "border"}
       borderRadius="8px"
       bg={active ? "brand.solid" : "bg"}
-      color={active ? "brand.fg" : "fg.muted"}
+      color={active ? "brand.contrast" : "fg.muted"}
       fontSize="12px"
       fontWeight="500"
       onClick={onClick}

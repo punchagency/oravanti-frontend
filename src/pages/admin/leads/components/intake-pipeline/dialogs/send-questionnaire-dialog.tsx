@@ -1041,7 +1041,7 @@ function DraftRow({
         border="1px solid"
         borderColor={saveToFirm ? "brand.solid" : "border"}
         bg={saveToFirm ? "brand.solid" : "bg"}
-        color={saveToFirm ? "brand.fg" : "fg.muted"}
+        color={saveToFirm ? "brand.contrast" : "fg.muted"}
         fontSize="11px"
         fontWeight="500"
         whiteSpace="nowrap"

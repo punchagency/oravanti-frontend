@@ -69,7 +69,7 @@ export function AgreementSigningPage() {
             justify="center"
             rounded="full"
             bg="brand.solid"
-            color="brand.fg"
+            color="brand.contrast"
           >
             <FileSignature size={22} />
           </Flex>
