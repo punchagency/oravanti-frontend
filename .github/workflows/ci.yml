@@ -41,5 +41,12 @@ jobs:
       - name: Lint
         run: npm run lint:ci
 
+      # Vitest + jsdom. The suite is small on purpose — Phase 0's goal was
+      # that the next test has somewhere to live, not a coverage number.
+      # No --passWithNoTests: there is at least one test and there always
+      # should be, so an empty run is a signal, not a pass.
+      - name: Test
+        run: npm run test
+
       - name: Build
         run: npm run build
