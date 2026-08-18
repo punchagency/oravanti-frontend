@@ -1,5 +1,8 @@
 import {
   getPaymentAccount,
+  getConfidoStatements,
+  getSurchargeSettings,
+  setSurchargeEnabled,
   refreshPaymentAccount,
   startOnboardingSession,
 } from "@/api/payment-settings";
@@ -67,5 +70,53 @@ export function useRefreshPaymentAccount() {
         err.response?.data?.message ?? "Could not refresh payment account",
       );
     },
+  });
+}
+
+export const surchargeKey = ["paymentSurcharge"] as const;
+
+/**
+ * Read live rather than cached, because both gates are Confido's: they approve
+ * the firm, and the firm chooses. A stale copy could show a toggle to a firm
+ * that is not approved, or hide one from a firm that just was.
+ */
+export function useSurchargeSettings(enabled: boolean) {
+  return useQuery({
+    queryKey: surchargeKey,
+    queryFn: getSurchargeSettings,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useSetSurcharge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: setSurchargeEnabled,
+    onSuccess: (settings) => {
+      qc.setQueryData(surchargeKey, settings);
+      toast.success(
+        settings.enabled ? "Surcharging enabled" : "Surcharging disabled",
+      );
+    },
+    onError: (err: APIError) => {
+      // A 409 here means Confido has not approved the firm — worth surfacing
+      // their wording, since the next step is contacting them, not us.
+      toast.error(
+        err.response?.data?.message ?? "Could not update surcharge settings",
+      );
+    },
+  });
+}
+
+/** Monthly processing statements, for the Reports tab. */
+export function useConfidoStatements() {
+  return useQuery({
+    queryKey: ["confidoStatements"],
+    queryFn: getConfidoStatements,
+    staleTime: 5 * 60_000,
+    // A firm with no payment account has none, and that is not an error worth
+    // retrying three times.
+    retry: false,
   });
 }

@@ -26,7 +26,11 @@ export type ConsultationBooking = {
     | "completed"
     | "cancelled"
     | "no_show";
-  fee: { status: ConsultationFeeStatus; amount: number | null };
+  fee: {
+    status: ConsultationFeeStatus;
+    amount: number | null;
+    invoiceNumber?: string | null;
+  };
   scheduledAt: string | null;
   bookingStatus: string | null;
   slots: ConsultationSlot[];
@@ -37,9 +41,16 @@ export async function getConsultationBooking(token: string) {
   return res.data.data as ConsultationBooking;
 }
 
-export async function payConsultationFee(token: string) {
+/**
+ * Get the hosted payment URL for this consultation's fee.
+ *
+ * Was a one-click "mark it paid" that moved no money. It now returns a Confido
+ * link, and the consultation only advances once the payment is actually
+ * recorded — so the page waits for that rather than assuming it.
+ */
+export async function startConsultationPayment(token: string) {
   const res = await httpClient.post(`/consultation-booking/${token}/pay`);
-  return res.data.data as { success: boolean };
+  return res.data.data as { url: string };
 }
 
 export async function selectConsultationSlot(token: string, start: string) {

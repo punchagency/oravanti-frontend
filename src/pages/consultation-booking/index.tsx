@@ -1,13 +1,22 @@
 import {
   getConsultationBooking,
-  payConsultationFee,
+  startConsultationPayment,
   selectConsultationSlot,
   updateBookingTimezone,
   type ConsultationBooking,
   type ConsultationBookingMode,
 } from "@/api/consultation-booking";
 import { dayjs, formatDualZone, guessTimezone } from "@/utils/date";
-import { Box, Button, Container, Flex, Heading, Stack, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  chakra,
+  Container,
+  Flex,
+  Heading,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck2, CheckCircle2, Loader2 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
@@ -87,20 +96,25 @@ export function ConsultationBookingPage() {
   const qc = useQueryClient();
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [justBookedAt, setJustBookedAt] = useState<string | null>(null);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["consultation-booking", token],
     queryFn: () => getConsultationBooking(token as string),
     enabled: Boolean(token),
-    retry: false,
+    // A bad token should fail at once rather than retrying in front of the
+    // lead; a blip mid-payment must not, so retries open up once paying starts.
+    retry: (failureCount) => Boolean(payUrl) && failureCount < 3,
+    // The webhook settles the fee, not the button, so the page has to watch for
+    // it. Three seconds because someone is waiting on a card, and only while a
+    // payment is actually in flight.
+    refetchInterval: (query) =>
+      payUrl && query.state.data?.fee.status === "unpaid" ? 3000 : false,
   });
 
   const pay = useMutation({
-    mutationFn: () => payConsultationFee(token as string),
-    onSuccess: () => {
-      toast.success("Payment received");
-      qc.invalidateQueries({ queryKey: ["consultation-booking", token] });
-    },
+    mutationFn: () => startConsultationPayment(token as string),
+    onSuccess: (session) => setPayUrl(session.url),
     onError: (err) => toast.error(errorMessage(err, "Payment failed")),
   });
 
@@ -288,21 +302,49 @@ export function ConsultationBookingPage() {
               ${data.fee.amount ?? 0}
             </Text>
           </Flex>
-          <Button
-            layerStyle="brand-button"
-            h="44px"
-            onClick={() => pay.mutate()}
-            loading={pay.isPending}
-          >
-            Pay ${data.fee.amount ?? 0} now
-          </Button>
-          <Text fontSize="12px" color="fg.muted" textAlign="center">
-            {data.status === "completed"
-              ? "This is a demo payment — no card details are required. This settles the fee for your completed consultation."
-              : data.isUrgent
-                ? "This is a demo payment — no card details are required. After paying, your consultation is scheduled immediately and you'll receive a confirmation email with the time."
-                : "This is a demo payment — no card details are required. After paying you'll be able to choose a time."}
-          </Text>
+          {payUrl ? (
+            <>
+              {/* chakra.iframe, not Box as="iframe": the polymorphic `as` keeps
+                  the div's prop types, which have no `src`. */}
+              <Box
+                border="1px solid"
+                borderColor="border"
+                borderRadius="10px"
+                overflow="hidden"
+                bg="bg.muted"
+                h={{ base: "520px", md: "600px" }}
+              >
+                <chakra.iframe
+                  src={payUrl}
+                  title="Pay consultation fee"
+                  w="100%"
+                  h="100%"
+                  border="none"
+                />
+              </Box>
+              <Text fontSize="12px" color="fg.muted" textAlign="center">
+                This page updates on its own once your payment goes through.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Button
+                layerStyle="brand-button"
+                h="44px"
+                onClick={() => pay.mutate()}
+                loading={pay.isPending}
+              >
+                Pay ${data.fee.amount ?? 0} now
+              </Button>
+              <Text fontSize="12px" color="fg.muted" textAlign="center">
+                {data.status === "completed"
+                  ? "This settles the fee for your completed consultation."
+                  : data.isUrgent
+                    ? "Once your payment goes through, your consultation is scheduled immediately and you'll receive a confirmation email with the time."
+                    : "Once your payment goes through, you'll be able to choose a time."}
+              </Text>
+            </>
+          )}
         </Stack>
       ) : groupedSlots.length === 0 ? (
         <CenterState
