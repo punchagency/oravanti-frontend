@@ -13,8 +13,9 @@ import { ConfidoOnboarding } from "./confido-onboarding";
 /**
  * Payment processing — the firm's merchant account with Confido Legal.
  *
- * Distinct from the Billing tab beside it, which is the firm's own subscription
- * to us. This one is money flowing the other way: what the firm's clients pay.
+ * Distinct from the Subscription tab beside it, which is the firm's own plan
+ * with us. This one is money flowing the other way: what the firm's clients pay
+ * them.
  *
  * Slice 1 connects the account and tracks underwriting. It does not take
  * payments, and the copy here says so rather than implying otherwise.
@@ -59,7 +60,7 @@ export default function PaymentsTab() {
 
   if (isLoading || !account) {
     return (
-      <Card title="Payment processing">
+      <Card title="Payment account">
         <ThemeSkeleton h="14px" w="220px" borderRadius="4px" mb="12px" />
         <ThemeSkeleton h="12px" w="320px" borderRadius="4px" />
       </Card>
@@ -70,7 +71,7 @@ export default function PaymentsTab() {
   // so do not offer them a button.
   if (!account.configured) {
     return (
-      <Card title="Payment processing">
+      <Card title="Payment account">
         <Muted>
           Online payments are not enabled on this deployment yet. Once they are,
           you will be able to set up your firm's payment account here.
