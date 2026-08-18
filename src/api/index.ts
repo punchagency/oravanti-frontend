@@ -7,13 +7,18 @@ export const API = axios.create({
   withCredentials: true,
 });
 
-API.interceptors.request.use((config) => {
-  const { user, session } = useAuthStore.getState();
-  if (user?.id) config.headers["x-user-id"] = user.id;
-  if (session?.activeOrganizationId)
-    config.headers["x-organization-id"] = session.activeOrganizationId;
-  return config;
-});
+/*
+  No request interceptor.
+
+  This used to inject `x-user-id` and `x-organization-id` from the auth store.
+  The backend reads neither — it derives both from the session cookie in
+  `requireAuth`, which is the only trustworthy source, since a header is
+  whatever the client says it is. Sending them implied a trust model that does
+  not exist and would not be safe if it did, and it left the door open for
+  someone on the server to start reading them.
+
+  Identity travels in the cookie. That is what `withCredentials` is for.
+*/
 
 // 1. Tab Synchronization via BroadcastChannel
 const authChannel = new BroadcastChannel("auth_session_sync");
