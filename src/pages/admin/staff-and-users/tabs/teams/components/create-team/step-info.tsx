@@ -1,5 +1,8 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
-import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
+import {
+  CaseTypeSelect,
+  type CaseTypeSelectHandle,
+} from "@/components/ui/case-type-select";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   Avatar,
@@ -18,22 +21,10 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Ref } from "react";
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import type { CreateTeamFormValues } from "./types";
-
-function collectLeafIds(nodes: PracticeAreaTreeNode[]): string[] {
-  const ids: string[] = [];
-  for (const n of nodes) {
-    if (!n.children || n.children.length === 0) {
-      ids.push(n.id);
-    } else {
-      ids.push(...collectLeafIds(n.children));
-    }
-  }
-  return ids;
-}
 
 function LeadStaffSearch({
   attorneys,
@@ -220,17 +211,22 @@ export function StepInfo({
   practiceAreaTreeNodes,
   attorneys,
   setLeadName,
-  selectedIds,
-  onSelectedIdsChange,
+  caseTypesRef,
+  defaultCaseTypeIds,
+  showCaseTypeValidation,
 }: {
   register: UseFormRegister<CreateTeamFormValues>;
   control: Control<CreateTeamFormValues>;
   errors: FieldErrors<CreateTeamFormValues>;
+  /** Practice areas only (depth 1) — case types are fetched by CaseTypeSelect. */
   practiceAreaTreeNodes: PracticeAreaTreeNode[];
   attorneys: StaffMemberDTO[];
   setLeadName: (name: string | null) => void;
-  selectedIds: string[];
-  onSelectedIdsChange: (ids: string[]) => void;
+  /** The wizard reads the case-type selection through this at step boundaries. */
+  caseTypesRef: Ref<CaseTypeSelectHandle>;
+  /** Re-seeds the picker when the user navigates back to this step. */
+  defaultCaseTypeIds: string[];
+  showCaseTypeValidation: boolean;
 }) {
   return (
     <VStack align="stretch" gap="16px">
@@ -305,20 +301,16 @@ export function StepInfo({
                         borderColor: "brand.solid",
                       }}
                       onClick={() => {
-                        const next = isSelected
-                          ? field.value.filter((id) => id !== practiceArea.id)
-                          : [...(field.value || []), practiceArea.id];
-                        field.onChange(next);
-                        if (isSelected) {
-                          const leafIds = collectLeafIds(
-                            practiceArea.children ?? [],
-                          );
-                          onSelectedIdsChange(
-                            selectedIds.filter(
-                              (sid) => !leafIds.includes(sid),
-                            ),
-                          );
-                        }
+                        // Deselecting only drops the practice area —
+                        // CaseTypeSelect filters its own selection down to the
+                        // areas still on screen.
+                        field.onChange(
+                          isSelected
+                            ? field.value.filter(
+                                (id) => id !== practiceArea.id,
+                              )
+                            : [...(field.value || []), practiceArea.id],
+                        );
                       }}
                       transition="all 0.15s"
                     >
@@ -361,30 +353,15 @@ export function StepInfo({
                 </Field.ErrorText>
               )}
             </Field.Root>
-            {field.value.length > 0 && (
-              <PracticeAreaTreeView
-                practiceAreaTreeNodes={practiceAreaTreeNodes}
-                selectedPracticeAreaIds={field.value}
-                selectedIds={selectedIds}
-                onSelectionChange={onSelectedIdsChange}
-                onRemovePracticeArea={(id) => {
-                  field.onChange(
-                    field.value.filter((paId) => paId !== id),
-                  );
-                  const pa = practiceAreaTreeNodes.find(
-                    (n) => n.id === id,
-                  );
-                  if (pa) {
-                    const leafIds = collectLeafIds(
-                      pa.children ?? [],
-                    );
-                    onSelectedIdsChange(
-                      selectedIds.filter((sid) => !leafIds.includes(sid)),
-                    );
-                  }
-                }}
-              />
-            )}
+            <CaseTypeSelect
+              ref={caseTypesRef}
+              selectedPracticeAreaIds={field.value}
+              defaultSelectedIds={defaultCaseTypeIds}
+              showValidation={showCaseTypeValidation}
+              onRemovePracticeArea={(id) =>
+                field.onChange(field.value.filter((paId) => paId !== id))
+              }
+            />
           </>
         )}
       />

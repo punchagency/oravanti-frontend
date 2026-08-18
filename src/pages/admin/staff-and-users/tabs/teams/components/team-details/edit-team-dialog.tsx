@@ -1,9 +1,12 @@
 import type { TeamListDTO, UpdateTeamPayload } from "@/api/organization";
-import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
+import {
+  CaseTypeSelect,
+  type CaseTypeSelectHandle,
+} from "@/components/ui/case-type-select";
 import type { PracticeAreaTreeNode } from "@/api/auth";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useTeamDetails } from "@/hooks/use-team-details";
-import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
+import { usePracticeAreaList } from "@/hooks/use-practice-area-tree-data";
 import { useStaffsList } from "@/hooks/use-staff-list";
 import { useUpdateTeam } from "@/hooks/use-update-team";
 import {
@@ -25,7 +28,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { Controller, useForm } from "react-hook-form";
 
@@ -43,25 +46,20 @@ interface EditTeamDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Stable empty array: a fresh `[]` each render would break memoisation in the
+// children that receive this list.
+const NO_TREE_NODES: PracticeAreaTreeNode[] = [];
+
 export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps) {
   const updateTeam = useUpdateTeam();
   const { data: fullTeam, isLoading } = useTeamDetails(open ? team.id : null);
-  const treeDataQuery = usePracticeAreaTreeData();
-  const treeData = treeDataQuery.data;
-  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
+  // Only the practice-area names are needed here; the case types for whichever
+  // areas are assigned get fetched by CaseTypeSelect itself. This used to pull
+  // the whole ~750-node taxonomy up front to render a list of a few dozen.
+  const practiceAreaQuery = usePracticeAreaList();
+  const practiceAreaTreeNodes =
+    practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
   const { data: allStaffData } = useStaffsList({ limit: 200 });
-
-  const collectLeafIds = (nodes: PracticeAreaTreeNode[]): string[] => {
-    const ids: string[] = [];
-    for (const n of nodes) {
-      if (!n.children || n.children.length === 0) {
-        ids.push(n.id);
-      } else {
-        ids.push(...collectLeafIds(n.children));
-      }
-    }
-    return ids;
-  };
 
   const attorneys = useMemo(
     () =>
@@ -71,14 +69,24 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
     [allStaffData],
   );
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  /*
+    Case-type selection lives inside CaseTypeSelect and is read through this ref
+    at submit, so ticking a box never re-renders the dialog. The form only
+    mounts once `useTeamDetails` has resolved, so `defaultSelectedIds` is
+    already populated when the picker first appears.
+  */
+  const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
+  const initialCaseTypeIds = useMemo(
+    () => (fullTeam?.caseTypes ?? []).map((ct) => ct.id),
+    [fullTeam],
+  );
 
   const {
     register,
     handleSubmit,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<EditTeamForm>({
     defaultValues: {
       name: "",
@@ -92,9 +100,6 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
 
   useEffect(() => {
     if (open && fullTeam) {
-      setSelectedIds([
-        ...(fullTeam.caseTypes ?? []).map((ct) => ct.id),
-      ]);
       reset({
         name: fullTeam.name,
         description: fullTeam.description ?? "",
@@ -106,6 +111,7 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
   }, [open, fullTeam, reset]);
 
   const onSubmit: SubmitHandler<EditTeamForm> = async (data) => {
+    const selectedIds = caseTypesRef.current?.getSelectedIds() ?? [];
     const payload: UpdateTeamPayload = {
       name: data.name.trim(),
       description: data.description.trim() || undefined,
@@ -132,7 +138,6 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
             leadId: "",
             practiceAreas: [],
           });
-          setSelectedIds([]);
         }
         onOpenChange(details.open);
       }}
@@ -180,10 +185,12 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
                 <Spinner />
               </Flex>
             ) : (
+            /* Built inside the handler rather than during render: onSubmit
+               reads the case-type selection off a ref. */
             <Box
               as="form"
               p={{ base: "24px 16px 20px", sm: "32px 24px 24px" }}
-              onSubmit={handleSubmit(onSubmit)}
+              onSubmit={(event) => handleSubmit(onSubmit)(event)}
             >
               <Dialog.Title color="fg.default" fontSize="18px" fontWeight="600">
                 Edit team
@@ -271,23 +278,19 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
                                   borderColor: "brand.solid",
                                 }}
                                 onClick={() => {
-                                  if (isSelected) {
-                                    const next = field.value.filter(
-                                      (id) => id !== practiceArea.id,
-                                    );
-                                    field.onChange(next);
-                                    const leafIds = collectLeafIds(
-                                      practiceArea.children ?? [],
-                                    );
-                                    setSelectedIds((prev) =>
-                                      prev.filter((id) => !leafIds.includes(id)),
-                                    );
-                                  } else {
-                                    field.onChange([
-                                      ...(field.value || []),
-                                      practiceArea.id,
-                                    ]);
-                                  }
+                                  // Deselecting only drops the practice area —
+                                  // CaseTypeSelect filters its own selection
+                                  // down to the areas still on screen.
+                                  field.onChange(
+                                    isSelected
+                                      ? field.value.filter(
+                                          (id) => id !== practiceArea.id,
+                                        )
+                                      : [
+                                          ...(field.value || []),
+                                          practiceArea.id,
+                                        ],
+                                  );
                                 }}
                                 transition="all 0.15s"
                               >
@@ -337,30 +340,17 @@ export function EditTeamDialog({ team, open, onOpenChange }: EditTeamDialogProps
                           })}
                         </SimpleGrid>
                       </Field.Root>
-                      {field.value.length > 0 && (
-                        <PracticeAreaTreeView
-                          practiceAreaTreeNodes={practiceAreaTreeNodes}
-                          selectedPracticeAreaIds={field.value}
-                          selectedIds={selectedIds}
-                          onSelectionChange={setSelectedIds}
-                          onRemovePracticeArea={(id) => {
-                            field.onChange(
-                              field.value.filter((paId) => paId !== id),
-                            );
-                            const pa = practiceAreaTreeNodes.find(
-                              (n) => n.id === id,
-                            );
-                            if (pa) {
-                              const leafIds = collectLeafIds(
-                                pa.children ?? [],
-                              );
-                              setSelectedIds((prev) =>
-                                prev.filter((sid) => !leafIds.includes(sid)),
-                              );
-                            }
-                          }}
-                        />
-                      )}
+                      <CaseTypeSelect
+                        ref={caseTypesRef}
+                        selectedPracticeAreaIds={field.value}
+                        defaultSelectedIds={initialCaseTypeIds}
+                        showValidation={isSubmitted}
+                        onRemovePracticeArea={(id) =>
+                          field.onChange(
+                            field.value.filter((paId) => paId !== id),
+                          )
+                        }
+                      />
                     </>
                   )}
                 />
