@@ -9,6 +9,7 @@ import { formatDateTime } from "@/utils/date";
 import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { ConfidoOnboarding } from "./confido-onboarding";
+import { SurchargeCard } from "./surcharge-card";
 
 /**
  * Payment processing — the firm's merchant account with Confido Legal.
@@ -87,6 +88,8 @@ export default function PaymentsTab() {
         onRefresh={() => refresh.mutate()}
         refreshing={refresh.isPending}
       />
+
+      <SurchargeCard active={account.state === "active"} />
 
       {(account.state === "not_started" ||
         account.state === "token_unreadable") && (

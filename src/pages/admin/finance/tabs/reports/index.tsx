@@ -11,6 +11,7 @@ import {
   ReceivableAgingCard,
   TrustReconciliationCard,
 } from "../../components/report-cards";
+import { StatementsCard } from "../../components/statements-card";
 import { currentMonth } from "../../data";
 
 export default function ReportsTab() {
@@ -85,6 +86,7 @@ export default function ReportsTab() {
         alignItems="start"
       >
         <AccountSplitCard split={report.accountSplit} />
+      <StatementsCard />
         <CollectionStatusCard
           summary={report.summary}
           rows={report.collectionStatus}

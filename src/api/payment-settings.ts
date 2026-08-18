@@ -78,3 +78,70 @@ export async function refreshPaymentAccount(): Promise<PaymentAccount> {
   );
   return data.data;
 }
+
+/**
+ * Credit-card surcharging, mirrored from Confido rather than stored by us.
+ *
+ * Gated twice and both gates are theirs: Confido approves the firm (`allowed`),
+ * and only then may the firm turn it on (`enabled`). Read live so the two
+ * cannot drift.
+ */
+export type SurchargeSettings = {
+  /** False means Confido has not approved this firm; the toggle is unavailable. */
+  allowed: boolean;
+  enabled: boolean;
+  /** Fixed by Confido and not firm-editable. Displayed, never offered for edit. */
+  rate: number | null;
+};
+
+export async function getSurchargeSettings(): Promise<SurchargeSettings> {
+  const { data } = await API.get<{ data: SurchargeSettings }>(
+    "/settings/payments/surcharge",
+  );
+  return data.data;
+}
+
+export async function setSurchargeEnabled(
+  enabled: boolean,
+): Promise<SurchargeSettings> {
+  const { data } = await API.patch<{ data: SurchargeSettings }>(
+    "/settings/payments/surcharge",
+    { enabled },
+  );
+  return data.data;
+}
+
+/**
+ * A month of processing, as Confido billed it.
+ *
+ * This is what makes the operating account reconcilable. Processing fees never
+ * reach the invoice ledger — they are a firm expense, not a client payment — so
+ * the debit lines here are the entry explaining why the bank balance is lower
+ * than what was collected.
+ */
+export type ConfidoStatement = {
+  id: string;
+  /** `YYYY-MM`. */
+  month: string;
+  paymentVolume: number;
+  /** Includes anything clients paid through surcharging. */
+  totalFees: number;
+  feesPaidByClients: number;
+  /** What the firm actually bore. */
+  netFees: number;
+  /** Net fees over volume — the real cost of taking payments. */
+  effectiveRate: number | null;
+  debits: {
+    amount: number;
+    fromBankAccountCategory: string | null;
+    fromBankAccountMask: string | null;
+    statementDescriptor: string | null;
+  }[];
+};
+
+export async function getConfidoStatements(): Promise<ConfidoStatement[]> {
+  const { data } = await API.get<{ data: ConfidoStatement[] }>(
+    "/settings/payments/statements",
+  );
+  return data.data;
+}
