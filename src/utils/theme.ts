@@ -177,8 +177,32 @@ const config = defineConfig({
         },
         brand: {
           solid: { value: "{colors.brand.400}" },
+          /*
+            Text placed ON brand.solid (#E8A635), which is the same colour in
+            both modes — so this one is correctly a single value, not a pair.
+          */
           contrast: { value: "{colors.brand.900}" },
-          fg: { value: "{colors.brand.900}" },
+          /*
+            Brand-coloured text on the page background — a different job from
+            `contrast`, and the reason this has to be a pair.
+
+            It was a flat `brand.900` (#3A2202, near-black brown). That is
+            right on the light surface (#FFFFFF) and unreadable on the dark one
+            (#222222): dark brown on near-black, at roughly 1.3:1. Every one of
+            the ~68 `color="brand.fg"` call sites was invisible in dark mode,
+            and fixing it here fixes all of them at once — which is why this is
+            a token change and not a migration of the call sites.
+
+            Dark resolves to brand.300 (#F2BF3A), ~9:1 on #222222. Light is
+            unchanged on purpose, so this is a dark-mode repair rather than a
+            restyle of the whole app.
+          */
+          fg: {
+            value: {
+              _light: "{colors.brand.900}",
+              _dark: "{colors.brand.300}",
+            },
+          },
           muted: { value: "{colors.brand.100}" },
           subtle: { value: "{colors.brand.200}" },
           emphasized: { value: "{colors.brand.300}" },
