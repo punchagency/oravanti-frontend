@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   Clock,
   FileText,
-  Info,
   Search,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -112,33 +111,12 @@ export default function InvoicingTab() {
 
   return (
     <Box>
-      <Flex
-        gap="10px"
-        align="flex-start"
-        p="14px 16px"
-        borderRadius="10px"
-        border="1px solid"
-        borderColor="#cfe0f5"
-        bg="#eef5fd"
-        _dark={{
-          bg: "rgba(59, 130, 196, 0.12)",
-          borderColor: "rgba(59,130,196,0.35)",
-        }}
-      >
-        <Box color="#3b82c4" mt="1px">
-          <Info size={16} />
-        </Box>
-        <Box>
-          <Text fontSize="13px" fontWeight="600">
-            Consultation fee tracking coming soon
-          </Text>
-          <Text fontSize="12px" color="fg.muted">
-            Consultation fee tracking will appear here once the Finance module
-            is fully built. Fees are currently tracked in Analytics → Revenue.
-          </Text>
-        </Box>
-      </Flex>
-
+      {/* The banner that stood here announced consultation fee tracking as
+          "coming soon" and sent firms to Analytics → Revenue. Both halves were
+          wrong: a consultation fee is raised as a real invoice against the lead
+          (`raiseConsultationInvoice`) and is listed below like any other, and
+          the page it pointed at is itself a ComingSoonPage. Removed rather than
+          reworded — there is nothing to announce about a feature that works. */}
       <Grid
         templateColumns={{ base: "1fr", sm: "1fr 1fr", lg: "repeat(4, 1fr)" }}
         gap="16px"
