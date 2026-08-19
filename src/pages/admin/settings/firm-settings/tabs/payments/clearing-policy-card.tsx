@@ -3,7 +3,7 @@ import {
   useSetClearingPolicy,
 } from "@/hooks/use-payment-settings";
 import type { ClearingPolicy } from "@/api/payment-settings";
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 /**
  * How settled a payment must be before it opens a case.
@@ -75,10 +75,14 @@ export function ClearingPolicyCard({ active }: { active: boolean }) {
             {OPTIONS.map((option) => {
               const selected = current === option.value;
               return (
-                <Flex
+                // `chakra.button` rather than `Flex as="button"`: the `as`
+                // prop does not widen Flex's prop types, so `type="button"`
+                // is rejected — and dropping it would make this submit any
+                // form it is ever nested in.
+                <chakra.button
                   key={option.value}
-                  as="button"
                   type="button"
+                  display="flex"
                   disabled={setPolicy.isPending}
                   onClick={() => {
                     if (!selected) setPolicy.mutate(option.value);
@@ -112,7 +116,7 @@ export function ClearingPolicyCard({ active }: { active: boolean }) {
                       {option.detail}
                     </Text>
                   </Box>
-                </Flex>
+                </chakra.button>
               );
             })}
           </Flex>
