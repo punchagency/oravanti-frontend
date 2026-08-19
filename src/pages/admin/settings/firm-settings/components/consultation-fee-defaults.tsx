@@ -292,7 +292,7 @@ export function ConsultationFeeDefaults() {
                       fontSize="13px"
                       fontWeight="500"
                       bg={selected ? "brand.subtle" : "bg"}
-                      color={selected ? "brand.fg" : "fg.muted"}
+                      color={selected ? "brand.contrast" : "fg.muted"}
                       borderColor={selected ? "brand.solid" : "border"}
                     >
                       {opt.label}

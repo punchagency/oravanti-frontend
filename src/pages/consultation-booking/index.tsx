@@ -258,7 +258,7 @@ export function ConsultationBookingPage() {
             <Button
               size="sm"
               bg="brand.solid"
-              color="brand.fg"
+              color="brand.contrast"
               loading={updateTz.isPending}
               onClick={() => updateTz.mutate()}
             >
@@ -376,7 +376,7 @@ export function ConsultationBookingPage() {
                       fontSize="13px"
                       borderRadius="8px"
                       bg={isSelected ? "brand.subtle" : "bg"}
-                      color={isSelected ? "brand.fg" : "fg"}
+                      color={isSelected ? "brand.contrast" : "fg"}
                       borderColor={isSelected ? "brand.solid" : "border"}
                     >
                       {formatDualZone(slot.start, {

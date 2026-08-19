@@ -1,7 +1,9 @@
+import { type PracticeAreaTreeNode } from "@/api/auth";
 import { type CreateTeamPayload } from "@/api/organization";
+import { type CaseTypeSelectHandle } from "@/components/ui/case-type-select";
 import { BrandButton } from "@/components/ui/intake-ui";
 import { useCreateTeam } from "@/hooks/use-create-team";
-import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
+import { usePracticeAreaList } from "@/hooks/use-practice-area-tree-data";
 import { useStaffsList } from "@/hooks/use-staff-list";
 import {
   Box,
@@ -12,7 +14,7 @@ import {
   Steps,
 } from "@chakra-ui/react";
 import { ArrowRight, Users, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { StepInfo } from "./step-info";
 import { StepMembers } from "./step-members";
@@ -20,6 +22,10 @@ import { StepReview } from "./step-review";
 import type { CreateTeamFormValues } from "./types";
 
 type Step = "INFO" | "MEMBERS" | "REVIEW";
+
+// Stable empty array: a fresh `[]` on every render would break the memo in
+// every child that takes this list.
+const NO_TREE_NODES: PracticeAreaTreeNode[] = [];
 
 export function CreateTeamDialog({
   open: controlledOpen,
@@ -36,9 +42,14 @@ export function CreateTeamDialog({
   const [currentStep, setCurrentStep] = useState<Step>("INFO");
 
   const createTeamMutation = useCreateTeam();
-  const treeDataQuery = usePracticeAreaTreeData();
-  const treeData = treeDataQuery.data;
-  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
+
+  // Only the practice-area names are needed here; the case types for whichever
+  // areas get picked are fetched by CaseTypeSelect itself. This used to pull
+  // the whole ~750-node taxonomy up front to render a list of a few dozen.
+  const practiceAreaQuery = usePracticeAreaList();
+  const practiceAreaTreeNodes =
+    practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
+
   const { data: allStaffData } = useStaffsList({ limit: 200 });
 
   const attorneys = useMemo(
@@ -50,8 +61,26 @@ export function CreateTeamDialog({
   );
   const allStaff = useMemo(() => allStaffData?.data ?? [], [allStaffData]);
 
+  /*
+    Case-type selection lives inside CaseTypeSelect and is read through this
+    ref, so ticking a box never re-renders the wizard.
+
+    `selectedIds` is the wizard's own copy, and it is deliberately NOT updated
+    on every tick — only when the step changes. StepInfo unmounts when you move
+    to MEMBERS, taking the picker's internal state with it, so the selection is
+    pulled out of the ref at that moment and handed back as `defaultSelectedIds`
+    if you navigate back. REVIEW reads the same copy.
+  */
+  const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [leadName, setLeadName] = useState<string | null>(null);
+
+  /** Pulls the picker's selection into wizard state before StepInfo unmounts. */
+  const syncSelectedCaseTypes = () => {
+    const current = caseTypesRef.current?.getSelectedIds();
+    if (current) setSelectedIds(current);
+    return current ?? selectedIds;
+  };
 
   const {
     register,
@@ -60,7 +89,7 @@ export function CreateTeamDialog({
     watch,
     reset,
     trigger,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<CreateTeamFormValues>({
     defaultValues: {
       teamName: "",
@@ -93,7 +122,10 @@ export function CreateTeamDialog({
         "teamLeadId",
         "maxCaseload",
       ]);
-      if (isValid && selectedIds.length > 0) {
+      // Read the picker before it unmounts, and gate on what it actually holds
+      // rather than on a copy that is only refreshed at step boundaries.
+      const caseTypeIds = syncSelectedCaseTypes();
+      if (isValid && caseTypeIds.length > 0) {
         setCurrentStep("MEMBERS");
       }
     } else if (currentStep == "MEMBERS") {
@@ -249,8 +281,9 @@ export function CreateTeamDialog({
                   practiceAreaTreeNodes={practiceAreaTreeNodes}
                   attorneys={attorneys}
                   setLeadName={setLeadName}
-                  selectedIds={selectedIds}
-                  onSelectedIdsChange={setSelectedIds}
+                  caseTypesRef={caseTypesRef}
+                  defaultCaseTypeIds={selectedIds}
+                  showCaseTypeValidation={isSubmitted}
                 />
               )}
 
@@ -265,8 +298,6 @@ export function CreateTeamDialog({
               {currentStep == "REVIEW" && (
                 <StepReview
                   formValues={formValues}
-                  practiceAreaNameLookup={treeData?.practiceAreaNameLookup ?? {}}
-                  practiceAreaTreeNodes={practiceAreaTreeNodes}
                   allStaff={allStaff}
                   leadName={leadName}
                   selectedIds={selectedIds}

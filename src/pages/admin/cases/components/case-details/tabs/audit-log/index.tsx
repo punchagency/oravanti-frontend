@@ -1,4 +1,5 @@
 import { useCaseEvents } from "@/hooks/use-workflows";
+import { iconForAction } from "@/lib/audit";
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
@@ -18,13 +19,21 @@ function formatDuration(ms: number): string {
   return `${hours}h ${remainingMinutes}m`;
 }
 
+/**
+ * The extra lines a workflow event carries in its metadata.
+ *
+ * This is not a label map — the label comes from the registry. It is the
+ * per-action reading of `metadata`, which is the one thing the registry
+ * genuinely cannot supply, because its shape differs per action. Actions with
+ * nothing extra to say fall through and render label plus summary alone.
+ */
 function getAuditDetails(event: CaseEvent): string[] {
   const meta = (event.metadata ?? {}) as Record<string, unknown>;
   const lines: string[] = [];
   const timeTakenMs = meta.timeTakenMs as number | undefined;
 
-  switch (event.eventType) {
-    case "step_assigned": {
+  switch (event.action) {
+    case "case.step_assigned": {
       const staffName = meta.staffName as string | undefined;
       const assignerName = meta.assignerName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
@@ -35,7 +44,7 @@ function getAuditDetails(event: CaseEvent): string[] {
       if (note) lines.push(`Note: ${note}`);
       break;
     }
-    case "step_completed": {
+    case "case.step_completed": {
       const completedByName = meta.completedByName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
       const note = meta.note as string | undefined;
@@ -45,7 +54,7 @@ function getAuditDetails(event: CaseEvent): string[] {
       if (note) lines.push(`Note: ${note}`);
       break;
     }
-    case "step_submitted_for_review": {
+    case "case.step_submitted_for_review": {
       const submittedByName = meta.submittedByName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
       if (submittedByName) lines.push(`by ${submittedByName}`);
@@ -53,7 +62,7 @@ function getAuditDetails(event: CaseEvent): string[] {
       if (moduleName) lines.push(`Module: ${moduleName}`);
       break;
     }
-    case "step_approved": {
+    case "case.step_approved": {
       const reviewerName = meta.reviewerName as string | undefined;
       const assigneeName = meta.assigneeName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
@@ -63,7 +72,7 @@ function getAuditDetails(event: CaseEvent): string[] {
       if (moduleName) lines.push(`Module: ${moduleName}`);
       break;
     }
-    case "step_rejected": {
+    case "case.step_rejected": {
       const reviewerName = meta.reviewerName as string | undefined;
       const assigneeName = meta.assigneeName as string | undefined;
       const feedback = meta.feedback as string | undefined;
@@ -75,7 +84,7 @@ function getAuditDetails(event: CaseEvent): string[] {
       if (timeTakenMs != null) lines.push(`Time taken: ${formatDuration(timeTakenMs)}`);
       break;
     }
-    case "case_team_reassigned": {
+    case "case.team_reassigned": {
       const prevTeam = meta.previousTeam as { id: string; name: string } | undefined;
       const newTeam = meta.newTeam as { id: string; name: string } | undefined;
       if (prevTeam?.name) lines.push(`From: ${prevTeam.name}`);
@@ -92,58 +101,6 @@ function getAuditDetails(event: CaseEvent): string[] {
 interface AuditLogTabProps {
   caseId?: string;
 }
-
-const eventIcons: Record<string, string> = {
-  case_created: "📁",
-  case_updated: "✏️",
-  case_deleted: "🗑️",
-  case_viewed: "👁️",
-  case_status_changed: "🔄",
-  case_priority_changed: "🔴",
-  case_team_assigned: "👥",
-  case_team_reassigned: "👥",
-  case_note_created: "📝",
-  case_note_updated: "✏️",
-  case_note_deleted: "🗑️",
-  case_note_pinned: "📌",
-  case_note_unpinned: "📌",
-  case_document_linked: "📎",
-  case_document_unlinked: "📎",
-  case_description_updated: "✏️",
-  workflow_initialized: "⚙️",
-  module_activated: "▶️",
-  step_assigned: "👤",
-  step_completed: "✅",
-  step_submitted_for_review: "🔍",
-  step_approved: "✔️",
-  step_rejected: "↩️",
-};
-
-const eventLabels: Record<string, string> = {
-  case_created: "Case created",
-  case_updated: "Case updated",
-  case_deleted: "Case deleted",
-  case_viewed: "Case viewed",
-  case_status_changed: "Status changed",
-  case_priority_changed: "Priority changed",
-  case_team_assigned: "Team assigned",
-  case_team_reassigned: "Team reassigned",
-  case_note_created: "Note added",
-  case_note_updated: "Note updated",
-  case_note_deleted: "Note deleted",
-  case_note_pinned: "Note pinned",
-  case_note_unpinned: "Note unpinned",
-  case_document_linked: "Document linked",
-  case_document_unlinked: "Document unlinked",
-  case_description_updated: "Description updated",
-  workflow_initialized: "Workflow initialized",
-  module_activated: "Module activated",
-  step_assigned: "Step assigned",
-  step_completed: "Step completed",
-  step_submitted_for_review: "Submitted for review",
-  step_approved: "Step approved",
-  step_rejected: "Step rejected",
-};
 
 export function AuditLogTab({ caseId }: AuditLogTabProps) {
   const [{ page, limit }, setPagination] = useQueryStates({
@@ -219,13 +176,17 @@ export function AuditLogTab({ caseId }: AuditLogTabProps) {
                 >
                   <Box display="flex" alignItems="center" gap={2} mb={0.5}>
                     <Text fontSize="11px" fontWeight="500" color="fg">
-                      {eventIcons[entry.eventType] ?? "📋"}{" "}
-                      {eventLabels[entry.eventType] ?? entry.title}
+                      {iconForAction(entry.action)} {entry.label}
                     </Text>
                   </Box>
-                  {entry.description && (
+                  {/*
+                    Only when it adds something — the summary for most actions
+                    is the label plus its subject, and repeating "Step approved"
+                    under "Step approved" is noise.
+                  */}
+                  {entry.summary && entry.summary !== entry.label && (
                     <Text fontSize="10px" color="fg.subtle" mb={0.5}>
-                      {entry.description}
+                      {entry.summary}
                     </Text>
                   )}
                   {details.length > 0 && (

@@ -1,22 +1,21 @@
 import { setPassword } from "@/api/organization";
 import { useAuthStore } from "@/store/auth-store";
 import { getErrorMessage } from "@/utils/getErrorMessage";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 
 /**
  * Hook to handle setting a new password for users who were invited
  * with a temporary password and need to set a permanent one.
  *
- * After a successful password change:
- * 1. Clears the `needsPasswordChange` flag in the auth store so the
- *    auth guard no longer forces the user to the /set-password page.
- * 2. Invalidates the session query so the backend can re-issue a
- *    session token tied to the new credentials.
- * 3. AppRouter re-selects the router by account type on the next render.
+ * On success it hands off to the app root with `window.location.replace`,
+ * the same way `useSignInWithEmail`, `useSignOut` and the two-factor page
+ * do. The full reload is the point: the backend re-issues the session on
+ * the new credentials, and `AppRouter` picks its router by account type at
+ * mount, so a fresh boot is what guarantees the right router and a clean
+ * query cache. `replace` keeps /set-password out of the back stack.
  */
 export function useSetPassword() {
-  const queryClient = useQueryClient();
   const { showError } = useFeedbackDialog();
 
   return useMutation({
@@ -24,7 +23,7 @@ export function useSetPassword() {
       setPassword(data),
     onSuccess: () => {
       useAuthStore.getState().setNeedsPasswordChange(false);
-      queryClient.invalidateQueries({ queryKey: ["session"] });
+      window.location.replace("/");
     },
     onError: (err) => {
       showError({

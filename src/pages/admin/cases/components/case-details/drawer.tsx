@@ -20,7 +20,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { statusBadgeStyle } from "./shared";
+import { statusBadgeStyle } from "./shared-data";
 import { AuditLogTab } from "./tabs/audit-log";
 import { Documents } from "./tabs/documents";
 import { Notes } from "./tabs/notes";
@@ -122,7 +122,7 @@ export function CaseDetailsDrawer({
                       py={0.5}
                     >
                       <Text
-                        color="brand.fg"
+                        color="brand.contrast"
                         fontSize="10px"
                         fontWeight="500"
                         lineHeight="12px"

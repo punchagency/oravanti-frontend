@@ -1,4 +1,8 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
+import {
+  buildNameLookup,
+  usePracticeAreaSubtrees,
+} from "@/hooks/use-practice-area-tree-data";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   Box,
@@ -68,19 +72,32 @@ function filterChildren(
 
 export function StepReview({
   formValues,
-  practiceAreaNameLookup,
-  practiceAreaTreeNodes,
   allStaff,
   leadName,
   selectedIds,
 }: {
   formValues: CreateTeamFormValues;
-  practiceAreaNameLookup: Record<string, string>;
-  practiceAreaTreeNodes: PracticeAreaTreeNode[];
   allStaff: StaffMemberDTO[];
   leadName: string | null;
   selectedIds: string[];
 }) {
+  /*
+    The same per-practice-area subtree queries CaseTypeSelect used on step one.
+    They are keyed by practice-area id with `staleTime: Infinity`, so reaching
+    this step costs no request at all — the cache already holds every subtree
+    the user selected from, and only those.
+  */
+  const { nodes: practiceAreaTreeNodes } = usePracticeAreaSubtrees(
+    formValues.practiceAreas,
+  );
+
+  // Derived here rather than shipped by the API, which used to duplicate every
+  // name in the tree a second time just to provide this map.
+  const practiceAreaNameLookup = useMemo(
+    () => buildNameLookup(practiceAreaTreeNodes),
+    [practiceAreaTreeNodes],
+  );
+
   const idSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const selectedPracticeAreas = useMemo(

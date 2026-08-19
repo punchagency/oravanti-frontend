@@ -1,5 +1,6 @@
 import type { EligibleAssignee } from "@/api/case-review";
 import { BrandButton, MutedText } from "@/components/ui/intake-ui";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useEligibleAssignees } from "@/hooks/use-case-review";
 import {
   Box,
@@ -56,13 +57,15 @@ export function AssigneeDialog({
     }
   }
 
+  // The input stays responsive; only the filter waits for a pause in typing.
+  const query = useDebouncedValue(search.trim().toLowerCase(), 200);
+
   const filtered = useMemo(
     () =>
       (assignees ?? []).filter(
-        (a) =>
-          !search || fullName(a).toLowerCase().includes(search.toLowerCase()),
+        (a) => !query || fullName(a).toLowerCase().includes(query),
       ),
-    [assignees, search],
+    [assignees, query],
   );
 
   return (

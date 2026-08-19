@@ -21,7 +21,7 @@ const statusStyle: Record<
   PARTIALLY_SUBMITTED: {
     label: "Partially received",
     bg: "brand.subtle",
-    color: "brand.fg",
+    color: "brand.contrast",
   },
   SUBMITTED: { label: "Received", bg: "green.subtle", color: "green.fg" },
   EXPIRED: { label: "Expired", bg: "bg.subtle", color: "fg.muted" },

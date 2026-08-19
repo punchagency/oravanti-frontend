@@ -1,6 +1,6 @@
 import { Drawer, Flex, IconButton, Text, chakra } from "@chakra-ui/react";
 import { X } from "lucide-react";
-import { useNav } from "@/components/layout/shared/nav-context";
+import { useNav } from "@/components/layout/shared/use-nav";
 import { NavContent } from "./nav-content";
 
 export function MobileNavDrawer() {

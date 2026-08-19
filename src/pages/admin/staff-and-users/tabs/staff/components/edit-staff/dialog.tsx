@@ -1,7 +1,10 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
-import type { UpdateStaffMemberPayload } from "@/api/organization";
-import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
-import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
+import type { TeamListDTO, UpdateStaffMemberPayload } from "@/api/organization";
+import {
+  CaseTypeSelect,
+  type CaseTypeSelectHandle,
+} from "@/components/ui/case-type-select";
+import { usePracticeAreaList } from "@/hooks/use-practice-area-tree-data";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useUpdateStaffMember } from "@/hooks/use-update-staff-member";
 import {
@@ -21,32 +24,45 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDate, type DateValue } from "@internationalized/date";
+import {
+  CalendarDate,
+  getLocalTimeZone,
+  today,
+  type DateValue,
+} from "@internationalized/date";
 import { CalendarDays, Pencil, X } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import type { StaffMember } from "../../../../data";
 import { inputStyles } from "./input-styles";
-import { TeamMultiSelect } from "./team-multi-select";
+import { TeamMultiSelect } from "@/pages/admin/staff-and-users/components/team-multi-select";
 
-const formSchema = z.object({
-  firstName: z.string(),
-  lastName: z.string(),
-  role: z.string().min(1, "Role is required"),
-  phone: z.string(),
-  jobTitle: z.string(),
-  personalEmail: z.string().email("Invalid email format"),
-  orgEmail: z.string().email("Invalid email format").or(z.literal("")),
-  startDate: z.custom<DateValue | undefined>(),
-  maxCaseload: z.string(),
-  teamIds: z.array(z.string()),
-  practiceAreas: z
-    .array(z.string())
-    .min(1, "Select at least one practice area"),
-});
+// Built per staff member because the earliest allowed start date depends on
+// whichever date they already have on record.
+const buildFormSchema = (minStartDate: DateValue) =>
+  z.object({
+    firstName: z.string(),
+    lastName: z.string(),
+    role: z.string().min(1, "Role is required"),
+    phone: z.string(),
+    jobTitle: z.string(),
+    personalEmail: z.string().email("Invalid email format"),
+    orgEmail: z.string().email("Invalid email format").or(z.literal("")),
+    startDate: z
+      .custom<DateValue | undefined>()
+      .refine(
+        (value) => !value || value.compare(minStartDate) >= 0,
+        "Start date cannot be in the past",
+      ),
+    maxCaseload: z.string(),
+    teamIds: z.array(z.string()),
+    practiceAreas: z
+      .array(z.string())
+      .min(1, "Select at least one practice area"),
+  });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof buildFormSchema>>;
 
 interface EditStaffDialogProps {
   staff: StaffMember;
@@ -61,20 +77,24 @@ const roleOptions = createListCollection({
   ],
 });
 
+// Shared fallbacks so a pending query doesn't hand the tree/team list a new
+// array identity on every render.
+const NO_TREE_NODES: PracticeAreaTreeNode[] = [];
+const NO_TEAMS: TeamListDTO[] = [];
+
+function parseStartDate(value: string | null | undefined): DateValue | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return undefined;
+  return new CalendarDate(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    date.getDate(),
+  );
+}
+
 function computeInitialValues(staff: StaffMember): FormValues {
-  let startDate: DateValue | undefined;
-  if (staff.startDate) {
-    try {
-      const date = new Date(staff.startDate);
-      if (!isNaN(date.getTime())) {
-        startDate = new CalendarDate(
-          date.getFullYear(),
-          date.getMonth() + 1,
-          date.getDate(),
-        );
-      }
-    } catch {}
-  }
+  const startDate = parseStartDate(staff.startDate);
 
   return {
     firstName: staff.firstName ?? "",
@@ -97,36 +117,37 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
   // Portal to body stacks them behind the modal when it's nested in the drawer.
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const treeDataQuery = usePracticeAreaTreeData();
-  const treeData = treeDataQuery.data;
-  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
+  // Only the practice-area names are needed here; the case types for whichever
+  // areas are assigned get fetched by CaseTypeSelect itself.
+  const practiceAreaQuery = usePracticeAreaList();
+  const practiceAreaTreeNodes =
+    practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
   const teamsQuery = useTeamsList({ limit: 200 });
-  const teams = (teamsQuery.data?.data) ?? [];
+  const teams = teamsQuery.data?.data ?? NO_TEAMS;
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => [
-    ...(staff.caseTypes ?? []).map((ct) => ct.id),
-  ]);
+  const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
+  const initialCaseTypeIds = useMemo(
+    () => (staff.caseTypes ?? []).map((ct) => ct.id),
+    [staff.caseTypes],
+  );
 
-  const collectLeafIds = (nodes: PracticeAreaTreeNode[]): string[] => {
-    const ids: string[] = [];
-    for (const n of nodes) {
-      if (!n.children || n.children.length === 0) {
-        ids.push(n.id);
-      } else {
-        ids.push(...collectLeafIds(n.children));
-      }
-    }
-    return ids;
-  };
+  // New start dates can't be in the past, but an existing hire may genuinely
+  // have started before today — clamp the floor to their stored date so editing
+  // an unrelated field doesn't invalidate it.
+  const startDateMin = useMemo(() => {
+    const todayValue = today(getLocalTimeZone());
+    const existing = parseStartDate(staff.startDate);
+    return existing && existing.compare(todayValue) < 0 ? existing : todayValue;
+  }, [staff.startDate]);
 
   const {
     register,
     handleSubmit,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(buildFormSchema(startDateMin)),
     defaultValues: computeInitialValues(staff),
     mode: "onBlur",
   });
@@ -134,6 +155,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
   const updateMutation = useUpdateStaffMember();
 
   const onSubmit = (formData: FormValues) => {
+    const selectedIds = caseTypesRef.current?.getSelectedIds() ?? [];
     const payload: UpdateStaffMemberPayload = {
       firstName: formData.firstName.trim() || undefined,
       lastName: formData.lastName.trim() || undefined,
@@ -163,12 +185,9 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
       open={open}
       onOpenChange={(details) => {
         setOpen(details.open);
-        if (!details.open) {
-          reset(computeInitialValues(staff));
-          setSelectedIds([
-            ...(staff.caseTypes ?? []).map((ct) => ct.id),
-          ]);
-        }
+        // CaseTypeSelect unmounts with the dialog, so it re-seeds from
+        // `initialCaseTypeIds` the next time it opens.
+        if (!details.open) reset(computeInitialValues(staff));
       }}
       placement="center"
     >
@@ -208,7 +227,13 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
               </chakra.button>
             </Dialog.CloseTrigger>
 
-            <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit(onSubmit)}>
+            {/* Built inside the handler rather than during render: onSubmit
+                reads the case-type selection off a ref. */}
+            <Box
+              as="form"
+              p="32px 24px 24px"
+              onSubmit={(e) => handleSubmit(onSubmit)(e)}
+            >
               <Dialog.Title
                 color="fg"
                 fontSize="17px"
@@ -451,6 +476,7 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                       render={({ field }) => (
                         <DatePicker.Root
                           value={field.value ? [field.value] : []}
+                          min={startDateMin}
                           onValueChange={(e) => {
                             if (staff.status === "active") return;
                             field.onChange(e.value[0] ?? undefined);
@@ -603,23 +629,19 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                                   borderColor: "brand.solid",
                                 }}
                                 onClick={() => {
-                                  if (isSelected) {
-                                    const next = field.value.filter(
-                                      (id) => id !== practiceArea.id,
-                                    );
-                                    field.onChange(next);
-                                    const leafIds = collectLeafIds(
-                                      practiceArea.children ?? [],
-                                    );
-                                    setSelectedIds((prev) =>
-                                      prev.filter((id) => !leafIds.includes(id)),
-                                    );
-                                  } else {
-                                    field.onChange([
-                                      ...(field.value || []),
-                                      practiceArea.id,
-                                    ]);
-                                  }
+                                  // Deselecting only drops the practice area —
+                                  // CaseTypeSelect filters its own selection
+                                  // down to the areas still on screen.
+                                  field.onChange(
+                                    isSelected
+                                      ? field.value.filter(
+                                          (id) => id !== practiceArea.id,
+                                        )
+                                      : [
+                                          ...(field.value || []),
+                                          practiceArea.id,
+                                        ],
+                                  );
                                 }}
                                 transition="all 0.15s"
                               >
@@ -665,30 +687,17 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
                           })}
                         </SimpleGrid>
                       </Field.Root>
-                      {field.value.length > 0 && (
-                        <PracticeAreaTreeView
-                          practiceAreaTreeNodes={practiceAreaTreeNodes}
-                          selectedPracticeAreaIds={field.value}
-                          selectedIds={selectedIds}
-                          onSelectionChange={setSelectedIds}
-                          onRemovePracticeArea={(id) => {
-                            field.onChange(
-                              field.value.filter((paId) => paId !== id),
-                            );
-                            const pa = practiceAreaTreeNodes.find(
-                              (n) => n.id === id,
-                            );
-                            if (pa) {
-                              const leafIds = collectLeafIds(
-                                pa.children ?? [],
-                              );
-                              setSelectedIds((prev) =>
-                                prev.filter((sid) => !leafIds.includes(sid)),
-                              );
-                            }
-                          }}
-                        />
-                      )}
+                      <CaseTypeSelect
+                        ref={caseTypesRef}
+                        selectedPracticeAreaIds={field.value}
+                        defaultSelectedIds={initialCaseTypeIds}
+                        showValidation={isSubmitted}
+                        onRemovePracticeArea={(id) =>
+                          field.onChange(
+                            field.value.filter((paId) => paId !== id),
+                          )
+                        }
+                      />
                     </>
                   )}
                 />

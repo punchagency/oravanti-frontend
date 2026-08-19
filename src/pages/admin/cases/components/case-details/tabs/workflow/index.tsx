@@ -53,7 +53,13 @@ function mapBackendModule(mod: {
   steps: {
     stepId: string;
     title: string;
-    status: "pending" | "in_progress" | "completed" | "skipped" | "in_review";
+    status:
+      | "pending"
+      | "in_progress"
+      | "completed"
+      | "skipped"
+      | "in_review"
+      | "rejected";
     assignedTo: { id: string; name: string; role: string } | null;
     dueDate: string | null;
     completedAt: string | null;
@@ -69,7 +75,9 @@ function mapBackendModule(mod: {
           ? ("in_progress" as const)
           : s.status === "in_review"
             ? ("in_review" as const)
-            : ("not_started" as const),
+            : s.status === "rejected"
+              ? ("rejected" as const)
+              : ("not_started" as const),
     assignedTo: s.assignedTo,
     assignedAt: null,
     dueDate: s.dueDate,

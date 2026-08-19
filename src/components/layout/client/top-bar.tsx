@@ -3,7 +3,7 @@ import { useCurrentClient } from "@/hooks/use-current-client";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
 import { AvatarChip } from "@/components/layout/shared/avatar-chip";
-import { useNav, usePageTitle } from "@/components/layout/shared/nav-context";
+import { useNav, usePageTitle } from "@/components/layout/shared/use-nav";
 import { Box, Button, Flex, Menu, Portal, Text } from "@chakra-ui/react";
 import { Check, ChevronRight, Monitor, Moon, PanelLeftOpen, Sun, User } from "lucide-react";
 import { useTheme } from "next-themes";

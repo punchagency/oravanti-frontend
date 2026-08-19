@@ -147,7 +147,7 @@ export default function Step0SourcePage() {
               borderRadius="sm"
               fontSize="xs"
               fontWeight="bold"
-              color="brand.fg"
+              color="brand.contrast"
               letterSpacing="0.05em"
             >
               STEP 1 OF 4 &bull; ONBOARDING
@@ -179,19 +179,27 @@ export default function Step0SourcePage() {
                 {platforms.map((platform) => {
                   const isSelected = selected === platform.id;
                   return (
-                    <Box
+                    // Must be a real Button, not `Box as="button"`: a bare
+                    // <button> in a <form> defaults to type="submit", so
+                    // picking a platform submitted the form and jumped to the
+                    // next step. Button sets type="button" for us.
+                    <Button
                       key={platform.id}
-                      as="button"
+                      aria-pressed={isSelected}
                       onClick={() => setValue("referralSource", platform.id, { shouldValidate: true })}
+                      variant="outline"
                       w="full"
+                      h="auto"
+                      display="block"
                       textAlign="left"
+                      whiteSpace="normal"
                       p={4}
                       borderRadius="md"
                       border="1.5px solid"
                       borderColor={isSelected ? "brand.solid" : "border.muted"}
                       bg="bg"
-                      cursor="pointer"
                       _hover={{
+                        bg: "bg",
                         borderColor: isSelected ? "brand.solid" : "border.emphasized",
                       }}
                       transition="all 0.15s"
@@ -210,7 +218,7 @@ export default function Step0SourcePage() {
                       >
                         {platform.description}
                       </Text>
-                    </Box>
+                    </Button>
                   );
                 })}
                 <Field.ErrorText>{errors.referralSource?.message}</Field.ErrorText>

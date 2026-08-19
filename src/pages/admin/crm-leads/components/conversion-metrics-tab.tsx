@@ -401,7 +401,7 @@ export function ConversionMetricsTab() {
                 px="14px"
                 h="30px"
                 bg={active ? "brand.solid" : "bg"}
-                color={active ? "brand.fg" : "fg.muted"}
+                color={active ? "brand.contrast" : "fg.muted"}
                 fontSize="12px"
                 fontWeight={active ? "500" : "400"}
                 cursor="pointer"

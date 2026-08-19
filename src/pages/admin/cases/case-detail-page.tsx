@@ -31,7 +31,7 @@ import {
 } from "react-router";
 import { ThemeSkeleton } from "../../../components/ui/theme-skeleton";
 import { EntityNotFound } from "@/components/ui/entity-not-found";
-import { statusBadgeStyle } from "./components/case-details/shared";
+import { statusBadgeStyle } from "./components/case-details/shared-data";
 
 const TAB_CONFIG = [
   { value: "overview", label: "Overview" },
@@ -153,7 +153,7 @@ export function CaseDetailPage() {
 
             <Box bg="brand.subtle" borderRadius="10px" px={1.5} py={0.5}>
               <Text
-                color="brand.fg"
+                color="brand.contrast"
                 fontSize="10px"
                 fontWeight="500"
                 lineHeight="12px"

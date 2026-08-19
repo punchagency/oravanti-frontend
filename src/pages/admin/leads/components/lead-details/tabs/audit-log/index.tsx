@@ -2,99 +2,18 @@ import type { LeadAuditLogEntry } from "@/api/lead-workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { useLeadAuditLog } from "@/hooks/use-lead-workflows";
+import { iconForAction } from "@/lib/audit";
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { parseAsInteger, useQueryStates } from "nuqs";
 import { SectionLabel } from "../../shared";
 
-const eventIcons: Record<string, string> = {
-  LEAD_RECEIVED: "📥",
-  LEAD_UPDATED: "✏️",
-  LEAD_VIEWED: "👁️",
-  STAGE_CHANGED: "➡️",
-  LEAD_ASSIGNED: "👤",
-  LEAD_ARCHIVED: "📦",
-  LEAD_RESTORED: "♻️",
-  CONFLICT_CHECK_RUN: "🔍",
-  CONFLICT_CHECK_APPROVED: "✔️",
-  CONFLICT_CHECK_DECLINED: "❌",
-  CONFLICT_OVERRIDDEN: "✔️",
-  QUESTIONNAIRE_SENT: "📤",
-  QUESTIONNAIRE_RESPONSE_RECEIVED: "📥",
-  QUESTIONNAIRE_OPENED: "📖",
-  QUESTIONNAIRE_DRAFT_SAVED: "💾",
-  QUESTIONNAIRE_FILE_UPLOADED: "📎",
-  CONSULTATION_SCHEDULED: "📅",
-  CONSULTATION_COMPLETED: "✅",
-  CONSULTATION_CANCELLED: "❌",
-  CONSULTATION_RESCHEDULED: "📅",
-  CONSULTATION_BOOKING_OPENED: "📖",
-  CONSULTATION_SLOT_SELECTED: "📅",
-  FEE_AGREEMENT_GENERATED: "📄",
-  FEE_AGREEMENT_SENT: "📤",
-  FEE_AGREEMENT_SIGNED: "✍️",
-  FEE_AGREEMENT_VOIDED: "❌",
-  CASE_OPENED: "💼",
-  PIPELINE_INITIALIZED: "⚙️",
-  TASK_ASSIGNED: "👤",
-  TASK_COMPLETED: "✅",
-  TASK_SUBMITTED_FOR_REVIEW: "📤",
-  TASK_APPROVED: "✔️",
-  TASK_REJECTED: "↩️",
-  DOCUMENT_LINKED: "📎",
-  DOCUMENT_UNLINKED: "🗂️",
-  NUDGE_SENT: "🔔",
-  MISSING_DOCUMENTS_REQUESTED: "📋",
-  REMINDER_SENT: "⏰",
-  ADVERSE_PARTY_ADDED: "👥",
-  ADVERSE_PARTY_UPDATED: "👥",
-  ADVERSE_PARTY_DELETED: "👥",
-  CASE_WORKFLOW_STEP_UPDATED: "⚙️",
-};
-
-const eventLabels: Record<string, string> = {
-  LEAD_RECEIVED: "Lead received",
-  LEAD_UPDATED: "Lead updated",
-  LEAD_VIEWED: "Lead viewed",
-  STAGE_CHANGED: "Stage changed",
-  LEAD_ASSIGNED: "Lead assigned",
-  LEAD_ARCHIVED: "Lead archived",
-  LEAD_RESTORED: "Lead restored",
-  CONFLICT_CHECK_RUN: "Conflict check run",
-  CONFLICT_CHECK_APPROVED: "Conflict check approved",
-  CONFLICT_CHECK_DECLINED: "Conflict check declined",
-  CONFLICT_OVERRIDDEN: "Conflict overridden",
-  QUESTIONNAIRE_SENT: "Questionnaire sent",
-  QUESTIONNAIRE_RESPONSE_RECEIVED: "Questionnaire submitted",
-  QUESTIONNAIRE_OPENED: "Questionnaire opened",
-  QUESTIONNAIRE_DRAFT_SAVED: "Questionnaire draft saved",
-  QUESTIONNAIRE_FILE_UPLOADED: "File uploaded",
-  CONSULTATION_SCHEDULED: "Consultation scheduled",
-  CONSULTATION_COMPLETED: "Consultation completed",
-  CONSULTATION_CANCELLED: "Consultation cancelled",
-  CONSULTATION_RESCHEDULED: "Consultation rescheduled",
-  CONSULTATION_BOOKING_OPENED: "Booking page opened",
-  CONSULTATION_SLOT_SELECTED: "Time slot selected",
-  FEE_AGREEMENT_GENERATED: "Fee agreement generated",
-  FEE_AGREEMENT_SENT: "Fee agreement sent",
-  FEE_AGREEMENT_SIGNED: "Fee agreement signed",
-  FEE_AGREEMENT_VOIDED: "Fee agreement voided",
-  CASE_OPENED: "Case opened",
-  PIPELINE_INITIALIZED: "Pipeline initialized",
-  TASK_ASSIGNED: "Task assigned",
-  TASK_COMPLETED: "Task completed",
-  TASK_SUBMITTED_FOR_REVIEW: "Task submitted for review",
-  TASK_APPROVED: "Task approved",
-  TASK_REJECTED: "Task rejected",
-  DOCUMENT_LINKED: "Document linked",
-  DOCUMENT_UNLINKED: "Document unlinked",
-  NUDGE_SENT: "Nudge sent",
-  MISSING_DOCUMENTS_REQUESTED: "Missing documents requested",
-  REMINDER_SENT: "Reminder sent",
-  ADVERSE_PARTY_ADDED: "Adverse party added",
-  ADVERSE_PARTY_UPDATED: "Adverse party updated",
-  ADVERSE_PARTY_DELETED: "Adverse party deleted",
-  CASE_WORKFLOW_STEP_UPDATED: "Workflow step updated",
-};
+/*
+  This file used to carry two hand-maintained maps of ~45 UPPERCASE event names
+  to an emoji and a label, with a near-identical copy in the case audit tab and
+  a third spelling on the backend. All three are gone: the API sends the
+  registry action and its label, and the icon is resolved by domain, so a new
+  `lead.*` action renders correctly on the day it ships with no change here.
+*/
 
 interface LeadAuditLogTabProps {
   leadId?: string;
@@ -188,18 +107,23 @@ export function LeadAuditLogTab({
           >
             <Box display="flex" alignItems="center" gap={2} mb={0.5}>
               <Text fontSize="11px" fontWeight="500" color="fg">
-                {eventIcons[entry.eventType] ?? "📋"}{" "}
-                {eventLabels[entry.eventType] ?? entry.title}
+                {iconForAction(entry.action)} {entry.label}
               </Text>
             </Box>
-            {entry.description && (
+            {/*
+              Only when it adds something. The summary for most actions is the
+              label plus its subject, and repeating "Stage changed" under
+              "Stage changed" is noise.
+            */}
+            {entry.summary && entry.summary !== entry.label && (
               <Text fontSize="10px" color="fg.subtle" mb={0.5}>
-                {entry.description}
+                {entry.summary}
               </Text>
             )}
             <Text fontSize="9px" color="fg.muted">
-              {entry.performedBy ? `by ${entry.performedBy.name}` : "by System"}{" "}
-              · {new Date(entry.createdAt).toLocaleString()}
+              {/* The stored snapshot. An absent name means the system acted. */}
+              {entry.actorName ? `by ${entry.actorName}` : "by System"} ·{" "}
+              {new Date(entry.createdAt).toLocaleString()}
             </Text>
           </Box>
         ))}

@@ -200,7 +200,7 @@ export default function ProfileTab() {
             <Circle
               size="80px"
               bg="brand.solid"
-              color="brand.fg"
+              color="brand.contrast"
               fontSize="2xl"
               fontWeight="bold"
               overflow="hidden"

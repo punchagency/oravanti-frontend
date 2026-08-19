@@ -1,9 +1,12 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
-import type { InviteStaffsPayload } from "@/api/organization";
+import type { InviteStaffsPayload, TeamListDTO } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
-import { PracticeAreaTreeView } from "@/components/ui/practice-area-tree-view";
+import {
+  CaseTypeSelect,
+  type CaseTypeSelectHandle,
+} from "@/components/ui/case-type-select";
 import { useInviteStaffs } from "@/hooks/use-invite-staff";
-import { usePracticeAreaTreeData } from "@/hooks/use-practice-area-tree-data";
+import { usePracticeAreaList } from "@/hooks/use-practice-area-tree-data";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import {
   Box,
@@ -21,12 +24,12 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import type { DateValue } from "@internationalized/date";
+import { getLocalTimeZone, today, type DateValue } from "@internationalized/date";
 import { CalendarDays, UserPlus, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { inputStyles } from "./input-styles";
-import { TeamMultiSelect } from "./team-multi-select";
+import { TeamMultiSelect } from "@/pages/admin/staff-and-users/components/team-multi-select";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -51,6 +54,11 @@ const roleOptions = createListCollection({
     { value: "paralegal", label: "Paralegal" },
   ],
 });
+
+// Shared fallbacks so a pending query doesn't hand the tree/team list a new
+// array identity on every render.
+const NO_TREE_NODES: PracticeAreaTreeNode[] = [];
+const NO_TEAMS: TeamListDTO[] = [];
 
 export function InviteStaffButton() {
   return (
@@ -81,7 +89,7 @@ export function InviteStaffDialog({
     handleSubmit,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<FormValues>({
     defaultValues: {
       firstName: "",
@@ -98,29 +106,20 @@ export function InviteStaffDialog({
     mode: "onBlur",
   });
 
-  const treeDataQuery = usePracticeAreaTreeData();
-  const treeData = treeDataQuery.data;
-  const practiceAreaTreeNodes = treeData?.practiceAreaTreeNodes ?? [];
+  // Only the practice-area names are needed here; the case types for whichever
+  // areas get picked are fetched by CaseTypeSelect itself.
+  const practiceAreaQuery = usePracticeAreaList();
+  const practiceAreaTreeNodes =
+    practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
   const teamsQuery = useTeamsList({ limit: 200 });
-  const teams = teamsQuery.data?.data ?? [];
+  const teams = teamsQuery.data?.data ?? NO_TEAMS;
 
   const inviteMutation = useInviteStaffs();
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const collectLeafIds = (nodes: PracticeAreaTreeNode[]): string[] => {
-    const ids: string[] = [];
-    for (const n of nodes) {
-      if (!n.children || n.children.length === 0) {
-        ids.push(n.id);
-      } else {
-        ids.push(...collectLeafIds(n.children));
-      }
-    }
-    return ids;
-  };
+  const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
 
   const onSubmit = (formData: FormValues) => {
+    const selectedIds = caseTypesRef.current?.getSelectedIds() ?? [];
     const payload: InviteStaffsPayload = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
@@ -147,10 +146,8 @@ export function InviteStaffDialog({
       open={open}
       onOpenChange={(details) => {
         onOpenChange(details.open);
-        if (!details.open) {
-          reset();
-          setSelectedIds([]);
-        }
+        // CaseTypeSelect unmounts with the dialog, so its selection resets too.
+        if (!details.open) reset();
       }}
       placement="center"
     >
@@ -189,7 +186,13 @@ export function InviteStaffDialog({
               </chakra.button>
             </Dialog.CloseTrigger>
 
-            <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit(onSubmit)}>
+            {/* Built inside the handler rather than during render: onSubmit
+                reads the case-type selection off a ref. */}
+            <Box
+              as="form"
+              p="32px 24px 24px"
+              onSubmit={(e) => handleSubmit(onSubmit)(e)}
+            >
               <Dialog.Title
                 color="fg"
                 fontSize="17px"
@@ -430,10 +433,19 @@ export function InviteStaffDialog({
                   <Controller
                     name="startDate"
                     control={control}
-                    rules={{ required: "Start date is required" }}
+                    rules={{
+                      required: "Start date is required",
+                      // `min` greys out past days in the calendar, but the input
+                      // is typeable — so the rule has to be enforced here too.
+                      validate: (value) =>
+                        !value ||
+                        value.compare(today(getLocalTimeZone())) >= 0 ||
+                        "Start date cannot be in the past",
+                    }}
                     render={({ field }) => (
                       <DatePicker.Root
                         value={field.value ? [field.value] : []}
+                        min={today(getLocalTimeZone())}
                         onValueChange={(e) =>
                           field.onChange(e.value[0] ?? undefined)
                         }
@@ -538,25 +550,16 @@ export function InviteStaffDialog({
                                   borderColor: "brand.solid",
                                 }}
                                 onClick={() => {
-                                  if (isSelected) {
-                                    const next = field.value.filter(
-                                      (id) => id !== practiceArea.id,
-                                    );
-                                    field.onChange(next);
-                                    const leafIds = collectLeafIds(
-                                      practiceArea.children ?? [],
-                                    );
-                                    setSelectedIds((prev) =>
-                                      prev.filter(
-                                        (id) => !leafIds.includes(id),
-                                      ),
-                                    );
-                                  } else {
-                                    field.onChange([
-                                      ...(field.value || []),
-                                      practiceArea.id,
-                                    ]);
-                                  }
+                                  // Deselecting only drops the practice area —
+                                  // CaseTypeSelect filters its own selection
+                                  // down to the areas still on screen.
+                                  field.onChange(
+                                    isSelected
+                                      ? field.value.filter(
+                                          (id) => id !== practiceArea.id,
+                                        )
+                                      : [...(field.value || []), practiceArea.id],
+                                  );
                                 }}
                                 transition="all 0.15s"
                               >
@@ -607,28 +610,16 @@ export function InviteStaffDialog({
                           </Field.ErrorText>
                         )}
                       </Field.Root>
-                      {field.value.length > 0 && (
-                        <PracticeAreaTreeView
-                          practiceAreaTreeNodes={practiceAreaTreeNodes}
-                          selectedPracticeAreaIds={field.value}
-                          selectedIds={selectedIds}
-                          onSelectionChange={setSelectedIds}
-                          onRemovePracticeArea={(id) => {
-                            field.onChange(
-                              field.value.filter((paId) => paId !== id),
-                            );
-                            const pa = practiceAreaTreeNodes.find(
-                              (n) => n.id === id,
-                            );
-                            if (pa) {
-                              const leafIds = collectLeafIds(pa.children ?? []);
-                              setSelectedIds((prev) =>
-                                prev.filter((sid) => !leafIds.includes(sid)),
-                              );
-                            }
-                          }}
-                        />
-                      )}
+                      <CaseTypeSelect
+                        ref={caseTypesRef}
+                        selectedPracticeAreaIds={field.value}
+                        showValidation={isSubmitted}
+                        onRemovePracticeArea={(id) =>
+                          field.onChange(
+                            field.value.filter((paId) => paId !== id),
+                          )
+                        }
+                      />
                     </>
                   )}
                 />

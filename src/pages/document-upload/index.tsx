@@ -215,7 +215,7 @@ export function DocumentUploadPage() {
             disabled={!canSubmit || submit.isPending}
             loading={submit.isPending}
             bg="brand.solid"
-            color="brand.fg"
+            color="brand.contrast"
             alignSelf="flex-start"
           >
             <Upload size={15} />

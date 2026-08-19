@@ -1,5 +1,6 @@
 import type { TeamListDTO } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useTeamDetails } from "@/hooks/use-team-details";
 import { useStaffsList } from "@/hooks/use-staff-list";
 import { useAddTeamMembers } from "@/hooks/use-add-team-members";
@@ -43,17 +44,19 @@ export function AddMemberDialog({ team, open, onOpenChange }: AddMemberDialogPro
     [allStaff, existingMemberIds],
   );
 
+  // The input stays responsive; only the filter waits for a pause in typing.
+  const query = useDebouncedValue(search.trim().toLowerCase(), 200);
+
   const filteredStaff = useMemo(
     () =>
       availableStaff.filter((s) => {
-        if (!search) return true;
-        const q = search.toLowerCase();
+        if (!query) return true;
         return (
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-          (s.jobTitle ?? "").toLowerCase().includes(q)
+          `${s.firstName} ${s.lastName}`.toLowerCase().includes(query) ||
+          (s.jobTitle ?? "").toLowerCase().includes(query)
         );
       }),
-    [availableStaff, search],
+    [availableStaff, query],
   );
 
   const selectedStaff = useMemo(

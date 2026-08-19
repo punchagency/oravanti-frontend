@@ -58,7 +58,7 @@ export function InviteClientDialog({
             <Button
               size="sm"
               bg="brand.solid"
-              color="brand.fg"
+              color="brand.contrast"
               _hover={{ bg: "brand.500" }}
               onClick={handleInvite}
               loading={inviteMutation.isPending}

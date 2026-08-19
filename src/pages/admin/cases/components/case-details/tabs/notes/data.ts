@@ -48,8 +48,8 @@ export const notes: Note[] = [
 ];
 
 export const roleColors: Record<string, { bg: string; color: string }> = {
-  Attorney: { bg: "brand.subtle", color: "brand.fg" },
-  Paralegal: { bg: "brand.muted", color: "brand.fg" },
+  Attorney: { bg: "brand.subtle", color: "brand.contrast" },
+  Paralegal: { bg: "brand.muted", color: "brand.contrast" },
 };
 
 export const visibilityOptions = createListCollection({

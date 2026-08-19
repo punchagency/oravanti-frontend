@@ -1,4 +1,4 @@
-import { useNav } from "@/components/layout/shared/nav-context";
+import { useNav } from "@/components/layout/shared/use-nav";
 import { Drawer, Flex, IconButton, Text, chakra } from "@chakra-ui/react";
 import { X } from "lucide-react";
 import { ClientNavContent } from "./nav-content";

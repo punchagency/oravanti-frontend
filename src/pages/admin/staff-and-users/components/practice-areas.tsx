@@ -35,13 +35,9 @@ export function PracticeAreas({
 
   const filteredTree = useMemo(() => {
     if (!treeData?.practiceAreaTreeNodes) return [];
-    return filterTree(
-      treeData.practiceAreaTreeNodes,
-      assignedIds,
-      assignee.subcategories,
-      assignee.caseTypes,
-    );
-  }, [treeData, assignedIds, assignee.subcategories, assignee.caseTypes]);
+    const subIds = new Set(assignee.subcategories.map((s) => s.id));
+    return filterTree(treeData.practiceAreaTreeNodes, assignedIds, subIds);
+  }, [treeData, assignedIds, assignee.subcategories]);
 
   if (filteredTree.length === 0) {
     return (
@@ -76,22 +72,18 @@ export function PracticeAreas({
   );
 }
 
-type IdRecord = { id: string }[];
-
 function filterTree(
   nodes: PracticeAreaTreeNode[],
   ids: Set<string>,
-  subcategories: IdRecord,
-  caseTypes: IdRecord,
+  subIds: Set<string>,
   depth = 0,
 ): PracticeAreaTreeNode[] {
-  const subIds = new Set(subcategories.map((s) => s.id));
   const result: PracticeAreaTreeNode[] = [];
   for (const node of nodes) {
     if (depth === 0 && !ids.has(node.id)) continue;
     if (depth === 1 && !subIds.has(node.id)) continue;
     const filtered = node.children
-      ? filterTree(node.children, ids, subcategories, caseTypes, depth + 1)
+      ? filterTree(node.children, ids, subIds, depth + 1)
       : undefined;
     result.push({
       ...node,
@@ -127,6 +119,8 @@ function PracticeAreaTreeViewer({
       </Text>
       <TreeView.Root
         collection={collection}
+        lazyMount
+        unmountOnExit
         borderWidth="1px"
         borderColor="border.muted"
         borderRadius="md"

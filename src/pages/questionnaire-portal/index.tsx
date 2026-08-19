@@ -264,7 +264,7 @@ export function QuestionnairePortalPage() {
             py="10px"
             borderRadius="8px"
             bg="brand.solid"
-            color="brand.fg"
+            color="brand.contrast"
             fontSize="14px"
             fontWeight="600"
           >
@@ -336,7 +336,7 @@ const QuestionField = memo(function QuestionField({
                 border="1px solid"
                 borderColor={active ? "brand.solid" : "border"}
                 bg={active ? "brand.solid" : "bg"}
-                color={active ? "brand.fg" : "fg"}
+                color={active ? "brand.contrast" : "fg"}
                 fontSize="13px"
                 fontWeight="500"
               >

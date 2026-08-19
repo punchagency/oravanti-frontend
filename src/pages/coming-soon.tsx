@@ -36,7 +36,7 @@ export function ComingSoonPage({
         alignItems="center"
         justifyContent="center"
         fontSize="xl"
-        color="brand.fg"
+        color="brand.contrast"
       >
         &#9670;
       </Box>

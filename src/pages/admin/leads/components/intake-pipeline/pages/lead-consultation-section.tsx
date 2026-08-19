@@ -23,7 +23,6 @@ import {
   useUpdateLeadNote,
 } from "@/hooks/use-lead-workflows";
 import {
-  useAdvanceLeadStage,
   useCancelConsultation,
   useConsultationData,
   useDiscardFeeAgreement,
@@ -39,6 +38,7 @@ import {
 } from "@/hooks/use-leads";
 import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
 import { useStaffsList } from "@/hooks/use-staff-list";
+import { leadStagePath, pipelineOrigin } from "../shared/constants";
 import { consultationModeLabel } from "../shared/consultation-wizard-constants";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
@@ -78,6 +78,7 @@ import {
   X,
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 type StatusTone = "info" | "success" | "danger" | "warning" | "neutral";
@@ -192,7 +193,7 @@ function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
                 border="1px solid"
                 borderColor={done || active ? "brand.solid" : "border.subtle"}
                 bg={done ? "brand.solid" : "bg"}
-                color={done ? "brand.fg" : active ? "brand.solid" : "fg.muted"}
+                color={done ? "brand.contrast" : active ? "brand.solid" : "fg.muted"}
                 fontSize="11px"
                 fontWeight="600"
               >
@@ -887,7 +888,6 @@ function FeeAgreementSection({
   const markReceived = useMarkFeeAgreementReceived();
   const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
-  const advanceStage = useAdvanceLeadStage();
   const discardDraft = useDiscardFeeAgreement();
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1067,41 +1067,36 @@ function FeeAgreementSection({
                   ? "Signed document received \u2014 awaiting payment. Standard agreements require payment before the case can be opened."
                   : "Signed document received."}
               </MutedText>
+              {/*
+               * No "advance to case opening" action here. The backend already
+               * moves the lead the moment both gates are satisfied — signed
+               * plus payment (see markFeeAgreementReceived /
+               * markFeeAgreementPaymentReceived). Forcing the stage from this
+               * card either duplicated a transition that had already happened
+               * or, worse, jumped the payment gate. Once the lead is through,
+               * the card just points at the step that does the work.
+               */}
               <HStack gap="8px" wrap="wrap">
                 {awaitingPayment ? (
-                  <>
-                    <BrandButton
-                      loading={markPayment.isPending}
-                      onClick={() => markPayment.mutate(feeAgreement.id)}
-                    >
-                      <Check size={14} />
-                      Mark payment received
-                    </BrandButton>
-                    <OutlineButton
-                      loading={advanceStage.isPending}
-                      onClick={() =>
-                        advanceStage.mutate({
-                          id: lead.id,
-                          stage: "case_opening",
-                        })
-                      }
+                  <BrandButton
+                    loading={markPayment.isPending}
+                    onClick={() => markPayment.mutate(feeAgreement.id)}
+                  >
+                    <Check size={14} />
+                    Mark payment received
+                  </BrandButton>
+                ) : (
+                  <BrandButton asChild>
+                    <Link
+                      to={leadStagePath(lead.id, "case_opening")}
+                      state={pipelineOrigin(
+                        leadStagePath(lead.id, "consultation"),
+                        "Back to consultation",
+                      )}
                     >
                       <ExternalLink size={14} />
-                      Advance to case opening
-                    </OutlineButton>
-                  </>
-                ) : (
-                  <BrandButton
-                    loading={advanceStage.isPending}
-                    onClick={() =>
-                      advanceStage.mutate({
-                        id: lead.id,
-                        stage: "case_opening",
-                      })
-                    }
-                  >
-                    <ExternalLink size={14} />
-                    Advance to case opening
+                      Go to case opening
+                    </Link>
                   </BrandButton>
                 )}
               </HStack>
