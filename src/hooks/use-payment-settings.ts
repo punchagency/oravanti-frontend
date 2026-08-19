@@ -1,7 +1,9 @@
 import {
   getPaymentAccount,
   getConfidoStatements,
+  getClearingPolicy,
   getSurchargeSettings,
+  setClearingPolicy,
   setSurchargeEnabled,
   refreshPaymentAccount,
   startOnboardingSession,
@@ -106,6 +108,32 @@ export function useSetSurcharge() {
         err.response?.data?.message ?? "Could not update surcharge settings",
       );
     },
+  });
+}
+
+const clearingPolicyKey = ["payment-settings", "clearing-policy"] as const;
+
+export function useClearingPolicy(enabled: boolean) {
+  return useQuery({
+    queryKey: clearingPolicyKey,
+    queryFn: getClearingPolicy,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useSetClearingPolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: setClearingPolicy,
+    onSuccess: (settings) => {
+      qc.setQueryData(clearingPolicyKey, settings);
+      toast.success("Case-opening rule updated");
+    },
+    onError: (err: APIError) =>
+      toast.error(
+        err.response?.data?.message ?? "Could not update the case-opening rule",
+      ),
   });
 }
 
