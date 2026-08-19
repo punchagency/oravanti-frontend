@@ -145,3 +145,36 @@ export async function getConfidoStatements(): Promise<ConfidoStatement[]> {
   );
   return data.data;
 }
+
+/**
+ * How settled a payment must be before it opens a case.
+ *
+ * Ours rather than Confido's. A card sits pending for about two business days
+ * and an ACH payment can be returned by the client's bank days after it
+ * appears, so opening a case the moment money is reported occasionally means
+ * doing billable work against money that goes back.
+ */
+export type ClearingPolicy = "on_report" | "ach_only" | "all_payments";
+
+export type ClearingPolicySettings = {
+  policy: ClearingPolicy;
+  /** False until the firm has a payment account — nothing to configure yet. */
+  configurable: boolean;
+};
+
+export async function getClearingPolicy(): Promise<ClearingPolicySettings> {
+  const { data } = await API.get<{ data: ClearingPolicySettings }>(
+    "/settings/payments/clearing-policy",
+  );
+  return data.data;
+}
+
+export async function setClearingPolicy(
+  policy: ClearingPolicy,
+): Promise<ClearingPolicySettings> {
+  const { data } = await API.patch<{ data: ClearingPolicySettings }>(
+    "/settings/payments/clearing-policy",
+    { policy },
+  );
+  return data.data;
+}

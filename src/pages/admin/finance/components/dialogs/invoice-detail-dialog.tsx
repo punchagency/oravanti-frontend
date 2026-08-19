@@ -1,15 +1,20 @@
-import { PAYMENT_METHOD_LABELS, downloadInvoicePdf } from "@/api/finance";
+import {
+  PAYMENT_METHOD_LABELS,
+  downloadInvoicePdf,
+  type InvoicePayment,
+} from "@/api/finance";
 import { OutlineButton, StatusPill } from "@/components/ui/intake-ui";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import {
   useInvoice,
   useInvoiceDeliveries,
+  useRefundPayment,
   useResendInvoice,
 } from "@/hooks/use-finance";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
 import { Box, Center, Flex, Grid, Spinner, Table, Text } from "@chakra-ui/react";
-import { Download, Send } from "lucide-react";
+import { Download, Send, Undo2 } from "lucide-react";
 import {
   INSTALMENT_LABEL,
   INSTALMENT_TONE,
@@ -17,6 +22,7 @@ import {
   INVOICE_STATUS_TONE,
 } from "../../data";
 import { DialogShell } from "./dialog-shell";
+import { useAuthStore } from "@/store/auth-store";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -31,6 +37,103 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Money that has not cleared yet, or is not coming.
+ *
+ * `settledAt` is the fact the case-opening gate consults, and `providerStatus`
+ * is Confido's own word — kept separate because HELD is their high-dollar risk
+ * review, not an ordinary pending, and a firm watching a filing fee sit for a
+ * week deserves to know which it is.
+ */
+function settlementPill(p: InvoicePayment) {
+  if (p.settledAt) return null;
+  if (p.providerStatus === "HELD") {
+    return { tone: "warning" as const, label: "Held for review" };
+  }
+  if (p.providerStatus === "ERROR") {
+    return { tone: "danger" as const, label: "Failed" };
+  }
+  return { tone: "neutral" as const, label: "Clearing" };
+}
+
+const REVERSAL_LABEL: Record<string, string> = {
+  refund: "Refunded",
+  return: "Returned by bank",
+  void: "Voided",
+  chargeback: "Charged back",
+  reversal: "Reversed",
+};
+
+function PaymentRow({
+  payment: p,
+  invoiceId,
+  canRefund,
+}: {
+  payment: InvoicePayment;
+  invoiceId: string;
+  canRefund: boolean;
+}) {
+  const refund = useRefundPayment();
+  const isReversal = p.kind !== "payment";
+  const pill = settlementPill(p);
+
+  return (
+    <Flex
+      justify="space-between"
+      align="center"
+      gap="10px"
+      py="7px"
+      borderTop="1px solid"
+      borderColor="border.muted"
+    >
+      <Flex direction="column" gap="2px" minW={0}>
+        <Text fontSize="12px" color="fg.muted">
+          {formatDate(p.paymentDate)} · {PAYMENT_METHOD_LABELS[p.method]}
+          {p.reference ? ` · ${p.reference}` : ""}
+        </Text>
+        {/* On a return this carries the bank's reason code, which is the only
+            thing that tells a firm why the money went back. */}
+        {p.notes && (
+          <Text fontSize="11px" color="fg.muted">
+            {p.notes}
+          </Text>
+        )}
+      </Flex>
+
+      <Flex align="center" gap="8px" flexShrink={0}>
+        {isReversal && (
+          <StatusPill tone="danger">
+            {REVERSAL_LABEL[p.kind] ?? "Reversed"}
+          </StatusPill>
+        )}
+        {pill && <StatusPill tone={pill.tone}>{pill.label}</StatusPill>}
+        {canRefund && p.refundable && (
+          <OutlineButton
+            loading={refund.isPending}
+            onClick={() =>
+              refund.mutate({ invoiceId, paymentId: p.id })
+            }
+          >
+            <Undo2 size={12} />
+            Refund
+          </OutlineButton>
+        )}
+        {/* Negative on a reversal, and shown that way. Rendering the magnitude
+            alone would make a refund look identical to the payment it undoes. */}
+        <Text
+          fontSize="12px"
+          fontWeight="600"
+          color={p.amount < 0 ? "fg.error" : undefined}
+          minW="72px"
+          textAlign="right"
+        >
+          {formatCurrency(p.amount)}
+        </Text>
+      </Flex>
+    </Flex>
+  );
+}
+
 export function InvoiceDetailDialog({
   invoiceId,
   open,
@@ -40,6 +143,10 @@ export function InvoiceDetailDialog({
   open: boolean;
   onOpenChange: (details: { open: boolean }) => void;
 }) {
+  // Refunds are owner/admin only on the server (`finance: ["refund"]`). Hiding
+  // the control is presentation, not a gate — the API refuses regardless.
+  const memberRole = useAuthStore((state) => state.memberRole);
+  const canRefund = memberRole === "owner" || memberRole === "admin";
   const { data: invoice, isLoading } = useInvoice(open ? invoiceId : null);
   const { data: deliveries } = useInvoiceDeliveries(open ? invoiceId : null);
   const resend = useResendInvoice();
@@ -240,22 +347,12 @@ export function InvoiceDetailDialog({
                 Payments
               </Text>
               {invoice.payments.map((p) => (
-                <Flex
+                <PaymentRow
                   key={p.id}
-                  justify="space-between"
-                  py="7px"
-                  borderTop="1px solid"
-                  borderColor="border.muted"
-                >
-                  <Text fontSize="12px" color="fg.muted">
-                    {formatDate(p.paymentDate)} ·{" "}
-                    {PAYMENT_METHOD_LABELS[p.method]}
-                    {p.reference ? ` · ${p.reference}` : ""}
-                  </Text>
-                  <Text fontSize="12px" fontWeight="600">
-                    {formatCurrency(p.amount)}
-                  </Text>
-                </Flex>
+                  payment={p}
+                  invoiceId={invoice.id}
+                  canRefund={canRefund}
+                />
               ))}
             </>
           )}

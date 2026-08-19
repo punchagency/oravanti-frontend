@@ -9,6 +9,7 @@ import { formatDateTime } from "@/utils/date";
 import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { ConfidoOnboarding } from "./confido-onboarding";
+import { ClearingPolicyCard } from "./clearing-policy-card";
 import { SurchargeCard } from "./surcharge-card";
 
 /**
@@ -90,6 +91,8 @@ export default function PaymentsTab() {
       />
 
       <SurchargeCard active={account.state === "active"} />
+
+      <ClearingPolicyCard active={account.state === "active"} />
 
       {(account.state === "not_started" ||
         account.state === "token_unreadable") && (
