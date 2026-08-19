@@ -118,6 +118,21 @@ export type Consultation = {
   videoLink: string | null;
   status: ConsultationStatus;
   feeStatus: "none" | "unpaid" | "paid" | "waived";
+  /**
+   * The fee as the invoice reports it, once one exists.
+   *
+   * `netPaid` is what the firm is currently holding, net of any refund — so it
+   * answers "how much would cancelling send back" before cancellation, and "how
+   * much is still owed" after. Nothing is stored either way; it is a fold over
+   * the ledger, so it cannot drift.
+   */
+  fee?: {
+    amount: number | null;
+    status: "none" | "unpaid" | "paid" | "waived";
+    invoiceId: string | null;
+    invoiceNumber: string | null;
+    netPaid: number;
+  };
   preConsultationNotes: string | null;
   attorneyNotes: string | null;
   cancelledAt: string | null;

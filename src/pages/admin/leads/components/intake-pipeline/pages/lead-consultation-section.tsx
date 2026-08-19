@@ -1,4 +1,7 @@
 import type { LeadNote } from "@/api/lead-workflows";
+import { InvoiceDetailDialog } from "@/pages/admin/finance/components/dialogs/invoice-detail-dialog";
+import { formatCurrency } from "@/utils/currency";
+import { useAuthStore } from "@/store/auth-store";
 import type {
   Consultation,
   FeeAgreementDetails,
@@ -324,9 +327,66 @@ function PastConsultationRow({
   );
 }
 
+
+/**
+ * What cancelling does to money the client has already paid.
+ *
+ * Two different messages, because two different things happen. Someone holding
+ * `finance:refund` refunds as part of cancelling; someone without it cancels
+ * anyway and the refund is left owed. Saying "this will refund the client" to
+ * the second person would be a promise the system does not keep.
+ */
+function CancelRefundNotice({
+  netPaid,
+  canRefund,
+}: {
+  netPaid: number;
+  canRefund: boolean;
+}) {
+  if (netPaid <= 0) return null;
+
+  return (
+    <Box
+      mt="12px"
+      p="10px 12px"
+      borderRadius="8px"
+      border="1px solid"
+      borderColor={canRefund ? "border" : "#e0b4b4"}
+      bg={canRefund ? "bg.subtle" : "#fdf3f3"}
+      _dark={{
+        bg: canRefund ? "bg.subtle" : "rgba(176, 0, 32, 0.12)",
+        borderColor: canRefund ? "border" : "rgba(176, 0, 32, 0.35)",
+      }}
+    >
+      <Text fontSize="12px" lineHeight="1.6">
+        {canRefund ? (
+          <>
+            This consultation has been paid. Cancelling refunds{" "}
+            <Text as="span" fontWeight="600">
+              {formatCurrency(netPaid)}
+            </Text>{" "}
+            to the client.
+          </>
+        ) : (
+          <>
+            This consultation has been paid. Cancelling does{" "}
+            <Text as="span" fontWeight="600">
+              not
+            </Text>{" "}
+            refund it — an administrator will need to issue the{" "}
+            {formatCurrency(netPaid)} refund.
+          </>
+        )}
+      </Text>
+    </Box>
+  );
+}
+
 function CancelConsultationDialog({
   open,
   leadName,
+  netPaid,
+  canRefund,
   reason,
   onReasonChange,
   loading,
@@ -335,6 +395,9 @@ function CancelConsultationDialog({
 }: {
   open: boolean;
   leadName: string;
+  /** What the firm is holding for this consultation, net of any refund. */
+  netPaid: number;
+  canRefund: boolean;
   reason: string;
   onReasonChange: (value: string) => void;
   loading: boolean;
@@ -366,6 +429,7 @@ function CancelConsultationDialog({
               link, and notifies everyone involved. This can't be undone, but
               you can schedule a new consultation afterwards.
             </MutedText>
+            <CancelRefundNotice netPaid={netPaid} canRefund={canRefund} />
             <Box mt="14px">
               <Text m="0 0 6px" fontSize="12px" color="fg.muted">
                 Reason (optional)
@@ -555,6 +619,12 @@ function ConsultationInfoCard({
   const cancelMutation = useCancelConsultation();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  // Presentation only — the server decides. Refunds need `finance:refund`,
+  // which is owner/admin, and a cancellation by anyone else leaves the money
+  // owed rather than moving it.
+  const memberRole = useAuthStore((state) => state.memberRole);
+  const canRefund = memberRole === "owner" || memberRole === "admin";
 
   const canCancel =
     consultation?.status === "pending_payment" ||
@@ -638,6 +708,23 @@ function ConsultationInfoCard({
                 Mark payment received
               </OutlineButton>
             ) : null}
+            {/* The fee invoice, if one was raised. It is sent automatically when
+                a chargeable consultation is scheduled, so this is a way to see
+                what the lead received — and, after a cancellation, whether a
+                refund is still outstanding. Deliberately view-only: the invoice
+                bills a LEAD, and the edit dialog is built around clients. */}
+            {consultation.fee?.invoiceId ? (
+              <OutlineButton onClick={() => setInvoiceOpen(true)}>
+                <FileText size={13} />
+                {consultation.fee.invoiceNumber ?? "Fee invoice"}
+              </OutlineButton>
+            ) : null}
+            {consultation.status === "cancelled" &&
+            (consultation.fee?.netPaid ?? 0) > 0 ? (
+              <StatusPill tone="danger">
+                {formatCurrency(consultation.fee!.netPaid)} refund owed
+              </StatusPill>
+            ) : null}
             {canCancel ? (
               <chakra.button
                 type="button"
@@ -662,9 +749,17 @@ function ConsultationInfoCard({
         )}
       </HStack>
 
+      <InvoiceDetailDialog
+        invoiceId={consultation?.fee?.invoiceId ?? null}
+        open={invoiceOpen}
+        onOpenChange={(d) => setInvoiceOpen(d.open)}
+      />
+
       <CancelConsultationDialog
         open={cancelOpen}
         leadName={lead.name}
+        netPaid={consultation?.fee?.netPaid ?? 0}
+        canRefund={canRefund}
         reason={cancelReason}
         onReasonChange={setCancelReason}
         loading={cancelMutation.isPending}
