@@ -128,7 +128,7 @@ export type Consultation = {
    */
   fee?: {
     amount: number | null;
-    status: "none" | "unpaid" | "paid" | "waived";
+    status: "none" | "unpaid" | "paid" | "waived" | "refunded";
     invoiceId: string | null;
     invoiceNumber: string | null;
     netPaid: number;
