@@ -323,7 +323,21 @@ export function ConsultationBookingPage() {
                 />
               </Box>
               <Text fontSize="12px" color="fg.muted" textAlign="center">
-                This page updates on its own once your payment goes through.
+                This page updates on its own once your payment goes through.{" "}
+                {/* Always shown, never conditional. The card fields live in
+                    frames nested inside the payment page, and a cross-origin
+                    frame that refuses to load reports nothing to its parent —
+                    so a link that only appeared on failure would never
+                    appear. */}
+                <chakra.a
+                  href={payUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  textDecoration="underline"
+                  _hover={{ color: "fg" }}
+                >
+                  Having trouble? Open the payment page in a new tab.
+                </chakra.a>
               </Text>
             </>
           ) : (

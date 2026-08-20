@@ -40,6 +40,8 @@ export type EffectiveInvoiceStatus =
   | "unpaid"
   | "partial"
   | "paid"
+  /** Charged, paid, and given back. Not the same as `void`, which was never charged. */
+  | "refunded"
   | "overdue"
   | "void";
 
