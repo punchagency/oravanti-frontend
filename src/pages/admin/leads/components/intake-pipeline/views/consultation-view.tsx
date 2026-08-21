@@ -2882,13 +2882,6 @@ function ReviewStep({
               </HStack>
             </Flex>
 
-            {structure === "waived_if_retainer" ? (
-              <MutedText>
-                Waived if the client signs a retainer within{" "}
-                {feeSettings?.waiverWindowDays ?? 0} days.
-              </MutedText>
-            ) : null}
-
             <HStack
               mt="14px"
               align="flex-start"

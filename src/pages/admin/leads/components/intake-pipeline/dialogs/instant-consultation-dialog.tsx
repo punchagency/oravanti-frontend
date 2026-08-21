@@ -1391,13 +1391,6 @@ function InstantReviewStep({
               </HStack>
             </Flex>
 
-            {structure === "waived_if_retainer" ? (
-              <MutedText>
-                Waived if the client signs a retainer within{" "}
-                {feeSettings?.waiverWindowDays ?? 0} days.
-              </MutedText>
-            ) : null}
-
             <Box mt="16px">
               <Text m="0 0 10px" fontSize="13px" fontWeight="600" color="fg">
                 Payment timing
