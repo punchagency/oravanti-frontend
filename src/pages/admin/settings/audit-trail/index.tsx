@@ -1,61 +1,54 @@
-import { exportAuditEvents, type AuditEvent } from "@/api/audit";
+import type { AuditEvent } from "@/api/audit";
 import { PageTitle } from "@/components/layout/shared/nav-context";
-import { ReportTable, REPORT_CELL_PY } from "@/components/ui/report-table";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
-import { useAuditEvents, useAuditFacets } from "@/hooks/use-audit";
 import {
   colorForCategory,
-  iconForAction,
   labelForCategory,
   labelForDomain,
 } from "@/lib/audit";
-import { useAuthStore } from "@/store/auth-store";
 import {
   Badge,
   Box,
-  Button,
-  Flex,
-  HStack,
-  Input,
-  NativeSelect,
   Table,
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { Download, Search } from "lucide-react";
-import { parseAsString, useQueryStates } from "nuqs";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { Shield } from "lucide-react";
+import { memo, useCallback, useState } from "react";
+import { AuditTrailDataProvider, useAuditTrailData } from "./audit-trail-data-context";
+import { AuditTrailFilters } from "./components/audit-trail-filters";
+import { AuditEventDetailDialog } from "./components/audit-event-detail-dialog";
+
+const TABLE_HEADERS = [
+  "TIMESTAMP",
+  "",
+  "EVENT",
+  "TYPE",
+  "CATEGORY",
+  "ACTOR",
+  "ENTITY",
+  "IP ADDRESS",
+  "SOURCE",
+];
 
 /**
- * The firm-wide audit trail.
- *
- * One component for every action in the system. It holds no vocabulary of its
- * own: the row label comes from the API (which reads it from the registry), the
- * icon is resolved by domain, and the filter options are the actions this firm
- * has actually recorded. A new action therefore appears here correctly the day
- * it ships, with no change to this file — which is the whole reason the eleven
- * per-domain event tables and their divergent frontend label maps were
- * collapsed into one.
+ * Memoized, with a stable `onSelect` from the parent (see
+ * `AuditTrailContent`) — without both, opening/closing the shared detail
+ * dialog re-rendered every row on the page.
  */
-
-/** Rendered when a filter has no matches, and when the trail is genuinely empty. */
-function EmptyState({ filtered }: { filtered: boolean }) {
+const AuditRow = memo(function AuditRow({ event, onSelect }: { event: AuditEvent; onSelect: (event: AuditEvent) => void }) {
   return (
-    <Box py={12} textAlign="center">
-      <Text fontSize="13px" color="fg.muted">
-        {filtered
-          ? "No events match these filters."
-          : "No audit events recorded yet."}
-      </Text>
-    </Box>
-  );
-}
-
-function AuditRow({ event }: { event: AuditEvent }) {
-  return (
-    <Table.Row>
-      <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
+    <Table.Row
+      borderBottom="1px solid"
+      borderColor="border.muted"
+      _last={{ borderBottom: "none" }}
+      _hover={{ bg: "bg.muted" }}
+      cursor="pointer"
+      transition="background 0.15s"
+      onClick={() => onSelect(event)}
+    >
+      <Table.Cell py="12px" whiteSpace="nowrap" verticalAlign="top">
         <Text fontSize="12px" color="fg">
           {new Date(event.occurredAt).toLocaleDateString()}
         </Text>
@@ -64,40 +57,34 @@ function AuditRow({ event }: { event: AuditEvent }) {
         </Text>
       </Table.Cell>
 
-      <Table.Cell py={REPORT_CELL_PY}>
-        <HStack gap={2} align="start">
-          <Text fontSize="13px" lineHeight="1.3">
-            {iconForAction(event.action)}
-          </Text>
-          <Box>
-            <Text fontSize="12px" fontWeight="500" color="fg">
-              {event.label}
-            </Text>
-            {/*
-              Only when it adds something. Most summaries are the label plus
-              their subject, and repeating the label underneath it is noise.
-            */}
-            {event.summary && event.summary !== event.label && (
-              <Text fontSize="11px" color="fg.subtle" lineHeight="1.4">
-                {event.summary}
-              </Text>
-            )}
-          </Box>
-        </HStack>
+      <Table.Cell py="12px" verticalAlign="top" w="32px">
+        <Shield size={14} color="fg.subtle" />
       </Table.Cell>
 
-      <Table.Cell py={REPORT_CELL_PY}>
-        <Badge
-          size="sm"
-          colorPalette={colorForCategory(event.category)}
-          variant="subtle"
-        >
+      <Table.Cell py="12px" verticalAlign="top" minW="200px">
+        <Text fontSize="12px" fontWeight="500" color="fg" lineHeight="1.4">
+          {event.label}
+        </Text>
+        {event.summary && event.summary !== event.label && (
+          <Text fontSize="11px" color="fg.subtle" lineHeight="1.4" mt="2px">
+            {event.summary}
+          </Text>
+        )}
+      </Table.Cell>
+
+      <Table.Cell py="12px" whiteSpace="nowrap" verticalAlign="top">
+        <Badge size="sm" variant="outline" colorPalette={event.actionType === "delete" ? "red" : event.actionType === "create" ? "green" : "gray"}>
+          {event.actionType}
+        </Badge>
+      </Table.Cell>
+
+      <Table.Cell py="12px" whiteSpace="nowrap" verticalAlign="top">
+        <Badge size="sm" colorPalette={colorForCategory(event.category)} variant="subtle">
           {labelForCategory(event.category)}
         </Badge>
       </Table.Cell>
 
-      <Table.Cell py={REPORT_CELL_PY}>
-        {/* The stored snapshot, not a live lookup — renames must not rewrite history. */}
+      <Table.Cell py="12px" verticalAlign="top">
         <Text fontSize="12px" color="fg">
           {event.actorName}
         </Text>
@@ -108,273 +95,53 @@ function AuditRow({ event }: { event: AuditEvent }) {
         )}
       </Table.Cell>
 
-      <Table.Cell py={REPORT_CELL_PY}>
-        <Text fontSize="11px" color="fg.muted">
+      <Table.Cell py="12px" whiteSpace="nowrap" verticalAlign="top">
+        <Text fontSize="11px" color="fg">
           {labelForDomain(event.entityType)}
+        </Text>
+        {event.entityId && (
+          <Text fontSize="10px" color="fg.muted" fontFamily="mono">
+            {event.entityId.slice(0, 8)}
+          </Text>
+        )}
+      </Table.Cell>
+
+      <Table.Cell py="12px" whiteSpace="nowrap" verticalAlign="top">
+        <Text fontSize="11px" color="fg.muted" fontFamily="mono">
+          {event.ipAddress ?? "\u2014"}
         </Text>
       </Table.Cell>
 
-      <Table.Cell py={REPORT_CELL_PY} whiteSpace="nowrap">
-        <Text fontSize="11px" color="fg.muted" fontFamily="mono">
-          {event.ipAddress ?? "—"}
+      <Table.Cell py="12px" whiteSpace="nowrap" verticalAlign="top">
+        <Text fontSize="11px" color="fg.muted">
+          {event.source ?? "\u2014"}
         </Text>
       </Table.Cell>
     </Table.Row>
   );
-}
+});
 
-const TABLE_HEADERS = [
-  "WHEN",
-  "EVENT",
-  "CATEGORY",
-  "ACTOR",
-  "ENTITY",
-  "IP ADDRESS",
-];
-
-export function AuditTrailPage() {
-  const memberRole = useAuthStore((s) => s.memberRole);
-  // The route is gated server-side on the `audit` resource; this only decides
-  // whether to render the control, so an attorney is not shown a button that
-  // would 403.
-  const canExport = memberRole === "owner" || memberRole === "admin";
-
-  const [filters, setFilters] = useQueryStates({
-    domain: parseAsString.withDefault(""),
-    category: parseAsString.withDefault(""),
-    action: parseAsString.withDefault(""),
-    search: parseAsString.withDefault(""),
-    from: parseAsString.withDefault(""),
-    to: parseAsString.withDefault(""),
-  });
-
-  // Typing must not fire a request per keystroke; the box commits on Enter or
-  // on the button, and this holds the uncommitted text meanwhile.
-  const [searchDraft, setSearchDraft] = useState(filters.search);
-  const [exporting, setExporting] = useState(false);
-
-  const queryFilters = useMemo(
-    () => ({
-      domain: filters.domain || undefined,
-      category: filters.category || undefined,
-      action: filters.action || undefined,
-      search: filters.search || undefined,
-      from: filters.from ? new Date(filters.from).toISOString() : undefined,
-      to: filters.to ? new Date(filters.to).toISOString() : undefined,
-      limit: 50,
-    }),
-    [filters],
-  );
-
+function AuditTrailContent() {
   const {
-    data,
+    events,
     isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
     isError,
-  } = useAuditEvents(queryFilters);
-  const { data: facets } = useAuditFacets();
-
-  const events = useMemo(
-    () => data?.pages.flatMap((page) => page.data) ?? [],
-    [data],
-  );
-
-  const isFiltered = Object.values(filters).some(Boolean);
-
-  /**
-   * Actions narrowed to the selected domain.
-   *
-   * Otherwise the action dropdown lists everything the firm has ever recorded
-   * while the domain filter says "lead", which offers combinations that return
-   * nothing.
-   */
-  const actionOptions = useMemo(() => {
-    const all = facets?.actions ?? [];
-    if (!filters.domain) return all;
-    return all.filter((a) => a.action.startsWith(`${filters.domain}.`));
-  }, [facets, filters.domain]);
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const blob = await exportAuditEvents(queryFilters, "csv");
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `audit-trail-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.success("Audit trail exported");
-    } catch {
-      toast.error("Could not export the audit trail");
-    } finally {
-      setExporting(false);
-    }
-  };
+    isFiltered,
+    currentPage,
+    pageLimit,
+    pagination,
+    setPagination,
+  } = useAuditTrailData();
+  const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const handleSelectEvent = useCallback((event: AuditEvent) => {
+    setSelectedEvent(event);
+    setDetailOpen(true);
+  }, []);
 
   return (
     <VStack align="stretch" gap={4}>
-      <PageTitle>Audit trail</PageTitle>
-
-      <Flex justify="space-between" align="center" gap={3} wrap="wrap">
-        <Box>
-          <Text fontSize="15px" fontWeight="600" color="fg">
-            Audit trail
-          </Text>
-          <Text fontSize="12px" color="fg.muted">
-            Every recorded action, newest first. Views and downloads are
-            excluded unless you select the Access category.
-          </Text>
-        </Box>
-
-        {canExport && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExport}
-            loading={exporting}
-          >
-            <Download size={14} /> Export CSV
-          </Button>
-        )}
-      </Flex>
-
-      <Flex gap={2} wrap="wrap" align="end">
-        <Box flex="1" minW="200px">
-          <Text fontSize="10px" color="fg.muted" mb={1}>
-            SEARCH
-          </Text>
-          <HStack gap={1}>
-            <Input
-              size="sm"
-              placeholder="Search summaries…"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") setFilters({ search: searchDraft });
-              }}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setFilters({ search: searchDraft })}
-              aria-label="Search"
-            >
-              <Search size={14} />
-            </Button>
-          </HStack>
-        </Box>
-
-        <Box minW="150px">
-          <Text fontSize="10px" color="fg.muted" mb={1}>
-            AREA
-          </Text>
-          <NativeSelect.Root size="sm">
-            <NativeSelect.Field
-              value={filters.domain}
-              // Clearing the action alongside the domain: an action from the
-              // previous domain would otherwise silently contradict the new one.
-              onChange={(e) =>
-                setFilters({ domain: e.currentTarget.value, action: "" })
-              }
-            >
-              <option value="">All areas</option>
-              {facets?.domains.map((d) => (
-                <option key={d.domain} value={d.domain}>
-                  {labelForDomain(d.domain)} ({d.count})
-                </option>
-              ))}
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
-        </Box>
-
-        <Box minW="150px">
-          <Text fontSize="10px" color="fg.muted" mb={1}>
-            CATEGORY
-          </Text>
-          <NativeSelect.Root size="sm">
-            <NativeSelect.Field
-              value={filters.category}
-              onChange={(e) => setFilters({ category: e.currentTarget.value })}
-            >
-              <option value="">Changes only</option>
-              {facets?.categories.map((c) => (
-                <option key={c.category} value={c.category}>
-                  {labelForCategory(c.category)} ({c.count})
-                </option>
-              ))}
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
-        </Box>
-
-        <Box minW="190px">
-          <Text fontSize="10px" color="fg.muted" mb={1}>
-            EVENT
-          </Text>
-          <NativeSelect.Root size="sm">
-            <NativeSelect.Field
-              value={filters.action}
-              onChange={(e) => setFilters({ action: e.currentTarget.value })}
-            >
-              <option value="">All events</option>
-              {actionOptions.map((a) => (
-                <option key={a.action} value={a.action}>
-                  {a.label} ({a.count})
-                </option>
-              ))}
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
-        </Box>
-
-        <Box>
-          <Text fontSize="10px" color="fg.muted" mb={1}>
-            FROM
-          </Text>
-          <Input
-            size="sm"
-            type="date"
-            value={filters.from}
-            onChange={(e) => setFilters({ from: e.currentTarget.value })}
-          />
-        </Box>
-
-        <Box>
-          <Text fontSize="10px" color="fg.muted" mb={1}>
-            TO
-          </Text>
-          <Input
-            size="sm"
-            type="date"
-            value={filters.to}
-            onChange={(e) => setFilters({ to: e.currentTarget.value })}
-          />
-        </Box>
-
-        {isFiltered && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setSearchDraft("");
-              setFilters({
-                domain: "",
-                category: "",
-                action: "",
-                search: "",
-                from: "",
-                to: "",
-              });
-            }}
-          >
-            Clear
-          </Button>
-        )}
-      </Flex>
+      <AuditTrailFilters />
 
       {isLoading ? (
         <VStack align="stretch" gap={2}>
@@ -389,36 +156,82 @@ export function AuditTrailPage() {
           </Text>
         </Box>
       ) : events.length === 0 ? (
-        <EmptyState filtered={isFiltered} />
+        <Box py={12} textAlign="center">
+          <Text fontSize="13px" color="fg.muted">
+            {isFiltered
+              ? "No events match these filters."
+              : "No audit events recorded yet."}
+          </Text>
+        </Box>
       ) : (
         <>
-          <ReportTable headers={TABLE_HEADERS}>
-            {events.map((event) => (
-              <AuditRow key={event.id} event={event} />
-            ))}
-          </ReportTable>
+          <Box border="1px solid" borderColor="border" borderRadius="10px" overflow="hidden">
+            <Box overflowX="auto">
+              <Table.Root size="md">
+                <Table.Header>
+                  <Table.Row bg="bg.muted">
+                    {TABLE_HEADERS.map((h) => (
+                      <Table.ColumnHeader
+                        key={h}
+                        py="12px"
+                        fontSize="10px"
+                        letterSpacing="0.06em"
+                        color="fg.muted"
+                        whiteSpace="nowrap"
+                      >
+                        {h ? h.toUpperCase() : "\u00A0"}
+                      </Table.ColumnHeader>
+                    ))}
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {events.map((event) => (
+                    <AuditRow key={event.id} event={event} onSelect={handleSelectEvent} />
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            </Box>
+          </Box>
 
-          {/*
-            A "load more" button rather than page numbers, because the endpoint
-            is keyset-paginated: there is no page 4 to jump to, only what comes
-            after the last row shown. Offset paging over an append-only table
-            skips events as new ones arrive mid-scroll.
-          */}
-          {hasNextPage && (
-            <Flex justify="center" pt={1}>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                loading={isFetchingNextPage}
-              >
-                Load more
-              </Button>
-            </Flex>
-          )}
+          <PaginationControls
+            total={pagination.total}
+            currentPage={currentPage}
+            limit={pageLimit}
+            onPageChange={(page) => setPagination({ currentPage: page })}
+            onLimitChange={(newLimit) => setPagination({ currentPage: 1, limit: newLimit })}
+          />
         </>
       )}
+
+      <AuditEventDetailDialog
+        event={selectedEvent}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onExitComplete={() => setSelectedEvent(null)}
+      />
     </VStack>
+  );
+}
+
+export function AuditTrailPage() {
+  return (
+    <AuditTrailDataProvider>
+      <VStack align="stretch" gap={4}>
+        <Box py="28px" pb="16px">
+          <PageTitle>
+            <Text as="h1" m="0" color="fg" fontSize="22px" fontWeight="500" lineHeight="1.2">
+              Audit trail
+            </Text>
+          </PageTitle>
+          <Text m="6px 0 0" color="fg.muted" fontSize="13px">
+            Every recorded action, newest first. Views and downloads are
+            excluded unless you select the Access category.
+          </Text>
+        </Box>
+
+        <AuditTrailContent />
+      </VStack>
+    </AuditTrailDataProvider>
   );
 }
 
