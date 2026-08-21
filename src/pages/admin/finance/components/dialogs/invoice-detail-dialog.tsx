@@ -346,12 +346,23 @@ export function InvoiceDetailDialog({
               <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
                 Payments
               </Text>
+              {invoice.isConsultationFee && canRefund ? (
+                <Text fontSize="12px" color="fg.muted" mb="8px">
+                  This is a consultation fee. To refund it, cancel the
+                  consultation on the lead — that returns the money, releases
+                  the calendar slot and notifies the client in one step.
+                </Text>
+              ) : null}
               {invoice.payments.map((p) => (
                 <PaymentRow
                   key={p.id}
                   payment={p}
                   invoiceId={invoice.id}
-                  canRefund={canRefund}
+                  // A consultation fee is refunded by cancelling the
+                  // consultation, which also releases the calendar slot and
+                  // tells the client. The API refuses it here, so the button
+                  // would only produce an error.
+                  canRefund={canRefund && !invoice.isConsultationFee}
                 />
               ))}
             </>

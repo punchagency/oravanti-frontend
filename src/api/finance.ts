@@ -93,6 +93,13 @@ export type InvoiceListRow = {
   amountPaid: number;
   balanceDue: number;
   status: EffectiveInvoiceStatus;
+  /**
+   * A consultation fee. It cannot be refunded or voided from Finance —
+   * cancelling the consultation is the one path that also releases the calendar
+   * slot and tells the client — so the row actions point there instead of
+   * offering a button the API refuses.
+   */
+  isConsultationFee: boolean;
   /** Null when the invoice is due in a single payment. */
   schedule: {
     count: number;
@@ -243,6 +250,13 @@ export type InvoiceDetail = {
   id: string;
   invoiceNumber: string;
   status: EffectiveInvoiceStatus;
+  /**
+   * A consultation fee. It cannot be refunded or voided from Finance —
+   * cancelling the consultation is the one path that also releases the calendar
+   * slot and tells the client — so the row actions point there instead of
+   * offering a button the API refuses.
+   */
+  isConsultationFee: boolean;
   storedStatus: string;
   issueDate: string;
   dueDate: string;

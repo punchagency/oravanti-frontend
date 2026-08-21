@@ -1104,6 +1104,35 @@ export function ConsultationCard({
         )}
       </HStack>
 
+      {/*
+        Money the firm is still holding for a consultation that is not going to
+        happen. The cancellation toast says this once and then vanishes, and it
+        is shown to whoever cancelled — who, if a refund is owed at all, is
+        usually the person without permission to issue it. This stays until the
+        money actually goes back, because `netPaid` is derived from the ledger
+        and drops to zero the moment it does.
+      */}
+      {consultation?.status === "cancelled" &&
+      (consultation.fee?.netPaid ?? 0) > 0 ? (
+        <Box
+          mt="12px"
+          p="12px 14px"
+          borderRadius="8px"
+          border="1px solid"
+          borderColor="#f5c2c7"
+          bg="#fdf2f3"
+        >
+          <Text m="0" fontSize="13px" fontWeight="600" color="#b00020">
+            Refund owed: {formatCurrency(consultation.fee?.netPaid ?? 0)}
+          </Text>
+          <Text m="4px 0 0" fontSize="12px" color="#7a2531" lineHeight="1.5">
+            This consultation was cancelled while the firm still held the
+            client's money. A task has been raised for someone with refund
+            permission; it clears here automatically once the refund lands.
+          </Text>
+        </Box>
+      ) : null}
+
       {/* 2. Questionnaire row */}
       <SectionRow>
         <HStack justify="space-between" gap="12px" wrap="wrap">
