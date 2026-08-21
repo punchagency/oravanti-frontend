@@ -49,8 +49,24 @@ export interface AuditEventFilters {
   to?: string;
   search?: string;
   limit?: number;
-  /** Opaque. Pass back the `nextCursor` from the previous page, nothing else. */
+  /** Page/limit, for the firm-wide trail (`getAuditEvents`). */
+  page?: number;
+  /** Keyset cursor, for `getEntityActivity` only. */
   cursor?: string;
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface AuditEventsResponse {
+  data: AuditEvent[];
+  pagination: PaginationMeta;
 }
 
 export interface AuditEventPage {
@@ -85,18 +101,13 @@ const toParams = (filters: AuditEventFilters): Record<string, string> => {
 
 export async function getAuditEvents(
   filters: AuditEventFilters = {},
-): Promise<AuditEventPage> {
-  const { data } = await API.get<{
-    data: AuditEvent[];
-    nextCursor: string | null;
-    hasMore: boolean;
-  }>("/audit-events", { params: toParams(filters) });
+): Promise<AuditEventsResponse> {
+  const { data } = await API.get<{ data: AuditEvent[]; pagination: PaginationMeta }>(
+    "/audit-events",
+    { params: toParams(filters) },
+  );
 
-  return {
-    data: data.data,
-    nextCursor: data.nextCursor,
-    hasMore: data.hasMore,
-  };
+  return { data: data.data, pagination: data.pagination };
 }
 
 export async function getAuditFacets(): Promise<AuditFacets> {
@@ -147,7 +158,7 @@ export async function exportAuditEvents(
   format: "csv" | "pdf" = "csv",
 ): Promise<Blob> {
   const { data } = await API.get<Blob>("/audit-events/export", {
-    params: { ...toParams({ ...filters, cursor: undefined, limit: undefined }), format },
+    params: { ...toParams({ ...filters, cursor: undefined, limit: undefined, page: undefined }), format },
     responseType: "blob",
   });
   return data;
