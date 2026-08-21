@@ -15,7 +15,7 @@ export function useUpdateStaffMember() {
     }: {
       staffId: string;
       data: UpdateStaffMemberPayload;
-      newRole?: string;
+      newRole?: string | string[];
     }) =>
       updateStaffMemberStaff(staffId, data, newRole),
     onSuccess: () => {
@@ -38,7 +38,7 @@ export function useUpdateStaffMember() {
 async function updateStaffMemberStaff(
   staffId: string,
   data: UpdateStaffMemberPayload,
-  newRole?: string,
+  newRole?: string | string[],
 ) {
   if (newRole) {
     await updateStaffMemberRole(staffId, newRole);
