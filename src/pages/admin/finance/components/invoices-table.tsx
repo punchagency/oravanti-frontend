@@ -66,6 +66,11 @@ function voidAction(
   ) {
     return [];
   }
+  // Withdrawing a consultation fee has to go through cancelling the
+  // consultation, which also releases the calendar slot, revokes the booking
+  // link and tells the client. The API refuses this outright, so offering the
+  // button here would only produce an error the user cannot act on.
+  if (row.isConsultationFee) return [];
   if (row.amountPaid > 0) return [];
   return [
     {
