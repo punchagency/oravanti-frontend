@@ -346,11 +346,17 @@ export function InvoiceDetailDialog({
               <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
                 Payments
               </Text>
+              {/*
+                A warning, not a block. Refunding here is allowed — it is the
+                only way to complete a refund that cancellation could not — but
+                it moves money WITHOUT touching the consultation, so a still-live
+                booking would keep its calendar slot and its join link.
+              */}
               {invoice.isConsultationFee && canRefund ? (
-                <Text fontSize="12px" color="fg.muted" mb="8px">
-                  This is a consultation fee. To refund it, cancel the
-                  consultation on the lead — that returns the money, releases
-                  the calendar slot and notifies the client in one step.
+                <Text fontSize="12px" color="#7a2531" mb="8px">
+                  This is a consultation fee. Refunding it here returns the
+                  money but does not cancel the consultation — if the booking is
+                  still live, cancel it on the lead instead, which does both.
                 </Text>
               ) : null}
               {invoice.payments.map((p) => (
@@ -358,11 +364,7 @@ export function InvoiceDetailDialog({
                   key={p.id}
                   payment={p}
                   invoiceId={invoice.id}
-                  // A consultation fee is refunded by cancelling the
-                  // consultation, which also releases the calendar slot and
-                  // tells the client. The API refuses it here, so the button
-                  // would only produce an error.
-                  canRefund={canRefund && !invoice.isConsultationFee}
+                  canRefund={canRefund}
                 />
               ))}
             </>

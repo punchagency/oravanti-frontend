@@ -876,12 +876,20 @@ export function ConsultationCard({
     : false;
   const canComplete = isCompletable && startTimeReached;
 
-  // A consultation can be cancelled at any pre-terminal stage.
+  // A consultation can be cancelled at any pre-terminal stage — by someone who
+  // can also send the money back.
+  //
+  // The two used to come apart: anyone in intake could cancel, and a
+  // cancellation without `finance:refund` left the client's money owed and
+  // raised a task for an administrator. That was a dead end, because the
+  // administrator had nowhere to act on it. Keeping them together means the
+  // refund is attempted by the same act that creates the obligation.
   const canCancel =
-    consultation?.status === "pending_payment" ||
-    consultation?.status === "awaiting_slot_selection" ||
-    consultation?.status === "scheduled" ||
-    consultation?.status === "in_progress";
+    canRefund &&
+    (consultation?.status === "pending_payment" ||
+      consultation?.status === "awaiting_slot_selection" ||
+      consultation?.status === "scheduled" ||
+      consultation?.status === "in_progress");
 
   // ── Documents ──────────────────────────────────────────────────────────────
   // Staff can manually attach a document received outside the client portal.
@@ -1703,10 +1711,11 @@ export function ConsultationCard({
 /**
  * What cancelling does to money the client has already paid.
  *
- * Two different messages, because two different things happen. Someone holding
- * `finance:refund` refunds as part of cancelling; someone without it cancels
- * anyway and the refund is left owed. Saying "this will refund the client" to
- * the second person would be a promise the system does not keep.
+ * The `canRefund` branch is now defensive rather than reachable: cancelling
+ * requires `finance:refund`, so whoever opens this dialog can always refund.
+ * It is kept because it stays correct if that gate is ever loosened, and
+ * because saying "this will refund the client" to someone who cannot would be
+ * a promise the system does not keep.
  */
 function CancelRefundNotice({
   netPaid,

@@ -331,10 +331,11 @@ function PastConsultationRow({
 /**
  * What cancelling does to money the client has already paid.
  *
- * Two different messages, because two different things happen. Someone holding
- * `finance:refund` refunds as part of cancelling; someone without it cancels
- * anyway and the refund is left owed. Saying "this will refund the client" to
- * the second person would be a promise the system does not keep.
+ * The `canRefund` branch is now defensive rather than reachable: cancelling
+ * requires `finance:refund`, so whoever opens this dialog can always refund.
+ * It is kept because it stays correct if that gate is ever loosened, and
+ * because saying "this will refund the client" to someone who cannot would be
+ * a promise the system does not keep.
  */
 function CancelRefundNotice({
   netPaid,
@@ -626,11 +627,15 @@ function ConsultationInfoCard({
   const memberRole = useAuthStore((state) => state.memberRole);
   const canRefund = memberRole === "owner" || memberRole === "admin";
 
+  // Gated on `canRefund` for the same reason as the route: a cancellation by
+  // someone who cannot send money back leaves the client's money owed with
+  // nowhere to act on it.
   const canCancel =
-    consultation?.status === "pending_payment" ||
-    consultation?.status === "awaiting_slot_selection" ||
-    consultation?.status === "scheduled" ||
-    consultation?.status === "in_progress";
+    canRefund &&
+    (consultation?.status === "pending_payment" ||
+      consultation?.status === "awaiting_slot_selection" ||
+      consultation?.status === "scheduled" ||
+      consultation?.status === "in_progress");
 
   const modeLabel = consultation
     ? consultationModeLabel(consultation.mode)
