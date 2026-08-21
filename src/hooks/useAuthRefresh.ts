@@ -23,6 +23,7 @@ export function useAuthRefresh() {
           memberRole?: MemberRole | null;
           firmTimezone?: string | null;
           portalStatus?: string | null;
+          grants?: string[];
         };
 
         let needsSetup: NeedsSetupResponse | null = null;
@@ -35,6 +36,7 @@ export function useAuthRefresh() {
           user: sessionData.user,
           session: sessionData.session,
           memberRole: sessionData.memberRole ?? null,
+          grants: sessionData.grants ?? [],
           firmTimezone: sessionData.firmTimezone ?? null,
           portalStatus: sessionData.portalStatus ?? null,
           isAuthenticated: !!sessionData.user,
@@ -58,7 +60,6 @@ export function useAuthRefresh() {
         return null;
       }
     },
-    staleTime: 30_000,
     retry: false,
     refetchOnWindowFocus: false,
   });
