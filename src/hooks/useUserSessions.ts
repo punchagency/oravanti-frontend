@@ -5,6 +5,5 @@ export function useUserSessions() {
   return useQuery({
     queryKey: ["userSessions"],
     queryFn: getUserSessions,
-    staleTime: 30_000,
   });
 }

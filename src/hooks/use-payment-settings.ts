@@ -24,7 +24,6 @@ export function usePaymentAccount() {
   return useQuery({
     queryKey: paymentSettingsKey,
     queryFn: getPaymentAccount,
-    staleTime: 30_000,
     refetchInterval: (query) => {
       const state = query.state.data?.state;
       return state === "under_review" || state === "provisioning"
@@ -85,7 +84,6 @@ export function useSurchargeSettings(enabled: boolean) {
     queryKey: surchargeKey,
     queryFn: getSurchargeSettings,
     enabled,
-    staleTime: 60_000,
   });
 }
 
@@ -114,7 +112,6 @@ export function useConfidoStatements() {
   return useQuery({
     queryKey: ["confidoStatements"],
     queryFn: getConfidoStatements,
-    staleTime: 5 * 60_000,
     // A firm with no payment account has none, and that is not an error worth
     // retrying three times.
     retry: false,

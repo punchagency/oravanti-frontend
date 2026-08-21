@@ -165,7 +165,6 @@ export function useLeadTimeline(leadId: string, enabled = true, page = 1, limit 
     queryKey: ["leadTimeline", leadId, page, limit],
     queryFn: () => getLeadTimeline(leadId, page, limit),
     enabled: Boolean(leadId) && enabled,
-    staleTime: 30_000,
   });
 }
 
@@ -174,7 +173,6 @@ export function useLeadAuditLog(leadId: string, enabled = true, page = 1, limit 
     queryKey: ["leadAuditLog", leadId, page, limit],
     queryFn: () => getLeadAuditLog(leadId, page, limit),
     enabled: Boolean(leadId) && enabled,
-    staleTime: 30_000,
   });
 }
 

@@ -41,7 +41,6 @@ import {
 } from "@/api/finance";
 import type { APIError } from "./types";
 
-const THIRTY_SECONDS = 30_000;
 
 /**
  * Money changes together. Recording a payment moves the tiles, the list, the
@@ -110,7 +109,6 @@ export function useInvoices(params: GetInvoicesParams = {}) {
   return useQuery({
     queryKey: financeKeys.invoices(params),
     queryFn: () => getInvoices(params),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -118,7 +116,6 @@ export function useInvoiceStats() {
   return useQuery({
     queryKey: financeKeys.stats(),
     queryFn: getInvoiceStats,
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -126,7 +123,6 @@ export function useInvoiceAging() {
   return useQuery({
     queryKey: financeKeys.aging(),
     queryFn: getInvoiceAging,
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -134,7 +130,6 @@ export function useFinanceActivity(limit = 8) {
   return useQuery({
     queryKey: financeKeys.activity(),
     queryFn: () => getFinanceActivity(limit),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -143,7 +138,6 @@ export function useInvoice(id: string | null) {
     queryKey: financeKeys.invoice(id ?? ""),
     queryFn: () => getInvoiceById(id!),
     enabled: Boolean(id),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -158,7 +152,6 @@ export function useUnbilledTime(
     queryKey: financeKeys.unbilledTime(clientId, caseId, forInvoiceId),
     queryFn: () => getUnbilledTime({ clientId, caseId, forInvoiceId }),
     enabled: enabled && Boolean(clientId || caseId),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -172,7 +165,6 @@ export function useCaseDefaults(caseId: string | null | undefined) {
     queryKey: financeKeys.caseDefaults(caseId ?? ""),
     queryFn: () => getCaseDefaults(caseId!),
     enabled: Boolean(caseId),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -199,7 +191,6 @@ export function useLinePresets(
     ),
     queryFn: () => getLinePresets(params),
     enabled,
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -229,7 +220,6 @@ export function useInvoiceDeliveries(id: string | null) {
     queryKey: financeKeys.deliveries(id ?? ""),
     queryFn: () => getInvoiceDeliveries(id!),
     enabled: Boolean(id),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -459,7 +449,6 @@ export function useTimeEntries(params: GetTimeEntriesParams = {}) {
   return useQuery({
     queryKey: financeKeys.timeEntries(params),
     queryFn: () => getTimeEntries(params),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -467,7 +456,6 @@ export function useTimeBillingStats(params: { from?: string; to?: string } = {})
   return useQuery({
     queryKey: financeKeys.timeStats(),
     queryFn: () => getTimeBillingStats(params),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -475,7 +463,6 @@ export function useEarningsByStaff(params: { from?: string; to?: string } = {}) 
   return useQuery({
     queryKey: financeKeys.earningsByStaff(),
     queryFn: () => getEarningsByStaff(params),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -483,7 +470,6 @@ export function useTopMatters(params: { from?: string; to?: string } = {}) {
   return useQuery({
     queryKey: financeKeys.topMatters(),
     queryFn: () => getTopMatters(params),
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -491,7 +477,6 @@ export function useBillingRates() {
   return useQuery({
     queryKey: financeKeys.billingRates(),
     queryFn: getBillingRates,
-    staleTime: THIRTY_SECONDS,
   });
 }
 
@@ -554,6 +539,5 @@ export function useFinanceReport(month?: string) {
   return useQuery({
     queryKey: financeKeys.report(month),
     queryFn: () => getFinanceReport(month),
-    staleTime: THIRTY_SECONDS,
   });
 }

@@ -54,7 +54,6 @@ export function CaseDetailsDrawer({
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId),
     enabled: open && Boolean(caseId),
-    staleTime: 60_000,
   });
 
   return (

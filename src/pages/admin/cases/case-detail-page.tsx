@@ -61,7 +61,6 @@ export function CaseDetailPage() {
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId!),
     enabled: Boolean(caseId),
-    staleTime: 60_000,
   });
 
   useDocumentTitle(

@@ -19,7 +19,6 @@ export function Overview({ caseId, isActive = true }: OverviewProps) {
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId),
     enabled: Boolean(caseId) && isActive,
-    staleTime: 60_000,
   });
 
   const caseData: CaseData | undefined = useMemo(() => {
