@@ -12,13 +12,13 @@ import {
   useRunConflictCheck,
   useUpdateLeadStatus,
 } from "@/hooks/use-leads";
+import { useCanCreateLeads } from "@/hooks/use-can-create-leads";
 import { useAuthStore } from "@/store/auth-store";
 import { InstantConsultationDialog } from "./components/intake-pipeline/dialogs/instant-consultation-dialog";
 import { OutlineButton } from "@/components/ui/intake-ui";
 import {
   Box,
   Button,
-  Dialog,
   Flex,
   HStack,
   IconButton,
@@ -49,7 +49,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   BrandButton,
@@ -100,12 +100,14 @@ function LeadsPageContent() {
   } = useLeadsData();
 
   const navigate = useNavigate();
-  const [addLeadOpen, setAddLeadOpen] = useState(false);
+
+
   const updateLeadStatus = useUpdateLeadStatus();
   const runConflictCheck = useRunConflictCheck();
   const { data: stageCounts, isLoading: stageCountsLoading } =
     useLeadsStageCount();
   const currentUser = useAuthStore((s) => s.user);
+  const canCreateLeads = useCanCreateLeads();
 
   function handleQueryChange(value: string) {
     setSearchQuery(value);
@@ -192,21 +194,22 @@ function LeadsPageContent() {
             Manage leads from first contact to active case
           </Text>
         </Box>
-        <BrandButton
-          w={{ base: "full", md: "auto" }}
-          onClick={() => setAddLeadOpen(true)}
-        >
-          <Plus size={15} />
-          Add lead
-        </BrandButton>
-        <InstantConsultationDialog>
-          <Dialog.Trigger asChild>
+        {canCreateLeads && (
+          <AddLeadDialog>
+            <BrandButton w={{ base: "full", md: "auto" }}>
+              <Plus size={15} />
+              Add lead
+            </BrandButton>
+          </AddLeadDialog>
+        )}
+        {canCreateLeads && (
+          <InstantConsultationDialog>
             <OutlineButton w={{ base: "full", md: "auto" }}>
               <Zap size={14} />
               Start consultation now
             </OutlineButton>
-          </Dialog.Trigger>
-        </InstantConsultationDialog>
+          </InstantConsultationDialog>
+        )}
       </Flex>
 
       {/* ── Status summary ── */}
@@ -1035,8 +1038,6 @@ function LeadsPageContent() {
           />
         </Box>
       )}
-
-      <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
     </>
   );
 }
