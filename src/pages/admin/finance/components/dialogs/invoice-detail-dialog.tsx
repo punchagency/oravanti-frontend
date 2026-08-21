@@ -115,7 +115,12 @@ function PaymentRow({
             }
           >
             <Undo2 size={12} />
-            Refund
+            {/* Names the figure once part of the payment has already gone
+                back, so "Refund" cannot be read as returning the whole thing
+                a second time. */}
+            {p.refundableAmount < p.amount
+              ? `Refund ${formatCurrency(p.refundableAmount)}`
+              : "Refund"}
           </OutlineButton>
         )}
         {/* Negative on a reversal, and shown that way. Rendering the magnitude

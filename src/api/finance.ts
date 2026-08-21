@@ -216,8 +216,15 @@ export type InvoicePayment = {
   settledAt: string | null;
   /** Confido's own status, so HELD reads as HELD rather than "pending". */
   providerStatus: string | null;
-  /** Only a processor payment can be sent back through us. */
+  /**
+   * Only a processor payment with something left on it can be sent back.
+   *
+   * Net of everything already reversed against this entry — a fully refunded
+   * payment is not refundable again.
+   */
   refundable: boolean;
+  /** What is left to send back on this payment, after prior reversals. */
+  refundableAmount: number;
   paymentDate: string;
   method: PaymentMethod;
   reference: string | null;
