@@ -6,7 +6,7 @@ import {
   leadWorkflowKeys,
 } from "@/hooks/use-lead-workflows";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PageTitle } from "@/components/layout/shared/nav-context";
 import { Box, Button, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
@@ -55,8 +55,7 @@ const stageLabels: Record<string, string> = {
 };
 
 export function LeadReviewQueuePage() {
-  const memberRole = useAuthStore((s) => s.memberRole);
-  const isManager = memberRole === "owner" || memberRole === "admin";
+  const isManager = useHasPermission("case_review", "resolve");
   const [tab, setTab] = useState<TabValue>("all");
   const {
     currentPage,
