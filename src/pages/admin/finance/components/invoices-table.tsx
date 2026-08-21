@@ -174,6 +174,11 @@ function rowActions(
   if (row.status === "draft") {
     return [
       {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
+      {
         label: "Edit invoice",
         icon: <Pencil size={14} />,
         onSelect: () => handlers.onEdit(row),
@@ -205,6 +210,11 @@ function rowActions(
   if (row.status === "overdue") {
     return [
       {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
+      {
         label: "Follow up",
         icon: <BellRing size={14} />,
         onSelect: () => handlers.onFollowUp(row),
@@ -226,6 +236,11 @@ function rowActions(
   }
 
   return [
+    {
+      label: "View invoice",
+      icon: <Eye size={14} />,
+      onSelect: () => handlers.onView(row),
+    },
     // Renegotiating a plan is the point of offering one, so this is offered on
     // a live invoice — unlike editing its lines, which freeze on send.
     ...rescheduleAction(row, handlers.onReschedule),
