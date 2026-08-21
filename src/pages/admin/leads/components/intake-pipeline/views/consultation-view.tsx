@@ -1,4 +1,6 @@
 import type { ConsultationSettings } from "@/api/consultation-settings";
+import { formatCurrency } from "@/utils/currency";
+import { useAuthStore } from "@/store/auth-store";
 import type {
   Consultation,
   ConsultationListItem,
@@ -735,6 +737,11 @@ export function ConsultationCard({
 }) {
   const { data: leadDetail } = useLeadById(lead.id);
   const { data: questionnaire } = useLeadQuestionnaire(lead.id);
+  // Presentation only — the server decides. Refunds need `finance:refund`,
+  // which is owner/admin, and a cancellation by anyone else leaves the money
+  // owed rather than moving it.
+  const memberRole = useAuthStore((state) => state.memberRole);
+  const canRefund = memberRole === "owner" || memberRole === "admin";
   const responseId = questionnaire?.response?.id ?? null;
   const { data: responseDetail } = useResponseDetail(responseId);
   const canDownload = useCanDownloadDocuments();
@@ -1633,6 +1640,8 @@ export function ConsultationCard({
       <CancelConsultationDialog
         open={cancelOpen}
         leadName={lead.name}
+        netPaid={leadDetail?.consultation?.fee?.netPaid ?? 0}
+        canRefund={canRefund}
         reason={cancelReason}
         onReasonChange={setCancelReason}
         loading={cancelMutation.isPending}
@@ -1658,9 +1667,66 @@ export function ConsultationCard({
   );
 }
 
+
+/**
+ * What cancelling does to money the client has already paid.
+ *
+ * Two different messages, because two different things happen. Someone holding
+ * `finance:refund` refunds as part of cancelling; someone without it cancels
+ * anyway and the refund is left owed. Saying "this will refund the client" to
+ * the second person would be a promise the system does not keep.
+ */
+function CancelRefundNotice({
+  netPaid,
+  canRefund,
+}: {
+  netPaid: number;
+  canRefund: boolean;
+}) {
+  if (netPaid <= 0) return null;
+
+  return (
+    <Box
+      mt="12px"
+      p="10px 12px"
+      borderRadius="8px"
+      border="1px solid"
+      borderColor={canRefund ? "border" : "#e0b4b4"}
+      bg={canRefund ? "bg.subtle" : "#fdf3f3"}
+      _dark={{
+        bg: canRefund ? "bg.subtle" : "rgba(176, 0, 32, 0.12)",
+        borderColor: canRefund ? "border" : "rgba(176, 0, 32, 0.35)",
+      }}
+    >
+      <Text fontSize="12px" lineHeight="1.6">
+        {canRefund ? (
+          <>
+            This consultation has been paid. Cancelling refunds{" "}
+            <Text as="span" fontWeight="600">
+              {formatCurrency(netPaid)}
+            </Text>{" "}
+            to the client.
+          </>
+        ) : (
+          <>
+            This consultation has been paid. Cancelling does{" "}
+            <Text as="span" fontWeight="600">
+              not
+            </Text>{" "}
+            refund it — an administrator will need to issue the{" "}
+            {formatCurrency(netPaid)} refund.
+          </>
+        )}
+      </Text>
+    </Box>
+  );
+}
+
 function CancelConsultationDialog({
   open,
   leadName,
+  netPaid,
+  canRefund,
   reason,
   onReasonChange,
   loading,
@@ -1669,6 +1735,9 @@ function CancelConsultationDialog({
 }: {
   open: boolean;
   leadName: string;
+  /** What the firm is holding for this consultation, net of any refund. */
+  netPaid: number;
+  canRefund: boolean;
   reason: string;
   onReasonChange: (value: string) => void;
   loading: boolean;
@@ -1700,6 +1769,7 @@ function CancelConsultationDialog({
               link, and notifies everyone involved. This can't be undone, but
               you can schedule a new consultation afterwards.
             </MutedText>
+            <CancelRefundNotice netPaid={netPaid} canRefund={canRefund} />
             <Box mt="14px">
               <Text m="0 0 6px" fontSize="12px" color="fg.muted">
                 Reason (optional)
@@ -2808,13 +2878,6 @@ function ReviewStep({
                 </Text>
               </HStack>
             </Flex>
-
-            {structure === "waived_if_retainer" ? (
-              <MutedText>
-                Waived if the client signs a retainer within{" "}
-                {feeSettings?.waiverWindowDays ?? 0} days.
-              </MutedText>
-            ) : null}
 
             <HStack
               mt="14px"

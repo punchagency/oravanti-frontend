@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils/currency";
 import {
   approveTimeEntry,
   createInvoice,
@@ -17,6 +18,7 @@ import {
   getTimeEntries,
   getTopMatters,
   getInvoiceDeliveries,
+  refundPayment,
   getLinePresets,
   getUnbilledTime,
   logTime,
@@ -263,6 +265,40 @@ export function useResendInvoice() {
     },
     onError: (err: APIError) =>
       toast.error(err.response?.data?.message ?? "Couldn't resend that invoice"),
+  });
+}
+
+/**
+ * Send a payment back.
+ *
+ * Confido decides between a void and a refund based on whether the money has
+ * settled, so the toast reports what actually happened rather than echoing what
+ * was asked for — a firm that clicks "Refund" on a payment taken an hour ago
+ * gets a void, and should be told so.
+ */
+export function useRefundPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      paymentId,
+      amount,
+      reason,
+    }: {
+      invoiceId: string;
+      paymentId: string;
+      amount?: number;
+      reason?: string;
+    }) => refundPayment(invoiceId, paymentId, { amount, reason }),
+    onSuccess: (result) => {
+      const verb = result.executedAs.toLowerCase().includes("void")
+        ? "voided before it settled"
+        : "refunded";
+      toast.success(`${formatCurrency(result.amount)} ${verb}`);
+      qc.invalidateQueries({ queryKey: financeKeys.all });
+    },
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Couldn't refund that payment"),
   });
 }
 

@@ -9,6 +9,7 @@ import { formatDateTime } from "@/utils/date";
 import { Badge, Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { ConfidoOnboarding } from "./confido-onboarding";
+import { ClearingPolicyCard } from "./clearing-policy-card";
 import { SurchargeCard } from "./surcharge-card";
 
 /**
@@ -90,6 +91,8 @@ export default function PaymentsTab() {
       />
 
       <SurchargeCard active={account.state === "active"} />
+
+      <ClearingPolicyCard active={account.state === "active"} />
 
       {(account.state === "not_started" ||
         account.state === "token_unreadable") && (
@@ -289,8 +292,10 @@ function StateExplainer({ account }: { account: PaymentAccount }) {
     case "active":
       return (
         <Muted>
-          Your payment account is approved and ready. Taking payments through
-          Oravanti is not switched on yet — we will let you know when it is.
+          Your payment account is approved and live. Invoices you send now carry
+          a payment link, clients can pay by card or bank transfer, and money
+          routes to your trust or operating account according to what each line
+          is for.
         </Muted>
       );
 
@@ -308,9 +313,10 @@ function StateExplainer({ account }: { account: PaymentAccount }) {
     case "suspended":
       return (
         <Muted>
-          Your payment account has been paused by the processor. Contact
-          support@confidolegal.com to resolve it. Nothing in Oravanti is
-          affected.
+          Your payment account has been paused by the processor, so clients
+          cannot pay invoices online until it is resolved. Existing invoices and
+          payment records are unaffected, and you can still record payments you
+          take another way. Contact support@confidolegal.com.
         </Muted>
       );
 

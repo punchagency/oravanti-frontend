@@ -24,6 +24,9 @@ export const INVOICE_STATUS_TONE: Record<
   unpaid: "warning",
   overdue: "danger",
   draft: "neutral",
+  // Neutral, not danger. A refund is a completed, correct outcome — the client
+  // has their money. Colouring it red would read as something gone wrong.
+  refunded: "neutral",
   void: "neutral",
 };
 
@@ -33,6 +36,7 @@ export const INVOICE_STATUS_LABEL: Record<EffectiveInvoiceStatus, string> = {
   unpaid: "Unpaid",
   overdue: "Overdue",
   draft: "Draft",
+  refunded: "Refunded",
   void: "Void",
 };
 
@@ -79,6 +83,11 @@ export const INVOICE_STATUS_OPTIONS = [
   { value: "unpaid", label: "Unpaid" },
   { value: "partial", label: "Partial" },
   { value: "overdue", label: "Overdue" },
+  { value: "refunded", label: "Refunded" },
+  // Like drafts, voided invoices are hidden from "all" — neither is money the
+  // firm is owed. This bucket is the only way back to one, and without it
+  // voiding an invoice removed it from the application entirely.
+  { value: "void", label: "Voided" },
 ];
 
 export const ACCOUNT_OPTIONS = [

@@ -29,7 +29,6 @@ const FEE_STRUCTURE_OPTIONS: {
   label: string;
 }[] = [
   { value: "flat", label: "Flat fee" },
-  { value: "waived_if_retainer", label: "Waived if client signs retainer" },
   { value: "custom_per_case_type", label: "Custom per case type" },
 ];
 
@@ -37,14 +36,10 @@ const consultationFeeSchema = z
   .object({
     chargesFee: z.boolean(),
     defaultAmount: z.string(),
-    feeStructure: z
-      .enum([
-        "flat",
-        "custom_per_case_type",
-        "waived_if_retainer",
-      ] satisfies ConsultationFeeStructure[])
-      .or(z.literal("")),
-    waiverWindowDays: z.string(),
+    feeStructure: z.enum([
+      "flat",
+      "custom_per_case_type",
+    ] satisfies ConsultationFeeStructure[]),
   })
   .superRefine((data, ctx) => {
     if (!data.chargesFee) return;
@@ -62,29 +57,8 @@ const consultationFeeSchema = z
       });
     }
 
-    if (!data.feeStructure) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["feeStructure"],
-        message: "Select a fee structure",
-      });
-    }
-
-    if (data.feeStructure === "waived_if_retainer") {
-      const waiver = Number(data.waiverWindowDays);
-      if (
-        data.waiverWindowDays.trim() === "" ||
-        Number.isNaN(waiver) ||
-        !Number.isInteger(waiver) ||
-        waiver <= 0
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["waiverWindowDays"],
-          message: "Enter a waiver window in days",
-        });
-      }
-    }
+    // `feeStructure` no longer needs a "pick one" check: it is a closed enum
+    // with a default, so it can never arrive empty.
   });
 
 type ConsultationFeeForm = z.infer<typeof consultationFeeSchema>;
@@ -92,8 +66,7 @@ type ConsultationFeeForm = z.infer<typeof consultationFeeSchema>;
 const DEFAULT_FORM: ConsultationFeeForm = {
   chargesFee: false,
   defaultAmount: "",
-  feeStructure: "",
-  waiverWindowDays: "",
+  feeStructure: "flat",
 };
 
 function toForm(settings: ConsultationSettings): ConsultationFeeForm {
@@ -101,11 +74,9 @@ function toForm(settings: ConsultationSettings): ConsultationFeeForm {
     chargesFee: settings.chargesFee,
     defaultAmount:
       settings.defaultAmount != null ? String(settings.defaultAmount) : "",
-    feeStructure: settings.feeStructure ?? "",
-    waiverWindowDays:
-      settings.waiverWindowDays != null
-        ? String(settings.waiverWindowDays)
-        : "",
+    // Null means the firm has never configured fees (or has them switched
+    // off), so it starts on the simplest structure rather than on nothing.
+    feeStructure: settings.feeStructure ?? "flat",
   };
 }
 
@@ -154,9 +125,7 @@ export function ConsultationFeeDefaults() {
         chargesFee: data.chargesFee,
         defaultAmount:
           data.defaultAmount.trim() === "" ? null : Number(data.defaultAmount),
-        feeStructure: data.feeStructure || null,
-        waiverWindowDays:
-          data.waiverWindowDays.trim() === "" ? null : Number(data.waiverWindowDays),
+        feeStructure: data.feeStructure,
       },
       { onSuccess: () => reset(data) },
     );
@@ -303,30 +272,6 @@ export function ConsultationFeeDefaults() {
             )}
           />
           <FieldError message={errors.feeStructure?.message} />
-
-          {chargesFee && watch("feeStructure") === "waived_if_retainer" && (
-            <Box mt="6">
-              <Text fontSize="13px" fontWeight="600" color="fg" mb="2">
-                Waiver window (days)
-              </Text>
-              <Input
-                {...register("waiverWindowDays")}
-                type="number"
-                min="1"
-                step="1"
-                placeholder="e.g. 14"
-                maxW="160px"
-                borderColor="border"
-                h="40px"
-                fontSize="14px"
-              />
-              <FieldError message={errors.waiverWindowDays?.message} />
-              <Text fontSize="12px" color="fg.muted" mt="2">
-                Fee is waived if the client signs a retainer within this many
-                days.
-              </Text>
-            </Box>
-          )}
         </Box>
       )}
 

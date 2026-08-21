@@ -57,6 +57,7 @@ const FirmSettingsPage = lazyPage(() =>
   import("@/pages/admin/settings/firm-settings").then((m) => ({ default: m.FirmSettingsPage })),
 );
 const GeneralTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/general"));
+const ConsultationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/consultations"));
 const BillingTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/billing"));
 const NotificationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/notifications"));
 const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/compliance"));
@@ -305,6 +306,7 @@ export function createAdminRouter() {
                 <Route path="firm-settings" element={<FirmSettingsPage />}>
                   <Route index element={<GeneralTab />} />
                   <Route path="general" element={<Navigate to="/settings/firm-settings" replace />} />
+                  <Route path="consultations" element={<ConsultationsTab />} />
                   <Route path="billing" element={<BillingTab />} />
                   <Route path="notifications" element={<NotificationsTab />} />
                   <Route path="compliance" element={<ComplianceTab />} />

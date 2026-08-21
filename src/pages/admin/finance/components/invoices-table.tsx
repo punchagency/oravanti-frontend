@@ -59,7 +59,13 @@ function voidAction(
   row: InvoiceListRow,
   onVoid: (row: InvoiceListRow) => void,
 ): RowAction[] {
-  if (row.status === "void" || row.status === "paid") return [];
+  if (
+    row.status === "void" ||
+    row.status === "paid" ||
+    row.status === "refunded"
+  ) {
+    return [];
+  }
   if (row.amountPaid > 0) return [];
   return [
     {
@@ -88,7 +94,14 @@ function extendAction(
   row: InvoiceListRow,
   onExtend: (row: InvoiceListRow) => void,
 ): RowAction[] {
-  if (row.status === "draft" || row.status === "paid" || row.status === "void") {
+  if (
+    row.status === "draft" ||
+    row.status === "paid" ||
+    row.status === "void" ||
+    // Nothing to extend: there is no balance, and the client is not being asked
+    // for anything.
+    row.status === "refunded"
+  ) {
     return [];
   }
   if (row.schedule && !row.schedule.nextDueDate) return [];
@@ -119,7 +132,13 @@ function rescheduleAction(
   row: InvoiceListRow,
   onReschedule: (row: InvoiceListRow) => void,
 ): RowAction[] {
-  if (row.status === "paid" || row.status === "void") return [];
+  if (
+    row.status === "paid" ||
+    row.status === "void" ||
+    row.status === "refunded"
+  ) {
+    return [];
+  }
   return [
     {
       // "Create payment plan" on an invoice that has none, because
@@ -163,7 +182,12 @@ function rowActions(
     ];
   }
 
-  if (row.status === "paid" || row.status === "void") {
+  // Terminal from the firm's point of view: nothing to chase, resend or collect.
+  if (
+    row.status === "paid" ||
+    row.status === "void" ||
+    row.status === "refunded"
+  ) {
     return [
       {
         label: "View invoice",

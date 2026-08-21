@@ -40,6 +40,8 @@ export type EffectiveInvoiceStatus =
   | "unpaid"
   | "partial"
   | "paid"
+  /** Charged, paid, and given back. Not the same as `void`, which was never charged. */
+  | "refunded"
   | "overdue"
   | "void";
 
@@ -175,11 +177,40 @@ export type InvoiceLineItem = {
   presetId: string | null;
 };
 
+/**
+ * What a ledger row represents.
+ *
+ * `payment` is money in; everything else is money that went back out, and those
+ * rows carry a NEGATIVE `amount`. `reversal` is the server's catch-all for a
+ * reversal it could not name — the money still moved.
+ */
+export type PaymentEntryKind =
+  | "payment"
+  | "refund"
+  | "return"
+  | "void"
+  | "chargeback"
+  | "reversal";
+
 export type InvoicePayment = {
   id: string;
+  /**
+   * NEGATIVE on a reversal. The sign is the information: rendering the
+   * magnitude alone would make a refund look identical to the payment it
+   * undoes.
+   */
   amount: number;
   amountOperating: number;
   amountTrust: number | null;
+  kind: PaymentEntryKind;
+  /** The row this one undoes. Null on a payment. */
+  reversesPaymentId: string | null;
+  /** Null while the money is still in flight. */
+  settledAt: string | null;
+  /** Confido's own status, so HELD reads as HELD rather than "pending". */
+  providerStatus: string | null;
+  /** Only a processor payment can be sent back through us. */
+  refundable: boolean;
   paymentDate: string;
   method: PaymentMethod;
   reference: string | null;
@@ -564,6 +595,37 @@ export async function recordPayment(
 ): Promise<InvoiceDetail> {
   const { data } = await API.post<{ data: InvoiceDetail }>(
     `/finance/invoices/${invoiceId}/payments`,
+    input,
+  );
+  return data.data;
+}
+
+export type RefundPaymentInput = {
+  /** Omit for the whole payment. A partial can only ever be a refund. */
+  amount?: number;
+  reason?: string;
+};
+
+export type RefundResult = {
+  /**
+   * What Confido actually did. It decides between a void and a refund based on
+   * whether the money had settled, so this may say "void" for a request the
+   * firm made as a refund.
+   */
+  executedAs: string;
+  status: string;
+  recorded: number;
+  amount: number;
+  invoice: InvoiceDetail;
+};
+
+export async function refundPayment(
+  invoiceId: string,
+  paymentId: string,
+  input: RefundPaymentInput,
+): Promise<RefundResult> {
+  const { data } = await API.post<{ data: RefundResult }>(
+    `/finance/invoices/${invoiceId}/payments/${paymentId}/refund`,
     input,
   );
   return data.data;
