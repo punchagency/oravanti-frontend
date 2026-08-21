@@ -25,7 +25,6 @@ export function Documents({ caseId }: { caseId: string }) {
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId),
     enabled: Boolean(caseId),
-    staleTime: 60_000,
   });
 
   return (

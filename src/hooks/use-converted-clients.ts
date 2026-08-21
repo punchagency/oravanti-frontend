@@ -18,7 +18,6 @@ export function useConvertedClients(params: GetConvertedClientsParams = {}) {
   return useQuery({
     queryKey: ["clients", params],
     queryFn: () => getConvertedClients(params),
-    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -27,7 +26,6 @@ export function useConvertedClientDetail(id: string | null) {
     queryKey: ["client", id],
     queryFn: () => getConvertedClientDetail(id!),
     enabled: !!id,
-    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -36,7 +34,6 @@ export function useClientPortalSessions(id: string | null) {
     queryKey: ["clientPortalSessions", id],
     queryFn: () => getClientPortalSessions(id!),
     enabled: !!id,
-    staleTime: 30 * 1000,
   });
 }
 
@@ -45,7 +42,6 @@ export function useClientPortalStatus(id: string | null) {
     queryKey: ["clientPortalStatus", id],
     queryFn: () => getClientPortalStatus(id!),
     enabled: !!id,
-    staleTime: 30 * 1000,
   });
 }
 

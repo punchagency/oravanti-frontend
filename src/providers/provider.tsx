@@ -11,7 +11,19 @@ import { Toaster } from "sonner";
 import { ConfirmDialogProvider } from "./confirmDialogProvider";
 import { FeedbackDialogProvider } from "./feedbackDialogProvider";
 
-const queryClient = new QueryClient();
+/**
+ * App-wide query policy: session-scoped reference data never goes stale on
+ * its own (lists refresh via invalidation after mutations), and failed
+ * requests surface immediately instead of being retried behind a spinner.
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+      retry: false,
+    },
+  },
+});
 
 export function Provider({
   children,

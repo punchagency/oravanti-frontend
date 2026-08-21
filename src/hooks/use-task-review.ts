@@ -35,7 +35,6 @@ export function useTaskReviewThread(
         ? getLeadTaskReviewThread(parentId, taskId)
         : getCaseStepReviewThread(parentId, taskId),
     enabled: enabled && Boolean(parentId) && Boolean(taskId),
-    staleTime: 30_000,
   });
 }
 

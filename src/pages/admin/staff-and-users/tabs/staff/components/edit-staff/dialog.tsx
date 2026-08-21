@@ -5,6 +5,7 @@ import {
   type CaseTypeSelectHandle,
 } from "@/components/ui/case-type-select";
 import { usePracticeAreaList } from "@/hooks/use-practice-area-tree-data";
+import { useRoleOptions } from "@/hooks/use-roles";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useUpdateStaffMember } from "@/hooks/use-update-staff-member";
 import {
@@ -69,14 +70,6 @@ interface EditStaffDialogProps {
   children: ReactNode;
 }
 
-const roleOptions = createListCollection({
-  items: [
-    { label: "Admin", value: "admin" },
-    { label: "Attorney", value: "attorney" },
-    { label: "Paralegal", value: "paralegal" },
-  ],
-});
-
 // Shared fallbacks so a pending query doesn't hand the tree/team list a new
 // array identity on every render.
 const NO_TREE_NODES: PracticeAreaTreeNode[] = [];
@@ -124,6 +117,14 @@ export function EditStaffDialog({ staff, children }: EditStaffDialogProps) {
     practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
   const teamsQuery = useTeamsList({ limit: 200 });
   const teams = teamsQuery.data?.data ?? NO_TEAMS;
+
+  const rolesQuery = useRoleOptions();
+  const roleOptions = createListCollection({
+    items: (rolesQuery.data ?? []).map((role) => ({
+      label: role.label,
+      value: role.name,
+    })),
+  });
 
   const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
   const initialCaseTypeIds = useMemo(

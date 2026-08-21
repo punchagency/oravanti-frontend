@@ -48,7 +48,6 @@ export function SendInvoiceDialog({
     queryKey: ["finance", "invoice-pdf", invoice?.id ?? ""],
     queryFn: () => fetchInvoicePdfBlob(invoice!.id),
     enabled: open && Boolean(invoice),
-    staleTime: 0,
     gcTime: 0,
   });
 

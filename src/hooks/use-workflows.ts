@@ -97,7 +97,6 @@ export function useCaseWorkflow(caseId: string, enabled: boolean = true) {
     queryKey: workflowKeys.instance(caseId),
     queryFn: () => getCaseWorkflow(caseId),
     enabled: Boolean(caseId) && enabled,
-    staleTime: 30_000,
   });
 }
 
@@ -106,7 +105,6 @@ export function useWorkflowSummary(caseId: string, enabled: boolean = true) {
     queryKey: workflowKeys.summary(caseId),
     queryFn: () => getWorkflowSummary(caseId),
     enabled: Boolean(caseId) && enabled,
-    staleTime: 30_000,
   });
 }
 
@@ -120,7 +118,6 @@ export function useCaseTimeline(
     queryKey: workflowKeys.timeline(caseId, page, limit),
     queryFn: () => getCaseTimeline(caseId, page, limit),
     enabled: Boolean(caseId) && enabled,
-    staleTime: 30_000,
   });
 }
 
@@ -134,7 +131,6 @@ export function useWorkflowLogs(
     queryKey: workflowKeys.logs(caseId, page, limit),
     queryFn: () => getWorkflowLogs(caseId, page, limit),
     enabled: Boolean(caseId) && enabled,
-    staleTime: 30_000,
   });
 }
 
@@ -291,7 +287,6 @@ export function useMyTasks(status?: string, page?: number, limit?: number) {
   return useQuery({
     queryKey: workflowKeys.myTasks(status, page, limit),
     queryFn: () => getMyTasks(status, page, limit),
-    staleTime: 30_000,
   });
 }
 
@@ -301,7 +296,6 @@ export function useReviewQueue(status?: string, page?: number, limit?: number) {
   return useQuery({
     queryKey: workflowKeys.reviewQueue(status, page, limit),
     queryFn: () => getReviewQueue(status, page, limit),
-    staleTime: 15_000,
   });
 }
 
@@ -316,7 +310,6 @@ export function useCaseDocuments(
     queryKey: workflowKeys.documents(caseId),
     queryFn: () => getCaseDocuments(caseId, page, limit),
     enabled: Boolean(caseId),
-    staleTime: 30_000,
   });
 }
 
@@ -327,7 +320,6 @@ export function useCaseNotes(caseId: string, params?: GetCaseNotesParams) {
     queryKey: workflowKeys.notes(caseId, params),
     queryFn: () => getCaseNotes(caseId, params),
     enabled: Boolean(caseId),
-    staleTime: 30_000,
   });
 }
 

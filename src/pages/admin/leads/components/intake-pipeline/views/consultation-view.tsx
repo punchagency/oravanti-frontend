@@ -229,7 +229,6 @@ type WizardPreset = {
 
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [instantOpen, setInstantOpen] = useState(false);
   const [preset, setPreset] = useState<WizardPreset>({ lead: null });
   const { data, isLoading } = useLeads({ stage: "consultation" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
@@ -262,10 +261,12 @@ export function ConsultationView() {
               : "Consultation & notes"}
           </Text>
           <HStack gap="10px" wrap="wrap">
-            <OutlineButton onClick={() => setInstantOpen(true)}>
-              <Zap size={14} />
-              Start consultation now
-            </OutlineButton>
+            <InstantConsultationDialog>
+              <OutlineButton>
+                <Zap size={14} />
+                Start consultation now
+              </OutlineButton>
+            </InstantConsultationDialog>
             <BrandButton onClick={() => openWizard(null)}>
               <CalendarDays size={14} />
               Schedule consultation
@@ -320,10 +321,6 @@ export function ConsultationView() {
         presetLead={preset.lead}
         presetAttorneyId={preset.attorneyId}
         parentConsultationId={preset.parentConsultationId}
-      />
-      <InstantConsultationDialog
-        open={instantOpen}
-        onOpenChange={setInstantOpen}
       />
     </ScheduleFollowUpContext.Provider>
   );

@@ -28,7 +28,6 @@ export function useStaffSearch(search: string, enabled: boolean) {
     // Keep the previous matches on screen while the next search resolves, so
     // the panel doesn't flash empty between keystrokes.
     placeholderData: keepPreviousData,
-    staleTime: 60_000,
     select: (response): StaffMemberDTO[] => response.data,
   });
 }

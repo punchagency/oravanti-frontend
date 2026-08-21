@@ -5,7 +5,7 @@ import { useMyTasks, useSubmitForReview } from "@/hooks/use-workflows";
 import { useReopenTask } from "@/hooks/use-task-review";
 import { TaskReviewThread } from "@/components/ui/task-review-thread";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { toTrailEntries } from "@/utils/workflow-trail";
 import {
   Box,
@@ -64,7 +64,6 @@ const statusSummaryCards = [
 ] as const;
 
 export function MyTasksPage() {
-  const memberRole = useAuthStore((s) => s.memberRole);
   const [tab, setTab] = useState<TabValue>("all");
   const {
     currentPage,
@@ -87,7 +86,7 @@ export function MyTasksPage() {
     offset: 0,
   };
 
-  const isManager = memberRole === "owner" || memberRole === "admin";
+  const isManager = useHasPermission("case_review", "resolve");
 
   const handleTabChange = useCallback(
     (e: { value: string }) => {

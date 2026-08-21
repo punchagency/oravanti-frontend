@@ -8,7 +8,7 @@ import {
   workflowKeys,
 } from "@/hooks/use-workflows";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { toTrailEntries } from "@/utils/workflow-trail";
 import { Box, Button, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,8 +51,7 @@ const statusSummaryCards = [
 ] as const;
 
 export function ReviewQueuePage() {
-  const memberRole = useAuthStore((s) => s.memberRole);
-  const isManager = memberRole === "owner" || memberRole === "admin";
+  const isManager = useHasPermission("case_review", "resolve");
   const [tab, setTab] = useState<TabValue>("all");
   const {
     currentPage,

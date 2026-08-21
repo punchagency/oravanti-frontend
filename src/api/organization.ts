@@ -5,6 +5,7 @@ export interface GetStaffsParams {
   search?: string;
   role?: string;
   team?: string;
+  group?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -243,7 +244,7 @@ export async function getTeamsList(
 
 export async function updateStaffMemberRole(
   staffId: string,
-  role: string,
+  role: string | string[],
 ): Promise<void> {
   await API.patch(`/organization/staffs/${staffId}/role`, { role });
 }

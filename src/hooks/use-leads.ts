@@ -45,13 +45,11 @@ import { getErrorMessage } from "@/utils/getErrorMessage";
 import { useFeedbackDialog } from "./useFeedbackDialog";
 import type { APIError } from "./types";
 
-const FIVE_MIN = 5 * 60 * 1000;
 
 export function useLeads(params: GetLeadsParams = {}) {
   return useQuery({
     queryKey: ["leads", params],
     queryFn: () => getLeads(params),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -59,7 +57,6 @@ export function useLeadsStageCount() {
   return useQuery({
     queryKey: ["leadsStageCount"],
     queryFn: () => getLeadsStageCount(),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -68,7 +65,6 @@ export function useLeadById(id: string) {
     queryKey: ["lead", id],
     queryFn: () => getLeadById(id),
     enabled: Boolean(id),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -77,7 +73,6 @@ export function useLeadLayout(id: string) {
     queryKey: ["lead", id, "layout"],
     queryFn: () => getLeadLayout(id),
     enabled: Boolean(id),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -86,7 +81,6 @@ export function useConflictCheck(id: string) {
     queryKey: ["lead", id, "conflict-check"],
     queryFn: () => getConflictCheck(id),
     enabled: Boolean(id),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -95,7 +89,6 @@ export function useConsultationData(id: string) {
     queryKey: ["lead", id, "consultation"],
     queryFn: () => getConsultation(id),
     enabled: Boolean(id),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -104,7 +97,6 @@ export function useFeeAgreementData(id: string) {
     queryKey: ["lead", id, "fee-agreement"],
     queryFn: () => getFeeAgreement(id),
     enabled: Boolean(id),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -112,7 +104,6 @@ export function useConsultations(params: GetConsultationsParams = {}) {
   return useQuery({
     queryKey: ["consultations", params],
     queryFn: () => getConsultations(params),
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -125,7 +116,6 @@ export function useLeadActivity(id: string, enabled = true) {
     queryKey: ["lead", id, "activity"],
     queryFn: () => getLeadActivity(id),
     enabled: Boolean(id) && enabled,
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -134,7 +124,6 @@ export function useLeadNotes(id: string, enabled = true) {
     queryKey: ["leadNotes", id],
     queryFn: () => getLeadNotes(id),
     enabled: Boolean(id) && enabled,
-    staleTime: FIVE_MIN,
   });
 }
 
@@ -142,7 +131,6 @@ export function useLeadMetrics(period: MetricsPeriod) {
   return useQuery({
     queryKey: ["lead-metrics", period],
     queryFn: () => getLeadMetrics(period),
-    staleTime: FIVE_MIN,
   });
 }
 

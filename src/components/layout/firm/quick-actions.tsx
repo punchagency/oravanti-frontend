@@ -1,40 +1,83 @@
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { QuickAddEventDialog } from "@/pages/admin/calendar/quick-add-event-dialog";
-import { useCreateCalendarEvent } from "@/pages/admin/calendar/use-calendar";
+import { useCanCreateStaff } from "@/hooks/use-can-create-staff";
 import { InstantConsultationDialog } from "@/pages/admin/leads/components/intake-pipeline/dialogs/instant-consultation-dialog";
 import { InviteStaffDialog } from "@/pages/admin/staff-and-users/invite-staff/dialog";
 import { CreateTeamDialog } from "@/pages/admin/staff-and-users/tabs/teams/components/create-team/dialog";
 import { Box, Button, Menu, Portal, Text } from "@chakra-ui/react";
 import { CalendarDays, ChevronDown, Plus, UserRoundPlus, Users, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNav } from "@/components/layout/shared/use-nav";
+
+/** One styled row of the quick-actions menu. */
+function QuickActionItem({
+  value,
+  icon,
+  label,
+  onClick,
+}: {
+  value: string;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Menu.Item
+      value={value}
+      bg="transparent"
+      color="fg"
+      borderRadius="md"
+      px="12px"
+      py="8px"
+      gap="8px"
+      fontSize="13px"
+      _hover={{ bg: "bg.hover" }}
+      onClick={onClick}
+    >
+      <Box color="fg">{icon}</Box>
+      {label}
+    </Menu.Item>
+  );
+}
 
 export function QuickActions({ collapsed }: { collapsed: boolean }) {
   const { setSuppressCollapse, forceCollapse } = useNav();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [addLeadOpen, setAddLeadOpen] = useState(false);
-  const [instantConsultOpen, setInstantConsultOpen] = useState(false);
-  const [createTeamOpen, setCreateTeamOpen] = useState(false);
-  const [inviteStaffOpen, setInviteStaffOpen] = useState(false);
-  const [addEventOpen, setAddEventOpen] = useState(false);
-  const createEvent = useCreateCalendarEvent();
+  // Mirrors the backend's `staffs:create` gate on POST /organization/teams
+  // and POST /organization/invite — without the grant those dialogs can
+  // only ever end in a 403, so their menu items are hidden entirely.
+  const canCreateStaff = useCanCreateStaff();
 
   /*
-    Keep sidebar state frozen while menu or any dialog is open:
-    – suppressCollapse = true → DesktopNav ignores onMouseEnter
-      and onMouseLeave, so the sidebar stays put.
-    – This prevents:
-      1. Sidebar collapsing when mouse moves from the nav to the
-         portaled menu popover (onMouseLeave fires immediately).
-      2. Sidebar re-expanding while a dialog is open (dialog is
-         portaled to body, but mouse can still enter the sidebar
-         area, triggering onMouseEnter → suppressCollapse blocks it).
+    Dialogs follow the Chakra "open a dialog from a menu item" pattern:
+    each Menu.Item's onClick opens a CONTROLLED dialog rendered outside
+    the menu (a Dialog.Trigger inside Menu.Content unmounts when the menu
+    closes, which can swallow the open). At most one is open at a time.
+
+    Sidebar freeze while a dialog is up:
+
+    – suppressCollapse = true → DesktopNav ignores onMouseEnter/onMouseLeave,
+      so the sidebar stays put while the portaled dialog is open.
+    – forceCollapse() shrinks the sidebar immediately when an item is
+      clicked, and it stays collapsed until the dialog closes.
+
+    suppressCollapse is derived from menuOpen/openDialog in an effect: it
+    fires one extra (cheap) commit after paint, but stays correct no matter
+    which of the two sources changed.
   */
+  const [openDialog, setOpenDialog] = useState<string | null>(null);
+  const openItem = (name: string) => () => {
+    forceCollapse();
+    setOpenDialog(name);
+  };
+  // Closing via X / backdrop / Esc funnels through here too.
+  const handleDialogChange = (open: boolean) => {
+    if (!open) setOpenDialog(null);
+  };
+
   useEffect(() => {
-    setSuppressCollapse(
-      menuOpen || addLeadOpen || instantConsultOpen || createTeamOpen || inviteStaffOpen || addEventOpen,
-    );
-  }, [menuOpen, addLeadOpen, instantConsultOpen, createTeamOpen, inviteStaffOpen, addEventOpen, setSuppressCollapse]);
+    setSuppressCollapse(menuOpen || openDialog !== null);
+  }, [menuOpen, openDialog, setSuppressCollapse]);
 
   return (
     <>
@@ -76,119 +119,69 @@ export function QuickActions({ collapsed }: { collapsed: boolean }) {
               borderRadius="md"
               p="4px"
             >
-              {/*
-                forceCollapse() + setDialogOpen(true): sidebar shrinks
-                immediately when clicking a menu item. suppressCollapse
-                stays true (dialog is open) so the sidebar stays
-                collapsed until the dialog closes.
-              */}
-              <Menu.Item
+              <QuickActionItem
                 value="add-lead"
-                bg="transparent"
-                color="fg"
-                borderRadius="md"
-                px="12px"
-                py="8px"
-                gap="8px"
-                fontSize="13px"
-                _hover={{ bg: "bg.hover" }}
-                onClick={() => { setAddLeadOpen(true); forceCollapse(); }}
-              >
-                <Box color="fg">
-                  <UserRoundPlus size={15} />
-                </Box>
-                Add a lead
-              </Menu.Item>
-              <Menu.Item
+                icon={<UserRoundPlus size={15} />}
+                label="Add a lead"
+                onClick={openItem("add-lead")}
+              />
+              <QuickActionItem
                 value="instant-consultation"
-                bg="transparent"
-                color="fg"
-                borderRadius="md"
-                px="12px"
-                py="8px"
-                gap="8px"
-                fontSize="13px"
-                _hover={{ bg: "bg.hover" }}
-                onClick={() => { setInstantConsultOpen(true); forceCollapse(); }}
-              >
-                <Box color="fg">
-                  <Zap size={15} />
-                </Box>
-                Start instant consultation
-              </Menu.Item>
-              <Menu.Item
-                value="create-team"
-                bg="transparent"
-                color="fg"
-                borderRadius="md"
-                px="12px"
-                py="8px"
-                gap="8px"
-                fontSize="13px"
-                _hover={{ bg: "bg.hover" }}
-                onClick={() => { setCreateTeamOpen(true); forceCollapse(); }}
-              >
-                <Box color="fg">
-                  <Users size={15} />
-                </Box>
-                Create a team
-              </Menu.Item>
-              <Menu.Item
-                value="invite-staff"
-                bg="transparent"
-                color="fg"
-                borderRadius="md"
-                px="12px"
-                py="8px"
-                gap="8px"
-                fontSize="13px"
-                _hover={{ bg: "bg.hover" }}
-                onClick={() => { setInviteStaffOpen(true); forceCollapse(); }}
-              >
-                <Box color="fg">
-                  <Plus size={15} />
-                </Box>
-                Invite a staff
-              </Menu.Item>
-              <Menu.Item
+                icon={<Zap size={15} />}
+                label="Start instant consultation"
+                onClick={openItem("instant-consultation")}
+              />
+              {canCreateStaff && (
+                <QuickActionItem
+                  value="create-team"
+                  icon={<Users size={15} />}
+                  label="Create a team"
+                  onClick={openItem("create-team")}
+                />
+              )}
+              {canCreateStaff && (
+                <QuickActionItem
+                  value="invite-staff"
+                  icon={<Plus size={15} />}
+                  label="Invite a staff"
+                  onClick={openItem("invite-staff")}
+                />
+              )}
+              <QuickActionItem
                 value="add-calendar-event"
-                bg="transparent"
-                color="fg"
-                borderRadius="md"
-                px="12px"
-                py="8px"
-                gap="8px"
-                fontSize="13px"
-                _hover={{ bg: "bg.hover" }}
-                onClick={() => { setAddEventOpen(true); forceCollapse(); }}
-              >
-                <Box color="fg">
-                  <CalendarDays size={15} />
-                </Box>
-                Add calendar event
-              </Menu.Item>
+                icon={<CalendarDays size={15} />}
+                label="Add calendar event"
+                onClick={openItem("add-calendar-event")}
+              />
             </Menu.Content>
           </Menu.Positioner>
         </Portal>
       </Menu.Root>
 
-      <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
+      {/* Outside the menu so closing the menu never unmounts them. */}
+      <AddLeadDialog
+        open={openDialog === "add-lead"}
+        onOpenChange={handleDialogChange}
+      />
       <InstantConsultationDialog
-        open={instantConsultOpen}
-        onOpenChange={setInstantConsultOpen}
+        open={openDialog === "instant-consultation"}
+        onOpenChange={handleDialogChange}
       />
-      <CreateTeamDialog
-        open={createTeamOpen}
-        onOpenChange={setCreateTeamOpen}
-      />
-      <InviteStaffDialog
-        open={inviteStaffOpen}
-        onOpenChange={setInviteStaffOpen}
-      />
+      {canCreateStaff && (
+        <CreateTeamDialog
+          open={openDialog === "create-team"}
+          onOpenChange={handleDialogChange}
+        />
+      )}
+      {canCreateStaff && (
+        <InviteStaffDialog
+          open={openDialog === "invite-staff"}
+          onOpenChange={handleDialogChange}
+        />
+      )}
       <QuickAddEventDialog
-        open={addEventOpen}
-        onOpenChange={setAddEventOpen}
-        onAdd={(payload) => createEvent.mutate(payload)}
+        open={openDialog === "add-calendar-event"}
+        onOpenChange={handleDialogChange}
       />
     </>
   );
