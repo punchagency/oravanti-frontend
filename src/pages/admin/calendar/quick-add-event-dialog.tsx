@@ -1,7 +1,10 @@
 import { useClients } from "@/hooks/use-clients";
 import { useCases } from "@/hooks/use-cases";
+import { useResetOnOpen } from "@/hooks/use-reset-on-open";
 import { useStaffs } from "@/hooks/use-staff";
 import { useFeedbackDialog } from "@/hooks/useFeedbackDialog";
+import { ControlSkeleton } from "@/components/ui/theme-skeleton";
+import { useCreateCalendarEvent } from "./use-calendar";
 import { dayjs } from "@/utils/date";
 import {
   Box,
@@ -17,7 +20,6 @@ import {
   Input,
   Portal,
   Select,
-  Spinner,
   Text,
   Textarea,
   VStack,
@@ -25,14 +27,18 @@ import {
 import { CalendarDate, today as getToday } from "@internationalized/date";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDays, X } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type {
+  Control,
+  FieldErrors,
+  UseFormTrigger,
+} from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import {
   CALENDAR_FILTER_TYPES,
   EVENT_TYPE_CONFIG,
   type CalendarEventType,
-  type CreateCalendarEventRequest,
 } from "./types";
 import { TIME_OPTIONS } from "./utils";
 
@@ -63,6 +69,21 @@ const formSchema = z
 
 type FormValues = z.input<typeof formSchema>;
 
+/** Fresh defaults per open — `date` must be today, not module-load day. */
+const eventDefaults = (): FormValues => ({
+  title: "",
+  type: "client_meeting",
+  clientId: "",
+  caseId: "",
+  date: dayjs().format("YYYY-MM-DD"),
+  startTime: "09:00",
+  endTime: "10:00",
+  location: "",
+  assignedStaffId: "",
+  notes: "",
+  applyDeadlineRules: true,
+});
+
 const inputStyles = {
   h: "36px",
   px: "12px",
@@ -91,162 +112,39 @@ const selectTriggerStyles = {
   },
 };
 
-interface QuickAddEventDialogProps {
+/**
+ * Self-contained event dialog. By default it opens from its children
+ * (wrapped in a Chakra Trigger) and owns its open state; pass `open` +
+ * `onOpenChange` to control it instead (e.g. opened from a menu item,
+ * per the Chakra "dialog from menu" docs pattern).
+ *
+ * Either way the form — and therefore its data queries — first mounts when
+ * the dialog opens (`lazyMount`), so a never-opened dialog never hits the
+ * API. It then stays mounted (hidden) so reopening is instant; the form
+ * resets itself on each open via `useResetOnOpen`.
+ */
+export function QuickAddEventDialog({
+  children,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  children?: ReactNode;
+  /** Pass `open` to control the dialog (e.g. opened from a menu item); omit it for a self-contained trigger. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onAdd: (event: CreateCalendarEventRequest) => void;
-  children?: ReactNode;
-}
-
-export function QuickAddEventDialog({
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
-  onAdd,
-  children,
-}: QuickAddEventDialogProps) {
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
-  const { showSuccess } = useFeedbackDialog();
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    watch,
-    trigger,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      type: "client_meeting",
-      clientId: "",
-      caseId: "",
-      date: dayjs().format("YYYY-MM-DD"),
-      startTime: "09:00",
-      endTime: "10:00",
-      location: "",
-      assignedStaffId: "",
-      notes: "",
-      applyDeadlineRules: true,
-    },
-    mode: "onBlur",
-  });
-
-  const watchedClientId = watch("clientId");
-  const watchedDate = watch("date");
-  const watchedStartTime = watch("startTime");
-  const watchedEndTime = watch("endTime");
-
-  useEffect(() => {
-    if (watchedStartTime && watchedEndTime) {
-      trigger(["startTime", "endTime"]);
-    }
-  }, [watchedStartTime, watchedEndTime, trigger]);
-
-  const { data: clients = [], isLoading: clientsLoading } = useClients();
-
-  const { data: casesResponse, isLoading: casesLoading } = useCases({
-    clientId: watchedClientId || undefined,
-    limit: 200,
-  });
-  const casesData = casesResponse?.data ?? [];
-
-  const { data: staff = [], isLoading: staffLoading } = useStaffs();
-
-  const typeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: CALENDAR_FILTER_TYPES.map((t) => ({
-          label: EVENT_TYPE_CONFIG[t].label,
-          value: t,
-        })),
-      }),
-    [],
-  );
-
-  const clientCollection = useMemo(
-    () =>
-      createListCollection({
-        items: clients.map((c) => ({
-          label: c.displayName,
-          value: c.id,
-        })),
-      }),
-    [clients],
-  );
-
-  const caseCollection = useMemo(
-    () =>
-      createListCollection({
-        items: casesData.map((c) => ({
-          label: `${c.caseNumber} — ${c.client?.name ?? "No client"}`,
-          value: c.id,
-        })),
-      }),
-    [casesData],
-  );
-
-  const staffCollection = useMemo(
-    () =>
-      createListCollection({
-        items: staff.map((s) => ({
-          label: `${s.firstName} ${s.lastName} (${s.role.replace(/_/g, " ")})`,
-          value: s.id,
-        })),
-      }),
-    [staff],
-  );
-
-  const filteredTimeOptions = useMemo(() => {
-    if (watchedDate === dayjs().format("YYYY-MM-DD")) {
-      const now = dayjs();
-      return TIME_OPTIONS.filter((opt) => {
-        const [h, m] = opt.value.split(":").map(Number);
-        return h > now.hour() || (h === now.hour() && m > now.minute());
-      });
-    }
-    return TIME_OPTIONS;
-  }, [watchedDate]);
-
-  const timeCollection = useMemo(
-    () =>
-      createListCollection({
-        items: filteredTimeOptions,
-      }),
-    [filteredTimeOptions],
-  );
-
-  const onSubmit = (data: FormValues) => {
-    onAdd({
-      title: data.title.trim(),
-      eventType: data.type as CalendarEventType,
-      startTime: dayjs(`${data.date}T${data.startTime}`).toISOString(),
-      endTime: dayjs(`${data.date}T${data.endTime}`).toISOString(),
-      clientId: data.clientId || undefined,
-      caseId: data.caseId || undefined,
-      assignedStaffId: data.assignedStaffId || undefined,
-      location: data.location || undefined,
-      notes: data.notes || undefined,
-    });
-    showSuccess({ title: "Event created" });
-    reset();
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
   };
-
-  const isLoadingData = clientsLoading || staffLoading;
 
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={(details) => {
-        onOpenChange(details.open);
-        if (!details.open) {
-          reset();
-        }
-      }}
+      onOpenChange={(details) => handleOpenChange(details.open)}
+      lazyMount
       placement="center"
     >
       {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
@@ -286,7 +184,103 @@ export function QuickAddEventDialog({
               </chakra.button>
             </Dialog.CloseTrigger>
 
-            <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit(onSubmit)}>
+            <QuickAddEventForm
+              open={open}
+              close={() => handleOpenChange(false)}
+            />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
+  );
+}
+
+/** Everything the event form needs lives here so nothing runs before the first open. */
+function QuickAddEventForm({
+  open,
+  close,
+}: {
+  open: boolean;
+  close: () => void;
+}) {
+  const { showSuccess } = useFeedbackDialog();
+  const createEvent = useCreateCalendarEvent();
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    trigger,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: eventDefaults(),
+    mode: "onBlur",
+  });
+
+  // Stays mounted between opens — restore pristine defaults on each open.
+  const resetForm = useCallback(() => reset(eventDefaults()), [reset]);
+  useResetOnOpen(open, resetForm);
+
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+
+  const { data: staff = [], isLoading: staffLoading } = useStaffs();
+
+  const typeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: CALENDAR_FILTER_TYPES.map((t) => ({
+          label: EVENT_TYPE_CONFIG[t].label,
+          value: t,
+        })),
+      }),
+    [],
+  );
+
+  const clientCollection = useMemo(
+    () =>
+      createListCollection({
+        items: clients.map((c) => ({
+          label: c.displayName,
+          value: c.id,
+        })),
+      }),
+    [clients],
+  );
+
+  const staffCollection = useMemo(
+    () =>
+      createListCollection({
+        items: staff.map((s) => ({
+          label: `${s.firstName} ${s.lastName} (${s.role.replace(/_/g, " ")})`,
+          value: s.id,
+        })),
+      }),
+    [staff],
+  );
+
+  const onSubmit = (data: FormValues) => {
+    createEvent.mutate({
+      title: data.title.trim(),
+      eventType: data.type as CalendarEventType,
+      startTime: dayjs(`${data.date}T${data.startTime}`).toISOString(),
+      endTime: dayjs(`${data.date}T${data.endTime}`).toISOString(),
+      clientId: data.clientId || undefined,
+      caseId: data.caseId || undefined,
+      assignedStaffId: data.assignedStaffId || undefined,
+      location: data.location || undefined,
+      notes: data.notes || undefined,
+    });
+    showSuccess({ title: "Event created" });
+    // Closing resets on next open (useResetOnOpen) — no unmount needed.
+    close();
+  };
+
+  const isLoadingData = clientsLoading || staffLoading;
+
+  return (
+    <Box as="form" p="32px 24px 24px" onSubmit={handleSubmit(onSubmit)}>
               <Dialog.Title
                 color="fg"
                 fontSize="17px"
@@ -304,15 +298,9 @@ export function QuickAddEventDialog({
                 Create a new hearing, interview, deadline, or meeting.
               </Dialog.Description>
 
-              {isLoadingData ? (
-                <VStack py="10" gap="3">
-                  <Spinner />
-                  <Text fontSize="13px" color="fg.subtle">
-                    Loading form data...
-                  </Text>
-                </VStack>
-              ) : (
-                <VStack align="stretch" gap="12px" mt="18px">
+              {/* Fields render immediately; only the query-fed selects below
+                  wait on data and show a skeleton until it arrives. */}
+              <VStack align="stretch" gap="12px" mt="18px">
                   <Field.Root invalid={!!errors.title}>
                     <Field.Label>
                       Title
@@ -388,7 +376,7 @@ export function QuickAddEventDialog({
                     <Field.Root>
                       <Field.Label>Client</Field.Label>
                       {clientsLoading ? (
-                        <Spinner size="sm" color="fg.muted" />
+                        <ControlSkeleton />
                       ) : (
                         <Controller
                           name="clientId"
@@ -430,50 +418,7 @@ export function QuickAddEventDialog({
                       )}
                     </Field.Root>
 
-                    <Field.Root>
-                      <Field.Label>Case</Field.Label>
-                      {casesLoading ? (
-                        <Spinner size="sm" color="fg.muted" />
-                      ) : (
-                        <Controller
-                          name="caseId"
-                          control={control}
-                          render={({ field }) => (
-                            <Select.Root
-                              collection={caseCollection}
-                              size="sm"
-                              value={field.value ? [field.value] : []}
-                              onValueChange={(e) =>
-                                field.onChange(e.value[0] ?? "")
-                              }
-                              disabled={!watchedClientId}
-                            >
-                              <Select.Control>
-                                <Select.Trigger {...selectTriggerStyles}>
-                                  <Select.ValueText placeholder="Select case" />
-                                </Select.Trigger>
-                                <Select.IndicatorGroup>
-                                  <Select.Indicator />
-                                </Select.IndicatorGroup>
-                              </Select.Control>
-                              <Portal>
-                                <Select.Positioner>
-                                  <Select.Content>
-                                    {caseCollection.items.map((item) => (
-                                      <Select.Item key={item.value} item={item}>
-                                        <Select.ItemText>
-                                          {item.label}
-                                        </Select.ItemText>
-                                      </Select.Item>
-                                    ))}
-                                  </Select.Content>
-                                </Select.Positioner>
-                              </Portal>
-                            </Select.Root>
-                          )}
-                        />
-                      )}
-                    </Field.Root>
+                    <CaseSelectField control={control} />
                   </Grid>
 
                   <Field.Root invalid={!!errors.date}>
@@ -566,107 +511,7 @@ export function QuickAddEventDialog({
                     )}
                   </Field.Root>
 
-                  <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap="10px">
-                    <Field.Root invalid={!!errors.startTime}>
-                      <Field.Label>
-                        Start time
-                        <Text as="span" color="red.500" ml="2px">
-                          *
-                        </Text>
-                      </Field.Label>
-                      <Controller
-                        name="startTime"
-                        control={control}
-                        render={({ field }) => (
-                          <Select.Root
-                            collection={timeCollection}
-                            size="sm"
-                            value={[field.value]}
-                            onValueChange={(e) =>
-                              field.onChange(e.value[0] ?? "")
-                            }
-                          >
-                            <Select.Control>
-                              <Select.Trigger {...selectTriggerStyles}>
-                                <Select.ValueText />
-                              </Select.Trigger>
-                              <Select.IndicatorGroup>
-                                <Select.Indicator />
-                              </Select.IndicatorGroup>
-                            </Select.Control>
-                            <Portal>
-                              <Select.Positioner>
-                                <Select.Content>
-                                  {timeCollection.items.map((item) => (
-                                    <Select.Item key={item.value} item={item}>
-                                      <Select.ItemText>
-                                        {item.label}
-                                      </Select.ItemText>
-                                    </Select.Item>
-                                  ))}
-                                </Select.Content>
-                              </Select.Positioner>
-                            </Portal>
-                          </Select.Root>
-                        )}
-                      />
-                      {errors.startTime && (
-                        <Field.ErrorText>
-                          {errors.startTime.message}
-                        </Field.ErrorText>
-                      )}
-                    </Field.Root>
-
-                    <Field.Root invalid={!!errors.endTime}>
-                      <Field.Label>
-                        End time
-                        <Text as="span" color="red.500" ml="2px">
-                          *
-                        </Text>
-                      </Field.Label>
-                      <Controller
-                        name="endTime"
-                        control={control}
-                        render={({ field }) => (
-                          <Select.Root
-                            collection={timeCollection}
-                            size="sm"
-                            value={[field.value]}
-                            onValueChange={(e) =>
-                              field.onChange(e.value[0] ?? "")
-                            }
-                          >
-                            <Select.Control>
-                              <Select.Trigger {...selectTriggerStyles}>
-                                <Select.ValueText />
-                              </Select.Trigger>
-                              <Select.IndicatorGroup>
-                                <Select.Indicator />
-                              </Select.IndicatorGroup>
-                            </Select.Control>
-                            <Portal>
-                              <Select.Positioner>
-                                <Select.Content>
-                                  {timeCollection.items.map((item) => (
-                                    <Select.Item key={item.value} item={item}>
-                                      <Select.ItemText>
-                                        {item.label}
-                                      </Select.ItemText>
-                                    </Select.Item>
-                                  ))}
-                                </Select.Content>
-                              </Select.Positioner>
-                            </Portal>
-                          </Select.Root>
-                        )}
-                      />
-                      {errors.endTime && (
-                        <Field.ErrorText>
-                          {errors.endTime.message}
-                        </Field.ErrorText>
-                      )}
-                    </Field.Root>
-                  </Grid>
+                  <TimeFields control={control} errors={errors} trigger={trigger} />
 
                   <Field.Root>
                     <Field.Label>Location / link</Field.Label>
@@ -680,7 +525,7 @@ export function QuickAddEventDialog({
                   <Field.Root>
                     <Field.Label>Assigned staff</Field.Label>
                     {staffLoading ? (
-                      <Spinner size="sm" color="fg.muted" />
+                      <ControlSkeleton />
                     ) : (
                       <Controller
                         name="assignedStaffId"
@@ -750,7 +595,6 @@ export function QuickAddEventDialog({
                     )}
                   />
                 </VStack>
-              )}
 
               <Flex justify="flex-end" gap="8px" mt="24px">
                 <Button
@@ -758,7 +602,7 @@ export function QuickAddEventDialog({
                   variant="outline"
                   borderColor="border"
                   color="fg.muted"
-                  onClick={() => onOpenChange(false)}
+                  onClick={close}
                 >
                   Cancel
                 </Button>
@@ -773,9 +617,214 @@ export function QuickAddEventDialog({
                 </Button>
               </Flex>
             </Box>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+  );
+}
+
+/*
+  Case options depend on the selected client, so this field subscribes to
+  `clientId` itself. Keeping that subscription here — not in
+  QuickAddEventForm — means typing elsewhere never re-renders this query
+  tree, and the form skips the React Compiler opt-out that `watch()` causes.
+*/
+function CaseSelectField({
+  control,
+}: {
+  control: Control<FormValues>;
+}) {
+  const clientId = useWatch({ control, name: "clientId" });
+
+  const { data: casesResponse, isLoading } = useCases({
+    clientId: clientId || undefined,
+    limit: 200,
+  });
+
+  const caseCollection = useMemo(
+    () =>
+      createListCollection({
+        items: (casesResponse?.data ?? []).map((c) => ({
+          label: `${c.caseNumber} — ${c.client?.name ?? "No client"}`,
+          value: c.id,
+        })),
+      }),
+    [casesResponse],
+  );
+
+  return (
+    <Field.Root>
+      <Field.Label>Case</Field.Label>
+      {isLoading ? (
+        <ControlSkeleton />
+      ) : (
+        <Controller
+          name="caseId"
+          control={control}
+          render={({ field }) => (
+            <Select.Root
+              collection={caseCollection}
+              size="sm"
+              value={field.value ? [field.value] : []}
+              onValueChange={(e) => field.onChange(e.value[0] ?? "")}
+              disabled={!clientId}
+            >
+              <Select.Control>
+                <Select.Trigger {...selectTriggerStyles}>
+                  <Select.ValueText placeholder="Select case" />
+                </Select.Trigger>
+                <Select.IndicatorGroup>
+                  <Select.Indicator />
+                </Select.IndicatorGroup>
+              </Select.Control>
+              <Portal>
+                <Select.Positioner>
+                  <Select.Content>
+                    {caseCollection.items.map((item) => (
+                      <Select.Item key={item.value} item={item}>
+                        <Select.ItemText>{item.label}</Select.ItemText>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Portal>
+            </Select.Root>
+          )}
+        />
+      )}
+    </Field.Root>
+  );
+}
+
+/*
+  Both time fields share one option list (past times are hidden for today)
+  and one cross-field validation effect, so they subscribe to `date`,
+  `startTime` and `endTime` together here rather than in the form parent.
+*/
+function TimeFields({
+  control,
+  errors,
+  trigger,
+}: {
+  control: Control<FormValues>;
+  errors: FieldErrors<FormValues>;
+  trigger: UseFormTrigger<FormValues>;
+}) {
+  const date = useWatch({ control, name: "date" });
+  const startTime = useWatch({ control, name: "startTime" });
+  const endTime = useWatch({ control, name: "endTime" });
+
+  useEffect(() => {
+    if (startTime && endTime) {
+      trigger(["startTime", "endTime"]);
+    }
+  }, [startTime, endTime, trigger]);
+
+  const filteredTimeOptions = useMemo(() => {
+    if (date === dayjs().format("YYYY-MM-DD")) {
+      const now = dayjs();
+      return TIME_OPTIONS.filter((opt) => {
+        const [h, m] = opt.value.split(":").map(Number);
+        return h > now.hour() || (h === now.hour() && m > now.minute());
+      });
+    }
+    return TIME_OPTIONS;
+  }, [date]);
+
+  const timeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: filteredTimeOptions,
+      }),
+    [filteredTimeOptions],
+  );
+
+  return (
+    <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap="10px">
+      <Field.Root invalid={!!errors.startTime}>
+        <Field.Label>
+          Start time
+          <Text as="span" color="red.500" ml="2px">
+            *
+          </Text>
+        </Field.Label>
+        <Controller
+          name="startTime"
+          control={control}
+          render={({ field }) => (
+            <Select.Root
+              collection={timeCollection}
+              size="sm"
+              value={[field.value]}
+              onValueChange={(e) => field.onChange(e.value[0] ?? "")}
+            >
+              <Select.Control>
+                <Select.Trigger {...selectTriggerStyles}>
+                  <Select.ValueText />
+                </Select.Trigger>
+                <Select.IndicatorGroup>
+                  <Select.Indicator />
+                </Select.IndicatorGroup>
+              </Select.Control>
+              <Portal>
+                <Select.Positioner>
+                  <Select.Content>
+                    {timeCollection.items.map((item) => (
+                      <Select.Item key={item.value} item={item}>
+                        <Select.ItemText>{item.label}</Select.ItemText>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Portal>
+            </Select.Root>
+          )}
+        />
+        {errors.startTime && (
+          <Field.ErrorText>{errors.startTime.message}</Field.ErrorText>
+        )}
+      </Field.Root>
+
+      <Field.Root invalid={!!errors.endTime}>
+        <Field.Label>
+          End time
+          <Text as="span" color="red.500" ml="2px">
+            *
+          </Text>
+        </Field.Label>
+        <Controller
+          name="endTime"
+          control={control}
+          render={({ field }) => (
+            <Select.Root
+              collection={timeCollection}
+              size="sm"
+              value={[field.value]}
+              onValueChange={(e) => field.onChange(e.value[0] ?? "")}
+            >
+              <Select.Control>
+                <Select.Trigger {...selectTriggerStyles}>
+                  <Select.ValueText />
+                </Select.Trigger>
+                <Select.IndicatorGroup>
+                  <Select.Indicator />
+                </Select.IndicatorGroup>
+              </Select.Control>
+              <Portal>
+                <Select.Positioner>
+                  <Select.Content>
+                    {timeCollection.items.map((item) => (
+                      <Select.Item key={item.value} item={item}>
+                        <Select.ItemText>{item.label}</Select.ItemText>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Portal>
+            </Select.Root>
+          )}
+        />
+        {errors.endTime && (
+          <Field.ErrorText>{errors.endTime.message}</Field.ErrorText>
+        )}
+      </Field.Root>
+    </Grid>
   );
 }

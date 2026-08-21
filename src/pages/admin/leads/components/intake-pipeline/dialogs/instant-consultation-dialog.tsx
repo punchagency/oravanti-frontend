@@ -8,11 +8,13 @@ import {
   Stack,
   Switch,
   Text,
+  VStack,
   chakra,
 } from "@chakra-ui/react";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { MINIMUM_CONSULTATION_FEE } from "@/config/constants";
 import { Info, UserPlus, Users, X, Zap } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +35,7 @@ import {
   useCreateConsultationLocation,
 } from "@/hooks/use-consultation-settings";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { useResetOnOpen } from "@/hooks/use-reset-on-open";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
 import type { APIError } from "@/hooks/types";
 import {
@@ -236,48 +239,105 @@ const INSTANT_DEFAULTS: InstantForm = {
   autoSendQuestionnaire: false,
 };
 
+/**
+ * Self-contained consultation dialog. By default it opens from its children
+ * (wrapped in a Chakra Trigger) and owns its open state; pass `open` +
+ * `onOpenChange` to control it instead (e.g. opened from a menu item,
+ * per the Chakra "dialog from menu" docs pattern).
+ *
+ * Either way the wizard — and therefore its data queries — first mounts when
+ * the dialog opens (`lazyMount`), so a never-opened dialog never hits the
+ * API. It then stays mounted (hidden) so reopening is instant; the wizard
+ * resets itself on each open via `useResetOnOpen`.
+ */
 export function InstantConsultationDialog({
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
   children,
+  open: controlledOpen,
+  onOpenChange,
   presetLeadId,
 }: {
+  children?: React.ReactNode;
+  /** Pass `open` to control the dialog (e.g. opened from a menu item); omit it for a self-contained trigger. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  children?: React.ReactNode;
   presetLeadId?: string;
-} = {}) {
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
-  const [step, setStep] = useState<InstantStep>(0);
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(details) => handleOpenChange(details.open)}
+      lazyMount
+      placement="center"
+    >
+      {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
+      <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
+      <Dialog.Positioner px="16px">
+        <InstantConsultationWizard
+          open={open}
+          close={() => handleOpenChange(false)}
+          presetLeadId={presetLeadId}
+        />
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+/** Everything the consultation wizard needs lives here so nothing runs before the first open. */
+function InstantConsultationWizard({
+  open,
+  close,
+  presetLeadId,
+}: {
+  open: boolean;
+  close: () => void;
+  presetLeadId?: string;
+}) {
+  // A preset lead skips straight to the consultation-details step.
+  const [step, setStep] = useState<InstantStep>(presetLeadId ? 2 : 0);
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [conflictState, setConflictState] = useState<ConflictState>("idle");
 
   const {
     control,
     setValue,
-    reset,
     trigger,
     getValues,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<InstantForm>({
     resolver: zodResolver(instantSchema),
     defaultValues: {
       ...INSTANT_DEFAULTS,
-      clientMode: presetLeadId ? "existing" : "existing",
+      clientMode: "existing",
       selectedLeadId: presetLeadId ?? "",
     },
     mode: "onChange",
   });
 
-  useEffect(() => {
-    if (open && presetLeadId) {
-      setStep(2);
-      reset({ ...INSTANT_DEFAULTS, clientMode: "existing", selectedLeadId: presetLeadId });
-    }
-  }, [open, presetLeadId, reset]);
+  /*
+    Stays mounted between opens — restore pristine defaults on each open.
+    Besides the form fields, the wizard carries step-local state that an
+    unmount used to clear for free.
+  */
+  const resetWizard = useCallback(() => {
+    reset({
+      ...INSTANT_DEFAULTS,
+      clientMode: "existing",
+      selectedLeadId: presetLeadId ?? "",
+    });
+    setStep(presetLeadId ? 2 : 0);
+    setCreatedLeadId(null);
+    setConflictState("idle");
+  }, [reset, presetLeadId]);
+  useResetOnOpen(open, resetWizard);
 
   const clientMode = useWatch({ control, name: "clientMode" });
   const selectedLeadId = useWatch({ control, name: "selectedLeadId" });
@@ -319,8 +379,14 @@ export function InstantConsultationDialog({
   // Existing candidates: same pool as the scheduling wizard — conflict-cleared
   // leads (questionnaire stage) plus consultation-stage leads without an
   // active consultation.
-  const { data: questionnaireData } = useLeads({ stage: "questionnaire" });
-  const { data: consultationData } = useLeads({ stage: "consultation" });
+  const {
+    data: questionnaireData,
+    isLoading: questionnaireLeadsLoading,
+  } = useLeads({ stage: "questionnaire" });
+  const {
+    data: consultationData,
+    isLoading: consultationLeadsLoading,
+  } = useLeads({ stage: "consultation" });
   const leads = useMemo(() => {
     const questionnaireLeads = Array.isArray(questionnaireData)
       ? questionnaireData
@@ -334,28 +400,34 @@ export function InstantConsultationDialog({
     ];
   }, [questionnaireData, consultationData]);
 
-  const { allStaff, attorneys } = useConsultationStaff();
+  const { allStaff, attorneys, isLoading: staffLoading } =
+    useConsultationStaff();
 
-  const { data: feeSettings } = useConsultationSettings();
-  const { data: locations = [] } = useConsultationLocations();
+  const { data: feeSettings, isLoading: settingsLoading } =
+    useConsultationSettings();
+  const {
+    data: locations = [],
+    isLoading: locationsLoading,
+  } = useConsultationLocations();
   const createLocation = useCreateConsultationLocation();
-  const { data: practiceAreas } = usePublicPracticeAreas();
+  const {
+    data: practiceAreas,
+    isLoading: practiceAreasLoading,
+  } = usePublicPracticeAreas();
+
+  // The wizard's steps are driven by these lists; while any is in flight,
+  // show a skeleton body instead of empty dropdowns that pop in later.
+  const isLoadingData =
+    questionnaireLeadsLoading ||
+    consultationLeadsLoading ||
+    staffLoading ||
+    settingsLoading ||
+    locationsLoading ||
+    practiceAreasLoading;
 
   const createLead = useCreateLead();
   const runCheck = useRunConflictCheck();
   const initiateConsultation = useInitiateConsultation();
-
-  // Reset when (re)opened — adjust-state-on-prop-change, no effect needed.
-  const [wasOpen, setWasOpen] = useState(false);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) {
-      reset(INSTANT_DEFAULTS);
-      setStep(0);
-      setCreatedLeadId(null);
-      setConflictState("idle");
-    }
-  }
 
   const selectedLead: Lead | undefined = leads.find(
     (l) => l.id === selectedLeadId,
@@ -449,11 +521,8 @@ export function InstantConsultationDialog({
   const emergencyFee = Math.round(standardFee * multiplier * 100) / 100;
 
   function closeDialog() {
-    onOpenChange(false);
-    reset(INSTANT_DEFAULTS);
-    setStep(0);
-    setCreatedLeadId(null);
-    setConflictState("idle");
+    // Closing unmounts the wizard, which resets it for next time.
+    close();
   }
 
   // Creates the lead on first run (a conflict check needs a lead id); re-runs
@@ -636,34 +705,18 @@ export function InstantConsultationDialog({
             : "Review and begin the consultation";
 
   return (
-    <Dialog.Root
-      open={open}
-      lazyMount
-      unmountOnExit
-      onOpenChange={(details) => {
-        if (details.open) {
-          onOpenChange(true);
-        } else {
-          closeDialog();
-        }
-      }}
-      placement="center"
+    <Dialog.Content
+      w="full"
+      maxW="560px"
+      maxH="calc(100vh - 72px)"
+      border="1px solid"
+      borderColor="border"
+      borderRadius="14px"
+      bg="bg"
+      p="0"
+      boxShadow="0 24px 70px rgba(0, 0, 0, 0.26)"
     >
-      {children}
-      <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
-      <Dialog.Positioner px="16px">
-        <Dialog.Content
-          w="full"
-          maxW="560px"
-          maxH="calc(100vh - 72px)"
-          border="1px solid"
-          borderColor="border"
-          borderRadius="14px"
-          bg="bg"
-          p="0"
-          boxShadow="0 24px 70px rgba(0, 0, 0, 0.26)"
-        >
-          <Flex direction="column" maxH="calc(100vh - 72px)">
+      <Flex direction="column" maxH="calc(100vh - 72px)">
             <Box p="24px 24px 12px">
               <Flex align="flex-start" justify="space-between" gap="16px">
                 <Box minW="0">
@@ -718,6 +771,16 @@ export function InstantConsultationDialog({
             </Box>
 
             <Box flex="1" minH="0" px="24px" pb="20px" overflowY="auto">
+              {isLoadingData ? (
+                <VStack align="stretch" gap="14px" pt="6px">
+                  <ThemeSkeleton h="9px" w="90px" />
+                  <ThemeSkeleton h="34px" w="full" borderRadius="7px" />
+                  <ThemeSkeleton h="9px" w="70px" />
+                  <ThemeSkeleton h="34px" w="full" borderRadius="7px" />
+                  <ThemeSkeleton h="120px" w="full" borderRadius="8px" />
+                </VStack>
+              ) : (
+                <>
               {step === 0 ? (
                 <ClientModeChooser
                   onChoose={(mode) => {
@@ -844,6 +907,8 @@ export function InstantConsultationDialog({
                   questionnaireAlreadySent={questionnaireAlreadySent}
                 />
               ) : null}
+                </>
+              )}
             </Box>
 
             <Flex
@@ -894,8 +959,6 @@ export function InstantConsultationDialog({
             </Flex>
           </Flex>
         </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
   );
 }
 
