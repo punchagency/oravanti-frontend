@@ -10,11 +10,23 @@ import { API } from ".";
  */
 export type ConsultationFeeStructure = "flat" | "custom_per_case_type";
 
+/** WHEN the fee is collected, as distinct from what it costs. */
+export type ConsultationFeeSchedule =
+  | "full_upfront"
+  | "partial_upfront"
+  | "after_consultation";
+
+/** What happens to the fee when the lead does not turn up. */
+export type ConsultationNoShowPolicy = "forfeit" | "refund" | "decide";
+
 export type ConsultationSettings = {
   organizationId: string;
   chargesFee: boolean;
   defaultAmount: number | null;
   feeStructure: ConsultationFeeStructure | null;
+  feeSchedule: ConsultationFeeSchedule;
+  upfrontPercent: number | null;
+  noShowPolicy: ConsultationNoShowPolicy;
   timezone: string;
   smsEnabled: boolean;
   updatedAt: string | null;
@@ -24,6 +36,9 @@ export type UpsertConsultationSettingsInput = {
   chargesFee: boolean;
   defaultAmount?: number | null;
   feeStructure?: ConsultationFeeStructure | null;
+  feeSchedule?: ConsultationFeeSchedule;
+  upfrontPercent?: number | null;
+  noShowPolicy?: ConsultationNoShowPolicy;
   timezone?: string;
   smsEnabled?: boolean;
 };
