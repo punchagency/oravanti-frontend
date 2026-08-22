@@ -1,7 +1,9 @@
-import { useAuthStore } from "@/store/auth-store";
+import { TaskReviewThread } from "@/components/ui/task-review-thread";
+import { useReopenTask } from "@/hooks/use-task-review";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { dayjs, guessTimezone } from "@/utils/date";
 import { Badge, Box, Button, Flex, Separator, Text } from "@chakra-ui/react";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { CertificationGate } from "../certification-gate";
 import { useCompleteStep } from "../hooks";
@@ -42,6 +44,55 @@ const badgeProps = {
 };
 
 /**
+ * Collapsible review thread for a step, matching the intake pipeline's.
+ *
+ * Fetched only once opened — a case can carry a hundred steps, and each one
+ * eagerly loading its history would be a hundred requests on tab open. A
+ * rejected step opens by default, since the feedback is why it is on screen.
+ */
+function StepReviewThread({
+  caseId,
+  stepId,
+  rejected,
+}: {
+  caseId: string;
+  stepId: string;
+  rejected: boolean;
+}) {
+  const [open, setOpen] = useState(rejected);
+
+  return (
+    <Box px={{ base: 2.5, md: 3 }} pb={{ base: 2, md: 1.5 }}>
+      <Button
+        variant="plain"
+        h="auto"
+        minH="auto"
+        p={0}
+        gap={1}
+        fontSize="10px"
+        fontWeight="400"
+        color={rejected ? "red.fg" : "fg.muted"}
+        _hover={{ color: "fg" }}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+        {rejected ? "Review feedback" : "Review history"}
+      </Button>
+      {open ? (
+        <Box mt={1.5}>
+          <TaskReviewThread
+            kind="case_step"
+            parentId={caseId}
+            taskId={stepId}
+            emptyText="Nothing submitted for review yet."
+          />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+/**
  * A single workflow step row within a module.
  *
  * Steps are auto-assigned to eligible staff when they become active.
@@ -64,12 +115,14 @@ export function StepRow({
   onAssigned,
   onCompleted,
 }: StepRowProps) {
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const isAdmin = memberRole === "owner" || memberRole === "admin";
+  // Matches `certification-gate.tsx`'s override check — both are the same
+  // "override workflow gates" capability and must gate on the same grant.
+  const isAdmin = useHasPermission("cases", "update");
 
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 
   const completeMutation = useCompleteStep(caseId);
+  const reopenMutation = useReopenTask("case_step", caseId);
 
   const handleConfirmComplete = async (notes: string) => {
     try {
@@ -89,29 +142,36 @@ export function StepRow({
     return (
       <Box
         w="full"
-        display="flex"
-        alignItems="center"
-        gap={2}
-        py={{ base: 2, md: 1.5 }}
-        px={{ base: 2.5, md: 3 }}
         borderRadius="md"
         border="1px solid"
         borderColor="border.muted"
         _hover={{ bg: "bg.subtle" }}
       >
-        <StepIcon status={step.status} />
-        <Text
-          fontSize="11px"
-          color="fg.muted"
-          lineHeight="140%"
-          flex={1}
-          minW={0}
+        <Flex
+          align="center"
+          gap={2}
+          py={{ base: 2, md: 1.5 }}
+          px={{ base: 2.5, md: 3 }}
         >
-          {stepTitle}
-        </Text>
-        <Badge {...badgeProps} bg="green.50" color="green.700">
-          {step.assignedTo.name}
-        </Badge>
+          <StepIcon status={step.status} />
+          <Text
+            fontSize="11px"
+            color="fg.muted"
+            lineHeight="140%"
+            flex={1}
+            minW={0}
+          >
+            {stepTitle}
+          </Text>
+          <Badge {...badgeProps} bg="green.subtle" color="green.fg">
+            {step.assignedTo.name}
+          </Badge>
+        </Flex>
+        <StepReviewThread
+          caseId={caseId}
+          stepId={step.stepId}
+          rejected={false}
+        />
       </Box>
     );
   }
@@ -121,30 +181,89 @@ export function StepRow({
     return (
       <Box
         w="full"
-        display="flex"
-        alignItems="center"
-        gap={2}
-        py={{ base: 2, md: 1.5 }}
-        px={{ base: 2.5, md: 3 }}
         borderRadius="md"
         border="1px solid"
-        borderColor="orange.200"
-        bg="orange.50/40"
+        borderColor="orange.emphasized"
+        bg="orange.subtle/40"
       >
-        <StepIcon status="in_review" />
-        <Text fontSize="11px" color="fg" lineHeight="140%" flex={1} minW={0}>
-          {stepTitle}
-        </Text>
-        <Flex gap={1.5} flexWrap="wrap">
-          {step.assignedTo && (
-            <Badge {...badgeProps} bg="blue.50" color="blue.700">
-              {step.assignedTo.name}
+        <Flex
+          align="center"
+          gap={2}
+          py={{ base: 2, md: 1.5 }}
+          px={{ base: 2.5, md: 3 }}
+        >
+          <StepIcon status="in_review" />
+          <Text fontSize="11px" color="fg" lineHeight="140%" flex={1} minW={0}>
+            {stepTitle}
+          </Text>
+          <Flex gap={1.5} flexWrap="wrap">
+            {step.assignedTo && (
+              <Badge {...badgeProps} bg="blue.subtle" color="blue.fg">
+                {step.assignedTo.name}
+              </Badge>
+            )}
+            <Badge {...badgeProps} bg="orange.subtle" color="orange.fg">
+              Review
             </Badge>
-          )}
-          <Badge {...badgeProps} bg="orange.50" color="orange.700">
-            Review
-          </Badge>
+          </Flex>
         </Flex>
+        <StepReviewThread
+          caseId={caseId}
+          stepId={step.stepId}
+          rejected={false}
+        />
+      </Box>
+    );
+  }
+
+  // ── Rejected step ──────────────────────────────────────────────────
+  // Terminal until someone acts on the feedback, so the thread is open and the
+  // only action offered is putting it back into the assignee's hands.
+  if (step.status === "rejected") {
+    return (
+      <Box
+        w="full"
+        borderRadius="md"
+        border="1px solid"
+        borderColor="red.emphasized"
+        bg="red.subtle/40"
+      >
+        <Flex
+          align="center"
+          gap={2}
+          py={{ base: 2, md: 1.5 }}
+          px={{ base: 2.5, md: 3 }}
+          flexWrap="wrap"
+        >
+          <StepIcon status="rejected" />
+          <Text fontSize="11px" color="fg" lineHeight="140%" flex={1} minW={0}>
+            {stepTitle}
+          </Text>
+          <Flex gap={1.5} flexWrap="wrap" align="center">
+            {step.assignedTo && (
+              <Badge {...badgeProps} bg="blue.subtle" color="blue.fg">
+                {step.assignedTo.name}
+              </Badge>
+            )}
+            <Badge {...badgeProps} bg="red.subtle" color="red.fg">
+              Rejected
+            </Badge>
+            <Button
+              size="2xs"
+              variant="outline"
+              borderColor="border"
+              fontSize="10px"
+              h="22px"
+              whiteSpace="nowrap"
+              onClick={() => reopenMutation.mutate({ taskId: step.stepId })}
+              loading={reopenMutation.isPending}
+            >
+              <RotateCcw size={10} />
+              Reopen
+            </Button>
+          </Flex>
+        </Flex>
+        <StepReviewThread caseId={caseId} stepId={step.stepId} rejected />
       </Box>
     );
   }
@@ -230,6 +349,12 @@ export function StepRow({
             </Button>
           )}
         </Flex>
+
+        <StepReviewThread
+          caseId={caseId}
+          stepId={step.stepId}
+          rejected={false}
+        />
       </Box>
 
       {/* ── Complete confirmation dialog ──────────────────────────── */}

@@ -2,7 +2,8 @@ import { Navigate, Route, createBrowserRouter, createRoutesFromElements } from "
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { UnsavedChangesProvider } from "@/contexts/unsaved-changes-context";
 import { RouteErrorBoundary } from "@/components/ui/error-boundary";
-import { lazyPage } from "@/routers/lazy";
+import { RequirePermission } from "@/components/require-permission";
+import { lazyPage, lazyStandalonePage } from "@/routers/lazy";
 import { AdminGuard } from "@/routers/admin/guard";
 import { CalendarDataProvider } from "@/pages/admin/calendar/calendar-data-context";
 
@@ -11,17 +12,37 @@ import { CalendarDataProvider } from "@/pages/admin/calendar/calendar-data-conte
  * readable in one place; each page only loads when first visited.    *
  * ------------------------------------------------------------------ */
 
-// Auth callback pages
-const AcceptInvitationPage = lazyPage(() => import("@/pages/accept-invitation"));
-const EmailVerifiedPage = lazyPage(() => import("@/pages/email-verified"));
-const SetPasswordPage = lazyPage(() => import("@/pages/set-password"));
-const VerifyEmailNoticePage = lazyPage(() => import("@/pages/verify-email"));
+// Auth callback pages. These render without the dashboard chrome, so they use
+// the spinner fallback — a skeleton reads as a broken screen on a centred card.
+const AcceptInvitationPage = lazyStandalonePage(() => import("@/pages/accept-invitation"));
+const EmailVerifiedPage = lazyStandalonePage(() => import("@/pages/email-verified"));
+const SetPasswordPage = lazyStandalonePage(() => import("@/pages/set-password"));
+const VerifyEmailNoticePage = lazyStandalonePage(() => import("@/pages/verify-email"));
 
-// Onboarding
-const Step0SourcePage = lazyPage(() => import("@/pages/onboarding/step-0-source"));
-const Step1ProfilePage = lazyPage(() => import("@/pages/onboarding/step-1-profile"));
-const Step2FirmDetailsPage = lazyPage(() => import("@/pages/onboarding/step-2-firm-details"));
-const Step3TosPage = lazyPage(() => import("@/pages/onboarding/step-3-tos"));
+// Token-gated recipient pages. Declared here as well as in the public router
+// because they're reached from an emailed link: whoever opens it is whoever
+// happens to be signed in in that browser, and that's often a staff member
+// checking the link they just sent. Without these the admin router has no
+// match and drops them on the dashboard 404 instead of the page.
+const QuestionnairePortalPage = lazyStandalonePage(() =>
+  import("@/pages/questionnaire-portal").then((m) => ({ default: m.QuestionnairePortalPage })),
+);
+const ConsultationBookingPage = lazyStandalonePage(() =>
+  import("@/pages/consultation-booking").then((m) => ({ default: m.ConsultationBookingPage })),
+);
+const AgreementSigningPage = lazyStandalonePage(() =>
+  import("@/pages/agreement-signing").then((m) => ({ default: m.AgreementSigningPage })),
+);
+const DocumentUploadPage = lazyStandalonePage(() =>
+  import("@/pages/document-upload").then((m) => ({ default: m.DocumentUploadPage })),
+);
+const InvoicePaymentPage = lazyStandalonePage(() => import("@/pages/invoice-payment"));
+
+// Onboarding — also outside AdminLayout, same reasoning.
+const Step0SourcePage = lazyStandalonePage(() => import("@/pages/onboarding/step-0-source"));
+const Step1ProfilePage = lazyStandalonePage(() => import("@/pages/onboarding/step-1-profile"));
+const Step2FirmDetailsPage = lazyStandalonePage(() => import("@/pages/onboarding/step-2-firm-details"));
+const Step3TosPage = lazyStandalonePage(() => import("@/pages/onboarding/step-3-tos"));
 
 // Dashboard
 const AdminDashboard = lazyPage(() =>
@@ -36,9 +57,21 @@ const FirmSettingsPage = lazyPage(() =>
   import("@/pages/admin/settings/firm-settings").then((m) => ({ default: m.FirmSettingsPage })),
 );
 const GeneralTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/general"));
+const ConsultationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/consultations"));
 const BillingTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/billing"));
 const NotificationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/notifications"));
 const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/compliance"));
+const AuditTrailPage = lazyPage(() =>
+  import("@/pages/admin/settings/audit-trail").then((m) => ({ default: m.AuditTrailPage })),
+);
+const RolesPermissionsPage = lazyPage(() =>
+  import("@/pages/admin/settings/roles-permissions").then((m) => ({ default: m.RolesPermissionsPage })),
+);
+const RbacStaffTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/staff"));
+const RbacRolesTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/roles"));
+const RbacGroupsTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/groups"));
+const RbacMatrixTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/matrix"));
+const PaymentsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/payments"));
 
 // Profile
 const MyProfilePage = lazyPage(() =>
@@ -206,8 +239,14 @@ const ReportsTab = lazyPage(() => import("@/pages/admin/finance/tabs/reports"));
 const ComingSoonPage = lazyPage(() =>
   import("@/pages/coming-soon").then((m) => ({ default: m.ComingSoonPage })),
 );
+const AnalyticsPageWrapper = lazyPage(() =>
+  import("@/pages/admin/analytics/analytics-page-wrapper").then((m) => ({ default: m.AnalyticsPageWrapper })),
+);
 const NotFoundPage = lazyPage(() =>
   import("@/pages/not-found").then((m) => ({ default: m.NotFoundPage })),
+);
+const PortalAccessDisabledPage = lazyPage(() =>
+  import("@/pages/portal-access-disabled"),
 );
 
 export function createAdminRouter() {
@@ -215,12 +254,25 @@ export function createAdminRouter() {
     createRoutesFromElements(
       <Route errorElement={<RouteErrorBoundary />}>
         {/* Auth callback routes */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/two-factor" element={<Navigate to="/" replace />} />
         <Route path="/email-verified" element={<EmailVerifiedPage />} />
         <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
         <Route path="/set-password" element={<SetPasswordPage />} />
 
-            
+        {/*
+         * Public token-gated routes, mirrored from the public router. Outside
+         * AdminGuard on purpose: the token is the authorisation, and the page
+         * belongs to the lead/client the link was sent to, not to the signed-in
+         * staff member who happens to be opening it.
+         */}
+        <Route path="/questionnaire/:firmSlug/:token" element={<QuestionnairePortalPage />} />
+        <Route path="/consultation-booking/:token" element={<ConsultationBookingPage />} />
+        <Route path="/sign/:token" element={<AgreementSigningPage />} />
+        <Route path="/document-upload/:token" element={<DocumentUploadPage />} />
+        <Route path="/invoice-payment/:token" element={<InvoicePaymentPage />} />
+
         {/* Protected admin routes */}
         <Route element={<AdminGuard />}>
           {/* Onboarding (no dashboard chrome yet) */}
@@ -231,36 +283,65 @@ export function createAdminRouter() {
             <Route path="step-3-tos" element={<Step3TosPage />} />
           </Route>
 
-          {/* Dashboard app — everything below renders inside AdminLayout */}
-          <Route
-            path="/"
-            element={
-              <UnsavedChangesProvider>
-                <AdminLayout />
-              </UnsavedChangesProvider>
-            }
-          >
-            <Route index element={<AdminDashboard />} />
-            <Route path="dashboard">
-              <Route path="pipeline" element={<AdminDashboard />} />
-              <Route path="activity" element={<AdminDashboard />} />
-            </Route>
+            {/* Dashboard app — everything below renders inside AdminLayout */}
+            <Route
+              path="/"
+              element={
+                <UnsavedChangesProvider>
+                  <AdminLayout />
+                </UnsavedChangesProvider>
+              }
+            >
+              <Route element={<RequirePermission permission="dashboard:read" />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="dashboard">
+                  <Route path="pipeline" element={<AdminDashboard />} />
+                  <Route path="activity" element={<AdminDashboard />} />
+                </Route>
+              </Route>
 
             <Route path="settings">
-              <Route path="email-accounts" element={<EmailAccountConnectionPage />} />
-              <Route path="firm-settings" element={<FirmSettingsPage />}>
-                <Route index element={<GeneralTab />} />
-                <Route path="general" element={<Navigate to="/settings/firm-settings" replace />} />
-                <Route path="billing" element={<BillingTab />} />
-                <Route path="notifications" element={<NotificationsTab />} />
-                <Route path="compliance" element={<ComplianceTab />} />
+              <Route element={<RequirePermission permission="firm_settings:read" />}>
+                <Route path="email-accounts" element={<EmailAccountConnectionPage />} />
+                <Route path="firm-settings" element={<FirmSettingsPage />}>
+                  <Route index element={<GeneralTab />} />
+                  <Route path="general" element={<Navigate to="/settings/firm-settings" replace />} />
+                  <Route path="consultations" element={<ConsultationsTab />} />
+                  <Route path="billing" element={<BillingTab />} />
+                  <Route path="notifications" element={<NotificationsTab />} />
+                  <Route path="compliance" element={<ComplianceTab />} />
+                  <Route path="payments" element={<PaymentsTab />} />
+                </Route>
+                <Route path="add-on-activation" element={<ComingSoonPage title="Add-on activation" showBack={false} />} />
+                <Route path="integrations" element={<ComingSoonPage title="Integrations" showBack={false} />} />
+                <Route path="training-platform" element={<ComingSoonPage title="Training platform" showBack={false} />} />
+                <Route path="education-leads" element={<ComingSoonPage title="Education &amp; leads" showBack={false} />} />
               </Route>
-              {/* Routes exist in the nav but aren't implemented yet */}
-              <Route path="add-on-activation" element={<ComingSoonPage title="Add-on activation" showBack={false} />} />
-              <Route path="rbac" element={<ComingSoonPage title="RBAC" showBack={false} />} />
-              <Route path="integrations" element={<ComingSoonPage title="Integrations" showBack={false} />} />
-              <Route path="training-platform" element={<ComingSoonPage title="Training platform" showBack={false} />} />
-              <Route path="education-leads" element={<ComingSoonPage title="Education &amp; leads" showBack={false} />} />
+              {/*
+                The firm-wide trail. Gated server-side on the `audit` resource, so an
+                attorney reaching this URL gets a 403 from the API rather than an
+                empty table — the per-entity activity tabs are their surface.
+              */}
+              <Route element={<RequirePermission permission="audit:read" />}>
+                <Route path="audit-trail" element={<AuditTrailPage />} />
+              </Route>
+              {/*
+                Viewing RBAC (staff assignments, roles, groups, the matrix)
+                is gated like every other page — `ac:read`, grantable through
+                the matrix itself. Actually creating/editing/deleting a role
+                or group stays locked to the owner/admin roles directly
+                (`requireOwnerOrAdmin`, server-side) regardless of `ac:*`
+                grants, so a firm can hand a custom role read access here
+                without that role being able to grant itself more.
+              */}
+              <Route element={<RequirePermission permission="ac:read" />}>
+                <Route path="rbac" element={<RolesPermissionsPage />}>
+                  <Route index element={<RbacStaffTab />} />
+                  <Route path="roles" element={<RbacRolesTab />} />
+                  <Route path="groups" element={<RbacGroupsTab />} />
+                  <Route path="matrix" element={<RbacMatrixTab />} />
+                </Route>
+              </Route>
             </Route>
 
             <Route path="profile" element={<MyProfilePage />}>
@@ -271,113 +352,130 @@ export function createAdminRouter() {
             </Route>
 
             {/* Leads */}
-            <Route path="leads">
-              <Route index element={<LeadsPage />} />
-              <Route path="my-tasks" element={<MyLeadsTasksPage />} />
-              <Route path="review-queue" element={<LeadReviewQueuePage />} />
-              <Route path=":leadId" element={<LeadDetailPage />}>
-                <Route index element={<LeadOverviewTabRoute />} />
-                <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />
-                <Route path="documents" element={<LeadDocumentsTabRoute />} />
-                <Route path="timeline" element={<LeadTimelineTabRoute />} />
-                <Route path="audit-log" element={<LeadAuditLogTabRoute />} />
-                <Route path="notes" element={<LeadNotesTabRoute />} />
+            <Route element={<RequirePermission permission="leads:read" />}>
+              <Route path="leads">
+                <Route index element={<LeadsPage />} />
+                <Route path="my-tasks" element={<MyLeadsTasksPage />} />
+                <Route path="review-queue" element={<LeadReviewQueuePage />} />
+                <Route path=":leadId" element={<LeadDetailPage />}>
+                  <Route index element={<LeadOverviewTabRoute />} />
+                  <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />
+                  <Route path="documents" element={<LeadDocumentsTabRoute />} />
+                  <Route path="timeline" element={<LeadTimelineTabRoute />} />
+                  <Route path="audit-log" element={<LeadAuditLogTabRoute />} />
+                  <Route path="notes" element={<LeadNotesTabRoute />} />
+                </Route>
+                <Route path=":leadId/conflict-check" element={<ConflictCheckPage />} />
+                <Route path=":leadId/questionnaire" element={<QuestionnairePage />} />
+                <Route path=":leadId/consultation" element={<ConsultationPage />} />
+                <Route path=":leadId/case-opening" element={<CaseOpeningPage />} />
               </Route>
-              <Route path=":leadId/conflict-check" element={<ConflictCheckPage />} />
-              <Route path=":leadId/questionnaire" element={<QuestionnairePage />} />
-              <Route path=":leadId/consultation" element={<ConsultationPage />} />
-              <Route path=":leadId/case-opening" element={<CaseOpeningPage />} />
-            </Route>
 
-            <Route path="intake">
-              <Route path="crm-leads" element={<CrmLeadsPage />} />
+              <Route path="intake">
+                <Route path="crm-leads" element={<CrmLeadsPage />} />
+              </Route>
             </Route>
 
             {/* Cases */}
-            <Route path="cases">
-              <Route index element={<CasesPage />} />
-              <Route path=":caseId" element={<CaseDetailPage />}>
-                <Route index element={<CaseOverviewTabRoute />} />
-                <Route path="workflow" element={<CaseWorkflowTabRoute />} />
-                <Route path="people" element={<CasePeopleTabRoute />} />
-                <Route path="documents" element={<CaseDocumentsTabRoute />} />
-                <Route path="timeline" element={<CaseTimelineTabRoute />} />
-                <Route path="notes" element={<CaseNotesTabRoute />} />
-                <Route path="ai-review" element={<CaseAiReviewTabRoute />} />
-                <Route path="audit-log" element={<CaseAuditLogTabRoute />} />
+            <Route element={<RequirePermission permission="cases:read" />}>
+              <Route path="cases">
+                <Route index element={<CasesPage />} />
+                <Route path=":caseId" element={<CaseDetailPage />}>
+                  <Route index element={<CaseOverviewTabRoute />} />
+                  <Route path="workflow" element={<CaseWorkflowTabRoute />} />
+                  <Route path="people" element={<CasePeopleTabRoute />} />
+                  <Route path="documents" element={<CaseDocumentsTabRoute />} />
+                  <Route path="timeline" element={<CaseTimelineTabRoute />} />
+                  <Route path="notes" element={<CaseNotesTabRoute />} />
+                  <Route path="ai-review" element={<CaseAiReviewTabRoute />} />
+                  <Route path="audit-log" element={<CaseAuditLogTabRoute />} />
+                </Route>
+                <Route path="my-tasks" element={<MyTasksPage />} />
+                <Route path="review-queue" element={<ReviewQueuePage />} />
+                {/* In the nav but not implemented yet */}
+                <Route path="policy-alerts" element={<ComingSoonPage title="Policy alerts" showBack={false} />} />
               </Route>
-              <Route path="my-tasks" element={<MyTasksPage />} />
-              <Route path="review-queue" element={<ReviewQueuePage />} />
-              {/* In the nav but not implemented yet */}
-              <Route path="policy-alerts" element={<ComingSoonPage title="Policy alerts" showBack={false} />} />
             </Route>
 
             {/* Staff */}
-            <Route path="staff">
-              <Route path="contractors">
-                <Route path="marketplace" element={<ComingSoonPage title="Contractor marketplace" showBack={false} />} />
-                <Route path="active-engagements" element={<ComingSoonPage title="Active engagements" showBack={false} />} />
+            <Route element={<RequirePermission permission="staffs:read" />}>
+              <Route path="staff">
+                <Route path="contractors">
+                  <Route path="marketplace" element={<ComingSoonPage title="Contractor marketplace" showBack={false} />} />
+                  <Route path="active-engagements" element={<ComingSoonPage title="Active engagements" showBack={false} />} />
+                </Route>
               </Route>
-            </Route>
-            <Route path="staff-management" element={<StaffAndUsersPage />}>
-              <Route index element={<StaffTab />} />
-              <Route path="accounts" element={<Navigate to="/staff-management" replace />} />
-              <Route path="teams" element={<TeamsTab />} />
-              <Route path="certifications" element={<CertificationsTab />} />
-              <Route path="performance" element={<PerformanceTab />} />
-              <Route path="time-tracking" element={<TimeTrackingTab />} />
-              <Route path="leave" element={<LeaveTab />} />
-              <Route path="invitations" element={<InvitationsTab />} />
+              <Route path="staff-management" element={<StaffAndUsersPage />}>
+                <Route index element={<StaffTab />} />
+                <Route path="accounts" element={<Navigate to="/staff-management" replace />} />
+                <Route path="teams" element={<TeamsTab />} />
+                <Route path="certifications" element={<CertificationsTab />} />
+                <Route path="performance" element={<PerformanceTab />} />
+                <Route path="time-tracking" element={<TimeTrackingTab />} />
+                <Route path="leave" element={<LeaveTab />} />
+                <Route path="invitations" element={<InvitationsTab />} />
+              </Route>
             </Route>
 
             {/* Finance */}
-            <Route path="finance" element={<FinancePage />}>
-              <Route index element={<Navigate to="/finance/invoicing" replace />} />
-              <Route path="invoicing" element={<InvoicingTab />} />
-              <Route path="time-billing" element={<TimeBillingTab />} />
-              <Route path="reports" element={<ReportsTab />} />
+            <Route element={<RequirePermission permission="finance:read" />}>
+              <Route path="finance" element={<FinancePage />}>
+                <Route index element={<Navigate to="/finance/invoicing" replace />} />
+                <Route path="invoicing" element={<InvoicingTab />} />
+                <Route path="time-billing" element={<TimeBillingTab />} />
+                <Route path="reports" element={<ReportsTab />} />
+              </Route>
             </Route>
 
             {/* Analytics */}
-            <Route path="analytics">
-              <Route path="firm-overview" element={<ComingSoonPage title="Firm overview" showBack={false} />} />
-              <Route path="revenue-billing" element={<ComingSoonPage title="Revenue &amp; billing" showBack={false} />} />
-              <Route path="staff-performance" element={<ComingSoonPage title="Staff performance" showBack={false} />} />
-              <Route path="intake-crm" element={<ComingSoonPage title="Intake &amp; CRM" showBack={false} />} />
-              <Route path="compliance" element={<ComingSoonPage title="Compliance" showBack={false} />} />
+            <Route element={<RequirePermission permission="analytics:read" />}>
+              <Route path="analytics">
+                <Route path="firm-overview" element={<AnalyticsPageWrapper title="Firm overview" />} />
+                <Route path="revenue-billing" element={<AnalyticsPageWrapper title="Revenue &amp; billing" />} />
+                <Route path="staff-performance" element={<AnalyticsPageWrapper title="Staff performance" />} />
+                <Route path="intake-crm" element={<AnalyticsPageWrapper title="Intake &amp; CRM" />} />
+                <Route path="compliance" element={<AnalyticsPageWrapper title="Compliance" />} />
+              </Route>
             </Route>
 
             {/* Documents */}
-            <Route path="documents">
-              <Route index element={<AllDocumentsPage />} />
-              <Route path="case-filings" element={<CaseFilingsPage />} />
-              <Route path="interview-packages" element={<InterviewPackagesPage />} />
-              <Route path="creator" element={<DocumentCreatorPage />} />
-              <Route path="templates" element={<DocumentTemplatesPage />} />
+            <Route element={<RequirePermission permission="documents:read" />}>
+              <Route path="documents">
+                <Route index element={<AllDocumentsPage />} />
+                <Route path="case-filings" element={<CaseFilingsPage />} />
+                <Route path="interview-packages" element={<InterviewPackagesPage />} />
+                <Route path="creator" element={<DocumentCreatorPage />} />
+                <Route path="templates" element={<DocumentTemplatesPage />} />
+              </Route>
             </Route>
 
             {/* Calendar */}
-            <Route path="calendar">
-              <Route index element={<CalendarDataProvider><CalendarPage /></CalendarDataProvider>} />
-              <Route path="hearings" element={<CalendarDataProvider filter="master_calendar_hearing"><CalendarPage /></CalendarDataProvider>} />
-              <Route path="interviews" element={<CalendarDataProvider filter="uscis_interview"><CalendarPage /></CalendarDataProvider>} />
-              <Route path="deadlines" element={<CalendarDataProvider filter="filing_deadline"><CalendarPage /></CalendarDataProvider>} />
-              <Route path="appointments" element={<CalendarDataProvider filter="client_meeting"><CalendarPage /></CalendarDataProvider>} />
-              <Route path="deadline-rules" element={<DeadlineRulesPage />} />
-              <Route path="service-requests" element={<ServiceRequestsPage />} />
+            <Route element={<RequirePermission permission="calendar:read" />}>
+              <Route path="calendar">
+                <Route index element={<CalendarDataProvider><CalendarPage /></CalendarDataProvider>} />
+                <Route path="hearings" element={<CalendarDataProvider filter="master_calendar_hearing"><CalendarPage /></CalendarDataProvider>} />
+                <Route path="interviews" element={<CalendarDataProvider filter="uscis_interview"><CalendarPage /></CalendarDataProvider>} />
+                <Route path="deadlines" element={<CalendarDataProvider filter="filing_deadline"><CalendarPage /></CalendarDataProvider>} />
+                <Route path="appointments" element={<CalendarDataProvider filter="client_meeting"><CalendarPage /></CalendarDataProvider>} />
+                <Route path="deadline-rules" element={<DeadlineRulesPage />} />
+                <Route path="service-requests" element={<ServiceRequestsPage />} />
+              </Route>
             </Route>
 
             {/* AI Review */}
-            <Route path="ai-review">
-              <Route index element={<AiReviewDashboardPage />} />
-              <Route path="by-case" element={<AiReviewByCasePage />} />
-              <Route path="by-document" element={<AiReviewByDocumentPage />} />
-              <Route path="resolution-log" element={<AiReviewResolutionLogPage />} />
-              <Route path="settings" element={<AiReviewSettingsPage />} />
+            <Route element={<RequirePermission permission="ai_review:read" />}>
+              <Route path="ai-review">
+                <Route index element={<AiReviewDashboardPage />} />
+                <Route path="by-case" element={<AiReviewByCasePage />} />
+                <Route path="by-document" element={<AiReviewByDocumentPage />} />
+                <Route path="resolution-log" element={<AiReviewResolutionLogPage />} />
+                <Route path="settings" element={<AiReviewSettingsPage />} />
+              </Route>
             </Route>
 
             {/* Unknown admin paths render the 404 inside the dashboard layout. */}
             <Route path="*" element={<NotFoundPage />} />
+            <Route path="portal-access-disabled" element={<PortalAccessDisabledPage />} />
           </Route>
         </Route>
       </Route>,

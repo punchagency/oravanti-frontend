@@ -5,8 +5,10 @@ type AuthState = {
   user: SessionUser | null;
   session: AuthSession | null;
   memberRole: MemberRole | null;
-  // Firm IANA timezone, hydrated from the session (customSession payload).
+  /** Flattened `resource:action` grants — see `PermissionGrant` in `@/types/auth`. */
+  grants: string[];
   firmTimezone: string | null;
+  portalStatus: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   refetch: () => void;
@@ -27,7 +29,9 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
   user: null,
   session: null,
   memberRole: null,
+  grants: [],
   firmTimezone: null,
+  portalStatus: null,
   isAuthenticated: false,
   isLoading: true,
   refetch: () => {},
@@ -39,7 +43,9 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       user: auth.user,
       session: auth.session,
       memberRole: auth.memberRole,
+      grants: auth.grants,
       firmTimezone: auth.firmTimezone,
+      portalStatus: auth.portalStatus,
       isAuthenticated: auth.isAuthenticated,
       isLoading: auth.isLoading,
       refetch: auth.refetch,
@@ -52,7 +58,9 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       user: null,
       session: null,
       memberRole: null,
+      grants: [],
       firmTimezone: null,
+      portalStatus: null,
       isAuthenticated: false,
       isLoading: false,
       refetch: () => {},

@@ -3,7 +3,7 @@ import { Box, HStack, Separator, VStack } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
-import { type CaseData } from "../../shared";
+import { type CaseData } from "../../shared-data";
 import { AiReview } from "./ai-review";
 import { MatterDetails } from "./matter-details";
 import { PendingActions } from "./pending-actions";
@@ -19,7 +19,6 @@ export function Overview({ caseId, isActive = true }: OverviewProps) {
     queryKey: ["case", caseId],
     queryFn: () => getCaseById(caseId),
     enabled: Boolean(caseId) && isActive,
-    staleTime: 60_000,
   });
 
   const caseData: CaseData | undefined = useMemo(() => {

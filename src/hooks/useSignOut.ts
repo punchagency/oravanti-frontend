@@ -7,18 +7,15 @@ import { useFeedbackDialog } from "./useFeedbackDialog";
 
 export const useSignOut = () => {
   const queryClient = useQueryClient();
-  const { showError, showSuccess } = useFeedbackDialog();
+  const { showError } = useFeedbackDialog();
   return useMutation({
     mutationFn: async () => {
       return await signOut();
     },
     onSuccess: async () => {
-      showSuccess({
-        title: "Sign out successful",
-        description: "You have been signed out successfully.",
-      });
       useAuthStore.getState().clearAuth();
       queryClient.clear();
+      window.location.replace("/login");
     },
     onError: (error: any) => {
       showError({

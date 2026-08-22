@@ -1,6 +1,7 @@
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PageTitle } from "@/components/layout/shared/nav-context";
+import { useCanCreateStaff } from "@/hooks/use-can-create-staff";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { Download, UserPlus } from "lucide-react";
 import { CreateTeamDialog } from "./components/create-team/dialog";
@@ -15,6 +16,7 @@ import { TeamsDataProvider, useTeamsData } from "./teams-data-context";
 function TeamsContent() {
   const { isLoading, pagination, currentPage, pageLimit, setPagination } =
     useTeamsData();
+  const canCreateStaff = useCanCreateStaff();
 
   return (
     <>
@@ -48,12 +50,14 @@ function TeamsContent() {
             <Download size={14} />
             Export
           </OutlineButton>
-          <CreateTeamDialog>
-            <BrandButton flex={{ base: 1, md: "initial" }}>
-              <UserPlus size={15} />
-              Create team
-            </BrandButton>
-          </CreateTeamDialog>
+          {canCreateStaff && (
+            <CreateTeamDialog>
+              <BrandButton flex={{ base: 1, md: "initial" }}>
+                <UserPlus size={15} />
+                Create team
+              </BrandButton>
+            </CreateTeamDialog>
+          )}
         </HStack>
       </Flex>
 

@@ -1,7 +1,8 @@
 import { Box, HStack, Text, Timeline, VStack } from "@chakra-ui/react";
 import type { CaseEvent } from "../../../../../../../api/workflows";
 import { formatTime } from "./date-utils";
-import { EventIcon, eventColor } from "./event-icon";
+import { EventIcon } from "./event-icon";
+import { eventColor } from "./event-color";
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -19,8 +20,8 @@ function getDetailLines(event: CaseEvent): string[] {
   const meta = (event.metadata ?? {}) as Record<string, unknown>;
   const lines: string[] = [];
 
-  switch (event.eventType) {
-    case "step_assigned": {
+  switch (event.action) {
+    case "case.step_assigned": {
       const staffName = meta.staffName as string | undefined;
       const assignerName = meta.assignerName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
@@ -35,7 +36,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (note) lines.push(`Note: ${note}`);
       break;
     }
-    case "step_completed": {
+    case "case.step_completed": {
       const timeTakenMs = meta.timeTakenMs as number | undefined;
       const completedByName = meta.completedByName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
@@ -47,7 +48,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (note) lines.push(`Note: ${note}`);
       break;
     }
-    case "step_submitted_for_review": {
+    case "case.step_submitted_for_review": {
       const submittedByName = meta.submittedByName as string | undefined;
       const moduleName = meta.moduleName as string | undefined;
       const note = meta.note as string | undefined;
@@ -57,7 +58,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (note) lines.push(`Note: ${note}`);
       break;
     }
-    case "step_approved": {
+    case "case.step_approved": {
       const reviewerName = meta.reviewerName as string | undefined;
       const assigneeName = meta.assigneeName as string | undefined;
       const timeTakenMs = meta.timeTakenMs as number | undefined;
@@ -71,7 +72,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (note) lines.push(`Note: ${note}`);
       break;
     }
-    case "step_rejected": {
+    case "case.step_rejected": {
       const reviewerName = meta.reviewerName as string | undefined;
       const assigneeName = meta.assigneeName as string | undefined;
       const feedback = meta.feedback as string | undefined;
@@ -83,7 +84,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (feedback) lines.push(`Feedback: ${feedback}`);
       break;
     }
-    case "module_activated": {
+    case "case.module_activated": {
       const moduleName = meta.moduleName as string | undefined;
       const activationType = meta.activationType as string | undefined;
 
@@ -91,7 +92,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (activationType) lines.push(`Activation: ${activationType}`);
       break;
     }
-    case "workflow_initialized": {
+    case "case.workflow_initialized": {
       const stepCount = meta.stepCount as number | undefined;
       const moduleCount = meta.moduleCount as number | undefined;
 
@@ -99,7 +100,7 @@ function getDetailLines(event: CaseEvent): string[] {
       if (moduleCount != null) lines.push(`${moduleCount} modules activated`);
       break;
     }
-    case "case_team_reassigned": {
+    case "case.team_reassigned": {
       const prevTeam = meta.previousTeam as { id: string; name: string } | undefined;
       const newTeam = meta.newTeam as { id: string; name: string } | undefined;
 
@@ -107,16 +108,16 @@ function getDetailLines(event: CaseEvent): string[] {
       if (newTeam?.name) lines.push(`To: ${newTeam.name}`);
       break;
     }
-    case "case_team_assigned": {
+    case "case.team_assigned": {
       const teamName = meta.teamName as string | undefined;
       if (teamName) lines.push(`Team: ${teamName}`);
       break;
     }
-    case "case_note_created":
-    case "case_note_updated":
-    case "case_note_deleted":
-    case "case_note_pinned":
-    case "case_note_unpinned": {
+    case "case.note_created":
+    case "case.note_updated":
+    case "case.note_deleted":
+    case "case.note_pinned":
+    case "case.note_unpinned": {
       const content = meta.content as string | undefined;
       if (content) {
         const preview = content.length > 80 ? `${content.slice(0, 80)}…` : content;
@@ -138,8 +139,8 @@ export function EventRow({ event }: { event: CaseEvent }) {
     <Timeline.Item key={event.id}>
       <Timeline.Connector>
         <Timeline.Separator />
-        <Timeline.Indicator color={eventColor(event.eventType)}>
-          <EventIcon eventType={event.eventType} />
+        <Timeline.Indicator color={eventColor(event.action)}>
+          <EventIcon action={event.action} />
         </Timeline.Indicator>
       </Timeline.Connector>
       <Timeline.Content>
@@ -149,7 +150,7 @@ export function EventRow({ event }: { event: CaseEvent }) {
           color="fg"
           lineHeight="140%"
         >
-          {event.title}
+          {event.label}
         </Timeline.Title>
         <Timeline.Description fontSize="10px" color="fg.subtle" mt={0.5}>
           <VStack gap={0.5} align="start">

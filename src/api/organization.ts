@@ -5,6 +5,7 @@ export interface GetStaffsParams {
   search?: string;
   role?: string;
   team?: string;
+  group?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -129,6 +130,17 @@ export async function updateStaffMember(
   return (await API.patch(`/organization/staffs/${staffId}`, data)).data.data;
 }
 
+export type StaffPortalStatus = "none" | "pending" | "active" | "disabled";
+
+export async function updateStaffPortalStatus(
+  staffId: string,
+  status: StaffPortalStatus,
+) {
+  return (
+    await API.patch(`/organization/staffs/${staffId}/portal-status`, { status })
+  ).data.data;
+}
+
 export interface PendingInvitation {
   id: string;
   email: string;
@@ -232,7 +244,7 @@ export async function getTeamsList(
 
 export async function updateStaffMemberRole(
   staffId: string,
-  role: string,
+  role: string | string[],
 ): Promise<void> {
   await API.patch(`/organization/staffs/${staffId}/role`, { role });
 }

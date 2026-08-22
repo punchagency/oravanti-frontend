@@ -36,7 +36,6 @@ export function FirmTimezone() {
         chargesFee: settings.chargesFee,
         defaultAmount: settings.defaultAmount,
         feeStructure: settings.feeStructure,
-        waiverWindowDays: settings.waiverWindowDays,
         timezone,
       },
       // Refetch the session so the hydrated firm timezone updates everywhere.
@@ -92,7 +91,7 @@ export function FirmTimezone() {
               loading={updateSettings.isPending}
               disabled={!dirty}
               bg="brand.solid"
-              color="brand.fg"
+              color="brand.contrast"
               size="sm"
             >
               Save

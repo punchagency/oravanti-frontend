@@ -1,4 +1,7 @@
 import type { LeadNote } from "@/api/lead-workflows";
+import { useHasPermission } from "@/hooks/use-has-permission";
+import { InvoiceDetailDialog } from "@/pages/admin/finance/components/dialogs/invoice-detail-dialog";
+import { formatCurrency } from "@/utils/currency";
 import type {
   Consultation,
   FeeAgreementDetails,
@@ -23,7 +26,6 @@ import {
   useUpdateLeadNote,
 } from "@/hooks/use-lead-workflows";
 import {
-  useAdvanceLeadStage,
   useCancelConsultation,
   useConsultationData,
   useDiscardFeeAgreement,
@@ -39,6 +41,7 @@ import {
 } from "@/hooks/use-leads";
 import { useLeadQuestionnaire } from "@/hooks/use-questionnaires";
 import { useStaffsList } from "@/hooks/use-staff-list";
+import { leadStagePath, pipelineOrigin } from "../shared/constants";
 import { consultationModeLabel } from "../shared/consultation-wizard-constants";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
@@ -78,6 +81,7 @@ import {
   X,
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 type StatusTone = "info" | "success" | "danger" | "warning" | "neutral";
@@ -192,7 +196,7 @@ function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
                 border="1px solid"
                 borderColor={done || active ? "brand.solid" : "border.subtle"}
                 bg={done ? "brand.solid" : "bg"}
-                color={done ? "brand.fg" : active ? "brand.solid" : "fg.muted"}
+                color={done ? "brand.contrast" : active ? "brand.solid" : "fg.muted"}
                 fontSize="11px"
                 fontWeight="600"
               >
@@ -323,9 +327,67 @@ function PastConsultationRow({
   );
 }
 
+
+/**
+ * What cancelling does to money the client has already paid.
+ *
+ * The `canRefund` branch is now defensive rather than reachable: cancelling
+ * requires `finance:refund`, so whoever opens this dialog can always refund.
+ * It is kept because it stays correct if that gate is ever loosened, and
+ * because saying "this will refund the client" to someone who cannot would be
+ * a promise the system does not keep.
+ */
+function CancelRefundNotice({
+  netPaid,
+  canRefund,
+}: {
+  netPaid: number;
+  canRefund: boolean;
+}) {
+  if (netPaid <= 0) return null;
+
+  return (
+    <Box
+      mt="12px"
+      p="10px 12px"
+      borderRadius="8px"
+      border="1px solid"
+      borderColor={canRefund ? "border" : "#e0b4b4"}
+      bg={canRefund ? "bg.subtle" : "#fdf3f3"}
+      _dark={{
+        bg: canRefund ? "bg.subtle" : "rgba(176, 0, 32, 0.12)",
+        borderColor: canRefund ? "border" : "rgba(176, 0, 32, 0.35)",
+      }}
+    >
+      <Text fontSize="12px" lineHeight="1.6">
+        {canRefund ? (
+          <>
+            This consultation has been paid. Cancelling refunds{" "}
+            <Text as="span" fontWeight="600">
+              {formatCurrency(netPaid)}
+            </Text>{" "}
+            to the client.
+          </>
+        ) : (
+          <>
+            This consultation has been paid. Cancelling does{" "}
+            <Text as="span" fontWeight="600">
+              not
+            </Text>{" "}
+            refund it — an administrator will need to issue the{" "}
+            {formatCurrency(netPaid)} refund.
+          </>
+        )}
+      </Text>
+    </Box>
+  );
+}
+
 function CancelConsultationDialog({
   open,
   leadName,
+  netPaid,
+  canRefund,
   reason,
   onReasonChange,
   loading,
@@ -334,6 +396,9 @@ function CancelConsultationDialog({
 }: {
   open: boolean;
   leadName: string;
+  /** What the firm is holding for this consultation, net of any refund. */
+  netPaid: number;
+  canRefund: boolean;
   reason: string;
   onReasonChange: (value: string) => void;
   loading: boolean;
@@ -365,6 +430,7 @@ function CancelConsultationDialog({
               link, and notifies everyone involved. This can't be undone, but
               you can schedule a new consultation afterwards.
             </MutedText>
+            <CancelRefundNotice netPaid={netPaid} canRefund={canRefund} />
             <Box mt="14px">
               <Text m="0 0 6px" fontSize="12px" color="fg.muted">
                 Reason (optional)
@@ -554,12 +620,25 @@ function ConsultationInfoCard({
   const cancelMutation = useCancelConsultation();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  // Presentation only — the server decides. Refunds need `finance:refund`,
+  // which is owner/admin, and a cancellation by anyone else leaves the money
+  // owed rather than moving it.
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
 
+  // Gated on `canRefund` for the same reason as the route: a cancellation by
+  // someone who cannot send money back leaves the client's money owed with
+  // nowhere to act on it.
   const canCancel =
-    consultation?.status === "pending_payment" ||
-    consultation?.status === "awaiting_slot_selection" ||
-    consultation?.status === "scheduled" ||
-    consultation?.status === "in_progress";
+    canRefund &&
+    (consultation?.status === "pending_payment" ||
+      consultation?.status === "awaiting_slot_selection" ||
+      consultation?.status === "scheduled" ||
+      consultation?.status === "in_progress");
 
   const modeLabel = consultation
     ? consultationModeLabel(consultation.mode)
@@ -637,6 +716,23 @@ function ConsultationInfoCard({
                 Mark payment received
               </OutlineButton>
             ) : null}
+            {/* The fee invoice, if one was raised. It is sent automatically when
+                a chargeable consultation is scheduled, so this is a way to see
+                what the lead received — and, after a cancellation, whether a
+                refund is still outstanding. Deliberately view-only: the invoice
+                bills a LEAD, and the edit dialog is built around clients. */}
+            {consultation.fee?.invoiceId ? (
+              <OutlineButton onClick={() => setInvoiceOpen(true)}>
+                <FileText size={13} />
+                {consultation.fee.invoiceNumber ?? "Fee invoice"}
+              </OutlineButton>
+            ) : null}
+            {consultation.status === "cancelled" &&
+            (consultation.fee?.netPaid ?? 0) > 0 ? (
+              <StatusPill tone="danger">
+                {formatCurrency(consultation.fee!.netPaid)} refund owed
+              </StatusPill>
+            ) : null}
             {canCancel ? (
               <chakra.button
                 type="button"
@@ -661,9 +757,17 @@ function ConsultationInfoCard({
         )}
       </HStack>
 
+      <InvoiceDetailDialog
+        invoiceId={consultation?.fee?.invoiceId ?? null}
+        open={invoiceOpen}
+        onOpenChange={(d) => setInvoiceOpen(d.open)}
+      />
+
       <CancelConsultationDialog
         open={cancelOpen}
         leadName={lead.name}
+        netPaid={consultation?.fee?.netPaid ?? 0}
+        canRefund={canRefund}
         reason={cancelReason}
         onReasonChange={setCancelReason}
         loading={cancelMutation.isPending}
@@ -887,7 +991,6 @@ function FeeAgreementSection({
   const markReceived = useMarkFeeAgreementReceived();
   const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
-  const advanceStage = useAdvanceLeadStage();
   const discardDraft = useDiscardFeeAgreement();
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1067,41 +1170,36 @@ function FeeAgreementSection({
                   ? "Signed document received \u2014 awaiting payment. Standard agreements require payment before the case can be opened."
                   : "Signed document received."}
               </MutedText>
+              {/*
+               * No "advance to case opening" action here. The backend already
+               * moves the lead the moment both gates are satisfied — signed
+               * plus payment (see markFeeAgreementReceived /
+               * markFeeAgreementPaymentReceived). Forcing the stage from this
+               * card either duplicated a transition that had already happened
+               * or, worse, jumped the payment gate. Once the lead is through,
+               * the card just points at the step that does the work.
+               */}
               <HStack gap="8px" wrap="wrap">
                 {awaitingPayment ? (
-                  <>
-                    <BrandButton
-                      loading={markPayment.isPending}
-                      onClick={() => markPayment.mutate(feeAgreement.id)}
-                    >
-                      <Check size={14} />
-                      Mark payment received
-                    </BrandButton>
-                    <OutlineButton
-                      loading={advanceStage.isPending}
-                      onClick={() =>
-                        advanceStage.mutate({
-                          id: lead.id,
-                          stage: "case_opening",
-                        })
-                      }
+                  <BrandButton
+                    loading={markPayment.isPending}
+                    onClick={() => markPayment.mutate(feeAgreement.id)}
+                  >
+                    <Check size={14} />
+                    Mark payment received
+                  </BrandButton>
+                ) : (
+                  <BrandButton asChild>
+                    <Link
+                      to={leadStagePath(lead.id, "case_opening")}
+                      state={pipelineOrigin(
+                        leadStagePath(lead.id, "consultation"),
+                        "Back to consultation",
+                      )}
                     >
                       <ExternalLink size={14} />
-                      Advance to case opening
-                    </OutlineButton>
-                  </>
-                ) : (
-                  <BrandButton
-                    loading={advanceStage.isPending}
-                    onClick={() =>
-                      advanceStage.mutate({
-                        id: lead.id,
-                        stage: "case_opening",
-                      })
-                    }
-                  >
-                    <ExternalLink size={14} />
-                    Advance to case opening
+                      Go to case opening
+                    </Link>
                   </BrandButton>
                 )}
               </HStack>

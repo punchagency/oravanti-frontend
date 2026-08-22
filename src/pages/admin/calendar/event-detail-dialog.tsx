@@ -613,7 +613,7 @@ export function EventDetailDialog({
                     fontWeight={600}
                     fontSize="13px"
                     bg="brand.solid"
-                    color="brand.fg"
+                    color="brand.contrast"
                     _hover={{ bg: "brand.emphasized" }}
                     loading={updateEvent.isPending}
                   >
@@ -919,7 +919,7 @@ export function EventDetailDialog({
                       fontWeight={600}
                       fontSize="13px"
                       bg="brand.solid"
-                      color="brand.fg"
+                      color="brand.contrast"
                       _hover={{ bg: "brand.emphasized" }}
                       onClick={handleMarkComplete}
                       loading={updateEvent.isPending}

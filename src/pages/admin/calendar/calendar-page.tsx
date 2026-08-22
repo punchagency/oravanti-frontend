@@ -100,7 +100,7 @@ export function CalendarPage() {
                 fontWeight={view === v ? 600 : 500}
                 fontSize="12px"
                 bg={view === v ? "brand.solid" : "transparent"}
-                color={view === v ? "brand.fg" : "fg.muted"}
+                color={view === v ? "brand.contrast" : "fg.muted"}
                 _hover={view === v ? {} : { bg: "bg.muted", color: "fg" }}
                 onClick={() => setView(v)}
               >

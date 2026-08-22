@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   Clock,
   FileText,
-  Info,
   Search,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -32,6 +31,8 @@ import { PaymentFollowUpDialog } from "../../components/dialogs/payment-follow-u
 import { RecordPaymentDialog } from "../../components/dialogs/record-payment-dialog";
 import { InvoiceFormDialog } from "../../components/dialogs/invoice-form-dialog";
 import { RescheduleDialog } from "../../components/dialogs/reschedule-dialog";
+import { ExtendDueDateDialog } from "../../components/dialogs/extend-due-date-dialog";
+import { VoidInvoiceDialog } from "../../components/dialogs/void-invoice-dialog";
 import {
   SendInvoiceDialog,
   type SendableInvoice,
@@ -67,6 +68,11 @@ export default function InvoicingTab() {
     null,
   );
   const [sendTarget, setSendTarget] = useState<SendableInvoice | null>(null);
+  // The whole row, not just an id: the confirmation names the party and the
+  // amount, and asking for the invoice again to render a warning would leave
+  // the dialog briefly claiming to void something it cannot yet describe.
+  const [voidTarget, setVoidTarget] = useState<InvoiceListRow | null>(null);
+  const [extendTarget, setExtendTarget] = useState<InvoiceListRow | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
@@ -105,33 +111,12 @@ export default function InvoicingTab() {
 
   return (
     <Box>
-      <Flex
-        gap="10px"
-        align="flex-start"
-        p="14px 16px"
-        borderRadius="10px"
-        border="1px solid"
-        borderColor="#cfe0f5"
-        bg="#eef5fd"
-        _dark={{
-          bg: "rgba(59, 130, 196, 0.12)",
-          borderColor: "rgba(59,130,196,0.35)",
-        }}
-      >
-        <Box color="#3b82c4" mt="1px">
-          <Info size={16} />
-        </Box>
-        <Box>
-          <Text fontSize="13px" fontWeight="600">
-            Consultation fee tracking coming soon
-          </Text>
-          <Text fontSize="12px" color="fg.muted">
-            Consultation fee tracking will appear here once the Finance module
-            is fully built. Fees are currently tracked in Analytics → Revenue.
-          </Text>
-        </Box>
-      </Flex>
-
+      {/* The banner that stood here announced consultation fee tracking as
+          "coming soon" and sent firms to Analytics → Revenue. Both halves were
+          wrong: a consultation fee is raised as a real invoice against the lead
+          (`raiseConsultationInvoice`) and is listed below like any other, and
+          the page it pointed at is itself a ComingSoonPage. Removed rather than
+          reworded — there is nothing to announce about a feature that works. */}
       <Grid
         templateColumns={{ base: "1fr", sm: "1fr 1fr", lg: "repeat(4, 1fr)" }}
         gap="16px"
@@ -296,6 +281,8 @@ export default function InvoicingTab() {
             }
             onEdit={(row) => setEditId(row.id)}
             onReschedule={(row) => setRescheduleId(row.id)}
+            onVoid={setVoidTarget}
+            onExtend={setExtendTarget}
           />
 
           {invoices.data && invoices.data.pagination.total > limit && (
@@ -351,6 +338,16 @@ export default function InvoicingTab() {
         invoiceId={rescheduleId}
         open={rescheduleId !== null}
         onOpenChange={(d) => !d.open && setRescheduleId(null)}
+      />
+      <ExtendDueDateDialog
+        invoice={extendTarget}
+        open={extendTarget !== null}
+        onOpenChange={(d) => !d.open && setExtendTarget(null)}
+      />
+      <VoidInvoiceDialog
+        invoice={voidTarget}
+        open={voidTarget !== null}
+        onOpenChange={(d) => !d.open && setVoidTarget(null)}
       />
       <InvoiceFormDialog
         invoiceId={editId}

@@ -273,7 +273,7 @@ function RequestForm({
         mt="24px"
         h="40px"
         bg="brand.solid"
-        color="brand.fg"
+        color="brand.contrast"
         _hover={{ bg: "brand.600" }}
         fontWeight="600"
         loading={createRequest.isPending}

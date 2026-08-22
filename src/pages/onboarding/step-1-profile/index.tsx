@@ -135,7 +135,7 @@ export default function Step1ProfilePage() {
               borderRadius="sm"
               fontSize="xs"
               fontWeight="bold"
-              color="brand.fg"
+              color="brand.contrast"
               letterSpacing="0.05em"
             >
               STEP 2 OF 4 &bull; ONBOARDING

@@ -42,9 +42,19 @@ export type SessionUserUpdateData = Omit<
   "id" | "createdAt" | "updatedAt" | "emailVerified"
 >;
 
-// Active organization member role, surfaced on the session via the backend
-// customSession plugin. Gates conflict-check review (owners + admins only).
-export type MemberRole = "owner" | "admin" | "attorney" | "paralegal";
+// Active organization member role(s), surfaced on the session via the
+// backend customSession plugin — comma-separated when a staff member holds
+// more than one role. A firm can define custom roles at runtime (dynamic
+// RBAC), so this is not a closed set — never switch on it with an
+// exhaustive-union assumption. Use `useHasPermission`/`can()` (backed by
+// `grants` below) for real gating, not a `memberRole === "..."` comparison.
+export type MemberRole = string;
+
+// Flattened `resource:action` strings the caller's role(s) grant — e.g.
+// `"conflicts:review"`. What `useHasPermission` checks against. Resolved
+// server-side (see `customSession` in oravanti-be/src/auth/index.ts) so the
+// frontend never needs a second request to know what it can do.
+export type PermissionGrant = string;
 
 export type PersonalDetails = z.infer<typeof personalDetailsSchema>;
 export type FirmInformation = z.infer<typeof firmInformationSchema>;

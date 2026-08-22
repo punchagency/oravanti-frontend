@@ -30,7 +30,7 @@ const intakeColors = {
   },
   brand: {
     bg: "brand.solid",
-    color: "brand.fg",
+    color: "brand.contrast",
   },
 } as const;
 

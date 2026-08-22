@@ -40,6 +40,8 @@ export type EffectiveInvoiceStatus =
   | "unpaid"
   | "partial"
   | "paid"
+  /** Charged, paid, and given back. Not the same as `void`, which was never charged. */
+  | "refunded"
   | "overdue"
   | "void";
 
@@ -91,6 +93,17 @@ export type InvoiceListRow = {
   amountPaid: number;
   balanceDue: number;
   status: EffectiveInvoiceStatus;
+  /**
+   * Finance will refuse to refund or void this — a LIVE consultation is billed
+   * by it, and cancelling that consultation is the one path that also releases
+   * the calendar slot and tells the client. The row actions point there instead
+   * of offering a button the API refuses.
+   *
+   * False once the consultation is cancelled, completed or a no-show: nothing
+   * is left to diverge from, and Finance is then the only way to finish a
+   * refund whose processor leg failed.
+   */
+  consultationRefundBlocked: boolean;
   /** Null when the invoice is due in a single payment. */
   schedule: {
     count: number;
@@ -166,13 +179,56 @@ export type InvoiceLineItem = {
   amount: number;
   account: "operating" | "trust_iolta";
   timeEntryId: string | null;
+  /**
+   * Which catalog preset composed this line. Provenance only — the billed
+   * figures are the three fields above, and nothing re-reads the preset to
+   * fill them in. A preset that has since been retired leaves this null and
+   * changes nothing else.
+   */
+  presetId: string | null;
 };
+
+/**
+ * What a ledger row represents.
+ *
+ * `payment` is money in; everything else is money that went back out, and those
+ * rows carry a NEGATIVE `amount`. `reversal` is the server's catch-all for a
+ * reversal it could not name — the money still moved.
+ */
+export type PaymentEntryKind =
+  | "payment"
+  | "refund"
+  | "return"
+  | "void"
+  | "chargeback"
+  | "reversal";
 
 export type InvoicePayment = {
   id: string;
+  /**
+   * NEGATIVE on a reversal. The sign is the information: rendering the
+   * magnitude alone would make a refund look identical to the payment it
+   * undoes.
+   */
   amount: number;
   amountOperating: number;
   amountTrust: number | null;
+  kind: PaymentEntryKind;
+  /** The row this one undoes. Null on a payment. */
+  reversesPaymentId: string | null;
+  /** Null while the money is still in flight. */
+  settledAt: string | null;
+  /** Confido's own status, so HELD reads as HELD rather than "pending". */
+  providerStatus: string | null;
+  /**
+   * Only a processor payment with something left on it can be sent back.
+   *
+   * Net of everything already reversed against this entry — a fully refunded
+   * payment is not refundable again.
+   */
+  refundable: boolean;
+  /** What is left to send back on this payment, after prior reversals. */
+  refundableAmount: number;
   paymentDate: string;
   method: PaymentMethod;
   reference: string | null;
@@ -205,6 +261,17 @@ export type InvoiceDetail = {
   id: string;
   invoiceNumber: string;
   status: EffectiveInvoiceStatus;
+  /**
+   * Finance will refuse to refund or void this — a LIVE consultation is billed
+   * by it, and cancelling that consultation is the one path that also releases
+   * the calendar slot and tells the client. The row actions point there instead
+   * of offering a button the API refuses.
+   *
+   * False once the consultation is cancelled, completed or a no-show: nothing
+   * is left to diverge from, and Finance is then the only way to finish a
+   * refund whose processor leg failed.
+   */
+  consultationRefundBlocked: boolean;
   storedStatus: string;
   issueDate: string;
   dueDate: string;
@@ -268,6 +335,8 @@ export type CreateInvoiceInput = {
     quantity: number;
     rate: number;
     account: "operating" | "trust_iolta";
+    /** Provenance for a line composed from the catalog. Optional. */
+    presetId?: string;
   }[];
   timeEntryIds: string[];
   /** Optional payment schedule; must sum to the resulting invoice total. */
@@ -296,6 +365,8 @@ export type UpdateInvoiceInput = {
     quantity: number;
     rate: number;
     account: "operating" | "trust_iolta";
+    /** Provenance for a line composed from the catalog. Optional. */
+    presetId?: string;
   }[];
   timeEntryIds?: string[];
   /**
@@ -319,6 +390,36 @@ export type CaseDefaults = {
   attorneyName: string | null;
   source: "team_lead" | "sole_attorney" | null;
   attorneyCount: number;
+  /** The matter's scope, used to narrow the line preset catalog. */
+  practiceAreaId: string | null;
+  caseTypeId: string | null;
+};
+
+/**
+ * An entry in the catalog invoice lines are composed from.
+ *
+ * `rank` is how the server matched it — case-type presets first, then the
+ * practice area's, then the general ones any matter attracts. The picker groups
+ * on it directly rather than recomputing the rule.
+ */
+export type LinePreset = {
+  id: string;
+  name: string;
+  note: string | null;
+  account: "operating" | "trust_iolta";
+  defaultRate: number;
+  rank: "case_type" | "practice_area" | "general";
+  /** `firm` is this firm's own entry; `shipped` came with the product. */
+  origin: "firm" | "shipped";
+};
+
+export type SaveLinePresetInput = {
+  name: string;
+  note?: string;
+  account: "operating" | "trust_iolta";
+  defaultRate: number;
+  practiceAreaId?: string;
+  caseTypeId?: string;
 };
 
 export type RecordPaymentInput = {
@@ -411,6 +512,42 @@ export async function getCaseDefaults(caseId: string): Promise<CaseDefaults> {
   return data.data;
 }
 
+/**
+ * The catalog for a given matter and account.
+ *
+ * Both scope ids are optional: an invoice with no matter still gets the general
+ * tier. Trust presets are omitted server-side for callers who cannot write
+ * trust lines, so an empty result for `trust_iolta` means "not permitted", not
+ * "none exist".
+ */
+export async function getLinePresets(
+  params: {
+    practiceAreaId?: string;
+    caseTypeId?: string;
+    account?: "operating" | "trust_iolta";
+  } = {},
+): Promise<{ presets: LinePreset[]; restrictions: FinanceRestrictions }> {
+  const { data: res } = await API.get("/finance/invoices/line-presets", {
+    params: toQuery(params),
+  });
+  // `restrictions` rides along so the picker can hide the Trust step because
+  // the caller lacks access, rather than inferring it from an empty list — an
+  // empty list also means "this firm has no trust presets yet", which is a
+  // different thing and must not hide the option.
+  return { presets: res.data, restrictions: res.restrictions };
+}
+
+/** Save a custom line to the firm's list. Re-saving a name updates its amount. */
+export async function saveLinePreset(
+  input: SaveLinePresetInput,
+): Promise<LinePreset> {
+  const { data } = await API.post<{ data: LinePreset }>(
+    "/finance/invoices/line-presets",
+    input,
+  );
+  return data.data;
+}
+
 export async function getUnbilledTime(
   params: {
     clientId?: string;
@@ -492,6 +629,37 @@ export async function recordPayment(
   return data.data;
 }
 
+export type RefundPaymentInput = {
+  /** Omit for the whole payment. A partial can only ever be a refund. */
+  amount?: number;
+  reason?: string;
+};
+
+export type RefundResult = {
+  /**
+   * What Confido actually did. It decides between a void and a refund based on
+   * whether the money had settled, so this may say "void" for a request the
+   * firm made as a refund.
+   */
+  executedAs: string;
+  status: string;
+  recorded: number;
+  amount: number;
+  invoice: InvoiceDetail;
+};
+
+export async function refundPayment(
+  invoiceId: string,
+  paymentId: string,
+  input: RefundPaymentInput,
+): Promise<RefundResult> {
+  const { data } = await API.post<{ data: RefundResult }>(
+    `/finance/invoices/${invoiceId}/payments/${paymentId}/refund`,
+    input,
+  );
+  return data.data;
+}
+
 export async function sendFollowUp(
   invoiceId: string,
   input: SendFollowUpInput,
@@ -510,6 +678,24 @@ export async function voidInvoice(
   const { data } = await API.post<{ data: InvoiceDetail }>(
     `/finance/invoices/${invoiceId}/void`,
     { reason },
+  );
+  return data.data;
+}
+
+/**
+ * Give the client longer to pay.
+ *
+ * Forward only — the server refuses a date on or before the current one, and
+ * refuses drafts, settled invoices, voids, and anything with a payment
+ * schedule (whose date follows the final instalment).
+ */
+export async function extendInvoiceDueDate(
+  invoiceId: string,
+  input: { dueDate: string; reason?: string },
+): Promise<InvoiceDetail> {
+  const { data } = await API.post<{ data: InvoiceDetail }>(
+    `/finance/invoices/${invoiceId}/extend-due-date`,
+    input,
   );
   return data.data;
 }

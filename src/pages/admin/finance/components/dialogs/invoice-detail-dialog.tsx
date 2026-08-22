@@ -1,15 +1,21 @@
-import { PAYMENT_METHOD_LABELS, downloadInvoicePdf } from "@/api/finance";
+import {
+  PAYMENT_METHOD_LABELS,
+  downloadInvoicePdf,
+  type InvoicePayment,
+} from "@/api/finance";
 import { OutlineButton, StatusPill } from "@/components/ui/intake-ui";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import {
   useInvoice,
   useInvoiceDeliveries,
+  useRefundPayment,
   useResendInvoice,
 } from "@/hooks/use-finance";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
 import { Box, Center, Flex, Grid, Spinner, Table, Text } from "@chakra-ui/react";
-import { Download, Send } from "lucide-react";
+import { Download, Send, Undo2 } from "lucide-react";
 import {
   INSTALMENT_LABEL,
   INSTALMENT_TONE,
@@ -31,6 +37,108 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Money that has not cleared yet, or is not coming.
+ *
+ * `settledAt` is the fact the case-opening gate consults, and `providerStatus`
+ * is Confido's own word — kept separate because HELD is their high-dollar risk
+ * review, not an ordinary pending, and a firm watching a filing fee sit for a
+ * week deserves to know which it is.
+ */
+function settlementPill(p: InvoicePayment) {
+  if (p.settledAt) return null;
+  if (p.providerStatus === "HELD") {
+    return { tone: "warning" as const, label: "Held for review" };
+  }
+  if (p.providerStatus === "ERROR") {
+    return { tone: "danger" as const, label: "Failed" };
+  }
+  return { tone: "neutral" as const, label: "Clearing" };
+}
+
+const REVERSAL_LABEL: Record<string, string> = {
+  refund: "Refunded",
+  return: "Returned by bank",
+  void: "Voided",
+  chargeback: "Charged back",
+  reversal: "Reversed",
+};
+
+function PaymentRow({
+  payment: p,
+  invoiceId,
+  canRefund,
+}: {
+  payment: InvoicePayment;
+  invoiceId: string;
+  canRefund: boolean;
+}) {
+  const refund = useRefundPayment();
+  const isReversal = p.kind !== "payment";
+  const pill = settlementPill(p);
+
+  return (
+    <Flex
+      justify="space-between"
+      align="center"
+      gap="10px"
+      py="7px"
+      borderTop="1px solid"
+      borderColor="border.muted"
+    >
+      <Flex direction="column" gap="2px" minW={0}>
+        <Text fontSize="12px" color="fg.muted">
+          {formatDate(p.paymentDate)} · {PAYMENT_METHOD_LABELS[p.method]}
+          {p.reference ? ` · ${p.reference}` : ""}
+        </Text>
+        {/* On a return this carries the bank's reason code, which is the only
+            thing that tells a firm why the money went back. */}
+        {p.notes && (
+          <Text fontSize="11px" color="fg.muted">
+            {p.notes}
+          </Text>
+        )}
+      </Flex>
+
+      <Flex align="center" gap="8px" flexShrink={0}>
+        {isReversal && (
+          <StatusPill tone="danger">
+            {REVERSAL_LABEL[p.kind] ?? "Reversed"}
+          </StatusPill>
+        )}
+        {pill && <StatusPill tone={pill.tone}>{pill.label}</StatusPill>}
+        {canRefund && p.refundable && (
+          <OutlineButton
+            loading={refund.isPending}
+            onClick={() =>
+              refund.mutate({ invoiceId, paymentId: p.id })
+            }
+          >
+            <Undo2 size={12} />
+            {/* Names the figure once part of the payment has already gone
+                back, so "Refund" cannot be read as returning the whole thing
+                a second time. */}
+            {p.refundableAmount < p.amount
+              ? `Refund ${formatCurrency(p.refundableAmount)}`
+              : "Refund"}
+          </OutlineButton>
+        )}
+        {/* Negative on a reversal, and shown that way. Rendering the magnitude
+            alone would make a refund look identical to the payment it undoes. */}
+        <Text
+          fontSize="12px"
+          fontWeight="600"
+          color={p.amount < 0 ? "fg.error" : undefined}
+          minW="72px"
+          textAlign="right"
+        >
+          {formatCurrency(p.amount)}
+        </Text>
+      </Flex>
+    </Flex>
+  );
+}
+
 export function InvoiceDetailDialog({
   invoiceId,
   open,
@@ -40,6 +148,13 @@ export function InvoiceDetailDialog({
   open: boolean;
   onOpenChange: (details: { open: boolean }) => void;
 }) {
+  // Refunds are owner/admin only on the server (`finance: ["refund"]`). Hiding
+  // the control is presentation, not a gate — the API refuses regardless.
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
   const { data: invoice, isLoading } = useInvoice(open ? invoiceId : null);
   const { data: deliveries } = useInvoiceDeliveries(open ? invoiceId : null);
   const resend = useResendInvoice();
@@ -239,23 +354,27 @@ export function InvoiceDetailDialog({
               <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
                 Payments
               </Text>
+              {invoice.consultationRefundBlocked && canRefund ? (
+                <Text fontSize="12px" color="fg.muted" mb="8px">
+                  This is a fee for a consultation that has not happened yet. To
+                  refund it, cancel the consultation on the lead — that returns
+                  the money, releases the calendar slot and notifies the client
+                  in one step.
+                </Text>
+              ) : null}
               {invoice.payments.map((p) => (
-                <Flex
+                <PaymentRow
                   key={p.id}
-                  justify="space-between"
-                  py="7px"
-                  borderTop="1px solid"
-                  borderColor="border.muted"
-                >
-                  <Text fontSize="12px" color="fg.muted">
-                    {formatDate(p.paymentDate)} ·{" "}
-                    {PAYMENT_METHOD_LABELS[p.method]}
-                    {p.reference ? ` · ${p.reference}` : ""}
-                  </Text>
-                  <Text fontSize="12px" fontWeight="600">
-                    {formatCurrency(p.amount)}
-                  </Text>
-                </Flex>
+                  payment={p}
+                  invoiceId={invoice.id}
+                  // A fee for a LIVE consultation is refunded by cancelling
+                  // that consultation, which also releases the calendar slot
+                  // and tells the client. The API refuses it here, so the
+                  // button would only produce an error. Once the consultation
+                  // is terminal this goes false and Finance becomes the way to
+                  // finish a refund whose processor leg failed.
+                  canRefund={canRefund && !invoice.consultationRefundBlocked}
+                />
               ))}
             </>
           )}

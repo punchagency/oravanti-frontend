@@ -1,6 +1,5 @@
 import { Box, Flex, Grid, HStack, Tabs, Text } from "@chakra-ui/react";
 import { Download, Plus } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { AddLeadDialog } from "@/components/ui/add-lead";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
@@ -14,7 +13,8 @@ import { EducationFlywheelTab } from "./components/education-flywheel-tab";
 
 export function CrmLeadsPage() {
   useDocumentTitle("CRM & leads - Oravanti");
-  const [addLeadOpen, setAddLeadOpen] = useState(false);
+
+
 
   const { data: stageCounts } = useLeadsStageCount();
   const { data: convertedData } = useLeads({ limit: 1, converted: true });
@@ -73,10 +73,12 @@ export function CrmLeadsPage() {
           </Text>
         </Box>
         <HStack gap="8px">
-          <BrandButton onClick={() => setAddLeadOpen(true)}>
-            <Plus size={15} />
-            Add lead
-          </BrandButton>
+          <AddLeadDialog>
+            <BrandButton>
+              <Plus size={15} />
+              Add lead
+            </BrandButton>
+          </AddLeadDialog>
           <OutlineButton
             onClick={() =>
               toast.info("Feature currently unavailable. Coming soon")
@@ -186,8 +188,6 @@ export function CrmLeadsPage() {
           <ArchivedLeadsTab />
         </Tabs.Content>
       </Tabs.Root>
-
-      <AddLeadDialog open={addLeadOpen} onOpenChange={setAddLeadOpen} />
     </>
   );
 }

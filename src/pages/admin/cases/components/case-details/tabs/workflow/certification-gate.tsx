@@ -12,7 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { AlertTriangle } from "lucide-react";
 import { useEligibleStaff, useAssignStep } from "./hooks";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import type { CaseStepInstance } from "./types";
 
 interface CertificationGateProps {
@@ -41,8 +41,7 @@ export function CertificationGate({
   requiredCertification,
   onAssigned,
 }: CertificationGateProps) {
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const canOverride = memberRole === "owner" || memberRole === "admin" || memberRole === "attorney";
+  const canOverride = useHasPermission("cases", "update");
 
   const { data: eligibleStaff } = useEligibleStaff(requiredCertification);
   const assignMutation = useAssignStep(caseId);

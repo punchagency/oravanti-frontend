@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 
 const tabsConfig = [
   { value: "profile", label: "Profile" },
+  { value: "preferences", label: "Preferences" },
   { value: "security", label: "Security" },
   { value: "appearance", label: "Appearance" },
 ] as const;

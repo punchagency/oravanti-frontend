@@ -1,7 +1,16 @@
-import { Box, HStack, Input, Stack, Text, chakra } from "@chakra-ui/react";
-import { Check, ChevronDown, Search } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import {
+  Combobox,
+  createListCollection,
+  HStack,
+  Portal,
+  Span,
+  Spinner,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
+import { SearchX } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type SearchableOption = {
   value: string;
@@ -9,230 +18,196 @@ export type SearchableOption = {
   sublabel?: string;
 };
 
-const PANEL_MAX_H = 260;
-
 /**
- * Single-select combobox: the trigger opens a panel with a debounced search
- * input that filters options by label/sublabel. Closes on select or outside
- * click.
+ * Single-select combobox over `options`, with a debounced query.
+ *
+ * Built on Chakra's Combobox: it owns the input, popover placement, keyboard
+ * navigation and focus management, so this component only decides *which*
+ * options are visible.
+ *
+ * Pass `remote` when the options come from a server query instead: filtering is
+ * then left to the backend, the debounced query is reported through
+ * `onSearchChange`, and `onOpenChange` lets the caller defer the fetch until
+ * the combobox is opened for the first time.
  */
 export function SearchableSelect({
   value,
   onChange,
   options,
   placeholder = "Select…",
-  searchPlaceholder = "Search…",
+  searchPlaceholder,
   emptyText = "No matches",
   invalid = false,
   disabled = false,
   ariaLabel,
+  remote = false,
+  loading = false,
+  loadingText = "Searching…",
+  selectedLabel,
+  onSearchChange,
+  onOpenChange,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: SearchableOption[];
   placeholder?: string;
+  /** Placeholder while the panel is open; falls back to `placeholder`. */
   searchPlaceholder?: string;
   emptyText?: string;
   invalid?: boolean;
   disabled?: boolean;
   ariaLabel?: string;
+  /** Options are already filtered by the server — don't filter them again here. */
+  remote?: boolean;
+  loading?: boolean;
+  loadingText?: string;
+  /**
+   * Display text for the current `value` when it isn't in `options` — a remote
+   * search narrows the list, and the selection must survive falling out of it.
+   */
+  selectedLabel?: string;
+  /** Receives the debounced query. Only meaningful with `remote`. */
+  onSearchChange?: (query: string) => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const debounced = useDebouncedValue(query, 200);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [input, setInput] = useState("");
+  const debounced = useDebouncedValue(input, 200);
 
-  // The panel is position:fixed (viewport coords) so it can escape scrollable
-  // dialog bodies that would otherwise clip it against the footer. It stays in
-  // this component's DOM so dialog focus traps and the outside-click handler
-  // below keep working. Flips upward when there is no room below the trigger.
-  const [panelPos, setPanelPos] = useState<{
-    top?: number;
-    bottom?: number;
-    left: number;
-    width: number;
-  } | null>(null);
+  const selectedText =
+    options.find((o) => o.value === value)?.label ?? selectedLabel ?? "";
 
-  const updatePanelPos = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - r.bottom;
-    const flipUp = spaceBelow < PANEL_MAX_H + 8 && r.top > spaceBelow;
-    setPanelPos(
-      flipUp
-        ? { bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width }
-        : { top: r.bottom + 4, left: r.left, width: r.width },
-    );
-  }, []);
+  // Chakra restores the selected item's label into the input on select and on
+  // reopen. Treating that as a search term would narrow the list to the one
+  // thing already chosen, so an input that still reads exactly the selection
+  // counts as "no query".
+  const query =
+    debounced.trim() === selectedText.trim() ? "" : debounced.trim();
+  const q = query.toLowerCase();
 
-  const selected = options.find((o) => o.value === value) ?? null;
+  const onSearchChangeRef = useRef(onSearchChange);
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+    onOpenChangeRef.current = onOpenChange;
+  });
 
   useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
+    onSearchChangeRef.current?.(query);
+  }, [query]);
 
-  // Keep the fixed panel glued to the trigger while any ancestor scrolls or
-  // the window resizes (capture catches scrolls inside dialog bodies).
-  useEffect(() => {
-    if (!open) return;
-    window.addEventListener("scroll", updatePanelPos, true);
-    window.addEventListener("resize", updatePanelPos);
-    return () => {
-      window.removeEventListener("scroll", updatePanelPos, true);
-      window.removeEventListener("resize", updatePanelPos);
-    };
-  }, [open, updatePanelPos]);
+  const visible = useMemo(
+    () =>
+      remote || !q
+        ? options
+        : options.filter(
+            (o) =>
+              o.label.toLowerCase().includes(q) ||
+              (o.sublabel?.toLowerCase().includes(q) ?? false),
+          ),
+    [options, remote, q],
+  );
 
-  const q = debounced.trim().toLowerCase();
-  const filtered = q
-    ? options.filter(
-        (o) =>
-          o.label.toLowerCase().includes(q) ||
-          (o.sublabel?.toLowerCase().includes(q) ?? false),
-      )
-    : options;
+  // Rebuilt only when the visible set changes — Chakra re-indexes the whole
+  // list on a fresh collection identity.
+  const collection = useMemo(
+    () =>
+      createListCollection({
+        items: visible,
+        itemToString: (item) => item.label,
+        itemToValue: (item) => item.value,
+      }),
+    [visible],
+  );
+
+  const showEmpty = !loading && visible.length === 0;
 
   return (
-    <Box position="relative" ref={containerRef}>
-      <chakra.button
-        ref={triggerRef}
-        type="button"
-        aria-label={ariaLabel}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={() => {
-          if (!open) {
-            setQuery("");
-            updatePanelPos();
-          }
-          setOpen(!open);
-        }}
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        gap="8px"
-        w="full"
-        minH="36px"
-        px="12px"
-        border="1px solid"
-        borderColor={invalid ? "#ff2d55" : open ? "brand.solid" : "border"}
-        borderRadius="7px"
-        bg="bg"
-        color={selected ? "fg" : "fg.muted"}
-        fontSize="13px"
-        textAlign="left"
-        cursor="pointer"
-        _disabled={{ opacity: 0.5, cursor: "not-allowed" }}
-      >
-        <Box as="span" truncate>
-          {selected ? selected.label : placeholder}
-        </Box>
-        <ChevronDown size={15} />
-      </chakra.button>
+    <Combobox.Root
+      collection={collection}
+      value={value ? [value] : []}
+      onValueChange={(details) => onChange(details.value[0] ?? "")}
+      onInputValueChange={(details) => setInput(details.inputValue)}
+      open={open}
+      onOpenChange={(details) => {
+        setOpen(details.open);
+        // Seed the query with the current selection on open so an abandoned
+        // search from last time can't silently narrow the list, and so the
+        // panel opens showing everything.
+        if (details.open) setInput(selectedText);
+        onOpenChangeRef.current?.(details.open);
+      }}
+      inputValue={open ? input : selectedText}
+      openOnClick
+      // "replace" writes the chosen item's label into the input, so the trigger
+      // reads back who is selected. The `query` guard above stops that label
+      // from being re-used as a search term on the next open.
+      selectionBehavior="replace"
+      invalid={invalid}
+      disabled={disabled}
+      positioning={{ sameWidth: true }}
+      width="full"
+    >
+      <Combobox.Control>
+        <Combobox.Input
+          aria-label={ariaLabel}
+          placeholder={open ? (searchPlaceholder ?? placeholder) : placeholder}
+          fontSize="13px"
+        />
+        <Combobox.IndicatorGroup>
+          {value ? <Combobox.ClearTrigger /> : null}
+          <Combobox.Trigger />
+        </Combobox.IndicatorGroup>
+      </Combobox.Control>
 
-      {open && panelPos ? (
-        <Box
-          position="fixed"
-          zIndex={50}
-          style={{
-            top: panelPos.top,
-            bottom: panelPos.bottom,
-            left: panelPos.left,
-            width: panelPos.width,
-          }}
-          maxH={`${PANEL_MAX_H}px`}
-          display="flex"
-          flexDirection="column"
-          border="1px solid"
-          borderColor="border"
-          borderRadius="8px"
-          bg="bg"
-          boxShadow="0 12px 32px rgba(0, 0, 0, 0.18)"
-          overflow="hidden"
-        >
-          <HStack
-            gap="8px"
-            px="10px"
-            py="8px"
-            borderBottom="1px solid"
-            borderColor="border.subtle"
-          >
-            <Search size={14} color="var(--chakra-colors-fg-muted)" />
-            <Input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.currentTarget.value)}
-              placeholder={searchPlaceholder}
-              h="24px"
-              px="0"
-              border="none"
-              borderRadius="0"
-              bg="transparent"
-              fontSize="13px"
-              _focus={{ boxShadow: "none", outline: "none" }}
-              _focusVisible={{ boxShadow: "none", outline: "none" }}
-            />
-          </HStack>
-          <Stack gap="2px" overflowY="auto" p="4px">
-            {filtered.length === 0 ? (
-              <Box px="10px" py="10px" color="fg.muted" fontSize="12px">
-                {emptyText}
-              </Box>
-            ) : (
-              filtered.map((o) => {
-                const active = o.value === value;
-                return (
-                  <chakra.button
-                    key={o.value}
-                    type="button"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    gap="8px"
-                    w="full"
-                    px="10px"
-                    py="8px"
-                    borderRadius="6px"
-                    bg={active ? "bg.subtle" : "transparent"}
-                    textAlign="left"
-                    _hover={{ bg: "bg.subtle" }}
-                    onClick={() => {
-                      onChange(o.value);
-                      setOpen(false);
-                      setQuery("")
-                    }}
+      <Portal>
+        <Combobox.Positioner>
+          <Combobox.Content maxH="260px" overflowY="auto">
+            {loading ? (
+              <HStack gap="8px" px="10px" py="14px" justify="center">
+                <Spinner size="xs" borderWidth="1px" colorPalette="brand" />
+                <Span color="fg.muted" fontSize="12px">
+                  {loadingText}
+                </Span>
+              </HStack>
+            ) : null}
+
+            {showEmpty ? (
+              <Combobox.Empty>
+                <Stack align="center" gap="4px" px="10px" py="18px">
+                  <Span color="fg.subtle">
+                    <SearchX size={18} />
+                  </Span>
+                  <Text
+                    m="0"
+                    color="fg.muted"
+                    fontSize="12px"
+                    textAlign="center"
                   >
-                    <Box minW="0">
-                      <Text m="0" fontSize="13px" color="fg" truncate>
-                        {o.label}
-                      </Text>
-                      {o.sublabel ? (
-                        <Text m="0" fontSize="11px" color="fg.muted" truncate>
-                          {o.sublabel}
-                        </Text>
-                      ) : null}
-                    </Box>
-                    {active ? <Check size={14} /> : null}
-                  </chakra.button>
-                );
-              })
-            )}
-          </Stack>
-        </Box>
-      ) : null}
-    </Box>
+                    {query ? `No matches for "${query}"` : emptyText}
+                  </Text>
+                </Stack>
+              </Combobox.Empty>
+            ) : null}
+
+            {visible.map((option) => (
+              <Combobox.Item key={option.value} item={option}>
+                <Stack gap="0" minW="0">
+                  <Combobox.ItemText fontSize="13px">
+                    {option.label}
+                  </Combobox.ItemText>
+                  {option.sublabel ? (
+                    <Span color="fg.muted" fontSize="11px" truncate>
+                      {option.sublabel}
+                    </Span>
+                  ) : null}
+                </Stack>
+                <Combobox.ItemIndicator />
+              </Combobox.Item>
+            ))}
+          </Combobox.Content>
+        </Combobox.Positioner>
+      </Portal>
+    </Combobox.Root>
   );
 }

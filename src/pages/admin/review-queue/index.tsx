@@ -8,7 +8,7 @@ import {
   workflowKeys,
 } from "@/hooks/use-workflows";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { toTrailEntries } from "@/utils/workflow-trail";
 import { Box, Button, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,6 +27,7 @@ import { WorkflowActionDialog } from "../my-tasks/workflow-action-dialog";
 const TABS = [
   { value: "all", label: "All" },
   { value: "in_review", label: "In Review" },
+  { value: "rejected", label: "Rejected" },
   { value: "completed", label: "Approved" },
 ] as const;
 
@@ -39,6 +40,7 @@ const statusSummaryCards = [
     color: "orange.500",
     icon: Clock,
   },
+  { key: "rejected", label: "Rejected", color: "red.500", icon: XCircle },
   {
     key: "completed",
     label: "Approved",
@@ -49,8 +51,7 @@ const statusSummaryCards = [
 ] as const;
 
 export function ReviewQueuePage() {
-  const memberRole = useAuthStore((s) => s.memberRole);
-  const isManager = memberRole === "owner" || memberRole === "admin";
+  const isManager = useHasPermission("case_review", "resolve");
   const [tab, setTab] = useState<TabValue>("all");
   const {
     currentPage,

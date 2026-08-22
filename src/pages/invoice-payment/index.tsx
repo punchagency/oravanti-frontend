@@ -6,9 +6,18 @@ import {
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
-import { Box, Button, Center, Flex, Spinner, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Center,
+  chakra,
+  Flex,
+  Spinner,
+  Text,
+} from "@chakra-ui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Info } from "lucide-react";
+import { useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -18,29 +27,40 @@ import { toast } from "sonner";
  * Public and token-gated, like the consultation booking and document upload
  * pages — no auth, the token in the URL is the credential.
  *
- * **No payment provider is wired yet**, and this page says so rather than
- * showing a button that cannot work. That is a deliberate departure from the
- * consultation booking page, whose "pay" button is a dummy that marks the fee
- * settled: this invoice is on the finance ledger, and a payment recorded here
- * against money that never moved would make the firm's accounts wrong, not just
- * their UI optimistic.
+ * Payment happens in a Confido-hosted iframe rather than by redirect. Confido
+ * provides no return URL, so a redirect would strand the payer on someone
+ * else's confirmation screen with no route back — embedding keeps them here and
+ * lets us tell them the invoice is settled.
+ *
+ * Because there is no redirect, the webhook is the only completion signal. The
+ * page therefore polls while a payment is in flight, and stops as soon as the
+ * balance clears.
  */
 export function InvoicePaymentPage() {
   useDocumentTitle("Pay invoice - Oravanti");
   const { token } = useParams<{ token: string }>();
 
+  const [payUrl, setPayUrl] = useState<string | null>(null);
+
   const invoice = useQuery({
     queryKey: ["invoice-payment", token],
     queryFn: () => getPayableInvoice(token!),
     enabled: Boolean(token),
-    retry: false,
+    // A bad token should fail immediately rather than retrying three times in
+    // front of the payer. But once the frame is open a transient blip must not
+    // become "this link is not available", so retries are allowed from then on.
+    retry: (failureCount) => Boolean(payUrl) && failureCount < 3,
+    // Poll only while a payment is actually in flight: the webhook is what
+    // settles the invoice, and it arrives seconds after the payer finishes.
+    // Three seconds because someone is watching a card go through; the settings
+    // tab's thirty would feel broken here.
+    refetchInterval: (query) =>
+      payUrl && query.state.data && !query.state.data.settled ? 3000 : false,
   });
 
   const checkout = useMutation({
     mutationFn: () => startInvoiceCheckout(token!),
-    onSuccess: (session) => {
-      window.location.href = session.url;
-    },
+    onSuccess: (session) => setPayUrl(session.url),
     onError: () =>
       toast.error("Payment could not be started. Please contact the firm."),
   });
@@ -76,12 +96,14 @@ export function InvoicePaymentPage() {
   }
 
   const data: PayableInvoice = invoice.data;
+  // Being asked for less than is owed means an instalment schedule.
+  const partial = data.amountDueNow > 0 && data.amountDueNow < data.balanceDue;
 
   return (
     <Center minH="100vh" px="20px" py="40px">
       <Box
         w="100%"
-        maxW="480px"
+        maxW={payUrl ? "720px" : "480px"}
         bg="bg"
         border="1px solid"
         borderColor="border"
@@ -124,15 +146,82 @@ export function InvoicePaymentPage() {
             borderColor="border.muted"
           >
             <Text fontSize="15px" fontWeight="700">
-              Amount due
+              {partial ? "Due now" : "Amount due"}
             </Text>
             <Text fontSize="15px" fontWeight="700">
-              {formatCurrency(data.balanceDue)}
+              {formatCurrency(data.amountDueNow)}
             </Text>
           </Flex>
+
+          {/*
+            An invoice on a schedule is owed in slices, and the page must ask
+            for the slice — not the balance. Saying so keeps this page and the
+            invoice the client is holding telling the same story.
+          */}
+          {partial ? (
+            <Text fontSize="12px" color="fg.muted" mt="8px" lineHeight="1.5">
+              This invoice is paid in instalments.{" "}
+              {formatCurrency(data.balanceDue - data.amountDueNow)} remains
+              afterwards and will be requested separately.
+            </Text>
+          ) : null}
         </Box>
 
-        {data.paymentsEnabled ? (
+        {data.settled ? (
+          // The end state, and the reason a settled invoice resolves instead of
+          // erroring: the payer needs to be told it worked.
+          <Flex
+            gap="10px"
+            align="center"
+            mt="20px"
+            p="14px"
+            borderRadius="10px"
+            border="1px solid"
+            borderColor="border"
+            bg="bg.muted"
+          >
+            <Text fontSize="14px" fontWeight="600">
+              Paid in full — thank you.
+            </Text>
+          </Flex>
+        ) : payUrl ? (
+          <Box mt="20px">
+            {/* chakra.iframe, not Box as="iframe": the polymorphic `as` keeps
+                the div's prop types, which have no `src`. */}
+            <Box
+              border="1px solid"
+              borderColor="border"
+              borderRadius="10px"
+              overflow="hidden"
+              bg="bg.muted"
+              h={{ base: "520px", md: "620px" }}
+            >
+              <chakra.iframe
+                src={payUrl}
+                title={`Pay invoice ${data.invoiceNumber}`}
+                w="100%"
+                h="100%"
+                border="none"
+              />
+            </Box>
+            <Text fontSize="12px" color="fg.subtle" mt="10px" textAlign="center">
+              This page updates on its own once your payment goes through.{" "}
+              {/* Always shown, never conditional. The card fields live in
+                  frames nested inside the payment page, and a cross-origin
+                  frame that refuses to load reports nothing to its parent — so
+                  a link that only appeared on failure would never appear. */}
+              <chakra.a
+                href={payUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                textDecoration="underline"
+                _hover={{ color: "fg" }}
+              >
+                Having trouble? Open the payment page in a new tab.
+              </chakra.a>
+            </Text>
+          </Box>
+        ) : data.paymentsEnabled ? (
           <Button
             w="100%"
             mt="20px"
@@ -142,7 +231,7 @@ export function InvoicePaymentPage() {
             loading={checkout.isPending}
             onClick={() => checkout.mutate()}
           >
-            Pay {formatCurrency(data.balanceDue)}
+            Pay {formatCurrency(data.amountDueNow)}
           </Button>
         ) : (
           <Flex

@@ -494,7 +494,7 @@ function PageButton({
       border="1px solid"
       borderColor={active ? "brand.solid" : "border"}
       bg={active ? "brand.solid" : "bg"}
-      color={active ? "brand.fg" : "fg.muted"}
+      color={active ? "brand.contrast" : "fg.muted"}
       fontSize="12px"
       fontWeight={active ? "600" : "400"}
       cursor={disabled ? "not-allowed" : "pointer"}

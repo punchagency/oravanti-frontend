@@ -25,7 +25,7 @@ function formatBytes(bytes: number | null): string {
 function categoryColor(category: string | null): { bg: string; color: string } {
   switch (category) {
     case "application":
-      return { bg: "brand.subtle", color: "brand.fg" };
+      return { bg: "brand.subtle", color: "brand.contrast" };
     case "supporting":
       return { bg: "green.subtle", color: "green.fg" };
     case "identity":

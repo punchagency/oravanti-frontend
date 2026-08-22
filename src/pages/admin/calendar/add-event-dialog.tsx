@@ -813,7 +813,7 @@ export function AddEventDialog({ open: controlledOpen, onOpenChange: controlledO
                     fontWeight={600}
                     fontSize="13px"
                     bg="brand.solid"
-                    color="brand.fg"
+                    color="brand.contrast"
                     _hover={{ bg: "brand.emphasized" }}
                   >
                     Add event

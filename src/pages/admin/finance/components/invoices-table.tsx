@@ -13,8 +13,10 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import {
+  Ban,
   BellRing,
   CalendarClock,
+  CalendarPlus,
   CreditCard,
   Eye,
   Pencil,
@@ -40,11 +42,119 @@ const HEADERS = [
  * comparison — the firm's timezone decides what "overdue" means, and the two
  * would disagree either side of midnight.
  *
- *   draft               → Edit + Send to client
+ *   draft               → Edit + Send to client + Void
  *   paid / void         → View
- *   past due            → Follow up + Pay
- *   otherwise           → Reschedule/Plan + Record payment
+ *   past due            → Follow up + Pay + Extend + Reschedule/Plan + Void
+ *   otherwise           → Reschedule/Plan + Record payment + Extend + Void
+ *
+ * Void is offered on anything live that has taken NO money. The server refuses
+ * it once `amountPaid > 0` — voiding would drop received money out of every
+ * report while the payments stayed on the ledger, and there is no reversing
+ * entry to correct that with. Offering an action the server will reject is
+ * worse than not offering it, so the same condition is applied here.
+ *
+ * Note `partial` implies a payment, so it never reaches the check.
  */
+function voidAction(
+  row: InvoiceListRow,
+  onVoid: (row: InvoiceListRow) => void,
+): RowAction[] {
+  if (
+    row.status === "void" ||
+    row.status === "paid" ||
+    row.status === "refunded"
+  ) {
+    return [];
+  }
+  // While the consultation is still live, withdrawing its fee has to go through
+  // cancelling it — that also releases the calendar slot, revokes the booking
+  // link and tells the client. The API refuses this outright, so offering the
+  // button here would only produce an error the user cannot act on.
+  if (row.consultationRefundBlocked) return [];
+  if (row.amountPaid > 0) return [];
+  return [
+    {
+      label: "Void invoice",
+      icon: <Ban size={14} />,
+      danger: true,
+      onSelect: () => onVoid(row),
+    },
+  ];
+}
+
+/**
+ * Offered on a live, unsettled invoice — which includes an overdue one, the
+ * case it mostly exists for.
+ *
+ * On a scheduled invoice this moves the NEXT UNPAID INSTALMENT, not the header
+ * date, which is pinned to the final instalment and is not what anyone means by
+ * "extend this". The label says so, because "Extend due date" on a four-part
+ * plan would be read as moving all of it.
+ *
+ * Withheld only when the schedule has no next unpaid slice — every instalment
+ * covered on an invoice that is somehow not settled, which leaves nothing to
+ * move and which the server refuses too.
+ */
+function extendAction(
+  row: InvoiceListRow,
+  onExtend: (row: InvoiceListRow) => void,
+): RowAction[] {
+  if (
+    row.status === "draft" ||
+    row.status === "paid" ||
+    row.status === "void" ||
+    // Nothing to extend: there is no balance, and the client is not being asked
+    // for anything.
+    row.status === "refunded"
+  ) {
+    return [];
+  }
+  if (row.schedule && !row.schedule.nextDueDate) return [];
+  return [
+    {
+      label: row.schedule ? "Extend next instalment" : "Extend due date",
+      icon: <CalendarPlus size={14} />,
+      onSelect: () => onExtend(row),
+    },
+  ];
+}
+
+/**
+ * Set a plan, or renegotiate the one that is there.
+ *
+ * Offered on any live invoice INCLUDING an overdue one. A plan that has gone
+ * late is the one most likely to need renegotiating, and the extend dialog
+ * sends people here by name to move anything other than the next instalment —
+ * so leaving it off the overdue menu made that instruction unfollowable from
+ * the row it was written for.
+ *
+ * The server refuses only a paid or void invoice, and the same condition is
+ * applied here rather than a narrower one: offering an action the server will
+ * reject is worse than not offering it, and withholding one it would accept
+ * strands the user with no way to do the thing.
+ */
+function rescheduleAction(
+  row: InvoiceListRow,
+  onReschedule: (row: InvoiceListRow) => void,
+): RowAction[] {
+  if (
+    row.status === "paid" ||
+    row.status === "void" ||
+    row.status === "refunded"
+  ) {
+    return [];
+  }
+  return [
+    {
+      // "Create payment plan" on an invoice that has none, because
+      // "Reschedule" implies there is something already there to move.
+      label: row.schedule ? "Reschedule plan" : "Create payment plan",
+      icon: <CalendarClock size={14} />,
+      onSelect: () => onReschedule(row),
+    },
+  ];
+}
+
 function rowActions(
   row: InvoiceListRow,
   handlers: {
@@ -54,6 +164,8 @@ function rowActions(
     onSend: (row: InvoiceListRow) => void;
     onEdit: (row: InvoiceListRow) => void;
     onReschedule: (row: InvoiceListRow) => void;
+    onVoid: (row: InvoiceListRow) => void;
+    onExtend: (row: InvoiceListRow) => void;
   },
 ): RowAction[] {
   // A draft has not reached the client, so it is the one state where changing
@@ -61,6 +173,11 @@ function rowActions(
   // against it is refused by the server.
   if (row.status === "draft") {
     return [
+      {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
       {
         label: "Edit invoice",
         icon: <Pencil size={14} />,
@@ -71,10 +188,16 @@ function rowActions(
         icon: <Send size={14} />,
         onSelect: () => handlers.onSend(row),
       },
+      ...voidAction(row, handlers.onVoid),
     ];
   }
 
-  if (row.status === "paid" || row.status === "void") {
+  // Terminal from the firm's point of view: nothing to chase, resend or collect.
+  if (
+    row.status === "paid" ||
+    row.status === "void" ||
+    row.status === "refunded"
+  ) {
     return [
       {
         label: "View invoice",
@@ -87,6 +210,11 @@ function rowActions(
   if (row.status === "overdue") {
     return [
       {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
+      {
         label: "Follow up",
         icon: <BellRing size={14} />,
         onSelect: () => handlers.onFollowUp(row),
@@ -96,22 +224,33 @@ function rowActions(
         icon: <CreditCard size={14} />,
         onSelect: () => handlers.onRecordPayment(row),
       },
+      ...extendAction(row, handlers.onExtend),
+      // Offered here too, not only on a current invoice. An overdue plan is the
+      // one most likely to need renegotiating, the server allows it on anything
+      // but a paid or void invoice, and the extend dialog explicitly sends
+      // people here to move the rest of a plan — which was a dead end while
+      // this branch omitted it.
+      ...rescheduleAction(row, handlers.onReschedule),
+      ...voidAction(row, handlers.onVoid),
     ];
   }
 
   return [
+    {
+      label: "View invoice",
+      icon: <Eye size={14} />,
+      onSelect: () => handlers.onView(row),
+    },
     // Renegotiating a plan is the point of offering one, so this is offered on
     // a live invoice — unlike editing its lines, which freeze on send.
-    {
-      label: row.schedule ? "Reschedule plan" : "Create payment plan",
-      icon: <CalendarClock size={14} />,
-      onSelect: () => handlers.onReschedule(row),
-    },
+    ...rescheduleAction(row, handlers.onReschedule),
     {
       label: "Record payment",
       icon: <CreditCard size={14} />,
       onSelect: () => handlers.onRecordPayment(row),
     },
+    ...extendAction(row, handlers.onExtend),
+    ...voidAction(row, handlers.onVoid),
   ];
 }
 
@@ -126,6 +265,8 @@ export function InvoicesTable({
   onSend,
   onEdit,
   onReschedule,
+  onVoid,
+  onExtend,
 }: {
   rows: InvoiceListRow[];
   totals: InvoiceListTotals | undefined;
@@ -137,6 +278,8 @@ export function InvoicesTable({
   onSend: (row: InvoiceListRow) => void;
   onEdit: (row: InvoiceListRow) => void;
   onReschedule: (row: InvoiceListRow) => void;
+  onVoid: (row: InvoiceListRow) => void;
+  onExtend: (row: InvoiceListRow) => void;
 }) {
   const headers = trustVisible ? HEADERS : HEADERS.filter((h) => h !== "Trust");
 
@@ -294,6 +437,8 @@ export function InvoicesTable({
                   onSend,
                   onEdit,
                   onReschedule,
+                  onVoid,
+                  onExtend,
                 })}
               />
             </Table.Cell>

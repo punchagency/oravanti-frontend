@@ -1,16 +1,32 @@
 import { API } from ".";
 
-export type ConsultationFeeStructure =
-  | "flat"
-  | "custom_per_case_type"
-  | "waived_if_retainer";
+/**
+ * The structures a firm can choose.
+ *
+ * `waived_if_retainer` is gone from this union on purpose. The database enum
+ * still holds it, but the API normalises it to `flat` on read and rejects it on
+ * write, so nothing here can ever see it — and narrowing the union makes the
+ * compiler, rather than a grep, the checklist for the branches that handled it.
+ */
+export type ConsultationFeeStructure = "flat" | "custom_per_case_type";
+
+/** WHEN the fee is collected, as distinct from what it costs. */
+export type ConsultationFeeSchedule =
+  | "full_upfront"
+  | "partial_upfront"
+  | "after_consultation";
+
+/** What happens to the fee when the lead does not turn up. */
+export type ConsultationNoShowPolicy = "forfeit" | "refund" | "decide";
 
 export type ConsultationSettings = {
   organizationId: string;
   chargesFee: boolean;
   defaultAmount: number | null;
   feeStructure: ConsultationFeeStructure | null;
-  waiverWindowDays: number | null;
+  feeSchedule: ConsultationFeeSchedule;
+  upfrontPercent: number | null;
+  noShowPolicy: ConsultationNoShowPolicy;
   timezone: string;
   smsEnabled: boolean;
   updatedAt: string | null;
@@ -20,7 +36,9 @@ export type UpsertConsultationSettingsInput = {
   chargesFee: boolean;
   defaultAmount?: number | null;
   feeStructure?: ConsultationFeeStructure | null;
-  waiverWindowDays?: number | null;
+  feeSchedule?: ConsultationFeeSchedule;
+  upfrontPercent?: number | null;
+  noShowPolicy?: ConsultationNoShowPolicy;
   timezone?: string;
   smsEnabled?: boolean;
 };

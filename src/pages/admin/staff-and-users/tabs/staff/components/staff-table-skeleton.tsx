@@ -79,6 +79,15 @@ export function StaffTableSkeleton() {
                     fontWeight="bold"
                     color="fg.subtle"
                     pb={3}
+                    whiteSpace="nowrap"
+                  >
+                    PORTAL ACCESS
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader
+                    textStyle="body-sm"
+                    fontWeight="bold"
+                    color="fg.subtle"
+                    pb={3}
                     textAlign="right"
                     whiteSpace="nowrap"
                   >
@@ -141,6 +150,14 @@ export function StaffTableSkeleton() {
                           borderRadius="full"
                         />
                       </Box>
+                    </Table.Cell>
+
+                    <Table.Cell py={4} whiteSpace="nowrap">
+                      <ThemeSkeleton
+                        height="20px"
+                        width="70px"
+                        borderRadius="full"
+                      />
                     </Table.Cell>
 
                     <Table.Cell py={4} whiteSpace="nowrap">

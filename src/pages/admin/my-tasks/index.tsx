@@ -2,8 +2,10 @@ import type { MyTaskItem } from "@/api/workflows";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PageTitle } from "@/components/layout/shared/nav-context";
 import { useMyTasks, useSubmitForReview } from "@/hooks/use-workflows";
+import { useReopenTask } from "@/hooks/use-task-review";
+import { TaskReviewThread } from "@/components/ui/task-review-thread";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { toTrailEntries } from "@/utils/workflow-trail";
 import {
   Box,
@@ -22,6 +24,7 @@ import {
   MessageSquare,
   RotateCcw,
   SendHorizontal,
+  XCircle,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
@@ -31,6 +34,7 @@ const TABS = [
   { value: "all", label: "All" },
   { value: "in_progress", label: "In Progress" },
   { value: "in_review", label: "In Review" },
+  { value: "rejected", label: "Rejected" },
   { value: "completed", label: "Completed" },
 ] as const;
 
@@ -49,6 +53,7 @@ const statusSummaryCards = [
     color: "orange.500",
     icon: Clock,
   },
+  { key: "rejected", label: "Rejected", color: "red.500", icon: XCircle },
   {
     key: "completed",
     label: "Completed",
@@ -59,7 +64,6 @@ const statusSummaryCards = [
 ] as const;
 
 export function MyTasksPage() {
-  const memberRole = useAuthStore((s) => s.memberRole);
   const [tab, setTab] = useState<TabValue>("all");
   const {
     currentPage,
@@ -82,7 +86,7 @@ export function MyTasksPage() {
     offset: 0,
   };
 
-  const isManager = memberRole === "owner" || memberRole === "admin";
+  const isManager = useHasPermission("case_review", "resolve");
 
   const handleTabChange = useCallback(
     (e: { value: string }) => {
@@ -278,15 +282,16 @@ const statusBadge: Record<
   string,
   { label: string; bg: string; color: string }
 > = {
-  in_progress: { label: "In progress", bg: "blue.50", color: "blue.600" },
+  in_progress: { label: "In progress", bg: "blue.subtle", color: "blue.fg" },
   in_review: {
     label: "Awaiting approval",
-    bg: "orange.50",
-    color: "orange.600",
+    bg: "orange.subtle",
+    color: "orange.fg",
   },
-  completed: { label: "Completed", bg: "green.50", color: "green.600" },
-  pending: { label: "Pending", bg: "gray.50", color: "gray.600" },
-  skipped: { label: "Skipped", bg: "gray.50", color: "gray.400" },
+  completed: { label: "Completed", bg: "green.subtle", color: "green.fg" },
+  pending: { label: "Pending", bg: "bg.subtle", color: "fg.muted" },
+  skipped: { label: "Skipped", bg: "bg.subtle", color: "fg.subtle" },
+  rejected: { label: "Rejected", bg: "red.subtle", color: "red.fg" },
 };
 
 function statusIcon(status: string) {
@@ -303,6 +308,12 @@ function statusIcon(status: string) {
           <CheckCircle size={14} />
         </Box>
       );
+    case "rejected":
+      return (
+        <Box as="span" color="red.500">
+          <XCircle size={14} />
+        </Box>
+      );
     default:
       return (
         <Box as="span" color="blue.500">
@@ -316,9 +327,14 @@ function TaskCard({ task }: { task: MyTaskItem }) {
   const isOverdue = task.dueDate
     ? new Date(task.dueDate).getTime() < Date.now()
     : false;
-  const [showTrail, setShowTrail] = useState(false);
+  const isRejected = task.status === "rejected";
+  // A rejected step opens its thread by default: the feedback is the whole
+  // reason the assignee is looking at it. Others fetch only once opened, so a
+  // page of 40 tasks doesn't fire 40 requests.
+  const [showTrail, setShowTrail] = useState(isRejected);
   const [submitOpen, setSubmitOpen] = useState(false);
   const submitMutation = useSubmitForReview(task.caseId);
+  const reopenMutation = useReopenTask("case_step", task.caseId);
 
   const trailEntries = toTrailEntries(task.auditLog);
 
@@ -378,50 +394,91 @@ function TaskCard({ task }: { task: MyTaskItem }) {
               {isOverdue ? "Overdue" : `Due ${formatDate(task.dueDate)}`}
             </Box>
           )}
-          {trailEntries.length > 0 && (
-            <Button
-              size="2xs"
-              variant="ghost"
-              fontSize="10px"
-              h="22px"
-              color="fg.muted"
-              onClick={() => setShowTrail(!showTrail)}
-            >
-              <MessageSquare size={10} />
-              {showTrail ? "Hide" : `${trailEntries.length} feedback`}
-            </Button>
-          )}
-          {task.status === "in_progress" && (
+          <Button
+            size="2xs"
+            variant="ghost"
+            fontSize="10px"
+            h="22px"
+            color={isRejected ? "red.fg" : "fg.muted"}
+            onClick={() => setShowTrail(!showTrail)}
+          >
+            <MessageSquare size={10} />
+            {showTrail
+              ? "Hide"
+              : isRejected
+                ? "Review feedback"
+                : "Review history"}
+          </Button>
+          {isRejected && (
             <>
+              {/* Reopening is the assignee's move, not the reviewer's: the
+                  feedback has to be read before the step quietly becomes
+                  work-in-progress again. */}
+              <Button
+                size="2xs"
+                variant="outline"
+                borderColor="border"
+                fontSize="10px"
+                h="22px"
+                onClick={() => reopenMutation.mutate({ taskId: task.stepId })}
+                loading={reopenMutation.isPending}
+              >
+                <RotateCcw size={10} />
+                Reopen
+              </Button>
               <Button
                 size="2xs"
                 colorPalette="yellow"
                 fontSize="10px"
                 h="22px"
                 onClick={() => setSubmitOpen(true)}
-                loading={submitMutation.isPending}
               >
-                Submit for review
+                <SendHorizontal size={10} />
+                Resubmit
               </Button>
-              <WorkflowActionDialog
-                open={submitOpen}
-                onOpenChange={setSubmitOpen}
-                title="Submit for review"
-                description={`Mark "${task.title}" as ready for review?`}
-                confirmLabel="Submit"
-                confirmIcon={<SendHorizontal size={14} />}
-                colorPalette="yellow"
-                notesRequired={false}
-                placeholder="Add notes about what was completed..."
-                onConfirm={(notes) =>
-                  submitMutation.mutate(
-                    { stepId: task.stepId, notes: notes || undefined },
-                    { onSettled: () => setSubmitOpen(false) },
-                  )
-                }
-                isPending={submitMutation.isPending}
-              />
             </>
+          )}
+          {task.status === "in_progress" && (
+            <Button
+              size="2xs"
+              colorPalette="yellow"
+              fontSize="10px"
+              h="22px"
+              onClick={() => setSubmitOpen(true)}
+              loading={submitMutation.isPending}
+            >
+              Submit for review
+            </Button>
+          )}
+          {/* Shared by "Submit for review" and the rejected "Resubmit" — the
+              backend accepts a resubmission straight from `rejected`. */}
+          {(task.status === "in_progress" || isRejected) && (
+            <WorkflowActionDialog
+              open={submitOpen}
+              onOpenChange={setSubmitOpen}
+              title={isRejected ? "Resubmit for review" : "Submit for review"}
+              description={
+                isRejected
+                  ? `Send "${task.title}" back for review after addressing the feedback?`
+                  : `Mark "${task.title}" as ready for review?`
+              }
+              confirmLabel={isRejected ? "Resubmit" : "Submit"}
+              confirmIcon={<SendHorizontal size={14} />}
+              colorPalette="yellow"
+              notesRequired={false}
+              placeholder={
+                isRejected
+                  ? "Describe what you changed…"
+                  : "Add notes about what was completed..."
+              }
+              onConfirm={(notes) =>
+                submitMutation.mutate(
+                  { stepId: task.stepId, notes: notes || undefined },
+                  { onSettled: () => setSubmitOpen(false) },
+                )
+              }
+              isPending={submitMutation.isPending}
+            />
           )}
           <Link to={`/cases/${task.caseId}`}>
             <Button
@@ -438,24 +495,39 @@ function TaskCard({ task }: { task: MyTaskItem }) {
         </HStack>
       </Flex>
 
-      {showTrail && trailEntries.length > 0 && (
-        <Box
-          mt={2}
-          ml={6}
-          pl={3}
-          borderLeft="2px solid"
-          borderColor="border.muted"
-        >
-          {trailEntries.map((entry, i) => (
-            <Box key={i} mb={i < trailEntries.length - 1 ? 2 : 0}>
-              <Text fontSize="10px" fontWeight="500" color="fg.subtle">
-                {entry.label}
-              </Text>
-              <Text fontSize="11px" color="fg" mt={0.5} whiteSpace="pre-wrap">
-                {entry.text}
-              </Text>
-            </Box>
-          ))}
+      {showTrail && (
+        <Box mt={2} ml={6}>
+          {/* Same component the intake tasks render — one review thread shape
+              across both loops. Steps that predate `task_review_events` fall
+              back to their older step-action-log entries so no history is
+              lost from the screen. */}
+          <TaskReviewThread
+            kind="case_step"
+            parentId={task.caseId}
+            taskId={task.stepId}
+            emptyText="Nothing submitted for review yet."
+            fallback={
+              trailEntries.length > 0 ? (
+                <Box pl={3} borderLeft="2px solid" borderColor="border.muted">
+                  {trailEntries.map((entry, i) => (
+                    <Box key={i} mb={i < trailEntries.length - 1 ? 2 : 0}>
+                      <Text fontSize="10px" fontWeight="500" color="fg.subtle">
+                        {entry.label}
+                      </Text>
+                      <Text
+                        fontSize="11px"
+                        color="fg"
+                        mt={0.5}
+                        whiteSpace="pre-wrap"
+                      >
+                        {entry.text}
+                      </Text>
+                    </Box>
+                  ))}
+                </Box>
+              ) : undefined
+            }
+          />
         </Box>
       )}
     </Box>

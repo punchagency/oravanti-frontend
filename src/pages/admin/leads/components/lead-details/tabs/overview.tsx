@@ -16,7 +16,6 @@ export function LeadOverview({ leadId, isActive }: LeadOverviewProps) {
     queryKey: ["lead", leadId],
     queryFn: () => getLeadById(leadId),
     enabled: isActive && Boolean(leadId),
-    staleTime: 60_000,
   });
 
   if (isLoading) {

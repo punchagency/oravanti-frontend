@@ -15,12 +15,30 @@ export type PayableInvoice = {
   total: number;
   amountPaid: number;
   balanceDue: number;
+  /**
+   * What this payment is FOR — the next unpaid instalment when the invoice is
+   * on a schedule, the whole balance otherwise.
+   *
+   * Distinct from `balanceDue` on purpose: a consultation billed as a deposit
+   * plus a balance OWES the whole fee but is only being ASKED for the deposit
+   * now. Quoting the balance would contradict the invoice the client is
+   * holding.
+   */
+  amountDueNow: number;
   dueDate: string;
   status: string;
   /**
-   * False while no payment provider is configured — which is every environment
-   * today. The page says so plainly rather than offering a button that cannot
-   * work.
+   * True once nothing is owed.
+   *
+   * The page polls this while a card is processing, so the backend returns it
+   * rather than erroring the moment the balance clears — erroring would flip the
+   * page into "link unavailable" at exactly the instant of success.
+   */
+  settled: boolean;
+  /**
+   * False while this FIRM cannot take money — either the platform has no
+   * processor configured, or this firm has not finished underwriting. Per
+   * organization, not per deployment.
    */
   paymentsEnabled: boolean;
 };
@@ -34,6 +52,12 @@ export async function getPayableInvoice(
   return data.data;
 }
 
+/**
+ * Get the hosted payment URL for this invoice.
+ *
+ * Idempotent on the backend — the link is created once and found thereafter —
+ * so calling it again on a re-render does not mint a second one.
+ */
 export async function startInvoiceCheckout(
   token: string,
 ): Promise<{ url: string; reference: string }> {

@@ -189,10 +189,17 @@ export const contextNavigation: Record<
     {
       label: "Staff Management",
       items: [
+        // Mirrors `tabsConfig` in the staff-management page, so the sidebar and
+        // the page's own tab strip stay in the same order.
         {
           label: "Staff accounts",
           path: "/staff-management",
           icon: "users",
+        },
+        {
+          label: "Teams",
+          path: "/staff-management/teams",
+          icon: "briefcase",
         },
         {
           label: "Certifications",
@@ -205,9 +212,19 @@ export const contextNavigation: Record<
           icon: "chart-column-big",
         },
         {
+          label: "Time tracking",
+          path: "/staff-management/time-tracking",
+          icon: "file-clock",
+        },
+        {
           label: "Leave management",
           path: "/staff-management/leave",
           icon: "calendar",
+        },
+        {
+          label: "Invitations",
+          path: "/staff-management/invitations",
+          icon: "mail",
         },
       ],
     },
@@ -387,6 +404,11 @@ export const contextNavigation: Record<
           label: "Firm settings",
           path: "/settings/firm-settings",
           icon: "settings",
+        },
+        {
+          label: "Audit trail",
+          path: "/settings/audit-trail",
+          icon: "clipboard",
         },
         {
           label: "Training platform",

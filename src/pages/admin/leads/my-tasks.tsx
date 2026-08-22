@@ -4,7 +4,6 @@ import {
   useSubmitLeadTaskForReview,
   useUpdateLeadTaskStatus,
 } from "@/hooks/use-lead-workflows";
-import { useRunConflictCheck } from "@/hooks/use-leads";
 import { PageTitle } from "@/components/layout/shared/nav-context";
 import {
   Box,
@@ -17,17 +16,26 @@ import {
 } from "@chakra-ui/react";
 import {
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   Clock,
   ExternalLink,
   ListChecks,
   Play,
   RotateCcw,
   Send,
+  XCircle,
 } from "lucide-react";
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
-import { pipelineStageLabels } from "./components/intake-pipeline/shared/constants";
+import { TaskReviewThread } from "@/components/ui/task-review-thread";
+import { useReopenTask } from "@/hooks/use-task-review";
+import {
+  leadStagePath,
+  pipelineOrigin,
+  pipelineStageLabels,
+} from "./components/intake-pipeline/shared/constants";
 import { CompleteTaskDialog } from "./components/intake-pipeline/dialogs/complete-task-dialog";
 
 const TABS = [
@@ -35,6 +43,7 @@ const TABS = [
   { value: "pending", label: "Pending" },
   { value: "in_progress", label: "In Progress" },
   { value: "in_review", label: "In Review" },
+  { value: "rejected", label: "Rejected" },
   { value: "completed", label: "Completed" },
 ] as const;
 
@@ -48,6 +57,7 @@ const statusSummaryCards = [
     color: "blue.500",
     icon: RotateCcw,
   },
+  { key: "rejected", label: "Rejected", color: "red.500", icon: XCircle },
   {
     key: "completed",
     label: "Completed",
@@ -56,14 +66,6 @@ const statusSummaryCards = [
   },
   { key: "total", label: "Total Tasks", color: "fg", icon: ListChecks },
 ] as const;
-
-const stageSuffix: Record<string, string> = {
-  conflict_check: "conflict-check",
-  questionnaire: "questionnaire",
-  consultation: "consultation",
-  fee_agreement: "consultation",
-  case_opening: "case-opening",
-};
 
 export function MyLeadsTasks() {
   const [tab, setTab] = useState<TabValue>("all");
@@ -80,6 +82,7 @@ export function MyLeadsTasks() {
     in_progress: (allTasks ?? []).filter((t) => t.status === "in_progress")
       .length,
     in_review: (allTasks ?? []).filter((t) => t.status === "in_review").length,
+    rejected: (allTasks ?? []).filter((t) => t.status === "rejected").length,
     completed: (allTasks ?? []).filter(
       (t) => t.status === "completed" || t.status === "skipped",
     ).length,
@@ -283,11 +286,12 @@ const statusBadge: Record<
   string,
   { label: string; bg: string; color: string }
 > = {
-  in_progress: { label: "In progress", bg: "blue.50", color: "blue.600" },
-  in_review: { label: "In review", bg: "orange.50", color: "orange.600" },
-  completed: { label: "Completed", bg: "green.50", color: "green.600" },
-  pending: { label: "Pending", bg: "gray.50", color: "gray.600" },
-  skipped: { label: "Skipped", bg: "gray.50", color: "gray.400" },
+  in_progress: { label: "In progress", bg: "blue.subtle", color: "blue.fg" },
+  in_review: { label: "In review", bg: "orange.subtle", color: "orange.fg" },
+  completed: { label: "Completed", bg: "green.subtle", color: "green.fg" },
+  pending: { label: "Pending", bg: "bg.subtle", color: "fg.muted" },
+  skipped: { label: "Skipped", bg: "bg.subtle", color: "fg.subtle" },
+  rejected: { label: "Rejected", bg: "red.subtle", color: "red.fg" },
 };
 
 function statusIcon(status: string) {
@@ -296,6 +300,12 @@ function statusIcon(status: string) {
       return (
         <Box as="span" color="green.500">
           <CheckCircle size={14} />
+        </Box>
+      );
+    case "rejected":
+      return (
+        <Box as="span" color="red.500">
+          <XCircle size={14} />
         </Box>
       );
     default:
@@ -309,23 +319,28 @@ function statusIcon(status: string) {
 
 function TaskCard({ task }: { task: LeadTask }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const doSubmitForReview = useSubmitLeadTaskForReview(task.leadId);
   const doUpdateStatus = useUpdateLeadTaskStatus(task.leadId);
-  const doRunConflictCheck = useRunConflictCheck();
+  const doReopen = useReopenTask("lead_task", task.leadId);
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  // Threads are fetched only once opened — a list of 40 tasks must not fire 40
+  // requests. A rejected task opens by default, since the feedback is the whole
+  // reason the assignee is looking at it.
+  const [threadOpen, setThreadOpen] = useState(task.status === "rejected");
 
   const badge = statusBadge[task.status] ?? statusBadge.pending;
+  const isRejected = task.status === "rejected";
 
+  // Carry the origin so the stage page can offer a way back here — otherwise
+  // an assignee who opens their task lands on a page with no route home.
   function handleAction() {
-    if (
-      task.actionType === "run_conflict_check" &&
-      task.status !== "completed"
-    ) {
-      doRunConflictCheck.mutate(task.leadId);
-      return;
-    }
-    const suffix = stageSuffix[task.pipelineStage] ?? task.pipelineStage;
-    navigate(`/leads/${task.leadId}/${suffix}`);
+    navigate(leadStagePath(task.leadId, task.pipelineStage), {
+      state: pipelineOrigin(
+        `${location.pathname}${location.search}`,
+        "Back to my tasks",
+      ),
+    });
   }
 
   return (
@@ -346,14 +361,25 @@ function TaskCard({ task }: { task: LeadTask }) {
           <Box flex={1}>
             <Flex align="center" gap={2} mb={1}>
               {statusIcon(task.status)}
-              <Text
+              {/* Clicking the title opens the stage — the "Go to stage" button
+                  below stays for discoverability. */}
+              <Button
+                variant="plain"
+                h="auto"
+                minH="auto"
+                p={0}
+                justifyContent="flex-start"
                 fontSize="13px"
                 fontWeight="500"
                 color="fg"
                 lineHeight="140%"
+                whiteSpace="normal"
+                textAlign="left"
+                _hover={{ color: "brand.solid", textDecoration: "underline" }}
+                onClick={handleAction}
               >
                 {task.title}
-              </Text>
+              </Button>
             </Flex>
             <HStack gap={1.5} ml={6} mt={0.5} flexWrap="wrap">
               <Box
@@ -458,14 +484,54 @@ function TaskCard({ task }: { task: LeadTask }) {
               <Box
                 fontSize="10px"
                 fontWeight="500"
-                color="orange.600"
-                bg="orange.50"
+                color="orange.fg"
+                bg="orange.subtle"
                 borderRadius="full"
                 px={2}
                 py={0.5}
               >
                 In review
               </Box>
+            )}
+            {isRejected && (
+              <>
+                <Button
+                  size="2xs"
+                  variant="outline"
+                  borderColor="border"
+                  fontSize="10px"
+                  h="22px"
+                  onClick={handleAction}
+                >
+                  <ExternalLink size={10} />
+                  Go to stage
+                </Button>
+                {/* Reopening is the assignee's move, not the reviewer's: the
+                    feedback has to be read before the task quietly becomes
+                    work-in-progress again. */}
+                <Button
+                  size="2xs"
+                  variant="outline"
+                  borderColor="border"
+                  fontSize="10px"
+                  h="22px"
+                  onClick={() => doReopen.mutate({ taskId: task.id })}
+                  loading={doReopen.isPending}
+                >
+                  <RotateCcw size={10} />
+                  Reopen
+                </Button>
+                <Button
+                  size="2xs"
+                  colorPalette="green"
+                  fontSize="10px"
+                  h="22px"
+                  onClick={() => setSubmitDialogOpen(true)}
+                >
+                  <Send size={10} />
+                  Resubmit
+                </Button>
+              </>
             )}
             {(task.status === "completed" || task.status === "skipped") && (
               <Box
@@ -482,6 +548,36 @@ function TaskCard({ task }: { task: LeadTask }) {
             )}
           </HStack>
         </Flex>
+
+        {/* Every submission note and review decision, appended rather than
+            overwritten, so the exchange stays readable after the fact. */}
+        <Box mt={2} pt={2} borderTop="1px solid" borderColor="border.subtle">
+          <Button
+            variant="plain"
+            h="auto"
+            minH="auto"
+            p={0}
+            fontSize="11px"
+            fontWeight="400"
+            color={isRejected ? "red.fg" : "fg.muted"}
+            _hover={{ color: "fg" }}
+            onClick={() => setThreadOpen((open) => !open)}
+          >
+            {threadOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {isRejected ? "Review feedback" : "Review history"}
+          </Button>
+
+          {threadOpen ? (
+            <Box mt={2}>
+              <TaskReviewThread
+                kind="lead_task"
+                parentId={task.leadId}
+                taskId={task.id}
+                emptyText="Nothing submitted for review yet."
+              />
+            </Box>
+          ) : null}
+        </Box>
       </Box>
 
       <CompleteTaskDialog

@@ -4,7 +4,7 @@ import {
   getConvertedClients,
   getConvertedClientDetail,
   sendClientPortalInvite,
-  resetClientPassword,
+  updateClientPortalStatus,
   getClientPortalSessions,
   revokeClientSession,
   getClientPortalStatus,
@@ -18,7 +18,6 @@ export function useConvertedClients(params: GetConvertedClientsParams = {}) {
   return useQuery({
     queryKey: ["clients", params],
     queryFn: () => getConvertedClients(params),
-    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -27,7 +26,6 @@ export function useConvertedClientDetail(id: string | null) {
     queryKey: ["client", id],
     queryFn: () => getConvertedClientDetail(id!),
     enabled: !!id,
-    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -36,7 +34,6 @@ export function useClientPortalSessions(id: string | null) {
     queryKey: ["clientPortalSessions", id],
     queryFn: () => getClientPortalSessions(id!),
     enabled: !!id,
-    staleTime: 30 * 1000,
   });
 }
 
@@ -45,7 +42,6 @@ export function useClientPortalStatus(id: string | null) {
     queryKey: ["clientPortalStatus", id],
     queryFn: () => getClientPortalStatus(id!),
     enabled: !!id,
-    staleTime: 30 * 1000,
   });
 }
 
@@ -69,20 +65,6 @@ export function useSendClientPortalInvite() {
   });
 }
 
-export function useResetClientPassword() {
-  return useMutation({
-    mutationFn: (clientId: string) => resetClientPassword(clientId),
-    onSuccess: () => {
-      toast.success("Password reset email sent");
-    },
-    onError: (err: APIError) => {
-      toast.error(
-        err?.response?.data?.message || "Failed to send password reset",
-      );
-    },
-  });
-}
-
 export function useRevokeClientSession() {
   const qc = useQueryClient();
   return useMutation({
@@ -101,6 +83,29 @@ export function useRevokeClientSession() {
     onError: (err: APIError) => {
       toast.error(
         err?.response?.data?.message || "Failed to revoke session",
+      );
+    },
+  });
+}
+
+export function useUpdateClientPortalStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      clientId,
+      status,
+    }: {
+      clientId: string;
+      status: "none" | "pending" | "active" | "disabled";
+    }) => updateClientPortalStatus(clientId, status),
+    onSuccess: () => {
+      toast.success("Portal status updated");
+      qc.invalidateQueries({ queryKey: ["clientPortalStatus"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(
+        err?.response?.data?.message || "Failed to update portal status",
       );
     },
   });

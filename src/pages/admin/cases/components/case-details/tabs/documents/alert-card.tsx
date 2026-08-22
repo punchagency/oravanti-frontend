@@ -64,7 +64,7 @@ export function AlertSection({ caseId }: { caseId: string }) {
           px={2}
           py={0.5}
           bg={criticalCount > 0 ? "red.subtle" : "brand.subtle"}
-          color={criticalCount > 0 ? "red.fg" : "brand.fg"}
+          color={criticalCount > 0 ? "red.fg" : "brand.contrast"}
           fontWeight="500"
           fontSize="10px"
           textTransform="none"
@@ -113,7 +113,7 @@ function IssueRow({ issue }: { issue: CaseReviewIssue }) {
           px={2}
           py={0.5}
           bg={isCritical ? "red.subtle" : "brand.subtle"}
-          color={isCritical ? "red.fg" : "brand.fg"}
+          color={isCritical ? "red.fg" : "brand.contrast"}
           fontWeight="500"
           fontSize="10px"
           textTransform="none"

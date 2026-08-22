@@ -177,8 +177,41 @@ const config = defineConfig({
         },
         brand: {
           solid: { value: "{colors.brand.400}" },
+          /*
+            Text placed ON any brand-tinted surface: solid, subtle, muted,
+            emphasized, or a raw brand.100–400.
+
+            A single value, deliberately, and it must stay one. Every brand
+            surface is a light amber (#FBE9B0 → #E8A635) defined as a flat
+            palette reference, so none of them changes between colour modes.
+            Text sitting on one therefore must not change either — brand.900
+            scores 7.1:1 on solid and 12.3:1 on muted, and a mode-aware value
+            here can only make one of the two modes worse.
+
+            If you are colouring something that sits on a brand background,
+            this is the token. Not `fg`.
+          */
           contrast: { value: "{colors.brand.900}" },
-          fg: { value: "{colors.brand.900}" },
+          /*
+            Brand-coloured text on the PAGE background — a different job from
+            `contrast`, and the reason this one has to be a pair.
+
+            It was a flat `brand.900` (#3A2202, near-black brown): right on the
+            light surface (#FFFFFF) and unreadable on the dark one (#222222) at
+            roughly 1.3:1. Dark now resolves to brand.300 (#F2BF3A), ~9:1 on
+            #222222; light is unchanged, so this is a dark-mode repair rather
+            than a restyle.
+
+            Never use this on a brand-tinted background. Doing so is what broke
+            every primary button: in dark mode it put brand.300 on brand.400,
+            amber on amber.
+          */
+          fg: {
+            value: {
+              _light: "{colors.brand.900}",
+              _dark: "{colors.brand.300}",
+            },
+          },
           muted: { value: "{colors.brand.100}" },
           subtle: { value: "{colors.brand.200}" },
           emphasized: { value: "{colors.brand.300}" },
@@ -277,7 +310,10 @@ const config = defineConfig({
       "brand-button": {
         value: {
           bg: "brand.solid",
-          color: "brand.fg",
+          // `contrast`, not `fg` — see the token definitions. The label sits on
+          // brand.solid, which is the same amber in both modes, so the label
+          // must be the same dark brown in both modes.
+          color: "brand.contrast",
           borderRadius: "sm",
           fontWeight: "500",
           _hover: { bg: "{colors.brand.500}" },

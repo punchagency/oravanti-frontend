@@ -65,7 +65,6 @@ export function LeadDetailPage() {
     queryKey: ["lead", leadId],
     queryFn: () => getLeadById(leadId!),
     enabled: Boolean(leadId),
-    staleTime: 60_000,
   });
 
   useDocumentTitle(lead ? `${lead.name} – Lead – Oravanti` : "Lead – Oravanti");

@@ -1,7 +1,15 @@
 import { API } from ".";
 import type { DocumentAiReview } from "./questionnaires";
 
-export type LeadTaskStatus = "pending" | "in_progress" | "in_review" | "completed" | "skipped";
+export type LeadTaskStatus =
+  | "pending"
+  | "in_progress"
+  | "in_review"
+  | "completed"
+  | "skipped"
+  // Terminal until the assignee reopens it. Rejection used to drop a task
+  // straight back to `in_progress`, which told them nothing.
+  | "rejected";
 
 export interface LeadTask {
   id: string;
@@ -36,25 +44,50 @@ export interface LeadTaskInput {
   dueDate?: string;
 }
 
+/**
+ * One row of a lead's timeline.
+ *
+ * The same rows as `LeadAuditLogEntry` in the same vocabulary — the timeline
+ * groups them by day and the audit tab pages through them flat. `action` is a
+ * registry name; render `label` and `summary`, never a re-cased variant.
+ */
 export interface LeadTimelineEvent {
   id: string;
-  eventType: string;
-  title: string;
-  description: string | null;
+  action: string;
+  /** The registry's display name for `action`. */
+  label: string;
+  /** The sentence written when the event happened. */
+  summary: string;
   metadata: Record<string, unknown> | null;
   ipAddress: string | null;
-  createdBy: { id: string; name: string } | null;
+  /** `staff.id`, or null when the system or the lead acted. */
+  actorId: string | null;
+  /** The name as it stood then — never a live lookup. */
+  actorName: string | null;
   createdAt: string;
 }
 
+/**
+ * One row of a lead's activity feed.
+ *
+ * `action` is a registry name (`"lead.stage_changed"`) — the same string the
+ * backend call site used and the same string stored in the column. Render
+ * `label` and `summary`; never re-derive either from `action`, and never key a
+ * lookup on a re-cased variant of it. See `@/lib/audit`.
+ */
 export interface LeadAuditLogEntry {
   id: string;
-  eventType: string;
-  title: string;
-  description: string | null;
+  action: string;
+  /** The registry's display name for `action`, e.g. "Stage changed". */
+  label: string;
+  /** The sentence written when the event happened, in the vocabulary of the time. */
+  summary: string;
+  /** `staff.id`, or null for a system or lead-driven event. */
+  actorId: string | null;
+  /** The name as it stood then — never a live lookup, so renames cannot rewrite history. */
+  actorName: string | null;
   metadata: Record<string, unknown> | null;
   ipAddress: string | null;
-  performedBy: { id: string; name: string } | null;
   createdAt: string;
 }
 
@@ -153,10 +186,10 @@ export async function getLeadAuditLog(
   return { data: data.data, pagination: data.pagination };
 }
 
-export async function createLeadTimelineEvent(leadId: string, input: { eventType: string; title: string; description?: string; metadata?: Record<string, unknown> }): Promise<LeadTimelineEvent> {
-  const { data } = await API.post<{ data: LeadTimelineEvent }>(`/leads/${leadId}/timeline`, input);
-  return data.data;
-}
+// `createLeadTimelineEvent` was removed with the `POST /leads/:leadId/timeline`
+// route it called. An audit table must not be user-writable: that endpoint took
+// an arbitrary event type, title and metadata from the caller and appended them
+// to the same trail the system writes to, which makes the trail unciteable.
 
 export async function getLeadDocuments(leadId: string): Promise<LeadDocumentLink[]> {
   const { data } = await API.get<{ data: LeadDocumentLink[] }>(`/leads/${leadId}/documents`);

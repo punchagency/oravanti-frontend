@@ -1,4 +1,8 @@
 import type { PracticeAreaTreeNode } from "@/api/auth";
+import {
+  buildNameLookup,
+  usePracticeAreaSubtrees,
+} from "@/hooks/use-practice-area-tree-data";
 import type { StaffMemberDTO } from "@/hooks/use-staff-list";
 import {
   Box,
@@ -15,6 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { ChevronRight, FileText, FolderOpen } from "lucide-react";
 import { useMemo } from "react";
+import { type Control, useWatch } from "react-hook-form";
 import type { CreateTeamFormValues } from "./types";
 
 function collectLeafIds(nodes: PracticeAreaTreeNode[]): string[] {
@@ -67,20 +72,35 @@ function filterChildren(
 }
 
 export function StepReview({
-  formValues,
-  practiceAreaNameLookup,
-  practiceAreaTreeNodes,
+  control,
   allStaff,
   leadName,
   selectedIds,
 }: {
-  formValues: CreateTeamFormValues;
-  practiceAreaNameLookup: Record<string, string>;
-  practiceAreaTreeNodes: PracticeAreaTreeNode[];
+  control: Control<CreateTeamFormValues>;
   allStaff: StaffMemberDTO[];
   leadName: string | null;
   selectedIds: string[];
 }) {
+  // Subscribes to the form fields shown here; the parent stays uninvolved.
+  const formValues = useWatch({ control });
+  /*
+    The same per-practice-area subtree queries CaseTypeSelect used on step one.
+    They are keyed by practice-area id with `staleTime: Infinity`, so reaching
+    this step costs no request at all — the cache already holds every subtree
+    the user selected from, and only those.
+  */
+  const { nodes: practiceAreaTreeNodes } = usePracticeAreaSubtrees(
+    formValues.practiceAreas ?? [],
+  );
+
+  // Derived here rather than shipped by the API, which used to duplicate every
+  // name in the tree a second time just to provide this map.
+  const practiceAreaNameLookup = useMemo(
+    () => buildNameLookup(practiceAreaTreeNodes),
+    [practiceAreaTreeNodes],
+  );
+
   const idSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const selectedPracticeAreas = useMemo(
@@ -251,7 +271,7 @@ export function StepReview({
             MEMBERS ({formValues.memberIds?.length || 0} STAFF)
           </Text>
           <Text fontSize="13px" color="fg.muted">
-            {formValues.memberIds?.length > 0
+            {formValues.memberIds && formValues.memberIds.length > 0
               ? formValues.memberIds
                   .map((id) => {
                     const staffMember = allStaff.find(

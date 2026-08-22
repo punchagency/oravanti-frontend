@@ -198,7 +198,7 @@ export default function Step2FirmDetailsPage() {
               borderRadius="sm"
               fontSize="xs"
               fontWeight="bold"
-              color="brand.fg"
+              color="brand.contrast"
               letterSpacing="0.05em"
             >
               STEP 3 OF 4 &bull; ONBOARDING

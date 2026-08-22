@@ -1,4 +1,6 @@
 import type { ConsultationSettings } from "@/api/consultation-settings";
+import { useHasPermission } from "@/hooks/use-has-permission";
+import { formatCurrency } from "@/utils/currency";
 import type {
   Consultation,
   ConsultationListItem,
@@ -227,7 +229,6 @@ type WizardPreset = {
 
 export function ConsultationView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [instantOpen, setInstantOpen] = useState(false);
   const [preset, setPreset] = useState<WizardPreset>({ lead: null });
   const { data, isLoading } = useLeads({ stage: "consultation" });
   const leads = Array.isArray(data) ? data : (data?.leads ?? []);
@@ -260,10 +261,12 @@ export function ConsultationView() {
               : "Consultation & notes"}
           </Text>
           <HStack gap="10px" wrap="wrap">
-            <OutlineButton onClick={() => setInstantOpen(true)}>
-              <Zap size={14} />
-              Start consultation now
-            </OutlineButton>
+            <InstantConsultationDialog>
+              <OutlineButton>
+                <Zap size={14} />
+                Start consultation now
+              </OutlineButton>
+            </InstantConsultationDialog>
             <BrandButton onClick={() => openWizard(null)}>
               <CalendarDays size={14} />
               Schedule consultation
@@ -318,10 +321,6 @@ export function ConsultationView() {
         presetLead={preset.lead}
         presetAttorneyId={preset.attorneyId}
         parentConsultationId={preset.parentConsultationId}
-      />
-      <InstantConsultationDialog
-        open={instantOpen}
-        onOpenChange={setInstantOpen}
       />
     </ScheduleFollowUpContext.Provider>
   );
@@ -738,6 +737,14 @@ export function ConsultationCard({
 }) {
   const { data: leadDetail } = useLeadById(lead.id);
   const { data: questionnaire } = useLeadQuestionnaire(lead.id);
+  // Presentation only — the server decides. Refunds need `finance:refund`,
+  // which is owner/admin, and a cancellation by anyone else leaves the money
+  // owed rather than moving it.
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
   const responseId = questionnaire?.response?.id ?? null;
   const { data: responseDetail } = useResponseDetail(responseId);
   const canDownload = useCanDownloadDocuments();
@@ -869,12 +876,20 @@ export function ConsultationCard({
     : false;
   const canComplete = isCompletable && startTimeReached;
 
-  // A consultation can be cancelled at any pre-terminal stage.
+  // A consultation can be cancelled at any pre-terminal stage — by someone who
+  // can also send the money back.
+  //
+  // The two used to come apart: anyone in intake could cancel, and a
+  // cancellation without `finance:refund` left the client's money owed and
+  // raised a task for an administrator. That was a dead end, because the
+  // administrator had nowhere to act on it. Keeping them together means the
+  // refund is attempted by the same act that creates the obligation.
   const canCancel =
-    consultation?.status === "pending_payment" ||
-    consultation?.status === "awaiting_slot_selection" ||
-    consultation?.status === "scheduled" ||
-    consultation?.status === "in_progress";
+    canRefund &&
+    (consultation?.status === "pending_payment" ||
+      consultation?.status === "awaiting_slot_selection" ||
+      consultation?.status === "scheduled" ||
+      consultation?.status === "in_progress");
 
   // ── Documents ──────────────────────────────────────────────────────────────
   // Staff can manually attach a document received outside the client portal.
@@ -1096,6 +1111,35 @@ export function ConsultationCard({
           </HStack>
         )}
       </HStack>
+
+      {/*
+        Money the firm is still holding for a consultation that is not going to
+        happen. The cancellation toast says this once and then vanishes, and it
+        is shown to whoever cancelled — who, if a refund is owed at all, is
+        usually the person without permission to issue it. This stays until the
+        money actually goes back, because `netPaid` is derived from the ledger
+        and drops to zero the moment it does.
+      */}
+      {consultation?.status === "cancelled" &&
+      (consultation.fee?.netPaid ?? 0) > 0 ? (
+        <Box
+          mt="12px"
+          p="12px 14px"
+          borderRadius="8px"
+          border="1px solid"
+          borderColor="#f5c2c7"
+          bg="#fdf2f3"
+        >
+          <Text m="0" fontSize="13px" fontWeight="600" color="#b00020">
+            Refund owed: {formatCurrency(consultation.fee?.netPaid ?? 0)}
+          </Text>
+          <Text m="4px 0 0" fontSize="12px" color="#7a2531" lineHeight="1.5">
+            This consultation was cancelled while the firm still held the
+            client's money. A task has been raised for someone with refund
+            permission; it clears here automatically once the refund lands.
+          </Text>
+        </Box>
+      ) : null}
 
       {/* 2. Questionnaire row */}
       <SectionRow>
@@ -1636,6 +1680,8 @@ export function ConsultationCard({
       <CancelConsultationDialog
         open={cancelOpen}
         leadName={lead.name}
+        netPaid={leadDetail?.consultation?.fee?.netPaid ?? 0}
+        canRefund={canRefund}
         reason={cancelReason}
         onReasonChange={setCancelReason}
         loading={cancelMutation.isPending}
@@ -1661,9 +1707,67 @@ export function ConsultationCard({
   );
 }
 
+
+/**
+ * What cancelling does to money the client has already paid.
+ *
+ * The `canRefund` branch is now defensive rather than reachable: cancelling
+ * requires `finance:refund`, so whoever opens this dialog can always refund.
+ * It is kept because it stays correct if that gate is ever loosened, and
+ * because saying "this will refund the client" to someone who cannot would be
+ * a promise the system does not keep.
+ */
+function CancelRefundNotice({
+  netPaid,
+  canRefund,
+}: {
+  netPaid: number;
+  canRefund: boolean;
+}) {
+  if (netPaid <= 0) return null;
+
+  return (
+    <Box
+      mt="12px"
+      p="10px 12px"
+      borderRadius="8px"
+      border="1px solid"
+      borderColor={canRefund ? "border" : "#e0b4b4"}
+      bg={canRefund ? "bg.subtle" : "#fdf3f3"}
+      _dark={{
+        bg: canRefund ? "bg.subtle" : "rgba(176, 0, 32, 0.12)",
+        borderColor: canRefund ? "border" : "rgba(176, 0, 32, 0.35)",
+      }}
+    >
+      <Text fontSize="12px" lineHeight="1.6">
+        {canRefund ? (
+          <>
+            This consultation has been paid. Cancelling refunds{" "}
+            <Text as="span" fontWeight="600">
+              {formatCurrency(netPaid)}
+            </Text>{" "}
+            to the client.
+          </>
+        ) : (
+          <>
+            This consultation has been paid. Cancelling does{" "}
+            <Text as="span" fontWeight="600">
+              not
+            </Text>{" "}
+            refund it — an administrator will need to issue the{" "}
+            {formatCurrency(netPaid)} refund.
+          </>
+        )}
+      </Text>
+    </Box>
+  );
+}
+
 function CancelConsultationDialog({
   open,
   leadName,
+  netPaid,
+  canRefund,
   reason,
   onReasonChange,
   loading,
@@ -1672,6 +1776,9 @@ function CancelConsultationDialog({
 }: {
   open: boolean;
   leadName: string;
+  /** What the firm is holding for this consultation, net of any refund. */
+  netPaid: number;
+  canRefund: boolean;
   reason: string;
   onReasonChange: (value: string) => void;
   loading: boolean;
@@ -1703,6 +1810,7 @@ function CancelConsultationDialog({
               link, and notifies everyone involved. This can't be undone, but
               you can schedule a new consultation afterwards.
             </MutedText>
+            <CancelRefundNotice netPaid={netPaid} canRefund={canRefund} />
             <Box mt="14px">
               <Text m="0 0 6px" fontSize="12px" color="fg.muted">
                 Reason (optional)
@@ -2132,7 +2240,7 @@ function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
                 border="1px solid"
                 borderColor={done || active ? "brand.solid" : "border.subtle"}
                 bg={done ? "brand.solid" : "bg"}
-                color={done ? "brand.fg" : active ? "brand.solid" : "fg.muted"}
+                color={done ? "brand.contrast" : active ? "brand.solid" : "fg.muted"}
                 fontSize="11px"
                 fontWeight="600"
               >
@@ -2826,13 +2934,6 @@ function ReviewStep({
                 </Text>
               </HStack>
             </Flex>
-
-            {structure === "waived_if_retainer" ? (
-              <MutedText>
-                Waived if the client signs a retainer within{" "}
-                {feeSettings?.waiverWindowDays ?? 0} days.
-              </MutedText>
-            ) : null}
 
             <HStack
               mt="14px"

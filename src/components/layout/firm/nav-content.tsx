@@ -15,7 +15,8 @@ import {
 } from "@chakra-ui/react";
 import { ChevronDown } from "lucide-react";
 import { useLocation } from "react-router";
-import { iconMap, NavItem } from "@/components/layout/shared/nav-item";
+import { NavItem } from "@/components/layout/shared/nav-item";
+import { iconMap } from "@/components/layout/shared/nav-item-utils";
 import { QuickActions } from "./quick-actions";
 
 export function NavContent({
