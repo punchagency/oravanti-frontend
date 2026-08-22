@@ -351,11 +351,12 @@ export function InvoiceDetailDialog({
               <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
                 Payments
               </Text>
-              {invoice.isConsultationFee && canRefund ? (
+              {invoice.consultationRefundBlocked && canRefund ? (
                 <Text fontSize="12px" color="fg.muted" mb="8px">
-                  This is a consultation fee. To refund it, cancel the
-                  consultation on the lead — that returns the money, releases
-                  the calendar slot and notifies the client in one step.
+                  This is a fee for a consultation that has not happened yet. To
+                  refund it, cancel the consultation on the lead — that returns
+                  the money, releases the calendar slot and notifies the client
+                  in one step.
                 </Text>
               ) : null}
               {invoice.payments.map((p) => (
@@ -363,11 +364,13 @@ export function InvoiceDetailDialog({
                   key={p.id}
                   payment={p}
                   invoiceId={invoice.id}
-                  // A consultation fee is refunded by cancelling the
-                  // consultation, which also releases the calendar slot and
-                  // tells the client. The API refuses it here, so the button
-                  // would only produce an error.
-                  canRefund={canRefund && !invoice.isConsultationFee}
+                  // A fee for a LIVE consultation is refunded by cancelling
+                  // that consultation, which also releases the calendar slot
+                  // and tells the client. The API refuses it here, so the
+                  // button would only produce an error. Once the consultation
+                  // is terminal this goes false and Finance becomes the way to
+                  // finish a refund whose processor leg failed.
+                  canRefund={canRefund && !invoice.consultationRefundBlocked}
                 />
               ))}
             </>
