@@ -8,7 +8,7 @@ import {
   type ConsultationSummaryLead,
 } from "../views/consultation-view";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
-import { HStack, Dialog } from "@chakra-ui/react";
+import { HStack } from "@chakra-ui/react";
 import { CalendarDays, Zap } from "lucide-react";
 import { useState } from "react";
 
@@ -31,12 +31,10 @@ export function ConsultationPage() {
         {!hasConsultation ? (
           <>
             <InstantConsultationDialog presetLeadId={leadId}>
-              <Dialog.Trigger asChild>
-                <OutlineButton>
-                  <Zap size={14} />
-                  Start consultation now
-                </OutlineButton>
-              </Dialog.Trigger>
+              <OutlineButton>
+                <Zap size={14} />
+                Start consultation now
+              </OutlineButton>
             </InstantConsultationDialog>
             <BrandButton onClick={() => setScheduleOpen(true)}>
               <CalendarDays size={14} />

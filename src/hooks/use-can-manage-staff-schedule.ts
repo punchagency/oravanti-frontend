@@ -1,14 +1,6 @@
-import { useAuthStore } from "@/store/auth-store";
-import type { MemberRole } from "@/types/auth";
+import { useHasPermission } from "@/hooks/use-has-permission";
 
-const MANAGE_ROLES: MemberRole[] = ["owner", "admin"];
-
-/**
- * UI-only convenience gate for staff schedule management. The backend
- * `staffs` create/update/delete permissions are the real enforcement point —
- * non-permitted users still see the schedule read-only.
- */
+/** Gates staff schedule management UI against the `staffs:update` grant. */
 export function useCanManageStaffSchedule(): boolean {
-  const memberRole = useAuthStore((state) => state.memberRole);
-  return memberRole != null && MANAGE_ROLES.includes(memberRole);
+  return useHasPermission("staffs", "update");
 }

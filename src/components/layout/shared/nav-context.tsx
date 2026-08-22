@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Box } from "@chakra-ui/react";
 import {
   NavContext,
@@ -49,28 +56,49 @@ export function NavProvider({ children }: { children: ReactNode }) {
   */
   const forceCollapse = useCallback(() => setCollapseSignal((c) => c + 1), []);
 
+  /*
+    Memoized values: a fresh object literal here re-renders every consumer
+    whenever ANY provider state changes (e.g. a page-title update would
+    re-render the whole nav tree for nothing).
+  */
+  const navValue = useMemo(
+    () => ({
+      collapsed,
+      toggleCollapsed,
+      mobileOpen,
+      onMobileOpen,
+      onMobileClose,
+      suppressCollapse,
+      setSuppressCollapse,
+      forceCollapse,
+      collapseSignal,
+    }),
+    [
+      collapsed,
+      mobileOpen,
+      suppressCollapse,
+      collapseSignal,
+      toggleCollapsed,
+      onMobileOpen,
+      onMobileClose,
+      setSuppressCollapse,
+      forceCollapse,
+    ],
+  );
+
+  const pageTitleValue = useMemo(
+    () => ({
+      title: pageTitle,
+      isVisible: pageTitleVisible,
+      setTitle: setPageTitle,
+      setIsVisible: setPageTitleVisible,
+    }),
+    [pageTitle, pageTitleVisible],
+  );
+
   return (
-    <NavContext.Provider
-      value={{
-        collapsed,
-        toggleCollapsed,
-        mobileOpen,
-        onMobileOpen,
-        onMobileClose,
-        suppressCollapse,
-        setSuppressCollapse,
-        forceCollapse,
-        collapseSignal,
-      }}
-    >
-      <PageTitleContext.Provider
-        value={{
-          title: pageTitle,
-          isVisible: pageTitleVisible,
-          setTitle: setPageTitle,
-          setIsVisible: setPageTitleVisible,
-        }}
-      >
+    <NavContext.Provider value={navValue}>
+      <PageTitleContext.Provider value={pageTitleValue}>
         {children}
       </PageTitleContext.Provider>
     </NavContext.Provider>

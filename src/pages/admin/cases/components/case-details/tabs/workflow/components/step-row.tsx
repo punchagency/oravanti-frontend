@@ -1,6 +1,6 @@
 import { TaskReviewThread } from "@/components/ui/task-review-thread";
 import { useReopenTask } from "@/hooks/use-task-review";
-import { useAuthStore } from "@/store/auth-store";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { dayjs, guessTimezone } from "@/utils/date";
 import { Badge, Box, Button, Flex, Separator, Text } from "@chakra-ui/react";
 import { CheckCircle, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
@@ -115,8 +115,9 @@ export function StepRow({
   onAssigned,
   onCompleted,
 }: StepRowProps) {
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const isAdmin = memberRole === "owner" || memberRole === "admin";
+  // Matches `certification-gate.tsx`'s override check — both are the same
+  // "override workflow gates" capability and must gate on the same grant.
+  const isAdmin = useHasPermission("cases", "update");
 
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 

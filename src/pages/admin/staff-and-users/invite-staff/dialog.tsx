@@ -2,11 +2,17 @@ import type { PracticeAreaTreeNode } from "@/api/auth";
 import type { InviteStaffsPayload, TeamListDTO } from "@/api/organization";
 import { BrandButton } from "@/components/ui/intake-ui";
 import {
+  ControlSkeleton,
+  ThemeSkeleton,
+} from "@/components/ui/theme-skeleton";
+import {
   CaseTypeSelect,
   type CaseTypeSelectHandle,
 } from "@/components/ui/case-type-select";
 import { useInviteStaffs } from "@/hooks/use-invite-staff";
 import { usePracticeAreaList } from "@/hooks/use-practice-area-tree-data";
+import { useResetOnOpen } from "@/hooks/use-reset-on-open";
+import { useRoleOptions } from "@/hooks/use-roles";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import {
   Box,
@@ -26,7 +32,7 @@ import {
 } from "@chakra-ui/react";
 import { getLocalTimeZone, today, type DateValue } from "@internationalized/date";
 import { CalendarDays, UserPlus, X } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { inputStyles } from "./input-styles";
 import { TeamMultiSelect } from "@/pages/admin/staff-and-users/components/team-multi-select";
@@ -46,19 +52,23 @@ interface FormValues {
   practiceAreas: string[];
 }
 
-const roleOptions = createListCollection({
-  items: [
-    { value: "", label: "Select role" },
-    { value: "attorney", label: "Attorney" },
-    { value: "admin", label: "Admin" },
-    { value: "paralegal", label: "Paralegal" },
-  ],
-});
-
 // Shared fallbacks so a pending query doesn't hand the tree/team list a new
 // array identity on every render.
 const NO_TREE_NODES: PracticeAreaTreeNode[] = [];
 const NO_TEAMS: TeamListDTO[] = [];
+
+const INVITE_DEFAULTS: FormValues = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  orgEmail: "",
+  phone: "",
+  role: "",
+  teamIds: [],
+  startDate: undefined,
+  maxCaseload: "",
+  practiceAreas: [],
+};
 
 export function InviteStaffButton() {
   return (
@@ -71,84 +81,39 @@ export function InviteStaffButton() {
   );
 }
 
+/**
+ * Self-contained invite dialog. By default it opens from its children
+ * (wrapped in a Chakra Trigger) and owns its open state; pass `open` +
+ * `onOpenChange` to control it instead (e.g. opened from a menu item,
+ * per the Chakra "dialog from menu" docs pattern).
+ *
+ * Either way the form — and therefore its data queries — first mounts when
+ * the dialog opens (`lazyMount`), so a never-opened dialog never hits the
+ * API. It then stays mounted (hidden) so reopening is instant; the form
+ * resets itself on each open via `useResetOnOpen`.
+ */
 export function InviteStaffDialog({
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
   children,
+  open: controlledOpen,
+  onOpenChange,
 }: {
+  children?: ReactNode;
+  /** Pass `open` to control the dialog (e.g. opened from a menu item); omit it for a self-contained trigger. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  children?: ReactNode;
-} = {}) {
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors, isSubmitted },
-  } = useForm<FormValues>({
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      orgEmail: "",
-      phone: "",
-      role: "",
-      teamIds: [],
-      startDate: undefined,
-      maxCaseload: "",
-      practiceAreas: [],
-    },
-    mode: "onBlur",
-  });
-
-  // Only the practice-area names are needed here; the case types for whichever
-  // areas get picked are fetched by CaseTypeSelect itself.
-  const practiceAreaQuery = usePracticeAreaList();
-  const practiceAreaTreeNodes =
-    practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
-  const teamsQuery = useTeamsList({ limit: 200 });
-  const teams = teamsQuery.data?.data ?? NO_TEAMS;
-
-  const inviteMutation = useInviteStaffs();
-
-  const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
-
-  const onSubmit = (formData: FormValues) => {
-    const selectedIds = caseTypesRef.current?.getSelectedIds() ?? [];
-    const payload: InviteStaffsPayload = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      email: formData.email.trim(),
-      orgEmail: formData.orgEmail.trim() || undefined,
-      phone: formData.phone.trim() || undefined,
-      role: formData.role,
-      startDate: formData.startDate?.toString(),
-      maxCaseload: Number(formData.maxCaseload) || undefined,
-      caseTypeIds: selectedIds.length > 0 ? selectedIds : undefined,
-      teamIds: formData.teamIds.length > 0 ? formData.teamIds : undefined,
-    };
-
-    inviteMutation.mutate(payload, {
-      onSuccess: () => {
-        reset();
-        onOpenChange(false);
-      },
-    });
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
   };
 
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={(details) => {
-        onOpenChange(details.open);
-        // CaseTypeSelect unmounts with the dialog, so its selection resets too.
-        if (!details.open) reset();
-      }}
+      onOpenChange={(details) => handleOpenChange(details.open)}
+      lazyMount
       placement="center"
     >
       {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
@@ -186,13 +151,88 @@ export function InviteStaffDialog({
               </chakra.button>
             </Dialog.CloseTrigger>
 
-            {/* Built inside the handler rather than during render: onSubmit
-                reads the case-type selection off a ref. */}
-            <Box
-              as="form"
-              p="32px 24px 24px"
-              onSubmit={(e) => handleSubmit(onSubmit)(e)}
-            >
+            <InviteStaffForm
+              open={open}
+              close={() => handleOpenChange(false)}
+            />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
+  );
+}
+
+/** Everything the invite form needs lives here so nothing runs before the first open. */
+function InviteStaffForm({ open, close }: { open: boolean; close: () => void }) {
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitted },
+  } = useForm<FormValues>({
+    defaultValues: INVITE_DEFAULTS,
+    mode: "onBlur",
+  });
+
+  // Stays mounted between opens — restore pristine defaults on each open.
+  const resetForm = useCallback(() => reset(INVITE_DEFAULTS), [reset]);
+  useResetOnOpen(open, resetForm);
+
+  // Only the practice-area names are needed here; the case types for whichever
+  // areas get picked are fetched by CaseTypeSelect itself.
+  const practiceAreaQuery = usePracticeAreaList();
+  const practiceAreaTreeNodes =
+    practiceAreaQuery.data?.practiceAreaTreeNodes ?? NO_TREE_NODES;
+  const teamsQuery = useTeamsList({ limit: 200 });
+  const teams = teamsQuery.data?.data ?? NO_TEAMS;
+
+  const rolesQuery = useRoleOptions();
+  // Stable identity per roles payload — a fresh collection every render makes
+  // Ark's Select recompute its internals for no reason.
+  const roleOptions = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { value: "", label: "Select role" },
+          ...(rolesQuery.data ?? []).map((role) => ({
+            value: role.name,
+            label: role.label,
+          })),
+        ],
+      }),
+    [rolesQuery.data],
+  );
+
+  const inviteMutation = useInviteStaffs();
+
+  const caseTypesRef = useRef<CaseTypeSelectHandle>(null);
+
+  const onSubmit = (formData: FormValues) => {
+    const selectedIds = caseTypesRef.current?.getSelectedIds() ?? [];
+    const payload: InviteStaffsPayload = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim(),
+      orgEmail: formData.orgEmail.trim() || undefined,
+      phone: formData.phone.trim() || undefined,
+      role: formData.role,
+      startDate: formData.startDate?.toString(),
+      maxCaseload: Number(formData.maxCaseload) || undefined,
+      caseTypeIds: selectedIds.length > 0 ? selectedIds : undefined,
+      teamIds: formData.teamIds.length > 0 ? formData.teamIds : undefined,
+    };
+
+    // Closing resets on next open (useResetOnOpen) — no unmount needed.
+    inviteMutation.mutate(payload, { onSuccess: close });
+  };
+
+  return (
+    <Box
+      as="form"
+      p="32px 24px 24px"
+      onSubmit={(e) => handleSubmit(onSubmit)(e)}
+    >
               <Dialog.Title
                 color="fg"
                 fontSize="17px"
@@ -330,10 +370,13 @@ export function InviteStaffDialog({
                       Role
                       <Field.RequiredIndicator />
                     </Field.Label>
-                    <Controller
-                      name="role"
-                      control={control}
-                      rules={{ required: "Role is required" }}
+                    {rolesQuery.isLoading ? (
+                      <ControlSkeleton h="36px" />
+                    ) : (
+                      <Controller
+                        name="role"
+                        control={control}
+                        rules={{ required: "Role is required" }}
                       render={({ field }) => (
                         <Select.Root
                           collection={roleOptions}
@@ -377,6 +420,7 @@ export function InviteStaffDialog({
                         </Select.Root>
                       )}
                     />
+                    )}
                     {errors.role && (
                       <Field.ErrorText>{errors.role.message}</Field.ErrorText>
                     )}
@@ -407,22 +451,26 @@ export function InviteStaffDialog({
 
                 <Field.Root w="full">
                   <Field.Label>Assign Team(s)</Field.Label>
-                  <Controller
-                    name="teamIds"
-                    control={control}
-                    render={({ field }) => (
-                      <TeamMultiSelect
-                        teams={teams}
-                        selectedIds={field.value}
-                        onToggle={(id) => {
-                          const next = field.value.includes(id)
-                            ? field.value.filter((tid) => tid !== id)
-                            : [...field.value, id];
-                          field.onChange(next);
-                        }}
-                      />
-                    )}
-                  />
+                  {teamsQuery.isLoading ? (
+                    <ControlSkeleton h="56px" />
+                  ) : (
+                    <Controller
+                      name="teamIds"
+                      control={control}
+                      render={({ field }) => (
+                        <TeamMultiSelect
+                          teams={teams}
+                          selectedIds={field.value}
+                          onToggle={(id) => {
+                            const next = field.value.includes(id)
+                              ? field.value.filter((tid) => tid !== id)
+                              : [...field.value, id];
+                            field.onChange(next);
+                          }}
+                        />
+                      )}
+                    />
+                  )}
                 </Field.Root>
 
                 <Field.Root invalid={!!errors.startDate}>
@@ -528,7 +576,15 @@ export function InviteStaffDialog({
                           w="full"
                           gap="8px"
                         >
-                          {practiceAreaTreeNodes.map((practiceArea) => {
+                          {practiceAreaQuery.isLoading
+                            ? Array.from({ length: 4 }).map((_, i) => (
+                                <ThemeSkeleton
+                                  key={i}
+                                  h="44px"
+                                  borderRadius="md"
+                                />
+                              ))
+                            : practiceAreaTreeNodes.map((practiceArea) => {
                             const isSelected = field.value?.includes(
                               practiceArea.id,
                             );
@@ -610,16 +666,20 @@ export function InviteStaffDialog({
                           </Field.ErrorText>
                         )}
                       </Field.Root>
-                      <CaseTypeSelect
-                        ref={caseTypesRef}
-                        selectedPracticeAreaIds={field.value}
-                        showValidation={isSubmitted}
-                        onRemovePracticeArea={(id) =>
-                          field.onChange(
-                            field.value.filter((paId) => paId !== id),
-                          )
-                        }
-                      />
+                      {practiceAreaQuery.isLoading ? (
+                        <ControlSkeleton h="80px" />
+                      ) : (
+                        <CaseTypeSelect
+                          ref={caseTypesRef}
+                          selectedPracticeAreaIds={field.value}
+                          showValidation={isSubmitted}
+                          onRemovePracticeArea={(id) =>
+                            field.onChange(
+                              field.value.filter((paId) => paId !== id),
+                            )
+                          }
+                        />
+                      )}
                     </>
                   )}
                 />
@@ -636,9 +696,5 @@ export function InviteStaffDialog({
                 </BrandButton>
               </Flex>
             </Box>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
   );
 }

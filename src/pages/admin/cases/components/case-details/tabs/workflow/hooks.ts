@@ -1,4 +1,4 @@
-﻿import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getStaffs } from "@/api/staff";
 import type { StaffCertification } from "./types";
 
@@ -25,6 +25,5 @@ export function useEligibleStaff(_requiredCertification: string | null) {
         certifications: [],
       }));
     },
-    staleTime: 60_000,
   });
 }

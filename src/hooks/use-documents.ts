@@ -30,7 +30,6 @@ export function useDocumentRequests(
     queryKey: documentKeys.requests(filters),
     queryFn: () => getDocumentRequests(filters),
     enabled,
-    staleTime: 30_000,
   });
 }
 

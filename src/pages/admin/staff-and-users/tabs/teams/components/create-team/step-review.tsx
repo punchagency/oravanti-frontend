@@ -19,6 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { ChevronRight, FileText, FolderOpen } from "lucide-react";
 import { useMemo } from "react";
+import { type Control, useWatch } from "react-hook-form";
 import type { CreateTeamFormValues } from "./types";
 
 function collectLeafIds(nodes: PracticeAreaTreeNode[]): string[] {
@@ -71,16 +72,18 @@ function filterChildren(
 }
 
 export function StepReview({
-  formValues,
+  control,
   allStaff,
   leadName,
   selectedIds,
 }: {
-  formValues: CreateTeamFormValues;
+  control: Control<CreateTeamFormValues>;
   allStaff: StaffMemberDTO[];
   leadName: string | null;
   selectedIds: string[];
 }) {
+  // Subscribes to the form fields shown here; the parent stays uninvolved.
+  const formValues = useWatch({ control });
   /*
     The same per-practice-area subtree queries CaseTypeSelect used on step one.
     They are keyed by practice-area id with `staleTime: Infinity`, so reaching
@@ -88,7 +91,7 @@ export function StepReview({
     the user selected from, and only those.
   */
   const { nodes: practiceAreaTreeNodes } = usePracticeAreaSubtrees(
-    formValues.practiceAreas,
+    formValues.practiceAreas ?? [],
   );
 
   // Derived here rather than shipped by the API, which used to duplicate every
@@ -268,7 +271,7 @@ export function StepReview({
             MEMBERS ({formValues.memberIds?.length || 0} STAFF)
           </Text>
           <Text fontSize="13px" color="fg.muted">
-            {formValues.memberIds?.length > 0
+            {formValues.memberIds && formValues.memberIds.length > 0
               ? formValues.memberIds
                   .map((id) => {
                     const staffMember = allStaff.find(

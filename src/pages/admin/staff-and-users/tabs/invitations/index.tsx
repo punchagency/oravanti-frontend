@@ -6,6 +6,7 @@ import { useInvitationsList } from "@/hooks/use-invitations-list";
 import { useTeamsList } from "@/hooks/use-teams-list";
 import { useCancelInvitation } from "@/hooks/useCancelInvitation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useCanCreateStaff } from "@/hooks/use-can-create-staff";
 import { usePaginationQueryStates } from "@/hooks/usePaginationQueryStates";
 import { useResendInvitation } from "@/hooks/useResendInvitation";
 import {
@@ -107,6 +108,7 @@ export default function Invitations() {
     setPagination,
   } = usePaginationQueryStates();
   const { showConfirm } = useConfirmDialog();
+  const canCreateStaff = useCanCreateStaff();
 
   const params = useMemo(
     () => ({
@@ -204,12 +206,14 @@ export default function Invitations() {
               <Download size={14} />
               Export
             </OutlineButton>
-            <InviteStaffDialog>
-              <BrandButton flex={{ base: 1, md: "initial" }}>
-                <UserPlus size={15} />
-                Invite staff
-              </BrandButton>
-            </InviteStaffDialog>
+            {canCreateStaff && (
+              <InviteStaffDialog>
+                <BrandButton flex={{ base: 1, md: "initial" }}>
+                  <UserPlus size={15} />
+                  Invite staff
+                </BrandButton>
+              </InviteStaffDialog>
+            )}
           </HStack>
         </Flex>
         <InvitationStatusSummary counts={counts} isLoading={isLoading} />
@@ -250,12 +254,14 @@ export default function Invitations() {
             <Download size={14} />
             Export
           </OutlineButton>
-          <InviteStaffDialog>
-            <BrandButton flex={{ base: 1, md: "initial" }}>
-              <UserPlus size={15} />
-              Invite staff
-            </BrandButton>
-          </InviteStaffDialog>
+          {canCreateStaff && (
+            <InviteStaffDialog>
+              <BrandButton flex={{ base: 1, md: "initial" }}>
+                <UserPlus size={15} />
+                Invite staff
+              </BrandButton>
+            </InviteStaffDialog>
+          )}
         </HStack>
       </Flex>
       <InvitationStatusSummary counts={counts} isLoading={isLoading} />

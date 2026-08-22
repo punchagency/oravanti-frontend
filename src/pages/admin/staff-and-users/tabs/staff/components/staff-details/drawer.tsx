@@ -245,7 +245,7 @@ export function StaffDetailsDrawer({
                     </Tabs.Content>
 
                     <Tabs.Content value="activity">
-                      <Activity staffId={staff.id} />
+                      <Activity key={staff.id} staffId={staff.id} />
                     </Tabs.Content>
                   </Tabs.Root>
                 </Drawer.Body>

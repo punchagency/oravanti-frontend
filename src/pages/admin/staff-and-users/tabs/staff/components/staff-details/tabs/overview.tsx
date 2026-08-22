@@ -17,6 +17,7 @@ import {
   type StaffMember,
 } from "../../../../../data";
 import { useUpdateStaffPortalStatus } from "@/hooks/use-update-staff-portal-status";
+import { useCanManagePortalAccess } from "@/hooks/use-can-manage-portal-access";
 import { useAuthStore } from "@/store/auth-store";
 import { StaffPortalAccessBadge } from "../../../../../components/staff-portal-access-badge";
 import { EditStaffDialog } from "../../edit-staff/dialog";
@@ -59,6 +60,7 @@ export function Overview({ staff }: { staff: StaffMemberDTO }) {
   const caseloadCurrent = 0;
   const caseloadMax = staff.maxCaseload ?? 7;
   const updatePortalStatus = useUpdateStaffPortalStatus();
+  const canManagePortalAccess = useCanManagePortalAccess();
   const currentUserId = useAuthStore((s) => s.user?.id);
   const isSelf = staff.userId === currentUserId;
   return (
@@ -197,46 +199,48 @@ export function Overview({ staff }: { staff: StaffMemberDTO }) {
           </Text>
           <StaffPortalAccessBadge status={staff.portalStatus} />
         </HStack>
-        {isSelf &&
-        (staff.portalStatus === "active" || staff.portalStatus === "pending") ? null : staff.portalStatus ===
-            "active" ||
-          staff.portalStatus === "pending" ? (
-          <Button
-            size="xs"
-            variant="outline"
-            w="full"
-            color="fg.error"
-            _hover={{ bg: "bg.error", color: "fg.error" }}
-            onClick={() =>
-              updatePortalStatus.mutate({
-                staffId: staff.id,
-                status: "disabled",
-              })
-            }
-            loading={updatePortalStatus.isPending}
-          >
-            <ShieldOff size={12} />
-            Disable access
-          </Button>
-        ) : (
-          <Button
-            size="xs"
-            variant="outline"
-            w="full"
-            color="fg.success"
-            _hover={{ bg: "bg.success", color: "fg.success" }}
-            onClick={() =>
-              updatePortalStatus.mutate({
-                staffId: staff.id,
-                status: "active",
-              })
-            }
-            loading={updatePortalStatus.isPending}
-          >
-            <ShieldCheck size={12} />
-            Enable access
-          </Button>
-        )}
+        {canManagePortalAccess &&
+          !(
+            isSelf &&
+            (staff.portalStatus === "active" || staff.portalStatus === "pending")
+          ) &&
+          (staff.portalStatus === "active" || staff.portalStatus === "pending" ? (
+            <Button
+              size="xs"
+              variant="outline"
+              w="full"
+              color="fg.error"
+              _hover={{ bg: "bg.error", color: "fg.error" }}
+              onClick={() =>
+                updatePortalStatus.mutate({
+                  staffId: staff.id,
+                  status: "disabled",
+                })
+              }
+              loading={updatePortalStatus.isPending}
+            >
+              <ShieldOff size={12} />
+              Disable access
+            </Button>
+          ) : (
+            <Button
+              size="xs"
+              variant="outline"
+              w="full"
+              color="fg.success"
+              _hover={{ bg: "bg.success", color: "fg.success" }}
+              onClick={() =>
+                updatePortalStatus.mutate({
+                  staffId: staff.id,
+                  status: "active",
+                })
+              }
+              loading={updatePortalStatus.isPending}
+            >
+              <ShieldCheck size={12} />
+              Enable access
+            </Button>
+          ))}
       </Box>
 
       <Separator borderColor="border" my={3} />

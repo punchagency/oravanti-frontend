@@ -40,6 +40,15 @@ export function ThemeSkeletonText({
 }
 
 /**
+ * Skeleton stand-in for a form control (input / select trigger) shown while
+ * the option list it renders from is still loading. Sized to match the
+ * app's small select triggers so layout doesn't shift when data arrives.
+ */
+export function ControlSkeleton({ h = "32px" }: { h?: string }) {
+  return <ThemeSkeleton h={h} w="full" borderRadius="7px" />;
+}
+
+/**
  * Generic page loader shown while a lazily-loaded route is being fetched.
  * Kept intentionally simple and neutral so it fits any page shape.
  */

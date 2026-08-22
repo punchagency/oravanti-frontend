@@ -5,6 +5,8 @@ type AuthState = {
   user: SessionUser | null;
   session: AuthSession | null;
   memberRole: MemberRole | null;
+  /** Flattened `resource:action` grants — see `PermissionGrant` in `@/types/auth`. */
+  grants: string[];
   firmTimezone: string | null;
   portalStatus: string | null;
   isAuthenticated: boolean;
@@ -27,6 +29,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
   user: null,
   session: null,
   memberRole: null,
+  grants: [],
   firmTimezone: null,
   portalStatus: null,
   isAuthenticated: false,
@@ -40,6 +43,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       user: auth.user,
       session: auth.session,
       memberRole: auth.memberRole,
+      grants: auth.grants,
       firmTimezone: auth.firmTimezone,
       portalStatus: auth.portalStatus,
       isAuthenticated: auth.isAuthenticated,
@@ -54,6 +58,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
       user: null,
       session: null,
       memberRole: null,
+      grants: [],
       firmTimezone: null,
       portalStatus: null,
       isAuthenticated: false,

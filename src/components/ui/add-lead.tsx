@@ -1,8 +1,10 @@
 import { sourceValues, type LeadSource } from "@/api/leads";
 import { FormSelect } from "@/components/ui/form-select";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { ControlSkeleton } from "@/components/ui/theme-skeleton";
 import { useCreateLead } from "@/hooks/use-leads";
 import { usePublicPracticeAreas } from "@/hooks/use-public-practice-areas";
+import { useResetOnOpen } from "@/hooks/use-reset-on-open";
 import { useFirmTimezone } from "@/hooks/useTimezone";
 import { leadSources } from "@/pages/admin/leads/data";
 import type { PublicPracticeArea } from "@/pages/contractor-sign-up/types";
@@ -20,8 +22,9 @@ import {
 } from "@chakra-ui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { UserPlus, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useState, useCallback, useMemo, type ReactNode } from "react";
+import type { Control } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 function getCaseTypes(
@@ -71,73 +74,39 @@ const TIMEZONE_OPTIONS = listTimezones().map((tz) => ({
   label: tz,
 }));
 
+/**
+ * Self-contained lead dialog. By default it opens from its children
+ * (wrapped in a Chakra Trigger) and owns its open state; pass `open` +
+ * `onOpenChange` to control it instead (e.g. opened from a menu item,
+ * per the Chakra "dialog from menu" docs pattern).
+ *
+ * Either way the form — and therefore its data queries — first mounts when
+ * the dialog opens (`lazyMount`), so a never-opened dialog never hits the
+ * API. It then stays mounted (hidden) so reopening is instant; the form
+ * resets itself on each open via `useResetOnOpen`.
+ */
 export function AddLeadDialog({
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
   children,
+  open: controlledOpen,
+  onOpenChange,
 }: {
+  children?: ReactNode;
+  /** Pass `open` to control the dialog (e.g. opened from a menu item); omit it for a self-contained trigger. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  children?: ReactNode;
-} = {}) {
+}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
-  const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
-  const { data: practiceAreas } = usePublicPracticeAreas();
-  const createLead = useCreateLead();
-  const firmTimezone = useFirmTimezone();
-
-  // Lead timezone is optional and defaults to the firm's zone.
-  const formDefaults = { ...LEAD_DEFAULTS, timezone: firmTimezone };
-
-  const {
-    register,
-    control,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<LeadForm>({
-    resolver: zodResolver(leadSchema),
-    defaultValues: formDefaults,
-    mode: "onTouched",
-  });
-
-  const practiceAreaId = watch("practiceAreaId");
-  const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
-
-  function handleClose() {
-    onOpenChange(false);
-    reset(formDefaults);
-  }
-
-  const onSubmit = handleSubmit((data) => {
-    createLead.mutate(
-      {
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        email: data.email.trim(),
-        phone: data.phone || undefined,
-        practiceAreaId: data.practiceAreaId || undefined,
-        caseTypeId: data.caseTypeId || undefined,
-        source: (sourceValues[data.source] ?? "direct") as LeadSource,
-        situationSummary: data.situationSummary || undefined,
-        intakeAdversePartyName: data.adversePartyName.trim() || undefined,
-        intakeAdversePartyEmail: data.adversePartyEmail.trim() || undefined,
-        timezone: data.timezone || undefined,
-      },
-      { onSuccess: () => handleClose() },
-    );
-  });
+  const handleOpenChange = (next: boolean) => {
+    if (controlledOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
 
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={(details) => {
-        if (!details.open) handleClose();
-        else onOpenChange(true);
-      }}
+      onOpenChange={(details) => handleOpenChange(details.open)}
+      lazyMount
       placement="center"
     >
       {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
@@ -168,12 +137,75 @@ export function AddLeadDialog({
             borderRadius="8px"
             bg="bg"
             color="fg.muted"
-            onClick={handleClose}
+            onClick={() => handleOpenChange(false)}
           >
             <X size={16} />
           </chakra.button>
 
-          <Box as="form" p="32px 24px 24px" onSubmit={onSubmit}>
+          <AddLeadForm
+            open={open}
+            close={() => handleOpenChange(false)}
+          />
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Dialog.Root>
+  );
+}
+
+/** Everything the add-lead form needs lives here so nothing runs before the first open. */
+function AddLeadForm({ open, close }: { open: boolean; close: () => void }) {
+  const {
+    data: practiceAreas,
+    isLoading: practiceAreasLoading,
+  } = usePublicPracticeAreas();
+  const createLead = useCreateLead();
+  const firmTimezone = useFirmTimezone();
+
+  // Lead timezone is optional and defaults to the firm's zone.
+  const formDefaults = useMemo(
+    () => ({ ...LEAD_DEFAULTS, timezone: firmTimezone }),
+    [firmTimezone],
+  );
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<LeadForm>({
+    resolver: zodResolver(leadSchema),
+    defaultValues: formDefaults,
+    mode: "onTouched",
+  });
+
+  // Stays mounted between opens — restore pristine defaults on each open.
+  const resetForm = useCallback(() => reset(formDefaults), [reset, formDefaults]);
+  useResetOnOpen(open, resetForm);
+
+  const onSubmit = handleSubmit((data) => {
+    createLead.mutate(
+      {
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        email: data.email.trim(),
+        phone: data.phone || undefined,
+        practiceAreaId: data.practiceAreaId || undefined,
+        caseTypeId: data.caseTypeId || undefined,
+        source: (sourceValues[data.source] ?? "direct") as LeadSource,
+        situationSummary: data.situationSummary || undefined,
+        intakeAdversePartyName: data.adversePartyName.trim() || undefined,
+        intakeAdversePartyEmail: data.adversePartyEmail.trim() || undefined,
+        timezone: data.timezone || undefined,
+      },
+      // Closing resets on next open (useResetOnOpen) — no unmount needed.
+      { onSuccess: close },
+    );
+  });
+
+  return (
+    <Box as="form" p="32px 24px 24px" onSubmit={onSubmit}>
             <Dialog.Title
               color="fg"
               fontSize="17px"
@@ -235,50 +267,36 @@ export function AddLeadDialog({
               </FormField>
 
               <FormField label="Practice area interest">
-                <Controller
-                  control={control}
-                  name="practiceAreaId"
-                  render={({ field }) => (
-                    <FormSelect
-                      ariaLabel="Practice area interest"
-                      placeholder="Select practice area"
-                      value={field.value}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        setValue("caseTypeId", "");
-                      }}
-                      options={(practiceAreas ?? []).map((area) => ({
-                        value: area.id,
-                        label: area.name,
-                      }))}
-                    />
-                  )}
-                />
+                {practiceAreasLoading ? (
+                  <ControlSkeleton h="36px" />
+                ) : (
+                  <Controller
+                    control={control}
+                    name="practiceAreaId"
+                    render={({ field }) => (
+                      <FormSelect
+                        ariaLabel="Practice area interest"
+                        placeholder="Select practice area"
+                        value={field.value}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          setValue("caseTypeId", "");
+                        }}
+                        options={(practiceAreas ?? []).map((area) => ({
+                          value: area.id,
+                          label: area.name,
+                        }))}
+                      />
+                    )}
+                  />
+                )}
               </FormField>
 
-              <FormField label="Case type">
-                <Controller
-                  control={control}
-                  name="caseTypeId"
-                  render={({ field }) => (
-                    <FormSelect
-                      ariaLabel="Case type"
-                      placeholder={
-                        practiceAreaId
-                          ? "Select case type"
-                          : "Select practice area first"
-                      }
-                      disabled={!practiceAreaId}
-                      value={field.value}
-                      onChange={field.onChange}
-                      options={caseTypeOptions.map((ct) => ({
-                        value: ct.id,
-                        label: ct.name,
-                      }))}
-                    />
-                  )}
-                />
-              </FormField>
+              <CaseTypeField
+                control={control}
+                practiceAreas={practiceAreas}
+                loading={practiceAreasLoading}
+              />
 
               <FormField label="Source">
                 <Controller
@@ -363,7 +381,7 @@ export function AddLeadDialog({
             </VStack>
 
             <Flex justify="space-between" gap="12px" mt="18px">
-              <OutlineButton type="button" onClick={handleClose}>
+              <OutlineButton type="button" onClick={close}>
                 Cancel
               </OutlineButton>
               <BrandButton
@@ -376,9 +394,54 @@ export function AddLeadDialog({
               </BrandButton>
             </Flex>
           </Box>
-        </Dialog.Content>
-      </Dialog.Positioner>
-    </Dialog.Root>
+  );
+}
+
+/*
+  The only field that depends on `practiceAreaId`. Subscribing here — not in
+  AddLeadForm — keeps choosing a practice area from re-rendering the rest of
+  the form, and avoids the React Compiler opt-out that `watch()` triggers.
+*/
+function CaseTypeField({
+  control,
+  practiceAreas,
+  loading,
+}: {
+  control: Control<LeadForm>;
+  practiceAreas: PublicPracticeArea[] | undefined;
+  loading: boolean;
+}) {
+  const practiceAreaId = useWatch({ control, name: "practiceAreaId" });
+  const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
+
+  return (
+    <FormField label="Case type">
+      {loading ? (
+        <ControlSkeleton h="36px" />
+      ) : (
+        <Controller
+          control={control}
+          name="caseTypeId"
+          render={({ field }) => (
+            <FormSelect
+              ariaLabel="Case type"
+              placeholder={
+                practiceAreaId
+                  ? "Select case type"
+                  : "Select practice area first"
+              }
+              disabled={!practiceAreaId}
+              value={field.value}
+              onChange={field.onChange}
+              options={caseTypeOptions.map((ct) => ({
+                value: ct.id,
+                label: ct.name,
+              }))}
+            />
+          )}
+        />
+      )}
+    </FormField>
   );
 }
 
