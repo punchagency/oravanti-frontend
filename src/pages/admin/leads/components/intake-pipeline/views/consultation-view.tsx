@@ -1,6 +1,6 @@
 import type { ConsultationSettings } from "@/api/consultation-settings";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { formatCurrency } from "@/utils/currency";
-import { useAuthStore } from "@/store/auth-store";
 import type {
   Consultation,
   ConsultationListItem,
@@ -740,8 +740,11 @@ export function ConsultationCard({
   // Presentation only — the server decides. Refunds need `finance:refund`,
   // which is owner/admin, and a cancellation by anyone else leaves the money
   // owed rather than moving it.
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const canRefund = memberRole === "owner" || memberRole === "admin";
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
   const responseId = questionnaire?.response?.id ?? null;
   const { data: responseDetail } = useResponseDetail(responseId);
   const canDownload = useCanDownloadDocuments();

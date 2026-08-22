@@ -4,6 +4,7 @@ import {
   type InvoicePayment,
 } from "@/api/finance";
 import { OutlineButton, StatusPill } from "@/components/ui/intake-ui";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import {
   useInvoice,
@@ -22,7 +23,6 @@ import {
   INVOICE_STATUS_TONE,
 } from "../../data";
 import { DialogShell } from "./dialog-shell";
-import { useAuthStore } from "@/store/auth-store";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -150,8 +150,11 @@ export function InvoiceDetailDialog({
 }) {
   // Refunds are owner/admin only on the server (`finance: ["refund"]`). Hiding
   // the control is presentation, not a gate — the API refuses regardless.
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const canRefund = memberRole === "owner" || memberRole === "admin";
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
   const { data: invoice, isLoading } = useInvoice(open ? invoiceId : null);
   const { data: deliveries } = useInvoiceDeliveries(open ? invoiceId : null);
   const resend = useResendInvoice();
