@@ -15,6 +15,16 @@ export type PayableInvoice = {
   total: number;
   amountPaid: number;
   balanceDue: number;
+  /**
+   * What this payment is FOR — the next unpaid instalment when the invoice is
+   * on a schedule, the whole balance otherwise.
+   *
+   * Distinct from `balanceDue` on purpose: a consultation billed as a deposit
+   * plus a balance OWES the whole fee but is only being ASKED for the deposit
+   * now. Quoting the balance would contradict the invoice the client is
+   * holding.
+   */
+  amountDueNow: number;
   dueDate: string;
   status: string;
   /**

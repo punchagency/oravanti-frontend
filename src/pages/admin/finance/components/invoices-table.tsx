@@ -66,6 +66,11 @@ function voidAction(
   ) {
     return [];
   }
+  // While the consultation is still live, withdrawing its fee has to go through
+  // cancelling it — that also releases the calendar slot, revokes the booking
+  // link and tells the client. The API refuses this outright, so offering the
+  // button here would only produce an error the user cannot act on.
+  if (row.consultationRefundBlocked) return [];
   if (row.amountPaid > 0) return [];
   return [
     {
@@ -169,6 +174,11 @@ function rowActions(
   if (row.status === "draft") {
     return [
       {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
+      {
         label: "Edit invoice",
         icon: <Pencil size={14} />,
         onSelect: () => handlers.onEdit(row),
@@ -200,6 +210,11 @@ function rowActions(
   if (row.status === "overdue") {
     return [
       {
+        label: "View invoice",
+        icon: <Eye size={14} />,
+        onSelect: () => handlers.onView(row),
+      },
+      {
         label: "Follow up",
         icon: <BellRing size={14} />,
         onSelect: () => handlers.onFollowUp(row),
@@ -221,6 +236,11 @@ function rowActions(
   }
 
   return [
+    {
+      label: "View invoice",
+      icon: <Eye size={14} />,
+      onSelect: () => handlers.onView(row),
+    },
     // Renegotiating a plan is the point of offering one, so this is offered on
     // a live invoice — unlike editing its lines, which freeze on send.
     ...rescheduleAction(row, handlers.onReschedule),

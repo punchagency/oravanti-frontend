@@ -96,6 +96,8 @@ export function InvoicePaymentPage() {
   }
 
   const data: PayableInvoice = invoice.data;
+  // Being asked for less than is owed means an instalment schedule.
+  const partial = data.amountDueNow > 0 && data.amountDueNow < data.balanceDue;
 
   return (
     <Center minH="100vh" px="20px" py="40px">
@@ -144,12 +146,25 @@ export function InvoicePaymentPage() {
             borderColor="border.muted"
           >
             <Text fontSize="15px" fontWeight="700">
-              Amount due
+              {partial ? "Due now" : "Amount due"}
             </Text>
             <Text fontSize="15px" fontWeight="700">
-              {formatCurrency(data.balanceDue)}
+              {formatCurrency(data.amountDueNow)}
             </Text>
           </Flex>
+
+          {/*
+            An invoice on a schedule is owed in slices, and the page must ask
+            for the slice — not the balance. Saying so keeps this page and the
+            invoice the client is holding telling the same story.
+          */}
+          {partial ? (
+            <Text fontSize="12px" color="fg.muted" mt="8px" lineHeight="1.5">
+              This invoice is paid in instalments.{" "}
+              {formatCurrency(data.balanceDue - data.amountDueNow)} remains
+              afterwards and will be requested separately.
+            </Text>
+          ) : null}
         </Box>
 
         {data.settled ? (
@@ -216,7 +231,7 @@ export function InvoicePaymentPage() {
             loading={checkout.isPending}
             onClick={() => checkout.mutate()}
           >
-            Pay {formatCurrency(data.balanceDue)}
+            Pay {formatCurrency(data.amountDueNow)}
           </Button>
         ) : (
           <Flex
