@@ -2382,6 +2382,9 @@ export function ScheduleConsultationDialog({
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
+  // Firm-wide text messaging switch; the SMS option stays disabled without it.
+  const { data: firmConsultationSettings } = useConsultationSettings();
+  const smsEnabled = firmConsultationSettings?.smsEnabled ?? false;
   // Stable across renders so the memoized step components can skip re-rendering
   // while the user types (setValue is a stable RHF reference).
   const setField = useCallback(
@@ -2660,7 +2663,16 @@ export function ScheduleConsultationDialog({
               <StepProgress step={isPreset ? step - 1 : step} total={isPreset ? 2 : 3} />
             </Box>
 
-            <Box flex="1" minH="0" px="24px" pb="20px">
+            {/*
+              overflowY is what makes this the scroll region. Without it the
+              step content was simply clipped by the Content's maxH — on a short
+              viewport the "Notify client via" options at the bottom of step 2
+              were unreachable, with no scrollbar to suggest anything was there.
+              minH="0" is required alongside it: a flex child defaults to
+              min-height:auto and refuses to shrink below its content, which
+              would push the footer off-screen instead of scrolling.
+            */}
+            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="20px">
               {step === 1 ? (
                 <SelectClientStep
                   leads={leads}
@@ -2718,6 +2730,9 @@ export function ScheduleConsultationDialog({
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }
+                  notifySms={notifySms}
+                  smsEnabled={smsEnabled}
+                  onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
               {step === 3 && selectedLead ? (

@@ -1,5 +1,6 @@
 import {
   useNotificationSettings,
+  useSetFirmSmsEnabled,
   useUpdateNotificationSettings,
 } from "@/hooks/use-firm-settings";
 import type { NotificationPreference } from "@/api/firm-settings";
@@ -85,30 +86,114 @@ function LoadingSkeleton() {
 function NotificationSwitch({
   checked,
   onToggle,
+  disabled = false,
+  title,
 }: {
   checked: boolean;
   onToggle: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Native tooltip explaining why the switch is unavailable. */
+  title?: string;
 }) {
   return (
     <Switch.Root
       checked={checked}
+      disabled={disabled}
       onCheckedChange={(e) => onToggle(e.checked)}
       size="sm"
+      title={title}
+      // 0.4 made a disabled switch invisible rather than merely inactive; the
+      // SMS column looked like an empty gap instead of a locked control.
+      opacity={disabled ? 0.65 : 1}
+      cursor={disabled ? "not-allowed" : "pointer"}
     >
       <Switch.HiddenInput />
+      {/*
+        The off state was a white thumb on a light track with no border, which
+        disappeared entirely against bg.subtle — the switch read as empty space.
+        A border gives the track an edge on any surface, and the thumb darkens
+        when off so it is visible against the track itself.
+      */}
       <Switch.Control
         bg={checked ? "brand.solid" : "bg.muted"}
-        _hover={{ bg: checked ? "brand.solid" : "bg.muted" }}
+        border="1px solid"
+        borderColor={checked ? "brand.solid" : "border"}
+        _hover={{
+          bg: checked ? "brand.solid" : "bg.muted",
+          borderColor: checked ? "brand.solid" : "fg.muted",
+        }}
       >
-        <Switch.Thumb bg="white" />
+        <Switch.Thumb bg={checked ? "white" : "fg.muted"} />
       </Switch.Control>
     </Switch.Root>
+  );
+}
+
+/**
+ * Firm-wide SMS master switch.
+ *
+ * Backed by `consultation_settings.sms_enabled`, which the backend checks on
+ * every SMS send regardless of event or channel picker. It has always existed
+ * and defaulted to false; until this control there was no way to turn it on, so
+ * the SMS column below toggled preferences that could never take effect.
+ */
+function SmsMasterSwitch({
+  enabled,
+  isLoading,
+}: {
+  enabled: boolean;
+  isLoading: boolean;
+}) {
+  const setSmsEnabled = useSetFirmSmsEnabled();
+
+  if (isLoading) {
+    return <ThemeSkeleton h="60px" w="100%" borderRadius="8px" mb="20px" />;
+  }
+
+  return (
+    <Flex
+      align="flex-start"
+      justify="space-between"
+      gap="4"
+      p="16px"
+      mb="20px"
+      bg="bg.subtle"
+      border="1px solid"
+      borderColor="border.subtle"
+      borderRadius="8px"
+    >
+      <Box>
+        <HStack gap="2" mb="1">
+          <Box color={enabled ? "brand.solid" : "fg.muted"}>
+            <MessageSquare size={14} />
+          </Box>
+          <Text fontSize="13px" fontWeight="600" color="fg">
+            Text messaging (SMS)
+          </Text>
+        </HStack>
+        <Text fontSize="12px" color="fg.muted">
+          {enabled
+            ? "Your firm can send text messages. Recipients still need to consent, and anyone who replies STOP is excluded automatically."
+            : "Off for the whole firm. No text message is sent until this is on — including reminders and payment links."}
+        </Text>
+      </Box>
+      <NotificationSwitch
+        checked={enabled}
+        disabled={setSmsEnabled.isPending}
+        onToggle={(checked) => setSmsEnabled.mutate(checked)}
+      />
+    </Flex>
   );
 }
 
 export default function NotificationsTab() {
   const { data: settings, isLoading } = useNotificationSettings();
   const updateSettings = useUpdateNotificationSettings();
+  // When SMS is off firm-wide, the per-event SMS toggles cannot do anything.
+  // Showing them as operable would promise a delivery that never happens.
+  // Read from the notification settings payload rather than the consultation
+  // one, so this screen talks to a single endpoint.
+  const smsEnabled = settings?.smsEnabled ?? false;
 
   const [preferences, setPreferences] = useState<NotificationPreference[]>(() =>
     buildDefaultPreferences(),
@@ -169,6 +254,8 @@ export default function NotificationsTab() {
 
       {/* Content */}
       <Box p="20px">
+        <SmsMasterSwitch enabled={smsEnabled} isLoading={isLoading} />
+
         {/* Channel labels */}
         <HStack gap={{ base: "4", md: "6" }} mb="4" flexWrap="wrap">
           <HStack gap="2">
@@ -186,9 +273,11 @@ export default function NotificationsTab() {
             <Text fontSize="13px" fontWeight="500" color="fg.muted">
               SMS
             </Text>
-            <Text fontSize="11px" color="fg.subtle">
-              (requires Twilio integration)
-            </Text>
+            {!smsEnabled && (
+              <Text fontSize="11px" color="fg.subtle">
+                (turn on text messaging above)
+              </Text>
+            )}
           </HStack>
           <HStack gap="2">
             <Box color="fg.muted">
@@ -288,6 +377,12 @@ export default function NotificationsTab() {
                 <Box w="80px" display="flex" justifyContent="center">
                   <NotificationSwitch
                     checked={pref?.sms ?? false}
+                    disabled={!smsEnabled}
+                    title={
+                      smsEnabled
+                        ? undefined
+                        : "Turn on text messaging for the firm first"
+                    }
                     onToggle={(checked) =>
                       togglePreference(event.key, "sms", checked)
                     }
@@ -342,6 +437,12 @@ export default function NotificationsTab() {
                     </Text>
                     <NotificationSwitch
                       checked={pref?.sms ?? false}
+                      disabled={!smsEnabled}
+                      title={
+                        smsEnabled
+                          ? undefined
+                          : "Turn on text messaging for the firm first"
+                      }
                       onToggle={(checked) =>
                         togglePreference(event.key, "sms", checked)
                       }

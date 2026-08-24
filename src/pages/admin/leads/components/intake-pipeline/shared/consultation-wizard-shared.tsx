@@ -228,6 +228,8 @@ export function ScheduleDetailsStep({
   locations,
   defaultNotes,
   notifyEmail,
+  notifySms,
+  smsEnabled,
   urgent,
   hideUrgent,
   touchedField,
@@ -242,6 +244,7 @@ export function ScheduleDetailsStep({
   creatingLocation,
   onNotesChange,
   onNotifyEmailChange,
+  onNotifySmsChange,
 }: {
   durationChoice: DurationChoice;
   customDuration: string;
@@ -254,6 +257,10 @@ export function ScheduleDetailsStep({
   locations: ConsultationLocation[];
   defaultNotes: string;
   notifyEmail: boolean;
+  /** Omitted by wizards that do not model an SMS channel. */
+  notifySms?: boolean;
+  /** Firm-wide text messaging switch (consultation_settings.smsEnabled). */
+  smsEnabled?: boolean;
   urgent: boolean;
   // Instant consultations: urgency is implied, so the switch is hidden and a
   // "starts now" note takes its place.
@@ -270,6 +277,8 @@ export function ScheduleDetailsStep({
   creatingLocation: boolean;
   onNotesChange: (value: string) => void;
   onNotifyEmailChange: (value: boolean) => void;
+  /** Omitted by wizards that do not model an SMS channel; the option is then disabled. */
+  onNotifySmsChange?: (value: boolean) => void;
 }) {
   const [addingLocation, setAddingLocation] = useState(false);
   const [newLocationLabel, setNewLocationLabel] = useState("");
@@ -657,14 +666,27 @@ export function ScheduleDetailsStep({
             label="Email"
             onToggle={() => onNotifyEmailChange(!notifyEmail)}
           />
+          {/*
+            Offerable when the wizard models it (onNotifySmsChange) and the firm
+            has text messaging switched on.
+
+            Both wizards model it. An instant consultation looks like it has
+            nothing to send, but a pay_now one with an unpaid fee does not
+            actually begin until the client pays — it sends a payment link
+            first, and that link is worth texting.
+          */}
           <CheckOption
-            checked={false}
-            disabled
-            onToggle={() => undefined}
+            checked={Boolean(notifySms) && Boolean(smsEnabled)}
+            disabled={!onNotifySmsChange || !smsEnabled}
+            onToggle={() => onNotifySmsChange?.(!notifySms)}
             label={
               <>
                 SMS{" "}
-                <chakra.span color="fg.subtle">(coming soon)</chakra.span>
+                {!smsEnabled && onNotifySmsChange ? (
+                  <chakra.span color="fg.subtle">
+                    (off for your firm)
+                  </chakra.span>
+                ) : null}
               </>
             }
           />

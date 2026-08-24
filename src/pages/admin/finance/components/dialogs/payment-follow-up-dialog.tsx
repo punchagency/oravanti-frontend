@@ -1,5 +1,6 @@
 import type { InvoiceListRow } from "@/api/finance";
 import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { useConsultationSettings } from "@/hooks/use-consultation-settings";
 import { useSendFollowUp } from "@/hooks/use-finance";
 import { formatCurrency } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
@@ -42,6 +43,8 @@ export function PaymentFollowUpDialog({
   onOpenChange: (details: { open: boolean }) => void;
 }) {
   const sendFollowUp = useSendFollowUp();
+  const { data: consultationSettings } = useConsultationSettings();
+  const smsEnabled = consultationSettings?.smsEnabled ?? false;
 
   // On a plan the client is behind on an instalment, not on the invoice. The
   // header date is the FINAL instalment, so chasing against it would name a
@@ -177,6 +180,14 @@ export function PaymentFollowUpDialog({
                 {CHANNELS.map((option) => {
                   const Icon = option.icon;
                   const selected = field.value === option.value;
+                  // "sms" and "both" both attempt a text. The backend rejects
+                  // an SMS chase outright when the client has no phone on file,
+                  // and records it as skipped when the firm has text messaging
+                  // off — so offering either here would promise a send that
+                  // cannot happen.
+                  const needsSms =
+                    option.value === "sms" || option.value === "both";
+                  const unavailable = needsSms && !smsEnabled;
                   return (
                     <chakra.button
                       type="button"
@@ -193,9 +204,21 @@ export function PaymentFollowUpDialog({
                       bg={selected ? "bg.muted" : "bg"}
                       fontSize="12px"
                       fontWeight={selected ? "600" : "400"}
-                      cursor="pointer"
-                      onClick={() => field.onChange(option.value)}
-                      _hover={{ borderColor: "brand.solid" }}
+                      cursor={unavailable ? "not-allowed" : "pointer"}
+                      opacity={unavailable ? 0.45 : 1}
+                      disabled={unavailable}
+                      title={
+                        unavailable
+                          ? "Text messaging is off for your firm. Turn it on in Settings → Notifications."
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (unavailable) return;
+                        field.onChange(option.value);
+                      }}
+                      _hover={
+                        unavailable ? undefined : { borderColor: "brand.solid" }
+                      }
                     >
                       <Icon size={14} />
                       {option.label}

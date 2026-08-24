@@ -29,6 +29,13 @@ export type Lead = {
   name: string;
   email: string;
   phone: string | null;
+  /**
+   * SMS consent. Sendable only when smsConsent is true AND smsOptOutAt is null
+   * — an opt-out is the recipient's decision and cannot be reversed by staff.
+   */
+  smsConsent?: boolean;
+  smsConsentAt?: string | null;
+  smsOptOutAt?: string | null;
   entityType: "individual" | "company";
   practiceAreaId: string | null;
   practiceAreaName: string | null;
