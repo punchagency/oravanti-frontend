@@ -201,8 +201,14 @@ export function ConsultationPaymentPolicy() {
     payload: Omit<Parameters<typeof update.mutate>[0], "chargesFee">,
   ) => {
     if (!settings) return;
-    // The endpoint is an upsert over the whole settings shape, so the fee
-    // fields have to ride along or saving a schedule would clear them.
+    // The fee fields have to ride along: the service recomputes them from the
+    // body on every save (`chargesFee` drives whether `defaultAmount` and
+    // `feeStructure` are written or nulled), so omitting them clears them.
+    //
+    // Only the fee fields. `feeSchedule`, `noShowPolicy`, `timezone`,
+    // `language` and `smsEnabled` are each written only when present, so an
+    // absent one is left alone — do NOT start echoing those back, or this card
+    // will happily overwrite a schedule the user changed in another tab.
     update.mutate({
       ...payload,
       chargesFee: settings.chargesFee,
