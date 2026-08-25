@@ -1,4 +1,5 @@
 import type {
+  ConsultationBalanceDueMode,
   ConsultationFeeSchedule,
   ConsultationNoShowPolicy,
 } from "@/api/consultation-settings";
@@ -39,13 +40,34 @@ const SCHEDULE_OPTIONS: ScheduleOption[] = [
     value: "partial_upfront",
     label: "Deposit upfront, balance afterwards",
     detail:
-      "The deposit unlocks booking. The balance is invoiced as a second instalment on the same invoice, due when the consultation happens.",
+      "The deposit unlocks booking. The balance is a second instalment on the same invoice, and the client is emailed a payment link for it after the consultation.",
   },
   {
     value: "after_consultation",
     label: "Paid after the consultation",
     detail:
       "The client books freely and is emailed the invoice once the consultation is marked complete.",
+  },
+];
+
+type BalanceModeOption = {
+  value: ConsultationBalanceDueMode;
+  label: string;
+  detail: string;
+};
+
+const BALANCE_MODE_OPTIONS: BalanceModeOption[] = [
+  {
+    value: "fixed",
+    label: "Same for every consultation",
+    detail:
+      "Every deposit balance falls due the same number of days after the call.",
+  },
+  {
+    value: "custom",
+    label: "Set per consultation",
+    detail:
+      "Whoever schedules the consultation can change the number of days; the value above is the default they start from.",
   },
 ];
 
@@ -167,6 +189,9 @@ export function ConsultationPaymentPolicy() {
 
   const [schedule, setSchedule] = useState<ConsultationFeeSchedule>("full_upfront");
   const [percent, setPercent] = useState("");
+  const [balanceMode, setBalanceMode] =
+    useState<ConsultationBalanceDueMode>("fixed");
+  const [balanceDays, setBalanceDays] = useState("");
   const [policy, setPolicy] = useState<ConsultationNoShowPolicy>("forfeit");
 
   useEffect(() => {
@@ -174,6 +199,10 @@ export function ConsultationPaymentPolicy() {
     setSchedule(settings.feeSchedule);
     setPercent(
       settings.upfrontPercent != null ? String(settings.upfrontPercent) : "",
+    );
+    setBalanceMode(settings.balanceDueMode ?? "fixed");
+    setBalanceDays(
+      settings.balanceDueDays != null ? String(settings.balanceDueDays) : "",
     );
     setPolicy(settings.noShowPolicy);
   }, [settings]);
@@ -189,11 +218,23 @@ export function ConsultationPaymentPolicy() {
       parsedPercent >= 1 &&
       parsedPercent <= 99);
 
+  // Zero is a meaningful answer — "due on the day" — so an empty box is the
+  // only invalid one, not a falsy number.
+  const parsedDays = Number(balanceDays);
+  const daysValid =
+    schedule !== "partial_upfront" ||
+    (balanceDays.trim() !== "" &&
+      Number.isInteger(parsedDays) &&
+      parsedDays >= 0 &&
+      parsedDays <= 90);
+
   const scheduleDirty =
     settings != null &&
     (schedule !== settings.feeSchedule ||
       (schedule === "partial_upfront" &&
-        parsedPercent !== settings.upfrontPercent));
+        (parsedPercent !== settings.upfrontPercent ||
+          balanceMode !== (settings.balanceDueMode ?? "fixed") ||
+          parsedDays !== settings.balanceDueDays)));
 
   const policyDirty = settings != null && policy !== settings.noShowPolicy;
 
@@ -256,10 +297,18 @@ export function ConsultationPaymentPolicy() {
                 feeSchedule: schedule,
                 upfrontPercent:
                   schedule === "partial_upfront" ? parsedPercent : null,
+                // Cleared together with the deposit they belong to; the table's
+                // CHECK requires both columns or neither.
+                balanceDueMode:
+                  schedule === "partial_upfront" ? balanceMode : null,
+                balanceDueDays:
+                  schedule === "partial_upfront" ? parsedDays : null,
               })
             }
             loading={update.isPending}
-            disabled={!chargesFee || !scheduleDirty || !percentValid}
+            disabled={
+              !chargesFee || !scheduleDirty || !percentValid || !daysValid
+            }
             layerStyle="brand-button"
             h="36px"
             px="16px"
@@ -314,6 +363,49 @@ export function ConsultationPaymentPolicy() {
                 the fee changes — including emergency rates.
               </Text>
             )}
+
+            <Text fontSize="13px" fontWeight="600" color="fg" mt="5" mb="2">
+              When the balance is due
+            </Text>
+            <Flex align="center" gap="2" maxW="260px">
+              <Input
+                value={balanceDays}
+                onChange={(e) => setBalanceDays(e.currentTarget.value)}
+                disabled={!chargesFee}
+                type="number"
+                min="0"
+                max="90"
+                step="1"
+                placeholder="e.g. 7"
+                borderColor="border"
+                h="40px"
+                fontSize="14px"
+              />
+              <Text fontSize="14px" color="fg.muted" flexShrink={0}>
+                days after the consultation
+              </Text>
+            </Flex>
+            {!daysValid ? (
+              <Text fontSize="12px" color="red.400" mt="2">
+                Enter a whole number of days between 0 and 90.
+              </Text>
+            ) : (
+              <Text fontSize="12px" color="fg.muted" mt="2">
+                The client is emailed a payment link for the balance on that day.
+              </Text>
+            )}
+
+            <Stack gap="2" mt="4">
+              {BALANCE_MODE_OPTIONS.map((opt) => (
+                <OptionCard
+                  key={opt.value}
+                  option={opt}
+                  selected={balanceMode === opt.value}
+                  disabled={!chargesFee}
+                  onSelect={setBalanceMode}
+                />
+              ))}
+            </Stack>
           </Box>
         ) : null}
       </Card>
