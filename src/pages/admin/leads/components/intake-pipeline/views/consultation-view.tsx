@@ -2308,6 +2308,8 @@ const makeScheduleSchema = (chargesCustomFee: boolean) =>
     // way to charge above a firm's published fee.
     isEmergency: z.boolean(),
     emergencyMultiplier: z.string(),
+    // Deposit balance timing, offered only when the firm's mode is `custom`.
+    balanceDueDays: z.string(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -2372,6 +2374,7 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   urgent: false,
   isEmergency: false,
   emergencyMultiplier: "2",
+  balanceDueDays: "",
 };
 
 /**
@@ -2405,6 +2408,11 @@ export function ScheduleConsultationDialog({
     () => makeScheduleSchema(chargesCustomFee),
     [chargesCustomFee],
   );
+  // Offered only when the firm has said the wait may vary per consultation.
+  const balanceDaysEditable =
+    chargesFee &&
+    feeSettings?.feeSchedule === "partial_upfront" &&
+    feeSettings?.balanceDueMode === "custom";
   const {
     control,
     setValue,
@@ -2436,6 +2444,7 @@ export function ScheduleConsultationDialog({
     control,
     name: "emergencyMultiplier",
   });
+  const balanceDueDays = useWatch({ control, name: "balanceDueDays" });
   // Firm-wide text messaging switch; the SMS option stays disabled without it.
   const smsEnabled = feeSettings?.smsEnabled ?? false;
   // Stable across renders so the memoized step components can skip re-rendering
@@ -2596,6 +2605,14 @@ export function ScheduleConsultationDialog({
     // refused by the API, and the toggle is not offered there either.
     const emergency = Boolean(data.urgent && data.isEmergency && chargesFee);
 
+    // Omitted rather than echoed when unchanged: the API falls back to the
+    // firm's own figure, so sending it back adds nothing and would pin a value
+    // that the firm may since have changed.
+    const balanceDueDays =
+      balanceDaysEditable && data.balanceDueDays.trim()
+        ? Number(data.balanceDueDays)
+        : undefined;
+
     initiateConsultation.mutate(
       {
         id: data.selectedLeadId,
@@ -2617,6 +2634,7 @@ export function ScheduleConsultationDialog({
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
           urgent: data.urgent || undefined,
+          balanceDueDays,
           isEmergency: emergency || undefined,
           emergencyMultiplier: emergency
             ? Number(data.emergencyMultiplier) || undefined
@@ -2810,6 +2828,12 @@ export function ScheduleConsultationDialog({
                     setField("emergencyMultiplier", value)
                   }
                   multiplierInvalid={Boolean(errors.emergencyMultiplier)}
+                  balanceDueDays={balanceDueDays}
+                  onBalanceDueDaysChange={(value) =>
+                    setField("balanceDueDays", value)
+                  }
+                  balanceDaysEditable={balanceDaysEditable}
+                  firmBalanceDueDays={feeSettings?.balanceDueDays ?? null}
                 />
               ) : null}
             </Box>
@@ -2877,6 +2901,10 @@ function ReviewStep({
   emergencyMultiplier,
   onEmergencyMultiplierChange,
   multiplierInvalid,
+  balanceDueDays,
+  onBalanceDueDaysChange,
+  balanceDaysEditable,
+  firmBalanceDueDays,
 }: {
   lead: { name: string };
   duration: string;
@@ -2897,6 +2925,10 @@ function ReviewStep({
   emergencyMultiplier: string;
   onEmergencyMultiplierChange: (value: string) => void;
   multiplierInvalid: boolean;
+  balanceDueDays: string;
+  onBalanceDueDaysChange: (value: string) => void;
+  balanceDaysEditable: boolean;
+  firmBalanceDueDays: number | null;
 }) {
   const notifyLabel =
     notifyChannels.length === 0
@@ -3029,6 +3061,46 @@ function ReviewStep({
               <Text mt="6px" textAlign="right" fontSize="12px" color={invalidColor}>
                 {feeError}
               </Text>
+            ) : null}
+
+            {balanceDaysEditable ? (
+              <Flex align="center" justify="space-between" mt="16px" gap="12px">
+                <Box>
+                  <Text fontSize="13px" color="fg">
+                    Balance due
+                  </Text>
+                  <Text fontSize="12px" color="fg.muted">
+                    Days after the consultation. The client is emailed a payment
+                    link for the balance on that day.
+                  </Text>
+                </Box>
+                <HStack gap="6px" flexShrink={0}>
+                  {/*
+                    The firm's figure is the PLACEHOLDER, not a seeded value:
+                    an empty box means "use the default", which is exactly what
+                    the submit path does with it. Writing the default in would
+                    need an effect that fires on open, and would then pin a
+                    number the firm might since have changed.
+                  */}
+                  <Input
+                    type="number"
+                    min={0}
+                    max={90}
+                    step="1"
+                    value={balanceDueDays}
+                    onChange={(e) =>
+                      onBalanceDueDaysChange(e.currentTarget.value)
+                    }
+                    placeholder={String(firmBalanceDueDays ?? "")}
+                    maxW="72px"
+                    textAlign="right"
+                    {...fieldStyles}
+                  />
+                  <Text fontSize="12px" color="fg.muted">
+                    days
+                  </Text>
+                </HStack>
+              </Flex>
             ) : null}
 
             {/*
