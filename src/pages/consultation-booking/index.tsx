@@ -228,6 +228,14 @@ export function ConsultationBookingPage() {
   const showTzPrompt =
     !tzPromptDismissed && data.leadTimezone !== viewerTz;
 
+  // A deposit is the only case where the two figures disagree. Compared with a
+  // cent of tolerance, matching the server's own rounding tolerance.
+  const dueNow = data.fee.dueNow ?? data.fee.amount ?? 0;
+  const isDeposit =
+    data.fee.dueNow != null &&
+    data.fee.amount != null &&
+    data.fee.amount - data.fee.dueNow > 0.005;
+
   return (
     <Shell>
       {showTzPrompt && (
@@ -286,6 +294,12 @@ export function ConsultationBookingPage() {
 
       {data.requiresPayment ? (
         <Stack gap="5">
+          {/*
+            On a deposit schedule the lead owes the whole fee but is being asked
+            for part of it. This used to show the whole fee above a payment form
+            charging the deposit — two numbers, no explanation of why they
+            differed. `dueNow` is the figure the form is actually charging.
+          */}
           <Flex
             align="center"
             justify="space-between"
@@ -295,11 +309,19 @@ export function ConsultationBookingPage() {
             borderRadius="10px"
             p="16px"
           >
-            <Text fontSize="14px" color="fg.muted">
-              Consultation fee
-            </Text>
+            <Stack gap="2px">
+              <Text fontSize="14px" color="fg.muted">
+                {isDeposit ? "Due now" : "Consultation fee"}
+              </Text>
+              {isDeposit ? (
+                <Text fontSize="12px" color="fg.muted">
+                  Deposit — ${(data.fee.amount ?? 0).toFixed(2)} total, balance
+                  due after your consultation
+                </Text>
+              ) : null}
+            </Stack>
             <Text fontSize="20px" fontWeight="600" color="fg">
-              ${data.fee.amount ?? 0}
+              ${(isDeposit ? dueNow : (data.fee.amount ?? 0)).toFixed(2)}
             </Text>
           </Flex>
           {payUrl ? (
@@ -348,7 +370,7 @@ export function ConsultationBookingPage() {
                 onClick={() => pay.mutate()}
                 loading={pay.isPending}
               >
-                Pay ${data.fee.amount ?? 0} now
+                Pay ${dueNow.toFixed(2)} now
               </Button>
               <Text fontSize="12px" color="fg.muted" textAlign="center">
                 {data.status === "completed"
