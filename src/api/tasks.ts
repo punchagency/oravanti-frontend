@@ -26,24 +26,6 @@ export interface Task {
   id: string;
   title: string;
   description: string | null;
-
-  /**
-   * Staff-facing guidance, snapshotted onto the task from its template step at
-   * materialization. Everything here describes the work as it was handed out,
-   * so it is safe to render as authoritative — it does not drift when the
-   * template is later edited.
-   *
-   * All optional: `ad_hoc` and `pipeline` tasks have no template step behind
-   * them and carry none of it, and a workflow step with nothing worth saying
-   * under a heading leaves that field null. Render each only when present —
-   * a heading over an empty field is worse than no heading.
-   */
-  purpose: string | null;
-  guidance: string[];
-  doneWhen: string | null;
-  pitfalls: string | null;
-  authority: string | null;
-
   teamId: string | null;
   dueDate: string | null;
   priority: TaskPriority | null;

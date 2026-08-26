@@ -19,7 +19,6 @@ import {
 import { useState } from "react";
 import type { Task } from "@/api/tasks";
 import { TaskAssigneeSelect } from "@/components/ui/task-assignee-select";
-import { TaskGuidance } from "@/components/ui/task-guidance";
 import { useAssignTask, useTransitionTask, useUpdateTask } from "@/hooks/use-tasks";
 import { describeDueDate } from "../describe";
 import { OverrideDialog } from "./override-dialog";
@@ -159,10 +158,6 @@ export function TaskRow({ task, dueDateAnchor }: TaskRowProps) {
               <Text color="orange.600">Unassigned</Text>
             )}
           </HStack>
-
-          {/* Owns its own disclosure, and renders nothing at all when the task
-              carries no guidance — ad-hoc work and pipeline steps have none. */}
-          <TaskGuidance task={task} size="xs" />
 
           {task.overrideRationale && (
             <Text fontSize="10px" color="orange.700">

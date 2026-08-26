@@ -44,11 +44,6 @@ const moduleOf = (
 const taskOf = (overrides: Partial<Task> & { id: string }): Task => ({
   title: overrides.id,
   description: null,
-  purpose: null,
-  guidance: [],
-  doneWhen: null,
-  pitfalls: null,
-  authority: null,
   teamId: null,
   dueDate: null,
   priority: null,
