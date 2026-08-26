@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { reassignCaseTeam } from "../api/cases";
+import { caseKeys } from "./use-cases";
+import { taskKeys } from "./use-tasks";
 import type {
   CaseRelationType,
   CreateCaseNoteParams,
@@ -15,18 +17,18 @@ import {
   getWorkflowTemplate,
   linkCase,
   unlinkCase,
-  updateWorkflowModule,
+  updateWorkflowModule,
   bulkDeleteCaseNotes,
-  bulkPinCaseNotes,
+  bulkPinCaseNotes,
   createCaseNote,
   deleteCaseNote,
   getCaseDocuments,
   getCaseEvents,
   getCaseNotes,
   getCaseTimeline,
-  getCaseWorkflow,
+  getCaseWorkflow,
   getWorkflowLogs,
-  getWorkflowSummary,
+  getWorkflowSummary,
   toggleCaseNotePin,
   updateCaseNote,
 } from "../api/workflows";
@@ -272,8 +274,14 @@ export function useReassignCaseTeam(caseId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workflowKeys.instance(caseId) });
       qc.invalidateQueries({ queryKey: workflowKeys.notes(caseId) });
-      qc.invalidateQueries({ queryKey: ["case", caseId] });
-      qc.invalidateQueries({ queryKey: ["cases"] });
+      qc.invalidateQueries({ queryKey: caseKeys.detail(caseId) });
+      qc.invalidateQueries({ queryKey: caseKeys.all });
+      // The first team on a case is what lets the backend materialize its
+      // workflow at all (`materializeTasksForCase` returns early without one),
+      // so this write creates the case's entire task board as a side effect.
+      // Without this the tab keeps rendering the empty list it cached before
+      // the team existed — a whole workflow invisible until a hard refresh.
+      qc.invalidateQueries({ queryKey: taskKeys.all });
       toast.success("Team reassigned");
     },
     onError: (err: APIError) => {

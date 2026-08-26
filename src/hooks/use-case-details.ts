@@ -22,6 +22,7 @@ import type {
   RecordMilestoneInput,
 } from "../api/case-details";
 import { taskKeys } from "./use-tasks";
+import { caseKeys } from "./use-cases";
 import type { APIError } from "./types";
 
 /**
@@ -49,7 +50,8 @@ function useDetailsInvalidation(caseId: string, key: readonly unknown[]) {
   return () => {
     queryClient.invalidateQueries({ queryKey: key });
     queryClient.invalidateQueries({ queryKey: taskKeys.all });
-    queryClient.invalidateQueries({ queryKey: ["cases", caseId] });
+    queryClient.invalidateQueries({ queryKey: caseKeys.detail(caseId) });
+    queryClient.invalidateQueries({ queryKey: caseKeys.all });
   };
 }
 
@@ -128,7 +130,8 @@ export function useRecordCaseMilestone(caseId: string) {
       queryClient.invalidateQueries({ queryKey: caseDetailKeys.immigration(caseId) });
       queryClient.invalidateQueries({ queryKey: caseDetailKeys.pitfalls(caseId) });
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["cases", caseId] });
+      queryClient.invalidateQueries({ queryKey: caseKeys.detail(caseId) });
+      queryClient.invalidateQueries({ queryKey: caseKeys.all });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to record milestone");

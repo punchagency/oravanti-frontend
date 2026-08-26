@@ -1,5 +1,5 @@
 import { Box, HStack, Progress, Separator, Text, VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { useCaseById } from "@/hooks/use-cases";
 import { useTasks } from "@/hooks/use-tasks";
@@ -15,6 +15,17 @@ interface WorkflowTabProps {
 
 const COMPLETED_STATUSES = new Set(["completed", "skipped", "cancelled"]);
 
+/** The tab's empty states: one centred line, nothing else on the board. */
+function EmptyNotice({ children }: { children: ReactNode }) {
+  return (
+    <Box py={8} textAlign="center">
+      <Text fontSize="12px" color="fg.muted">
+        {children}
+      </Text>
+    </Box>
+  );
+}
+
 /**
  * The case's workflow: every task on the matter, grouped by phase, with the
  * template's not-yet-unlocked modules shown alongside.
@@ -26,10 +37,10 @@ const COMPLETED_STATUSES = new Set(["completed", "skipped", "cancelled"]);
  * blank due date say what it is waiting for.
  */
 export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
-  const { data: caseDetail } = useCaseById(caseId);
+  const { data: caseDetail, isLoading: isCaseLoading } = useCaseById(caseId);
   const caseTypeId = caseDetail?.caseType?.id;
 
-  const { data: tasks, isLoading } = useTasks({ caseId }, isActive);
+  const { data: tasks, isLoading: isTasksLoading } = useTasks({ caseId }, isActive);
   const { data: template } = useWorkflowTemplate(caseTypeId, isActive);
   const triggerModule = useTriggerModule(caseId);
 
@@ -51,7 +62,7 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
   const total = tasks?.length ?? 0;
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  if (isLoading) {
+  if (isTasksLoading || isCaseLoading) {
     return (
       <VStack align="stretch" gap={4} py={4}>
         <Box>
@@ -72,6 +83,23 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
           </Box>
         ))}
       </VStack>
+    );
+  }
+
+  // The team comes first: every step is assigned from it, so a workflow
+  // generated before one is chosen would be a full board of work nobody can be
+  // given — the backend refuses for the same reason, see
+  // `materializeTasksForCase`. Until then the template's modules are
+  // hypothetical, so listing them as locked under an empty 0-of-0 bar describes
+  // a workflow that does not exist and buries the one thing to do about it.
+  // Guarded on there being nothing materialized so a case that somehow has
+  // tasks without a team still shows them rather than hiding real work.
+  if (!caseDetail?.assignedTeam && total === 0) {
+    return (
+      <EmptyNotice>
+        Assign a team to this case before generating its workflow — every step
+        is assigned from the case's team.
+      </EmptyNotice>
     );
   }
 
@@ -96,19 +124,11 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
       <Separator borderColor="border" mb={4} />
 
       {groups.length === 0 && (
-        <Box py={8} textAlign="center">
-          <Text fontSize="12px" color="fg.muted">
-            {/* The team comes first: every step is assigned from it, so a
-                workflow generated before one is chosen would be a full board of
-                work nobody can be given. The backend refuses for the same
-                reason — see `materializeTasksForCase`. */}
-            {!caseDetail?.assignedTeam
-              ? "Assign a team to this case before generating its workflow — every step is assigned from the case's team."
-              : template
-                ? "No tasks on this case yet."
-                : "No workflow template is configured for this case type."}
-          </Text>
-        </Box>
+        <EmptyNotice>
+          {template
+            ? "No tasks on this case yet."
+            : "No workflow template is configured for this case type."}
+        </EmptyNotice>
       )}
 
       <VStack gap={{ base: 4, md: 5 }} align="stretch">
