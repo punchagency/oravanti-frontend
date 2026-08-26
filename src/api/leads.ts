@@ -639,6 +639,11 @@ export const initiateConsultation = async (
     parentConsultationId?: string;
     // Instant consultation: begins now (or at payment time for pay_now).
     startNow?: boolean;
+    /**
+     * Days after the consultation that the deposit balance falls due. Only
+     * honoured when the firm's balance mode is `custom`.
+     */
+    balanceDueDays?: number;
     paymentTiming?: PaymentTiming;
     isEmergency?: boolean;
     emergencyMultiplier?: number;

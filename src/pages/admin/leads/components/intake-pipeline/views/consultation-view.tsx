@@ -98,7 +98,6 @@ import {
   useState,
 } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import {
@@ -114,6 +113,7 @@ import { DocumentFlagBadge } from "@/pages/admin/ai-review/components/document-f
 import {
   consultationModeLabel,
   fieldStyles,
+  invalidColor,
   type ConsultationMode,
 } from "../shared/consultation-wizard-constants";
 import {
@@ -2274,7 +2274,16 @@ function titleCase(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
-const scheduleSchema = z
+/**
+ * Built per-render rather than at module scope because the fee rule depends on
+ * the firm's settings: the amount is only asked for — and only sent — when the
+ * structure lets staff set it per consultation.
+ *
+ * Under a flat fee the field is read-only and the backend ignores anything sent
+ * for it, so validating it would block a submit over a value that cannot matter.
+ */
+const makeScheduleSchema = (chargesCustomFee: boolean) =>
+  z
   .object({
     selectedLeadId: z.string().min(1, "Select a lead"),
     durationChoice: z.union([
@@ -2295,6 +2304,12 @@ const scheduleSchema = z
     notifySms: z.boolean(),
     // Urgent (admin fast-track): auto-scheduled ASAP, lead skips the slot queue.
     urgent: z.boolean(),
+    // Emergency surcharge. Only offered on urgent bookings, and now the only
+    // way to charge above a firm's published fee.
+    isEmergency: z.boolean(),
+    emergencyMultiplier: z.string(),
+    // Deposit balance timing, offered only when the firm's mode is `custom`.
+    balanceDueDays: z.string(),
   })
   .superRefine((val, ctx) => {
     const dur =
@@ -2315,9 +2330,34 @@ const scheduleSchema = z
         message: "Select a location for in-person consultations",
       });
     }
+    if (val.urgent && val.isEmergency) {
+      const multiplier = Number(val.emergencyMultiplier);
+      if (!multiplier || multiplier <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["emergencyMultiplier"],
+          message: "Enter a multiplier greater than zero",
+        });
+      }
+    }
+    if (chargesCustomFee) {
+      if (!val.feeAmount.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["feeAmount"],
+          message: "Enter the consultation fee",
+        });
+      } else if (Number(val.feeAmount) < MINIMUM_CONSULTATION_FEE) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["feeAmount"],
+          message: `Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`,
+        });
+      }
+    }
   });
 
-type ScheduleForm = z.infer<typeof scheduleSchema>;
+type ScheduleForm = z.infer<ReturnType<typeof makeScheduleSchema>>;
 
 const SCHEDULE_DEFAULTS: ScheduleForm = {
   selectedLeadId: "",
@@ -2332,6 +2372,9 @@ const SCHEDULE_DEFAULTS: ScheduleForm = {
   notifyEmail: true,
   notifySms: false,
   urgent: false,
+  isEmergency: false,
+  emergencyMultiplier: "2",
+  balanceDueDays: "",
 };
 
 /**
@@ -2356,6 +2399,20 @@ export function ScheduleConsultationDialog({
   const presetLeadId = presetLead?.id ?? null;
   const isPreset = Boolean(presetLeadId);
   const [step, setStep] = useState<ScheduleStep>(1);
+  // Read before `useForm` because the resolver is built from it.
+  const { data: feeSettings } = useConsultationSettings();
+  const chargesFee = Boolean(feeSettings?.chargesFee);
+  const chargesCustomFee =
+    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
+  const scheduleSchema = useMemo(
+    () => makeScheduleSchema(chargesCustomFee),
+    [chargesCustomFee],
+  );
+  // Offered only when the firm has said the wait may vary per consultation.
+  const balanceDaysEditable =
+    chargesFee &&
+    feeSettings?.feeSchedule === "partial_upfront" &&
+    feeSettings?.balanceDueMode === "custom";
   const {
     control,
     setValue,
@@ -2382,9 +2439,14 @@ export function ScheduleConsultationDialog({
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
   const notifySms = useWatch({ control, name: "notifySms" });
   const urgent = useWatch({ control, name: "urgent" });
+  const isEmergency = useWatch({ control, name: "isEmergency" });
+  const emergencyMultiplier = useWatch({
+    control,
+    name: "emergencyMultiplier",
+  });
+  const balanceDueDays = useWatch({ control, name: "balanceDueDays" });
   // Firm-wide text messaging switch; the SMS option stays disabled without it.
-  const { data: firmConsultationSettings } = useConsultationSettings();
-  const smsEnabled = firmConsultationSettings?.smsEnabled ?? false;
+  const smsEnabled = feeSettings?.smsEnabled ?? false;
   // Stable across renders so the memoized step components can skip re-rendering
   // while the user types (setValue is a stable RHF reference).
   const setField = useCallback(
@@ -2420,7 +2482,6 @@ export function ScheduleConsultationDialog({
 
   const { allStaff, attorneys } = useConsultationStaff();
 
-  const { data: feeSettings } = useConsultationSettings();
   const { data: locations = [] } = useConsultationLocations();
   const createLocation = useCreateConsultationLocation();
 
@@ -2521,33 +2582,36 @@ export function ScheduleConsultationDialog({
     }
   }
 
-  const chargesFee = Boolean(feeSettings?.chargesFee);
-  const chargesCustomFee =
-    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
-
   const onValid = (data: ScheduleForm) => {
     const duration =
       data.durationChoice === "custom"
         ? parseInt(data.customDuration, 10)
         : data.durationChoice;
 
-    if (chargesCustomFee && !data.feeAmount.trim()) {
-      toast.error("Enter the consultation fee for this case type");
-      setStep(3);
-      return;
-    }
-
-    if (chargesCustomFee && Number(data.feeAmount) < MINIMUM_CONSULTATION_FEE) {
-      toast.error(`Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`);
-      setStep(3);
-      return;
-    }
-
-    // Urgent bookings may override the fee (urgency surcharge) even when the
-    // structure isn't custom-per-case-type.
-    const feeEditable = chargesCustomFee || (data.urgent && chargesFee);
+    // Presence and the minimum are the schema's job now (see
+    // `makeScheduleSchema`), so an invalid amount never reaches here — it shows
+    // as a field error on step 3 instead of a toast that leaves the user
+    // hunting for what to change.
+    //
+    // Only sent when the firm's structure actually lets staff set it. Urgency
+    // no longer overrides the amount: it is priced through the emergency
+    // multiplier, which the backend applies and the invoice line explains.
     const feeAmount =
-      feeEditable && data.feeAmount.trim() ? Number(data.feeAmount) : undefined;
+      chargesCustomFee && data.feeAmount.trim()
+        ? Number(data.feeAmount)
+        : undefined;
+
+    // The surcharge rides on `urgent`. Sending it on an ordinary booking is
+    // refused by the API, and the toggle is not offered there either.
+    const emergency = Boolean(data.urgent && data.isEmergency && chargesFee);
+
+    // Omitted rather than echoed when unchanged: the API falls back to the
+    // firm's own figure, so sending it back adds nothing and would pin a value
+    // that the firm may since have changed.
+    const balanceDueDays =
+      balanceDaysEditable && data.balanceDueDays.trim()
+        ? Number(data.balanceDueDays)
+        : undefined;
 
     initiateConsultation.mutate(
       {
@@ -2570,6 +2634,11 @@ export function ScheduleConsultationDialog({
             ...(data.notifySms ? (["sms"] as const) : []),
           ],
           urgent: data.urgent || undefined,
+          balanceDueDays,
+          isEmergency: emergency || undefined,
+          emergencyMultiplier: emergency
+            ? Number(data.emergencyMultiplier) || undefined
+            : undefined,
           parentConsultationId: parentConsultationId || undefined,
         },
       },
@@ -2582,6 +2651,7 @@ export function ScheduleConsultationDialog({
     if (errors.selectedLeadId) setStep(1);
     else if (errors.customDuration || errors.attorneyId || errors.locationId)
       setStep(2);
+    else if (errors.feeAmount) setStep(3);
   };
 
   const handleConfirm = handleSubmit(onValid, onInvalid);
@@ -2750,6 +2820,20 @@ export function ScheduleConsultationDialog({
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
+                  feeError={errors.feeAmount?.message}
+                  isEmergency={isEmergency}
+                  onEmergencyChange={(value) => setField("isEmergency", value)}
+                  emergencyMultiplier={emergencyMultiplier}
+                  onEmergencyMultiplierChange={(value) =>
+                    setField("emergencyMultiplier", value)
+                  }
+                  multiplierInvalid={Boolean(errors.emergencyMultiplier)}
+                  balanceDueDays={balanceDueDays}
+                  onBalanceDueDaysChange={(value) =>
+                    setField("balanceDueDays", value)
+                  }
+                  balanceDaysEditable={balanceDaysEditable}
+                  firmBalanceDueDays={feeSettings?.balanceDueDays ?? null}
                 />
               ) : null}
             </Box>
@@ -2811,6 +2895,16 @@ function ReviewStep({
   feeSettings,
   feeAmount,
   onFeeAmountChange,
+  feeError,
+  isEmergency,
+  onEmergencyChange,
+  emergencyMultiplier,
+  onEmergencyMultiplierChange,
+  multiplierInvalid,
+  balanceDueDays,
+  onBalanceDueDaysChange,
+  balanceDaysEditable,
+  firmBalanceDueDays,
 }: {
   lead: { name: string };
   duration: string;
@@ -2825,6 +2919,16 @@ function ReviewStep({
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
+  feeError?: string;
+  isEmergency: boolean;
+  onEmergencyChange: (value: boolean) => void;
+  emergencyMultiplier: string;
+  onEmergencyMultiplierChange: (value: string) => void;
+  multiplierInvalid: boolean;
+  balanceDueDays: string;
+  onBalanceDueDaysChange: (value: string) => void;
+  balanceDaysEditable: boolean;
+  firmBalanceDueDays: number | null;
 }) {
   const notifyLabel =
     notifyChannels.length === 0
@@ -2833,9 +2937,20 @@ function ReviewStep({
 
   const charges = Boolean(feeSettings?.chargesFee);
   const structure = feeSettings?.feeStructure;
-  // Urgent bookings let the admin set the amount (urgency surcharge) even when
-  // the firm's structure isn't custom-per-case-type.
-  const feeEditable = structure === "custom_per_case_type" || urgent;
+  // The firm's structure decides this and nothing else — the same rule the
+  // backend applies. `|| urgent` used to be here, which let an urgent booking
+  // rewrite a flat fee; urgency is priced through the emergency multiplier now.
+  const feeEditable = structure === "custom_per_case_type";
+
+  // Mirrors the instant wizard: base fee × multiplier, the multiplied figure
+  // being what the client is billed. Display only — the API is sent the BASE
+  // amount and applies the multiplier itself, so sending the product here would
+  // charge the surcharge twice.
+  const standardFee = feeEditable
+    ? Number(feeAmount) || 0
+    : (feeSettings?.defaultAmount ?? 0);
+  const emergencyFee =
+    Math.round(standardFee * (Number(emergencyMultiplier) || 0) * 100) / 100;
 
   return (
     <Stack gap="16px" pt="12px">
@@ -2922,18 +3037,152 @@ function ReviewStep({
                     }
                     maxW="96px"
                     textAlign="right"
+                    aria-invalid={feeError ? true : undefined}
                     {...fieldStyles}
+                    {...(feeError
+                      ? { borderColor: invalidColor, _focus: undefined }
+                      : {})}
                   />
                 ) : (
                   <Text fontSize="14px" fontWeight="600" color="fg">
-                    {feeSettings?.defaultAmount ?? 0}
+                    {(feeSettings?.defaultAmount ?? 0).toFixed(2)}
                   </Text>
                 )}
                 <Text fontSize="12px" color="fg.muted">
                   per session
+                  {urgent && isEmergency
+                    ? ` → $${emergencyFee.toFixed(2)} charged`
+                    : ""}
                 </Text>
               </HStack>
             </Flex>
+
+            {feeError ? (
+              <Text mt="6px" textAlign="right" fontSize="12px" color={invalidColor}>
+                {feeError}
+              </Text>
+            ) : null}
+
+            {balanceDaysEditable ? (
+              <Flex align="center" justify="space-between" mt="16px" gap="12px">
+                <Box>
+                  <Text fontSize="13px" color="fg">
+                    Balance due
+                  </Text>
+                  <Text fontSize="12px" color="fg.muted">
+                    Days after the consultation. The client is emailed a payment
+                    link for the balance on that day.
+                  </Text>
+                </Box>
+                <HStack gap="6px" flexShrink={0}>
+                  {/*
+                    The firm's figure is the PLACEHOLDER, not a seeded value:
+                    an empty box means "use the default", which is exactly what
+                    the submit path does with it. Writing the default in would
+                    need an effect that fires on open, and would then pin a
+                    number the firm might since have changed.
+                  */}
+                  <Input
+                    type="number"
+                    min={0}
+                    max={90}
+                    step="1"
+                    value={balanceDueDays}
+                    onChange={(e) =>
+                      onBalanceDueDaysChange(e.currentTarget.value)
+                    }
+                    placeholder={String(firmBalanceDueDays ?? "")}
+                    maxW="72px"
+                    textAlign="right"
+                    {...fieldStyles}
+                  />
+                  <Text fontSize="12px" color="fg.muted">
+                    days
+                  </Text>
+                </HStack>
+              </Flex>
+            ) : null}
+
+            {/*
+              Offered on urgent bookings only, and the only way to charge above
+              the firm's published fee — the amount field itself is read-only
+              unless the firm prices per consultation.
+            */}
+            {urgent ? (
+              <Box
+                mt="14px"
+                border="1px solid"
+                borderColor="brand.solid"
+                borderRadius="10px"
+                bg="brand.subtle"
+                p="14px 16px"
+              >
+                <Flex align="flex-start" justify="space-between" gap="12px">
+                  <HStack gap="10px" align="flex-start">
+                    <Box color="brand.contrast" mt="2px">
+                      <Zap size={14} />
+                    </Box>
+                    <Box>
+                      <Text
+                        m="0"
+                        fontSize="13px"
+                        fontWeight="600"
+                        color="brand.contrast"
+                      >
+                        Mark as emergency consultation
+                      </Text>
+                      <Text m="2px 0 0" fontSize="12px" color="brand.fg">
+                        Applies an emergency rate multiplier to the consultation
+                        fee
+                      </Text>
+                    </Box>
+                  </HStack>
+                  <Switch.Root
+                    checked={isEmergency}
+                    onCheckedChange={(e) => onEmergencyChange(e.checked)}
+                  >
+                    <Switch.HiddenInput />
+                    <Switch.Control
+                      bg={isEmergency ? "brand.solid" : undefined}
+                    >
+                      <Switch.Thumb />
+                    </Switch.Control>
+                  </Switch.Root>
+                </Flex>
+                {isEmergency ? (
+                  <HStack
+                    mt="12px"
+                    pt="12px"
+                    borderTop="1px solid"
+                    borderColor="brand.solid"
+                    gap="8px"
+                    wrap="wrap"
+                  >
+                    <Text m="0" fontSize="12px" color="brand.fg">
+                      Multiplier:
+                    </Text>
+                    <Input
+                      type="number"
+                      min={1}
+                      step="0.5"
+                      value={emergencyMultiplier}
+                      onChange={(e) =>
+                        onEmergencyMultiplierChange(e.currentTarget.value)
+                      }
+                      maxW="64px"
+                      textAlign="center"
+                      {...fieldStyles}
+                      w="64px"
+                      borderColor={multiplierInvalid ? invalidColor : "border"}
+                    />
+                    <Text m="0" fontSize="12px" color="brand.fg">
+                      × Standard fee: ${standardFee} → Emergency fee: $
+                      {emergencyFee.toFixed(2)}
+                    </Text>
+                  </HStack>
+                ) : null}
+              </Box>
+            ) : null}
 
             <HStack
               mt="14px"

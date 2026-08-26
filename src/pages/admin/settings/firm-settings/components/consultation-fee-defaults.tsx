@@ -29,7 +29,7 @@ const FEE_STRUCTURE_OPTIONS: {
   label: string;
 }[] = [
   { value: "flat", label: "Flat fee" },
-  { value: "custom_per_case_type", label: "Custom per case type" },
+  { value: "custom_per_case_type", label: "Set per consultation" },
 ];
 
 const consultationFeeSchema = z
@@ -272,6 +272,11 @@ export function ConsultationFeeDefaults() {
             )}
           />
           <FieldError message={errors.feeStructure?.message} />
+          <Text fontSize="12px" color="fg.muted" mt="2">
+            Flat charges the default amount every time. Set per consultation
+            lets staff enter the amount when scheduling, starting from the
+            default above.
+          </Text>
         </Box>
       )}
 

@@ -19,6 +19,15 @@ export type ConsultationFeeSchedule =
 /** What happens to the fee when the lead does not turn up. */
 export type ConsultationNoShowPolicy = "forfeit" | "refund" | "decide";
 
+/**
+ * How the deposit's balance due date is decided.
+ *
+ * `custom` means per CONSULTATION — the scheduling wizard offers the number,
+ * defaulting to the firm's — not per case type. There is no per-case-type
+ * storage anywhere in the system.
+ */
+export type ConsultationBalanceDueMode = "fixed" | "custom";
+
 export type ConsultationSettings = {
   organizationId: string;
   chargesFee: boolean;
@@ -26,6 +35,9 @@ export type ConsultationSettings = {
   feeStructure: ConsultationFeeStructure | null;
   feeSchedule: ConsultationFeeSchedule;
   upfrontPercent: number | null;
+  balanceDueMode: ConsultationBalanceDueMode | null;
+  /** Days after the consultation. */
+  balanceDueDays: number | null;
   noShowPolicy: ConsultationNoShowPolicy;
   timezone: string;
   smsEnabled: boolean;
@@ -38,6 +50,8 @@ export type UpsertConsultationSettingsInput = {
   feeStructure?: ConsultationFeeStructure | null;
   feeSchedule?: ConsultationFeeSchedule;
   upfrontPercent?: number | null;
+  balanceDueMode?: ConsultationBalanceDueMode | null;
+  balanceDueDays?: number | null;
   noShowPolicy?: ConsultationNoShowPolicy;
   timezone?: string;
   smsEnabled?: boolean;
