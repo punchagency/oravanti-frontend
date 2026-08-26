@@ -109,66 +109,9 @@ export async function getWorkflowSummary(caseId: string): Promise<WorkflowSummar
   return data.data;
 }
 
-export async function completeStep(
-  caseId: string,
-  stepId: string,
-  notes?: string,
-): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
-    `/cases/${caseId}/workflow/steps/${stepId}/complete`,
-    { notes },
-  );
-  return data.data;
-}
-
-export async function submitForReview(
-  caseId: string,
-  stepId: string,
-  notes?: string,
-): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
-    `/cases/${caseId}/workflow/steps/${stepId}/submit-review`,
-    { notes },
-  );
-  return data.data;
-}
-
-export async function approveStep(
-  caseId: string,
-  stepId: string,
-  notes?: string,
-): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
-    `/cases/${caseId}/workflow/steps/${stepId}/approve`,
-    { notes },
-  );
-  return data.data;
-}
-
-export async function rejectStep(
-  caseId: string,
-  stepId: string,
-  feedback?: string,
-): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
-    `/cases/${caseId}/workflow/steps/${stepId}/reject`,
-    { feedback },
-  );
-  return data.data;
-}
-
-export async function assignStep(
-  caseId: string,
-  stepId: string,
-  staffId: string,
-  overrideRationale?: string,
-): Promise<CaseWorkflowInstance> {
-  const { data } = await API.post<{ data: CaseWorkflowInstance }>(
-    `/cases/${caseId}/workflow/steps/${stepId}/assign`,
-    { staffId, overrideRationale },
-  );
-  return data.data;
-}
+// The per-step verbs — complete, submit, approve, reject, reopen, assign — are
+// `transitionTask`/`assignTask` in `@/api/tasks`. One lifecycle for case steps,
+// intake steps and ad-hoc to-dos; the backend still writes the case timeline.
 
 export async function activateModule(
   caseId: string,
@@ -220,118 +163,8 @@ export async function getWorkflowLogs(
   return { data: data.data, pagination: data.pagination };
 }
 
-// ─── My Tasks & Review Queue ────────────────────────────────────────────────────
-
-export interface StepActionLogEntry {
-  id: string;
-  organizationId: string;
-  caseId: string;
-  stepId: string;
-  moduleId: string | null;
-  action: string;
-  title: string;
-  actorId: string | null;
-  actorName: string | null;
-  assigneeId: string | null;
-  assigneeName: string | null;
-  note: string | null;
-  timeTakenMs: number | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export interface MyTaskItem {
-  stepId: string;
-  caseId: string;
-  caseTitle: string;
-  title: string;
-  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped" | "rejected";
-  moduleId: string;
-  moduleName: string;
-  phaseName: string;
-  assignedAt: string | null;
-  dueDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-  auditLog: StepActionLogEntry[];
-}
-
-export interface ReviewQueueItem {
-  stepId: string;
-  caseId: string;
-  caseTitle: string;
-  title: string;
-  status: "pending" | "in_progress" | "in_review" | "completed" | "skipped" | "rejected";
-  moduleId: string;
-  moduleName: string;
-  phaseName: string;
-  assignedToName: string | null;
-  submittedAt: string | null;
-  dueDate: string | null;
-  auditLog: StepActionLogEntry[];
-}
-
-export interface PaginationMeta {
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export interface TasksCounts {
-  in_progress: number;
-  in_review: number;
-  completed: number;
-  pending: number;
-  skipped: number;
-  rejected: number;
-}
-
-export interface PaginatedTasksResponse {
-  data: MyTaskItem[];
-  counts: TasksCounts;
-  pagination: PaginationMeta;
-}
-
-export interface ReviewCounts {
-  in_progress: number;
-  in_review: number;
-  completed: number;
-  pending: number;
-  skipped: number;
-  rejected: number;
-}
-
-export interface PaginatedReviewResponse {
-  data: ReviewQueueItem[];
-  counts: ReviewCounts;
-  pagination: PaginationMeta;
-}
-
-export async function getMyTasks(
-  status?: string,
-  page?: number,
-  limit?: number,
-): Promise<PaginatedTasksResponse> {
-  const params: Record<string, string> = {};
-  if (status) params.status = status;
-  if (page) params.page = String(page);
-  if (limit) params.limit = String(limit);
-  const { data: res } = await API.get(`/cases/workflow/my-tasks`, { params });
-  return { data: res.data, counts: res.counts, pagination: res.pagination } as PaginatedTasksResponse;
-}
-
-export async function getReviewQueue(
-  status?: string,
-  page?: number,
-  limit?: number,
-): Promise<PaginatedReviewResponse> {
-  const params: Record<string, string> = {};
-  if (status) params.status = status;
-  if (page) params.page = String(page);
-  if (limit) params.limit = String(limit);
-  const { data: res } = await API.get(`/cases/workflow/review-queue`, { params });
-  return { data: res.data, counts: res.counts, pagination: res.pagination } as PaginatedReviewResponse;
-}
+// The cross-case task lists moved to `@/api/task-queue` — one shape for the
+// review queue and My Tasks, on both the case and intake sides.
 
 // ─── Case Documents API ──────────────────────────────────────────────────────
 
@@ -499,4 +332,165 @@ export async function getCaseEvents(
     { params },
   );
   return { data: data.data, pagination: data.pagination };
+}
+
+// ─── Workflow templates ──────────────────────────────────────────────────────
+
+/**
+ * A `Condition` as the backend stores it — a closed vocabulary, not free-form
+ * JSON. Mirrors `ConditionField` in `oravanti-be/src/db/schema/workflow.ts`;
+ * `describeCondition` in the workflow tab turns one into the sentence a
+ * paralegal reads when a module hasn't unlocked yet.
+ */
+export type ConditionField =
+  | "immigrationDetails.filingTrack"
+  | "immigrationDetails.naturalizationTrack"
+  | "immigrationDetails.isConditionalResidence"
+  | "immigrationDetails.priorityDateIsCurrent"
+  | "personalInjuryDetails.defendantType"
+  | "personalInjuryDetails.isMinorPlaintiff"
+  | "case.priority";
+
+export type Condition =
+  | { field: ConditionField; op: "eq" | "neq"; value: string | boolean }
+  | { field: ConditionField; op: "in"; value: string[] }
+  | { allOf: Condition[] }
+  | { anyOf: Condition[] };
+
+export interface WorkflowTemplateStep {
+  id: string;
+  moduleId: string;
+  title: string;
+  description: string | null;
+  orderIndex: number;
+  isRequired: boolean;
+  /** Part of the system backbone. A firm cannot weaken it without a rationale. */
+  isLocked: boolean;
+  dueDateAnchor: string | null;
+  /** Signed: negative is *before* the anchor. */
+  dueDateOffsetDays: number | null;
+  requiredCertifications: string[];
+  /** Dynamic RBAC role names — render with the existing role picker, don't invent a vocabulary. */
+  assignableRoles: string[];
+}
+
+export interface WorkflowTemplateModule {
+  id: string;
+  templateId: string;
+  name: string;
+  description: string | null;
+  phase: string;
+  orderIndex: number;
+  activationType: "auto" | "conditional" | "manual";
+  activationCondition: Condition | null;
+  assignableRoles: string[];
+  steps: WorkflowTemplateStep[];
+}
+
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  caseTypeId: string;
+  /** `null` = the shared system default. Non-null = this firm's own clone. */
+  organizationId: string | null;
+  isActive: boolean;
+  modules: WorkflowTemplateModule[];
+}
+
+export interface UpdateWorkflowModuleParams {
+  name?: string;
+  description?: string | null;
+  phase?: string;
+  activationType?: "auto" | "conditional" | "manual";
+  activationCondition?: Condition | null;
+  orderIndex?: number;
+}
+
+/** The template a case of this type materializes from: the firm's own if any, else the system default. */
+export async function getWorkflowTemplate(caseTypeId: string): Promise<WorkflowTemplate> {
+  const { data } = await API.get<{ data: WorkflowTemplate }>("/workflow-templates", {
+    params: { caseTypeId },
+  });
+  return data.data;
+}
+
+/** A firm's first edit clones the shared default rather than mutating it. */
+export async function cloneWorkflowTemplate(templateId: string): Promise<WorkflowTemplate> {
+  const { data } = await API.post<{ data: WorkflowTemplate }>(
+    `/workflow-templates/${templateId}/clone`,
+  );
+  return data.data;
+}
+
+export async function updateWorkflowModule(
+  templateId: string,
+  moduleId: string,
+  params: UpdateWorkflowModuleParams,
+): Promise<WorkflowTemplateModule> {
+  const { data } = await API.patch<{ data: WorkflowTemplateModule }>(
+    `/workflow-templates/${templateId}/modules/${moduleId}`,
+    params,
+  );
+  return data.data;
+}
+
+// ─── Case linking & mandamus candidacy ───────────────────────────────────────
+
+export type CaseRelationType = "mandamus" | "appeal" | "related_matter";
+
+/** One outstanding form, against USCIS's published median for it and the office. */
+export interface FormDelay {
+  formCode: string;
+  pendingSince: string;
+  /**
+   * False when the form's own filing date is blank and the matter's was used
+   * instead, so the UI can mark the figure approximate rather than presenting
+   * a fallback as fact.
+   */
+  pendingSinceIsFormDate: boolean;
+  daysPending: number;
+  medianDays: number | null;
+  delayRatio: number | null;
+}
+
+/**
+ * Days pending against USCIS's published median, one row per outstanding form.
+ *
+ * Per form because USCIS adjudicates per form: the I-765 routinely lands months
+ * before the I-485 it was filed with, and a single figure for "the matter"
+ * would average away the one that has actually stalled.
+ *
+ * Figures for an attorney to read, never a trigger. `delayRatio` is `null` when
+ * no processing-time reference matches — that means *unknown*, not "not
+ * delayed", and the UI must not render it as zero.
+ */
+export interface MandamusCandidacy {
+  /** Longest-overdue first. Empty when nothing is awaiting adjudication. */
+  forms: FormDelay[];
+  mostDelayed: FormDelay | null;
+}
+
+export async function getMandamusCandidacy(caseId: string): Promise<MandamusCandidacy> {
+  const { data } = await API.get<{ data: MandamusCandidacy }>(
+    `/cases/${caseId}/mandamus-candidacy`,
+  );
+  return data.data;
+}
+
+export async function linkCase(
+  parentCaseId: string,
+  childCaseId: string,
+  relationType: CaseRelationType,
+): Promise<unknown> {
+  const { data } = await API.post<{ data: unknown }>(`/cases/${parentCaseId}/link`, {
+    childCaseId,
+    relationType,
+  });
+  return data.data;
+}
+
+/** Removes THIS case's link to its parent — the child is the one addressed. */
+export async function unlinkCase(childCaseId: string): Promise<unknown> {
+  const { data } = await API.delete<{ data: unknown }>(`/cases/${childCaseId}/link`);
+  return data.data;
 }

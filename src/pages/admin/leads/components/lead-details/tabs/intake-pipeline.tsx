@@ -1,14 +1,16 @@
-import type { LeadTask, LeadTaskStatus } from "@/api/lead-workflows";
+
+import type { Task, TaskStatus } from "@/api/tasks";
 import { conflictStatusLabels, type LeadDetail } from "@/api/leads";
-import { StaffSelect } from "@/components/ui/staff-select";
+import { TaskAssigneeSelect } from "@/components/ui/task-assignee-select";
+import { TaskReviewThread } from "@/components/ui/task-review-thread";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
-import {
-  useAssignLeadTask,
-  useCompleteLeadTask,
-  useLeadTasks,
-  useUpdateLeadTaskStatus,
-} from "@/hooks/use-lead-workflows";
 import { useLeadById } from "@/hooks/use-leads";
+import {
+  useAssignTask,
+  useTasks,
+  useTransitionTask,
+  useUpdateTask,
+} from "@/hooks/use-tasks";
 import {
   Badge,
   Box,
@@ -27,6 +29,7 @@ import {
   Check,
   ChevronDown,
   ExternalLink,
+  MessageSquare,
   Play,
   RotateCcw,
   SkipForward,
@@ -42,6 +45,14 @@ import {
   taskStatusColors,
 } from "../../intake-pipeline/shared/constants";
 import { SectionLabel } from "../shared";
+
+/**
+ * Statuses a task can be brought back from. Mirrors the backend's
+ * `TRANSITIONS.reopen`: work gets marked done in error, or skipped and then
+ * turns out to matter, and without a way back the firm is left with a wrong
+ * record or a duplicate task beside it.
+ */
+const REOPENABLE_STATUSES = new Set(["completed", "skipped", "rejected"]);
 
 const consultationStatusLabels: Record<string, string> = {
   pending_payment: "Awaiting payment",
@@ -213,15 +224,27 @@ export function IntakePipelineTab({
 }: IntakePipelineTabProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: tasks, isLoading } = useLeadTasks(isActive ? leadId : "");
+  const { data: tasks, isLoading } = useTasks(
+    { leadId, source: "pipeline" },
+    isActive,
+  );
   const { data: leadDetail } = useLeadById(isActive ? leadId : "");
-  const updateStatus = useUpdateLeadTaskStatus(leadId);
-  const completeTask = useCompleteLeadTask(leadId);
-  const assignTask = useAssignLeadTask(leadId);
+  // Start / skip / reset are plain status edits; completing is a lifecycle move
+  // that also stamps who finished it and when.
+  const updateStatus = useUpdateTask();
+  const transition = useTransitionTask();
+  const assignTask = useAssignTask();
 
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [assignTaskId, setAssignTaskId] = useState<string | null>(null);
-  const [assignTaskTitle, setAssignTaskTitle] = useState("");
+  // The task being (re)assigned, or null when the dialog is closed. One piece
+  // of state rather than an open flag plus copies of the id and title: the
+  // dialog also needs the current assignee to preselect, and a fourth parallel
+  // setter is a fourth thing to forget.
+  const [assignTarget, setAssignTarget] = useState<Task | null>(null);
+
+  // The task whose review history is open. Same one-piece-of-state reasoning as
+  // above, and it keeps the board a board: the exchange is a step's whole
+  // submit/approve/reject story, which does not fit a table row.
+  const [historyTarget, setHistoryTarget] = useState<Task | null>(null);
 
   // Stage pages live outside the lead detail layout, so they need to be told
   // where the reader came from to render a way back to this tab.
@@ -305,7 +328,7 @@ export function IntakePipelineTab({
     stage,
     label: pipelineStageLabels[stage],
     color: pipelineStageColors[stage],
-    tasks: (tasks ?? []).filter((t) => t.pipelineStage === stage),
+    tasks: (tasks ?? []).filter((t) => t.phase === stage),
   }));
 
   return (
@@ -438,13 +461,15 @@ export function IntakePipelineTab({
                             onStatusChange={(status) =>
                               updateStatus.mutate({ taskId: task.id, status })
                             }
-                            onComplete={() => completeTask.mutate(task.id)}
-                            onAction={() => openStage(task.pipelineStage)}
-                            onOpenAssignDialog={() => {
-                              setAssignTaskId(task.id);
-                              setAssignTaskTitle(task.title);
-                              setAssignDialogOpen(true);
-                            }}
+                            onComplete={() =>
+                              transition.mutate({ taskId: task.id, transition: "complete" })
+                            }
+                            onAction={() => openStage(task.phase ?? group.stage)}
+                            onOpenAssignDialog={() => setAssignTarget(task)}
+                            onOpenHistory={() => setHistoryTarget(task)}
+                            onReopen={() =>
+                              transition.mutate({ taskId: task.id, transition: "reopen" })
+                            }
                           />
                         ))}
                       </Table.Body>
@@ -460,13 +485,15 @@ export function IntakePipelineTab({
                         onStatusChange={(status) =>
                           updateStatus.mutate({ taskId: task.id, status })
                         }
-                        onComplete={() => completeTask.mutate(task.id)}
-                        onAction={() => openStage(task.pipelineStage)}
-                        onOpenAssignDialog={() => {
-                          setAssignTaskId(task.id);
-                          setAssignTaskTitle(task.title);
-                          setAssignDialogOpen(true);
-                        }}
+                        onComplete={() =>
+                              transition.mutate({ taskId: task.id, transition: "complete" })
+                            }
+                        onAction={() => openStage(task.phase ?? group.stage)}
+                        onOpenAssignDialog={() => setAssignTarget(task)}
+                            onOpenHistory={() => setHistoryTarget(task)}
+                            onReopen={() =>
+                              transition.mutate({ taskId: task.id, transition: "reopen" })
+                            }
                       />
                     ))}
                   </Box>
@@ -478,19 +505,20 @@ export function IntakePipelineTab({
       </Box>
 
       <AssignStaffDialog
-        open={assignDialogOpen}
-        onOpenChange={setAssignDialogOpen}
-        taskTitle={assignTaskTitle}
+        key={assignTarget?.id ?? "none"}
+        task={assignTarget}
+        onClose={() => setAssignTarget(null)}
         onAssign={(staffId) => {
-          if (assignTaskId) {
-            assignTask.mutate(
-              { taskId: assignTaskId, assignedToId: staffId },
-              { onSettled: () => setAssignDialogOpen(false) },
-            );
-          }
+          if (!assignTarget) return;
+          assignTask.mutate(
+            { taskId: assignTarget.id, assignedToId: staffId },
+            { onSettled: () => setAssignTarget(null) },
+          );
         }}
         isPending={assignTask.isPending}
       />
+
+      <TaskHistoryDialog task={historyTarget} onClose={() => setHistoryTarget(null)} />
     </>
   );
 }
@@ -501,12 +529,16 @@ function TaskRow({
   onComplete,
   onAction,
   onOpenAssignDialog,
+  onOpenHistory,
+  onReopen,
 }: {
-  task: LeadTask;
-  onStatusChange: (status: LeadTaskStatus) => void;
+  task: Task;
+  onStatusChange: (status: TaskStatus) => void;
   onComplete: () => void;
   onAction: () => void;
   onOpenAssignDialog: () => void;
+  onOpenHistory: () => void;
+  onReopen: () => void;
 }) {
   const colors = taskStatusColors[task.status] ?? taskStatusColors.pending;
 
@@ -570,7 +602,7 @@ function TaskRow({
         borderColor="border.subtle"
       >
         <Text color="fg.muted" fontSize="11px" truncate>
-          {task.staff?.name ?? "—"}
+          {task.assignedTo?.name ?? "Unassigned"}
         </Text>
       </Table.Cell>
       <Table.Cell
@@ -638,12 +670,22 @@ function TaskRow({
                       <Box flex="1">Skip task</Box>
                     </Menu.Item>
                   )}
-                  {task.status !== "completed" && (
-                    <Menu.Item value="assign" onClick={onOpenAssignDialog}>
+                  <Menu.Item value="assign" onClick={onOpenAssignDialog}>
                       <UserPlus size={13} />
-                      <Box flex="1">Assign staff</Box>
+                      <Box flex="1">
+                        {task.assignedTo ? "Reassign step" : "Assign step"}
+                      </Box>
+                    </Menu.Item>
+                  {REOPENABLE_STATUSES.has(task.status) && (
+                    <Menu.Item value="reopen" onClick={onReopen}>
+                      <RotateCcw size={13} />
+                      <Box flex="1">Reopen task</Box>
                     </Menu.Item>
                   )}
+                  <Menu.Item value="history" onClick={onOpenHistory}>
+                    <MessageSquare size={13} />
+                    <Box flex="1">Review history</Box>
+                  </Menu.Item>
                   <Menu.Item
                     value="reset"
                     onClick={() => onStatusChange("pending")}
@@ -667,12 +709,16 @@ function MobileTaskCard({
   onComplete,
   onAction,
   onOpenAssignDialog,
+  onOpenHistory,
+  onReopen,
 }: {
-  task: LeadTask;
-  onStatusChange: (status: LeadTaskStatus) => void;
+  task: Task;
+  onStatusChange: (status: TaskStatus) => void;
   onComplete: () => void;
   onAction: () => void;
   onOpenAssignDialog: () => void;
+  onOpenHistory: () => void;
+  onReopen: () => void;
 }) {
   const colors = taskStatusColors[task.status] ?? taskStatusColors.pending;
 
@@ -730,7 +776,7 @@ function MobileTaskCard({
 
       <HStack mt={2} justify="space-between" wrap="wrap" gap={1.5}>
         <Text color="fg.muted" fontSize="11px">
-          Assigned: {task.staff?.name ?? "—"}
+          Assigned: {task.assignedTo?.name ?? "Unassigned"}
         </Text>
         <HStack gap={1}>
           <Button
@@ -791,12 +837,22 @@ function MobileTaskCard({
                       <Box flex="1">Skip task</Box>
                     </Menu.Item>
                   )}
-                  {task.status !== "completed" && (
-                    <Menu.Item value="assign" onClick={onOpenAssignDialog}>
+                  <Menu.Item value="assign" onClick={onOpenAssignDialog}>
                       <UserPlus size={13} />
-                      <Box flex="1">Assign staff</Box>
+                      <Box flex="1">
+                        {task.assignedTo ? "Reassign step" : "Assign step"}
+                      </Box>
+                    </Menu.Item>
+                  {REOPENABLE_STATUSES.has(task.status) && (
+                    <Menu.Item value="reopen" onClick={onReopen}>
+                      <RotateCcw size={13} />
+                      <Box flex="1">Reopen task</Box>
                     </Menu.Item>
                   )}
+                  <Menu.Item value="history" onClick={onOpenHistory}>
+                    <MessageSquare size={13} />
+                    <Box flex="1">Review history</Box>
+                  </Menu.Item>
                   <Menu.Item
                     value="reset"
                     onClick={() => onStatusChange("pending")}
@@ -814,27 +870,109 @@ function MobileTaskCard({
   );
 }
 
+/**
+ * One step's submit/approve/reject exchange.
+ *
+ * The same thread the reviewer reads in the review queue and the assignee reads
+ * in My Tasks — rendered here so the lead's own board is not the one place the
+ * decisions are invisible.
+ */
+function TaskHistoryDialog({
+  task,
+  onClose,
+}: {
+  task: Task | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog.Root
+      open={Boolean(task)}
+      onOpenChange={(details) => {
+        if (!details.open) onClose();
+      }}
+      size="sm"
+    >
+      <Portal>
+        <Dialog.Backdrop backdropFilter="blur(1px)" />
+        <Dialog.Positioner px="16px">
+          <Dialog.Content
+            w="full"
+            maxW="480px"
+            border="1px solid"
+            borderColor="border"
+            borderRadius="lg"
+            bg="bg"
+          >
+            <Dialog.Header>
+              <Dialog.Title fontSize="14px" fontWeight="600">
+                Review history
+              </Dialog.Title>
+            </Dialog.Header>
+
+            <Dialog.Body>
+              <Text fontSize="12px" color="fg.muted" mb={3}>
+                {task?.title}
+              </Text>
+              {/* Mounted only while open, so the board does not fetch a thread
+                  per step just to render the table. */}
+              {task ? (
+                <TaskReviewThread
+                  taskId={task.id}
+                  emptyText="Nothing submitted for review yet."
+                />
+              ) : null}
+            </Dialog.Body>
+
+            <Dialog.Footer gap={2}>
+              <Dialog.ActionTrigger asChild>
+                <Button
+                  variant="outline"
+                  borderColor="border"
+                  size="sm"
+                  fontSize="12px"
+                  h="32px"
+                >
+                  Close
+                </Button>
+              </Dialog.ActionTrigger>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
+  );
+}
+
+/**
+ * Hands one intake step to a specific person.
+ *
+ * Every step is auto-assigned by role when the lead's pipeline is stamped, so
+ * this is almost always a *re*assignment — it opens on whoever holds the step
+ * now, and says so.
+ *
+ * The caller keys this on the task id so it remounts per task: the preselected
+ * value is initial state, and without the remount the second step opened in a
+ * session would show the first one's assignee.
+ */
 function AssignStaffDialog({
-  open,
-  onOpenChange,
-  taskTitle,
+  task,
+  onClose,
   onAssign,
   isPending,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  taskTitle: string;
+  task: Task | null;
+  onClose: () => void;
   onAssign: (staffId: string) => void;
   isPending: boolean;
 }) {
-  const [selectedStaff, setSelectedStaff] = useState("");
+  const [selectedStaff, setSelectedStaff] = useState(task?.assignedTo?.id ?? "");
+  const isReassign = Boolean(task?.assignedTo);
 
   return (
     <Dialog.Root
-      open={open}
+      open={Boolean(task)}
       onOpenChange={(details) => {
-        onOpenChange(details.open);
-        if (!details.open) setSelectedStaff("");
+        if (!details.open) onClose();
       }}
       size="sm"
     >
@@ -851,18 +989,26 @@ function AssignStaffDialog({
           >
             <Dialog.Header>
               <Dialog.Title fontSize="14px" fontWeight="600">
-                Assign staff
+                {isReassign ? "Reassign step" : "Assign step"}
               </Dialog.Title>
             </Dialog.Header>
 
             <Dialog.Body>
               <VStack gap={3} align="stretch">
                 <Text fontSize="12px" color="fg.muted">
-                  Assign "
+                  {isReassign ? "Reassign" : "Assign"} "
                   <Text as="span" fontWeight="500" color="fg">
-                    {taskTitle}
+                    {task?.title}
                   </Text>
-                  " to a staff member
+                  "
+                  {task?.assignedTo ? (
+                    <>
+                      , currently with{" "}
+                      <Text as="span" fontWeight="500" color="fg">
+                        {task.assignedTo.name}
+                      </Text>
+                    </>
+                  ) : null}
                 </Text>
 
                 <Box>
@@ -876,11 +1022,17 @@ function AssignStaffDialog({
                   >
                     Staff member
                   </Text>
-                  <StaffSelect
-                    value={selectedStaff}
-                    onChange={setSelectedStaff}
-                    ariaLabel="Staff member to assign"
-                  />
+                  {/* Same picker the case workflow uses, so one rule decides
+                      who may hold a task. An intake step has no team, so this
+                      lists the firm — the component reads that off the task. */}
+                  {task ? (
+                    <TaskAssigneeSelect
+                      taskId={task.id}
+                      value={selectedStaff}
+                      onChange={setSelectedStaff}
+                      ariaLabel="Staff member to assign"
+                    />
+                  ) : null}
                 </Box>
               </VStack>
             </Dialog.Body>
@@ -905,11 +1057,12 @@ function AssignStaffDialog({
                 h="32px"
                 onClick={() => onAssign(selectedStaff)}
                 loading={isPending}
-                disabled={!selectedStaff}
+                // Nothing to do when the preselected assignee is still selected.
+                disabled={!selectedStaff || selectedStaff === task?.assignedTo?.id}
                 _hover={{ bg: "brand.solid/90" }}
               >
                 <UserPlus size={14} />
-                Assign
+                {isReassign ? "Reassign" : "Assign"}
               </Button>
             </Dialog.Footer>
           </Dialog.Content>

@@ -11,6 +11,14 @@ export type LeadTaskStatus =
   // straight back to `in_progress`, which told them nothing.
   | "rejected";
 
+/**
+ * A pipeline task joined to the lead it hangs off.
+ *
+ * Only the cross-lead projections use this — "my tasks" and the review queue,
+ * which list one person's or one firm's tasks across many leads and need the
+ * lead's name to be readable. A single lead's board reads plain `Task`s from
+ * `@/api/tasks`; this is not a second vocabulary for the same thing.
+ */
 export interface LeadTask {
   id: string;
   leadId: string;
@@ -32,16 +40,6 @@ export interface LeadTask {
   updatedAt: string;
   staff: { id: string; name: string; role: string } | null;
   lead: { id: string; name: string; email: string; pipelineStage: string } | null;
-}
-
-export interface LeadTaskInput {
-  title: string;
-  description?: string;
-  orderIndex: number;
-  pipelineStage: string;
-  isRequired?: boolean;
-  assignedToId?: string;
-  dueDate?: string;
 }
 
 /**
@@ -118,39 +116,10 @@ export async function initializePipeline(leadId: string): Promise<LeadTask[]> {
   return data.data;
 }
 
-export async function getLeadTasks(leadId: string): Promise<LeadTask[]> {
-  const { data } = await API.get<{ data: LeadTask[] }>(`/leads/${leadId}/tasks`);
-  return data.data;
-}
-
-export async function createLeadTask(leadId: string, input: LeadTaskInput): Promise<LeadTask> {
-  const { data } = await API.post<{ data: LeadTask }>(`/leads/${leadId}/tasks`, input);
-  return data.data;
-}
-
-export async function updateLeadTask(leadId: string, taskId: string, input: Partial<LeadTaskInput & { notes: string }>): Promise<LeadTask> {
-  const { data } = await API.patch<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}`, input);
-  return data.data;
-}
-
-export async function updateLeadTaskStatus(leadId: string, taskId: string, status: LeadTaskStatus): Promise<LeadTask> {
-  const { data } = await API.patch<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}/status`, { status });
-  return data.data;
-}
-
-export async function assignLeadTask(leadId: string, taskId: string, assignedToId: string): Promise<LeadTask> {
-  const { data } = await API.patch<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}/assign`, { assignedToId });
-  return data.data;
-}
-
-export async function completeLeadTask(leadId: string, taskId: string): Promise<LeadTask> {
-  const { data } = await API.post<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}/complete`);
-  return data.data;
-}
-
-export async function deleteLeadTask(leadId: string, taskId: string): Promise<void> {
-  await API.delete(`/leads/${leadId}/tasks/${taskId}`);
-}
+// One lead's intake tasks are read through `getTasks({ leadId, source })` in
+// `@/api/tasks` — the unified surface over the one `tasks` table. The write
+// endpoints below stay lead-scoped: they also write the lead's own timeline
+// under the `lead.task_*` vocabulary, which `/tasks` knows nothing about.
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -297,48 +266,5 @@ export async function toggleLeadNotePin(leadId: string, noteId: string): Promise
   return data.data;
 }
 
-// ─── Lead Task Review ─────────────────────────────────────────────────────────
-
-export async function submitLeadTaskForReview(leadId: string, taskId: string, notes?: string): Promise<LeadTask> {
-  const { data } = await API.post<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}/submit-review`, { notes });
-  return data.data;
-}
-
-export async function approveLeadTask(leadId: string, taskId: string, notes?: string): Promise<LeadTask> {
-  const { data } = await API.post<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}/approve`, { notes });
-  return data.data;
-}
-
-export async function rejectLeadTask(leadId: string, taskId: string, feedback: string): Promise<LeadTask> {
-  const { data } = await API.post<{ data: LeadTask }>(`/leads/${leadId}/tasks/${taskId}/reject`, { feedback });
-  return data.data;
-}
-
-export interface LeadReviewQueueItem {
-  id: string;
-  title: string;
-  description: string | null;
-  status: LeadTaskStatus;
-  pipelineStage: string;
-  orderIndex: number;
-  leadId: string;
-  assignedToId: string | null;
-  assignedToName: string | null;
-  completedAt: string | null;
-  completedById: string | null;
-  notes: string | null;
-  dueDate: string | null;
-  leadName: string;
-  leadEmail: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export async function getLeadReviewQueue(status?: string, page?: number, limit?: number): Promise<{ data: LeadReviewQueueItem[]; pagination: { total: number; limit: number; offset: number } }> {
-  const params = new URLSearchParams();
-  if (status) params.set("status", status);
-  if (page) params.set("page", String(page));
-  if (limit) params.set("limit", String(limit));
-  const { data } = await API.get(`/leads/review-queue?${params.toString()}`);
-  return { data: data.data, pagination: data.pagination };
-}
+// The cross-lead task lists moved to `@/api/task-queue` — one shape shared with
+// the case side, so one card renders the review queue and My Tasks for both.

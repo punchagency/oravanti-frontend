@@ -1,165 +1,68 @@
-import {
-  Box,
-  HStack,
-  Progress,
-  Separator,
-  Text,
-  VStack,
-} from "@chakra-ui/react";
-import { useMemo } from "react";
-import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
-import { ModuleSection } from "./components/module-section";
-import { useCaseWorkflow } from "./hooks";
-import type { CaseModuleInstance, WorkflowModule } from "./types";
+import { Box, HStack, Progress, Separator, Text, VStack } from "@chakra-ui/react";
+import { useMemo, type ReactNode } from "react";
+import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
+import { useCaseById } from "@/hooks/use-cases";
+import { useTasks } from "@/hooks/use-tasks";
+import { useTriggerModule, useWorkflowTemplate } from "@/hooks/use-workflows";
+import { PendingModuleNotice } from "./components/pending-module-notice";
+import { TaskRow } from "./components/task-row";
+import { groupTasksByPhase, stepsOf } from "./group-tasks";
 
 interface WorkflowTabProps {
   caseId: string;
   isActive?: boolean;
 }
 
-interface MergedModule {
-  definition: WorkflowModule;
-  instance: CaseModuleInstance;
+const COMPLETED_STATUSES = new Set(["completed", "skipped", "cancelled"]);
+
+/** The tab's empty states: one centred line, nothing else on the board. */
+function EmptyNotice({ children }: { children: ReactNode }) {
+  return (
+    <Box py={8} textAlign="center">
+      <Text fontSize="12px" color="fg.muted">
+        {children}
+      </Text>
+    </Box>
+  );
 }
 
-interface PhaseGroup {
-  phase: string;
-  modules: MergedModule[];
-}
-
-function groupByPhase(mergedModules: MergedModule[]): PhaseGroup[] {
-  const map = new Map<string, MergedModule[]>();
-  for (const m of mergedModules) {
-    const phase = m.definition.phase;
-    if (!map.has(phase)) map.set(phase, []);
-    map.get(phase)!.push(m);
-  }
-  return Array.from(map.entries()).map(([phase, modules]) => ({
-    phase,
-    modules: modules.sort(
-      (a, b) => a.definition.orderIndex - b.definition.orderIndex,
-    ),
-  }));
-}
-
-function mapBackendModule(mod: {
-  moduleId: string;
-  name: string;
-  phase: string;
-  orderIndex: number;
-  activationType: string;
-  activationCondition: string | null;
-  status: "locked" | "active" | "completed";
-  steps: {
-    stepId: string;
-    title: string;
-    status:
-      | "pending"
-      | "in_progress"
-      | "completed"
-      | "skipped"
-      | "in_review"
-      | "rejected";
-    assignedTo: { id: string; name: string; role: string } | null;
-    dueDate: string | null;
-    completedAt: string | null;
-    notes: string;
-  }[];
-}): { definition: WorkflowModule; instance: CaseModuleInstance } {
-  const mappedSteps = mod.steps.map((s) => ({
-    stepId: s.stepId,
-    status:
-      s.status === "completed"
-        ? ("complete" as const)
-        : s.status === "in_progress"
-          ? ("in_progress" as const)
-          : s.status === "in_review"
-            ? ("in_review" as const)
-            : s.status === "rejected"
-              ? ("rejected" as const)
-              : ("not_started" as const),
-    assignedTo: s.assignedTo,
-    assignedAt: null,
-    dueDate: s.dueDate,
-    completedAt: s.completedAt,
-    completedBy: null,
-    overrideRationale: null,
-    notes: s.notes,
-  }));
-
-  const definition: WorkflowModule = {
-    moduleId: mod.moduleId,
-    name: mod.name,
-    phase: mod.phase,
-    orderIndex: mod.orderIndex,
-    steps: mod.steps.map((s) => ({
-      stepId: s.stepId,
-      title: s.title,
-      description: "",
-      assignableTo: ["attorney", "paralegal"],
-      requiredCertification: null,
-      orderIndex: mod.steps.indexOf(s) + 1,
-      defaultDurationDays: 3,
-    })),
-    conditionalActivation:
-      mod.activationType !== "auto"
-        ? {
-            type:
-              mod.activationType === "manual"
-                ? "manual_trigger"
-                : "condition_met",
-            label: mod.activationCondition ?? "Module requires activation",
-          }
-        : undefined,
-  };
-
-  const instance: CaseModuleInstance = {
-    moduleId: mod.moduleId,
-    status: mod.status,
-    steps: mappedSteps,
-  };
-
-  return { definition, instance };
-}
-
+/**
+ * The case's workflow: every task on the matter, grouped by phase, with the
+ * template's not-yet-unlocked modules shown alongside.
+ *
+ * Reads two sources because neither is sufficient alone. The tasks are what
+ * exists; the template is what *could* exist — which is the only way to tell a
+ * conditional module that hasn't unlocked from one that isn't in this template
+ * at all. It also carries each step's `dueDateAnchor`, which is what lets a
+ * blank due date say what it is waiting for.
+ */
 export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
-  const {
-    data: workflowInstance,
-    isLoading,
-    refetch,
-  } = useCaseWorkflow(caseId, isActive);
+  const { data: caseDetail, isLoading: isCaseLoading } = useCaseById(caseId);
+  const caseTypeId = caseDetail?.caseType?.id;
 
-  const mergedModules: MergedModule[] = useMemo(() => {
-    if (!workflowInstance) return [];
-    return workflowInstance.modules.map(mapBackendModule);
-  }, [workflowInstance]);
+  const { data: tasks, isLoading: isTasksLoading } = useTasks({ caseId }, isActive);
+  const { data: template } = useWorkflowTemplate(caseTypeId, isActive);
+  const triggerModule = useTriggerModule(caseId);
 
-  const phaseGroups = useMemo(
-    () => groupByPhase(mergedModules),
-    [mergedModules],
+  /** `workflowTemplateStepId` → the step's anchor, for the due-date copy. */
+  const anchorByStepId = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const mod of template?.modules ?? []) {
+      for (const step of stepsOf(mod)) map.set(step.id, step.dueDateAnchor);
+    }
+    return map;
+  }, [template]);
+
+  const groups = useMemo(
+    () => groupTasksByPhase(tasks ?? [], template),
+    [tasks, template],
   );
 
-  const totalSteps = useMemo(
-    () => mergedModules.reduce((sum, m) => sum + m.instance.steps.length, 0),
-    [mergedModules],
-  );
-  const completedSteps = useMemo(
-    () =>
-      mergedModules.reduce(
-        (sum, m) =>
-          sum + m.instance.steps.filter((s) => s.status === "complete").length,
-        0,
-      ),
-    [mergedModules],
-  );
-  const progressPct =
-    totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const completed = (tasks ?? []).filter((t) => COMPLETED_STATUSES.has(t.status)).length;
+  const total = tasks?.length ?? 0;
+  const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  const handleRefresh = () => {
-    refetch();
-  };
-
-  if (isLoading) {
+  if (isTasksLoading || isCaseLoading) {
     return (
       <VStack align="stretch" gap={4} py={4}>
         <Box>
@@ -170,44 +73,11 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
           <ThemeSkeleton h="6px" w="100%" borderRadius="full" />
         </Box>
         {Array.from({ length: 2 }, (_, i) => (
-          <Box
-            key={i}
-            border="1px solid"
-            borderColor="border"
-            borderRadius="8px"
-            p={4}
-          >
-            <HStack justify="space-between" mb={3}>
-              <HStack gap={2}>
-                <ThemeSkeleton h="20px" w="20px" borderRadius="full" />
-                <ThemeSkeleton
-                  h="14px"
-                  w={`${120 + i * 30}px`}
-                  borderRadius="4px"
-                />
-              </HStack>
-              <ThemeSkeleton h="18px" w="50px" borderRadius="full" />
-            </HStack>
-            <VStack align="stretch" gap={2}>
+          <Box key={i}>
+            <ThemeSkeleton h="10px" w="90px" borderRadius="4px" />
+            <VStack align="stretch" gap={2} mt={2}>
               {Array.from({ length: 2 + i }, (_, j) => (
-                <HStack
-                  key={j}
-                  justify="space-between"
-                  p={2}
-                  border="1px solid"
-                  borderColor="border.subtle"
-                  borderRadius="6px"
-                >
-                  <HStack gap={2}>
-                    <ThemeSkeleton h="16px" w="16px" borderRadius="full" />
-                    <ThemeSkeleton
-                      h="12px"
-                      w={`${140 + j * 20}px`}
-                      borderRadius="4px"
-                    />
-                  </HStack>
-                  <ThemeSkeleton h="18px" w="60px" borderRadius="full" />
-                </HStack>
+                <ThemeSkeleton key={j} h="46px" w="100%" borderRadius="6px" />
               ))}
             </VStack>
           </Box>
@@ -216,23 +86,35 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
     );
   }
 
+  // The team comes first: every step is assigned from it, so a workflow
+  // generated before one is chosen would be a full board of work nobody can be
+  // given — the backend refuses for the same reason, see
+  // `materializeTasksForCase`. Until then the template's modules are
+  // hypothetical, so listing them as locked under an empty 0-of-0 bar describes
+  // a workflow that does not exist and buries the one thing to do about it.
+  // Guarded on there being nothing materialized so a case that somehow has
+  // tasks without a team still shows them rather than hiding real work.
+  if (!caseDetail?.assignedTeam && total === 0) {
+    return (
+      <EmptyNotice>
+        Assign a team to this case before generating its workflow — every step
+        is assigned from the case's team.
+      </EmptyNotice>
+    );
+  }
+
   return (
     <Box>
       <Box mb={4}>
         <HStack justify="space-between" mb={1}>
           <Text fontSize="11px" fontWeight="500" color="fg">
-            {completedSteps} of {totalSteps} steps complete
+            {completed} of {total} {total === 1 ? "step" : "steps"} complete
           </Text>
           <Text fontSize="11px" fontWeight="500" color="brand.solid">
             {progressPct}%
           </Text>
         </HStack>
-        <Progress.Root
-          value={progressPct}
-          size="sm"
-          colorPalette="brand"
-          borderRadius="full"
-        >
+        <Progress.Root value={progressPct} size="sm" colorPalette="brand" borderRadius="full">
           <Progress.Track borderRadius="full">
             <Progress.Range borderRadius="full" />
           </Progress.Track>
@@ -241,16 +123,16 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
 
       <Separator borderColor="border" mb={4} />
 
-      {phaseGroups.length === 0 && (
-        <Box py={8} textAlign="center">
-          <Text fontSize="12px" color="fg.muted">
-            No workflow data available.
-          </Text>
-        </Box>
+      {groups.length === 0 && (
+        <EmptyNotice>
+          {template
+            ? "No tasks on this case yet."
+            : "No workflow template is configured for this case type."}
+        </EmptyNotice>
       )}
 
       <VStack gap={{ base: 4, md: 5 }} align="stretch">
-        {phaseGroups.map((group) => (
+        {groups.map((group) => (
           <Box key={group.phase}>
             <Text
               fontSize="10px"
@@ -264,13 +146,24 @@ export function WorkflowTab({ caseId, isActive = true }: WorkflowTabProps) {
             </Text>
 
             <VStack gap={2} align="stretch">
-              {group.modules.map((m) => (
-                <ModuleSection
-                  key={m.definition.moduleId}
-                  moduleDef={m.definition}
-                  moduleInst={m.instance}
-                  caseId={caseId}
-                  onRefresh={handleRefresh}
+              {group.tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  dueDateAnchor={
+                    task.workflowTemplateStepId
+                      ? anchorByStepId.get(task.workflowTemplateStepId)
+                      : null
+                  }
+                />
+              ))}
+
+              {group.pendingModules.map((mod) => (
+                <PendingModuleNotice
+                  key={mod.id}
+                  module={mod}
+                  onActivate={() => triggerModule.mutate(mod.id)}
+                  isActivating={triggerModule.isPending}
                 />
               ))}
             </VStack>

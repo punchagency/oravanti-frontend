@@ -47,6 +47,18 @@ export interface CaseDetail {
   caseType: { id: string; name: string } | null;
   assignedTeam: AssignedTeam | null;
   currentStep: string | null;
+  /** The matter this one hangs off — e.g. the AOS case a mandamus action chases. */
+  parentCase: LinkedCase | null;
+  /** Matters that hang off this one. Chains are rejected, so these have no children. */
+  linkedCases: LinkedCase[];
+}
+
+/** One end of a `parentCaseId`/`relationType` link, read from either direction. */
+export interface LinkedCase {
+  id: string;
+  caseNumber: string;
+  status: string;
+  relationType: string | null;
 }
 
 export interface PaginationMeta {

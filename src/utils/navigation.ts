@@ -406,6 +406,11 @@ export const contextNavigation: Record<
           icon: "settings",
         },
         {
+          label: "Intake checklist",
+          path: "/settings/intake-checklist",
+          icon: "intake",
+        },
+        {
           label: "Audit trail",
           path: "/settings/audit-trail",
           icon: "clipboard",

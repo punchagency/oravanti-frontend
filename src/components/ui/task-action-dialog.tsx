@@ -10,7 +10,7 @@ import {
 } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
-interface WorkflowActionDialogProps {
+interface TaskActionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -24,7 +24,7 @@ interface WorkflowActionDialogProps {
   isPending: boolean;
 }
 
-export function WorkflowActionDialog({
+export function TaskActionDialog({
   open,
   onOpenChange,
   title,
@@ -36,7 +36,7 @@ export function WorkflowActionDialog({
   placeholder,
   onConfirm,
   isPending,
-}: WorkflowActionDialogProps) {
+}: TaskActionDialogProps) {
   const [notes, setNotes] = useState("");
 
   const handleConfirm = () => {
