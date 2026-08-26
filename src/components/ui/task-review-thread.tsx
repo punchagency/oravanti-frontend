@@ -1,9 +1,10 @@
-import type { TaskReviewAction, TaskReviewEvent } from "@/api/task-review";
-import { useTaskReviewThread, type TaskKind } from "@/hooks/use-task-review";
+import type { TaskReviewEvent } from "@/api/task-review";
+import { useTaskReviewThread } from "@/hooks/use-task-review";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { Box, HStack, Stack, Text } from "@chakra-ui/react";
 import {
   Check,
+  CircleDot,
   MessageSquare,
   RotateCcw,
   SendHorizontal,
@@ -12,20 +13,27 @@ import {
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 
+/**
+ * Icon and colour per action, keyed on the **registry action itself**.
+ *
+ * It used to be keyed on a re-cased variant (`"submitted"`), which matched
+ * nothing the API returns — every row in every thread rendered as "Submitted for
+ * review" in blue, whatever had actually happened. Keys are the action strings
+ * now, and the label comes from the API rather than being restated here.
+ */
 const ACTION_META: Record<
-  TaskReviewAction,
-  { label: string; color: string; icon: ComponentType<{ size?: number }> }
+  string,
+  { color: string; icon: ComponentType<{ size?: number }> }
 > = {
-  submitted: {
-    label: "Submitted for review",
-    color: "blue.500",
-    icon: SendHorizontal,
-  },
-  approved: { label: "Approved", color: "green.500", icon: Check },
-  rejected: { label: "Rejected", color: "red.500", icon: X },
-  reopened: { label: "Reopened", color: "orange.500", icon: RotateCcw },
-  assigned: { label: "Assigned", color: "fg.muted", icon: UserPlus },
+  "task.submitted": { color: "blue.500", icon: SendHorizontal },
+  "task.approved": { color: "green.500", icon: Check },
+  "task.rejected": { color: "red.500", icon: X },
+  "task.reopened": { color: "orange.500", icon: RotateCcw },
+  "task.assigned": { color: "fg.muted", icon: UserPlus },
 };
+
+/** A row written by a newer deployment still renders — with its own label and a neutral mark. */
+const UNKNOWN_ACTION = { color: "fg.muted", icon: CircleDot };
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -37,7 +45,7 @@ function formatWhen(iso: string): string {
 }
 
 export function TaskReviewEventRow({ event }: { event: TaskReviewEvent }) {
-  const meta = ACTION_META[event.action] ?? ACTION_META.submitted;
+  const meta = ACTION_META[event.action] ?? UNKNOWN_ACTION;
   const Icon = meta.icon;
 
   return (
@@ -48,7 +56,8 @@ export function TaskReviewEventRow({ event }: { event: TaskReviewEvent }) {
       <Box flex={1} minW={0}>
         <HStack gap={1.5} flexWrap="wrap">
           <Text fontSize="12px" fontWeight="500" color="fg">
-            {meta.label}
+            {/* The registry's own label — never a phrase rebuilt from `action`. */}
+            {event.label}
           </Text>
           {event.actorName ? (
             <Text fontSize="11px" color="fg.muted">
@@ -65,8 +74,6 @@ export function TaskReviewEventRow({ event }: { event: TaskReviewEvent }) {
             px={2.5}
             py={1.5}
             borderRadius="6px"
-            borderLeft="2px solid"
-            borderColor={meta.color}
             bg="bg.subtle"
           >
             <Text fontSize="12px" color="fg.muted" whiteSpace="pre-wrap">
@@ -87,31 +94,22 @@ export function TaskReviewEventRow({ event }: { event: TaskReviewEvent }) {
  * two layouts.
  */
 export function TaskReviewThread({
-  kind,
-  parentId,
   taskId,
   enabled = true,
   emptyText = "No review activity yet.",
   fallback,
 }: {
-  kind: TaskKind;
-  parentId: string;
   taskId: string;
   enabled?: boolean;
   emptyText?: string;
   /**
    * Shown instead of the empty state when the thread has no events. Case steps
-   * predating `task_review_events` still have their notes in the older step
-   * action log, and that history should not disappear from the screen.
+   * predating the shared thread still have their notes in the older step action
+   * log, and that history should not disappear from the screen.
    */
   fallback?: ReactNode;
 }) {
-  const { data: events, isLoading } = useTaskReviewThread(
-    kind,
-    parentId,
-    taskId,
-    enabled,
-  );
+  const { data: events, isLoading } = useTaskReviewThread(taskId, enabled);
 
   if (isLoading) {
     return (
