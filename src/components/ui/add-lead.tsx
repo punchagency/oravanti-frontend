@@ -46,7 +46,11 @@ const leadSchema = z.object({
   // equivalent bail out and return null), is dropped from conversion metrics by
   // an inner join, and cannot be converted to a case at all.
   practiceAreaId: z.string().min(1, "Select a practice area"),
-  caseTypeId: z.string(),
+  // Required on the same terms. Without one the lead is hard-blocked at the
+  // questionnaire stage, silently absent from the questionnaire send wizard,
+  // shows zero eligible teams at case opening, and renders "Not specified" as
+  // the matter type on a signed fee agreement.
+  caseTypeId: z.string().min(1, "Select a case type"),
   source: z.string(),
   timezone: z.string(),
   situationSummary: z.string(),
@@ -196,7 +200,7 @@ function AddLeadForm({ open, close }: { open: boolean; close: () => void }) {
         email: data.email.trim(),
         phone: data.phone || undefined,
         practiceAreaId: data.practiceAreaId,
-        caseTypeId: data.caseTypeId || undefined,
+        caseTypeId: data.caseTypeId,
         source: (sourceValues[data.source] ?? "direct") as LeadSource,
         situationSummary: data.situationSummary || undefined,
         intakeAdversePartyName: data.adversePartyName.trim() || undefined,
@@ -287,7 +291,15 @@ function AddLeadForm({ open, close }: { open: boolean; close: () => void }) {
                         value={field.value}
                         onChange={(value) => {
                           field.onChange(value);
-                          setValue("caseTypeId", "");
+                          // Clearing is load-bearing: a case type belongs to
+                          // exactly one practice area, so keeping the old
+                          // selection would leave a required field holding a
+                          // value that is not on offer any more.
+                          //
+                          // `shouldValidate` because the field now has a rule —
+                          // without it, wiping a valid selection leaves a stale
+                          // "valid" state until blur or submit.
+                          setValue("caseTypeId", "", { shouldValidate: true });
                         }}
                         options={(practiceAreas ?? []).map((area) => ({
                           value: area.id,
@@ -421,15 +433,21 @@ function CaseTypeField({
   const practiceAreaId = useWatch({ control, name: "practiceAreaId" });
   const caseTypeOptions = getCaseTypes(practiceAreaId, practiceAreas);
 
+  /*
+    The error comes from the Controller's own `fieldState` rather than from an
+    `errors` prop: this component is deliberately isolated from AddLeadForm's
+    render (see above), and threading `errors` in would re-subscribe it to the
+    whole form state, undoing that.
+  */
   return (
-    <FormField label="Case type">
-      {loading ? (
-        <ControlSkeleton h="36px" />
-      ) : (
-        <Controller
-          control={control}
-          name="caseTypeId"
-          render={({ field }) => (
+    <Controller
+      control={control}
+      name="caseTypeId"
+      render={({ field, fieldState }) => (
+        <FormField label="Case type" error={fieldState.error?.message}>
+          {loading ? (
+            <ControlSkeleton h="36px" />
+          ) : (
             <FormSelect
               ariaLabel="Case type"
               placeholder={
@@ -446,9 +464,9 @@ function CaseTypeField({
               }))}
             />
           )}
-        />
+        </FormField>
       )}
-    </FormField>
+    />
   );
 }
 
