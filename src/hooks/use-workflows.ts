@@ -2,30 +2,31 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { reassignCaseTeam } from "../api/cases";
 import type {
+  CaseRelationType,
   CreateCaseNoteParams,
   GetCaseNotesParams,
   UpdateCaseNoteParams,
+  UpdateWorkflowModuleParams,
 } from "../api/workflows";
 import {
   activateModule,
-  approveStep,
-  assignStep,
+  cloneWorkflowTemplate,
+  getMandamusCandidacy,
+  getWorkflowTemplate,
+  linkCase,
+  unlinkCase,
+  updateWorkflowModule,
   bulkDeleteCaseNotes,
-  bulkPinCaseNotes,
-  completeStep,
+  bulkPinCaseNotes,
   createCaseNote,
   deleteCaseNote,
   getCaseDocuments,
   getCaseEvents,
   getCaseNotes,
   getCaseTimeline,
-  getCaseWorkflow,
-  getMyTasks,
-  getReviewQueue,
+  getCaseWorkflow,
   getWorkflowLogs,
-  getWorkflowSummary,
-  rejectStep,
-  submitForReview,
+  getWorkflowSummary,
   toggleCaseNotePin,
   updateCaseNote,
 } from "../api/workflows";
@@ -69,22 +70,6 @@ export const workflowKeys = {
     [
       "case-events",
       caseId,
-      ...(page ? [`p${page}`] : []),
-      ...(limit ? [`l${limit}`] : []),
-    ] as const,
-  myTasks: (status?: string, page?: number, limit?: number) =>
-    [
-      "workflow",
-      "my-tasks",
-      ...(status ? [status] : []),
-      ...(page ? [`p${page}`] : []),
-      ...(limit ? [`l${limit}`] : []),
-    ] as const,
-  reviewQueue: (status?: string, page?: number, limit?: number) =>
-    [
-      "workflow",
-      "review-queue",
-      ...(status ? [status] : []),
       ...(page ? [`p${page}`] : []),
       ...(limit ? [`l${limit}`] : []),
     ] as const,
@@ -136,129 +121,9 @@ export function useWorkflowLogs(
 
 // ─── Mutations ───────────────────────────────────────────────────────────────────
 
-export function useAssignStep(caseId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      stepId,
-      staffId,
-      overrideRationale,
-    }: {
-      stepId: string;
-      staffId: string;
-      overrideRationale?: string;
-    }) => assignStep(caseId, stepId, staffId, overrideRationale),
-    onSuccess: () => {
-      toast.success("Step assigned");
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.instance(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.timeline(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
-    },
-    onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to assign step");
-    },
-  });
-}
-
-export function useCompleteStep(caseId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ stepId, notes }: { stepId: string; notes?: string }) =>
-      completeStep(caseId, stepId, notes),
-    onSuccess: () => {
-      toast.success("Step completed");
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.instance(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.timeline(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: ["cases"] });
-    },
-    onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to complete step");
-    },
-  });
-}
-
-export function useSubmitForReview(caseId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ stepId, notes }: { stepId: string; notes?: string }) =>
-      submitForReview(caseId, stepId, notes),
-    onSuccess: () => {
-      toast.success("Step submitted for review");
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.instance(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.timeline(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
-    },
-    onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to submit for review");
-    },
-  });
-}
-
-export function useApproveStep(caseId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ stepId, notes }: { stepId: string; notes?: string }) =>
-      approveStep(caseId, stepId, notes),
-    onSuccess: () => {
-      toast.success("Step approved");
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.instance(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.timeline(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.reviewQueue() });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
-    },
-    onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to approve step");
-    },
-  });
-}
-
-export function useRejectStep(caseId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ stepId, feedback }: { stepId: string; feedback: string }) =>
-      rejectStep(caseId, stepId, feedback),
-    onSuccess: () => {
-      toast.success("Step rejected with feedback");
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.instance(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.summary(caseId) });
-      queryClient.invalidateQueries({
-        queryKey: workflowKeys.timeline(caseId),
-      });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.reviewQueue() });
-      queryClient.invalidateQueries({ queryKey: workflowKeys.myTasks() });
-    },
-    onError: (err: APIError) => {
-      toast.error(err.response?.data?.message ?? "Failed to reject step");
-    },
-  });
-}
+// The per-step mutations moved to `useTransitionTask`/`useAssignTask` in
+// `@/hooks/use-tasks`, which invalidate the case, workflow and task queries
+// together — a step change moves rows in all three.
 
 export function useTriggerModule(caseId: string) {
   const queryClient = useQueryClient();
@@ -274,28 +139,15 @@ export function useTriggerModule(caseId: string) {
       queryClient.invalidateQueries({
         queryKey: workflowKeys.timeline(caseId),
       });
+      // Activating a manual module *creates* its tasks — this is the whole
+      // point of the action, not a side effect. Without this the workflow tab
+      // keeps rendering the module as still locked until something else
+      // refetches.
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to activate module");
     },
-  });
-}
-
-// ─── My Tasks ───────────────────────────────────────────────────────────────────
-
-export function useMyTasks(status?: string, page?: number, limit?: number) {
-  return useQuery({
-    queryKey: workflowKeys.myTasks(status, page, limit),
-    queryFn: () => getMyTasks(status, page, limit),
-  });
-}
-
-// ─── Review Queue ───────────────────────────────────────────────────────────────
-
-export function useReviewQueue(status?: string, page?: number, limit?: number) {
-  return useQuery({
-    queryKey: workflowKeys.reviewQueue(status, page, limit),
-    queryFn: () => getReviewQueue(status, page, limit),
   });
 }
 
@@ -441,5 +293,125 @@ export function useCaseEvents(
     queryKey: workflowKeys.caseEvents(caseId, page, limit),
     queryFn: () => getCaseEvents(caseId, page, limit),
     enabled: !!caseId,
+  });
+}
+
+// ─── Workflow templates, case linking, mandamus candidacy ────────────────────
+
+export const templateKeys = {
+  all: ["workflow-template"] as const,
+  byCaseType: (caseTypeId: string) => ["workflow-template", caseTypeId] as const,
+  mandamusCandidacy: (caseId: string) => ["mandamus-candidacy", caseId] as const,
+};
+
+/**
+ * The template a case of this type materializes from.
+ *
+ * The workflow tab needs it for what the *tasks* can't say: which modules
+ * exist, which are conditional and on what, and which steps are locked. A
+ * conditional module with no materialized tasks is one that hasn't unlocked
+ * yet — that difference is only visible by comparing the two.
+ */
+export function useWorkflowTemplate(caseTypeId: string | null | undefined, enabled: boolean = true) {
+  return useQuery({
+    queryKey: templateKeys.byCaseType(caseTypeId ?? ""),
+    queryFn: () => getWorkflowTemplate(caseTypeId!),
+    enabled: Boolean(caseTypeId) && enabled,
+    // A case type without a seeded template is a real configuration state, not
+    // a transient failure — retrying the 404 three times just delays the
+    // empty state.
+    retry: false,
+  });
+}
+
+export function useMandamusCandidacy(caseId: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: templateKeys.mandamusCandidacy(caseId),
+    queryFn: () => getMandamusCandidacy(caseId),
+    enabled: Boolean(caseId) && enabled,
+    retry: false,
+  });
+}
+
+export function useCloneWorkflowTemplate(caseTypeId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (templateId: string) => cloneWorkflowTemplate(templateId),
+    onSuccess: () => {
+      toast.success("Template copied to your firm");
+      queryClient.invalidateQueries({ queryKey: templateKeys.byCaseType(caseTypeId) });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to copy template");
+    },
+  });
+}
+
+export function useUpdateWorkflowModule(caseTypeId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      moduleId,
+      ...params
+    }: UpdateWorkflowModuleParams & { templateId: string; moduleId: string }) =>
+      updateWorkflowModule(templateId, moduleId, params),
+    onSuccess: () => {
+      toast.success("Module updated");
+      queryClient.invalidateQueries({ queryKey: templateKeys.byCaseType(caseTypeId) });
+    },
+    onError: (err: APIError) => {
+      // A 403 here means the template is the shared system default and needs
+      // cloning first — the backend's message says so.
+      toast.error(err.response?.data?.message ?? "Failed to update module");
+    },
+  });
+}
+
+/**
+ * Links an existing case to this one. Generic over `relationType` because
+ * `appeal` and `related_matter` already exist alongside `mandamus` — the only
+ * one with a user today.
+ *
+ * Never a one-click auto-file: the mandamus matter is opened as its own case
+ * first, then linked here, deliberately.
+ */
+export function useCaseLink(parentCaseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      childCaseId,
+      relationType,
+    }: {
+      childCaseId: string;
+      relationType: CaseRelationType;
+    }) => linkCase(parentCaseId, childCaseId, relationType),
+    onSuccess: () => {
+      toast.success("Case linked");
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to link case");
+    },
+  });
+}
+
+/** Removes a case's link to its parent. The CHILD is the case addressed. */
+export function useUnlinkCase() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (childCaseId: string) => unlinkCase(childCaseId),
+    onSuccess: () => {
+      toast.success("Case unlinked");
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to unlink case");
+    },
   });
 }

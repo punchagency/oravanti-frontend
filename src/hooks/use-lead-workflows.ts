@@ -1,161 +1,44 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  assignLeadTask,
-  approveLeadTask,
-  completeLeadTask,
   createLeadNote,
-  createLeadTask,
   deleteLeadNote,
-  deleteLeadTask,
   getLeadAuditLog,
   getLeadDocuments,
   getLeadNotes,
   getLeadQuestionnaireFiles,
-  getLeadReviewQueue,
-  getLeadTasks,
   getLeadTimeline,
-  getMyLeadTasks,
   initializePipeline,
   linkLeadDocument,
-  rejectLeadTask,
-  submitLeadTaskForReview,
   toggleLeadNotePin,
   unlinkLeadDocument,
   updateLeadNote,
-  updateLeadTask,
-  updateLeadTaskStatus,
 } from "@/api/lead-workflows";
-import type { CreateLeadNoteParams, LeadNoteType, LeadNoteVisibility, LeadTaskInput, LeadTaskStatus } from "@/api/lead-workflows";
+import type { CreateLeadNoteParams, LeadNoteType, LeadNoteVisibility } from "@/api/lead-workflows";
+import { taskKeys } from "./use-tasks";
 import type { APIError } from "./types";
 
-export function useMyLeadTasks() {
-  return useQuery({
-    queryKey: ["myLeadTasks"],
-    queryFn: () => getMyLeadTasks(),
-  });
-}
-
-export function useLeadTasks(leadId: string) {
-  return useQuery({
-    queryKey: ["leadTasks", leadId],
-    queryFn: () => getLeadTasks(leadId),
-    enabled: Boolean(leadId),
-  });
-}
+/**
+ * Lead-side queries and mutations that genuinely need a lead.
+ *
+ * Anything done *to a task* — read one lead's board, assign, complete, submit,
+ * approve, reject, reopen — is in `@/hooks/use-tasks`, against `/tasks`. What is
+ * left here needs the lead itself: the two cross-lead list views that join it,
+ * stamping a new lead's pipeline, its notes, and its documents.
+ */
 
 export function useInitializePipeline() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (leadId: string) => initializePipeline(leadId),
     onSuccess: (_data, leadId) => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
+      qc.invalidateQueries({ queryKey: taskKeys.all });
       qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
       qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
       toast.success("Pipeline steps initialized");
     },
     onError: (err: APIError) => {
       toast.error(err?.response?.data?.message ?? "Failed to initialize pipeline");
-    },
-  });
-}
-
-export function useCreateLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: LeadTaskInput) => createLeadTask(leadId, input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task created");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to create task");
-    },
-  });
-}
-
-export function useUpdateLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ taskId, ...input }: { taskId: string } & Record<string, unknown>) =>
-      updateLeadTask(leadId, taskId, input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update task");
-    },
-  });
-}
-
-export function useUpdateLeadTaskStatus(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ taskId, status }: { taskId: string; status: LeadTaskStatus }) =>
-      updateLeadTaskStatus(leadId, taskId, status),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
-      qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-    },
-  });
-}
-
-export function useAssignLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ taskId, assignedToId }: { taskId: string; assignedToId: string }) =>
-      assignLeadTask(leadId, taskId, assignedToId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task assigned");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to assign task");
-    },
-  });
-}
-
-export function useCompleteLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (taskId: string) => completeLeadTask(leadId, taskId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
-      qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task completed");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to complete task");
-    },
-  });
-}
-
-export function useDeleteLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (taskId: string) => deleteLeadTask(leadId, taskId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task deleted");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to delete task");
     },
   });
 }
@@ -284,76 +167,6 @@ export function useLeadQuestionnaireFiles(leadId: string) {
     queryKey: ["leadQuestionnaireFiles", leadId],
     queryFn: () => getLeadQuestionnaireFiles(leadId),
     enabled: Boolean(leadId),
-  });
-}
-
-// ─── Lead Task Review ────────────────────────────────────────────────────────
-
-export const leadWorkflowKeys = {
-  reviewQueue: () => ["leadReviewQueue"] as const,
-};
-
-export function useSubmitLeadTaskForReview(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ taskId, notes }: { taskId: string; notes?: string }) =>
-      submitLeadTaskForReview(leadId, taskId, notes),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
-      qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task submitted for review");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to submit for review");
-    },
-  });
-}
-
-export function useApproveLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ taskId, notes }: { taskId: string; notes?: string }) =>
-      approveLeadTask(leadId, taskId, notes),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
-      qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task approved");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to approve task");
-    },
-  });
-}
-
-export function useRejectLeadTask(leadId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ taskId, feedback }: { taskId: string; feedback: string }) =>
-      rejectLeadTask(leadId, taskId, feedback),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leadTasks", leadId] });
-      qc.invalidateQueries({ queryKey: ["myLeadTasks"] });
-      qc.invalidateQueries({ queryKey: leadWorkflowKeys.reviewQueue() });
-      qc.invalidateQueries({ queryKey: ["leadTimeline", leadId] });
-      qc.invalidateQueries({ queryKey: ["leadAuditLog", leadId] });
-      toast.success("Task rejected");
-    },
-    onError: (err: APIError) => {
-      toast.error(err?.response?.data?.message ?? "Failed to reject task");
-    },
-  });
-}
-
-export function useLeadReviewQueue(status?: string, page = 1, limit = 20) {
-  return useQuery({
-    queryKey: [...leadWorkflowKeys.reviewQueue(), status, page, limit],
-    queryFn: () => getLeadReviewQueue(status, page, limit),
   });
 }
 
