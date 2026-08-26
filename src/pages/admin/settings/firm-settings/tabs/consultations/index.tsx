@@ -1,5 +1,6 @@
 import { Box } from "@chakra-ui/react";
 import { ConsultationFeeDefaults } from "../../components/consultation-fee-defaults";
+import { ConsultationPaymentPolicy } from "../../components/consultation-payment-policy";
 
 /**
  * Consultation policy — what a consultation costs and how it is paid for.
@@ -13,6 +14,7 @@ export default function ConsultationsTab() {
   return (
     <Box display="flex" flexDirection="column" gap="6" maxW="720px">
       <ConsultationFeeDefaults />
+      <ConsultationPaymentPolicy />
     </Box>
   );
 }

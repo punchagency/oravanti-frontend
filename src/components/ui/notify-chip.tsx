@@ -6,11 +6,16 @@ export function NotifyChip({
   icon,
   children,
   onClick,
+  disabled = false,
+  title,
 }: {
   active: boolean;
   icon: ReactNode;
   children: ReactNode;
   onClick: () => void;
+  disabled?: boolean;
+  /** Native tooltip explaining why the chip is unavailable. */
+  title?: string;
 }) {
   return (
     <chakra.button
@@ -26,6 +31,10 @@ export function NotifyChip({
       bg="bg"
       color={active ? "fg" : "fg.muted"}
       fontSize="12px"
+      disabled={disabled}
+      title={title}
+      opacity={disabled ? 0.45 : 1}
+      cursor={disabled ? "not-allowed" : "pointer"}
       onClick={onClick}
     >
       {icon}

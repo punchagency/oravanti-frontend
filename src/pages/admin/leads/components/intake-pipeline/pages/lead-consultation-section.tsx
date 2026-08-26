@@ -1,7 +1,7 @@
 import type { LeadNote } from "@/api/lead-workflows";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { InvoiceDetailDialog } from "@/pages/admin/finance/components/dialogs/invoice-detail-dialog";
 import { formatCurrency } from "@/utils/currency";
-import { useAuthStore } from "@/store/auth-store";
 import type {
   Consultation,
   FeeAgreementDetails,
@@ -331,10 +331,11 @@ function PastConsultationRow({
 /**
  * What cancelling does to money the client has already paid.
  *
- * Two different messages, because two different things happen. Someone holding
- * `finance:refund` refunds as part of cancelling; someone without it cancels
- * anyway and the refund is left owed. Saying "this will refund the client" to
- * the second person would be a promise the system does not keep.
+ * The `canRefund` branch is now defensive rather than reachable: cancelling
+ * requires `finance:refund`, so whoever opens this dialog can always refund.
+ * It is kept because it stays correct if that gate is ever loosened, and
+ * because saying "this will refund the client" to someone who cannot would be
+ * a promise the system does not keep.
  */
 function CancelRefundNotice({
   netPaid,
@@ -623,14 +624,21 @@ function ConsultationInfoCard({
   // Presentation only — the server decides. Refunds need `finance:refund`,
   // which is owner/admin, and a cancellation by anyone else leaves the money
   // owed rather than moving it.
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const canRefund = memberRole === "owner" || memberRole === "admin";
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
 
+  // Gated on `canRefund` for the same reason as the route: a cancellation by
+  // someone who cannot send money back leaves the client's money owed with
+  // nowhere to act on it.
   const canCancel =
-    consultation?.status === "pending_payment" ||
-    consultation?.status === "awaiting_slot_selection" ||
-    consultation?.status === "scheduled" ||
-    consultation?.status === "in_progress";
+    canRefund &&
+    (consultation?.status === "pending_payment" ||
+      consultation?.status === "awaiting_slot_selection" ||
+      consultation?.status === "scheduled" ||
+      consultation?.status === "in_progress");
 
   const modeLabel = consultation
     ? consultationModeLabel(consultation.mode)

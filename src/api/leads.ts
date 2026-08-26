@@ -29,6 +29,13 @@ export type Lead = {
   name: string;
   email: string;
   phone: string | null;
+  /**
+   * SMS consent. Sendable only when smsConsent is true AND smsOptOutAt is null
+   * — an opt-out is the recipient's decision and cannot be reversed by staff.
+   */
+  smsConsent?: boolean;
+  smsConsentAt?: string | null;
+  smsOptOutAt?: string | null;
   entityType: "individual" | "company";
   practiceAreaId: string | null;
   practiceAreaName: string | null;
@@ -632,6 +639,11 @@ export const initiateConsultation = async (
     parentConsultationId?: string;
     // Instant consultation: begins now (or at payment time for pay_now).
     startNow?: boolean;
+    /**
+     * Days after the consultation that the deposit balance falls due. Only
+     * honoured when the firm's balance mode is `custom`.
+     */
+    balanceDueDays?: number;
     paymentTiming?: PaymentTiming;
     isEmergency?: boolean;
     emergencyMultiplier?: number;

@@ -115,6 +115,11 @@ export type FirmNotificationSettings = {
   id: string;
   organizationId: string;
   preferences: NotificationPreference[];
+  /**
+   * Firm-wide SMS master switch. Every SMS send is gated on it, so the per-event
+   * SMS toggles above are inert while it is off.
+   */
+  smsEnabled: boolean;
   updatedAt: string | null;
 };
 
@@ -135,6 +140,22 @@ export async function updateNotificationSettings(
   const { data } = await API.put<{ data: FirmNotificationSettings }>(
     "/settings/notifications",
     input,
+  );
+  return data.data;
+}
+
+/**
+ * Toggle the firm-wide SMS master switch.
+ *
+ * A dedicated endpoint rather than the consultation settings upsert, which is a
+ * full replace: sending it a partial body recomputes every fee field from what
+ * was omitted, so flipping SMS through it would null out the firm's default
+ * amount, fee structure and waiver window.
+ */
+export async function setFirmSmsEnabled(enabled: boolean) {
+  const { data } = await API.patch<{ data: { smsEnabled: boolean } }>(
+    "/settings/notifications/sms",
+    { enabled },
   );
   return data.data;
 }

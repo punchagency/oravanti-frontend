@@ -47,6 +47,7 @@ import {
   OutlineButton,
 } from "@/components/ui/intake-ui";
 import { NotifyChip } from "@/components/ui/notify-chip";
+import { useConsultationSettings } from "@/hooks/use-consultation-settings";
 
 type WizardStep = 1 | 2 | 3;
 type Channel = "email" | "sms";
@@ -79,7 +80,11 @@ type RecipientForm = z.infer<typeof recipientSchema>;
 
 const RECIPIENT_DEFAULTS: RecipientForm = {
   leadId: "",
-  channels: ["email", "sms"],
+  // Email only. This defaulted to ["email", "sms"] while no SMS provider
+  // existed, so staff have been selecting a text message that was never sent.
+  // SMS is now real but needs the firm switch on and the lead's consent, so it
+  // is an explicit choice rather than a default.
+  channels: ["email"],
   reminder: "3",
 };
 
@@ -112,6 +117,10 @@ export function SendQuestionnaireDialog({
   const leadId = useWatch({ control, name: "leadId" });
   const channels = useWatch({ control, name: "channels" });
   const reminder = useWatch({ control, name: "reminder" });
+  // The firm-wide text messaging switch. Without it on, the backend records
+  // every SMS as skipped, so the picker must not offer one.
+  const { data: consultationSettings } = useConsultationSettings();
+  const smsEnabled = consultationSettings?.smsEnabled ?? false;
   const [customQuestions, setCustomQuestions] = useState<DraftCustomQuestion[]>(
     [],
   );
@@ -263,7 +272,8 @@ export function SendQuestionnaireDialog({
               <StepProgress step={step} />
             </Box>
 
-            <Box flex="1" minH="0" px="24px" pb="20px">
+            {/* Same clipping bug as the schedule dialog — see the note there. */}
+            <Box flex="1" minH="0" overflowY="auto" px="24px" pb="20px">
               {step === 1 ? (
                 <RecipientStep
                   leads={leads}
@@ -273,6 +283,7 @@ export function SendQuestionnaireDialog({
                   channels={channels}
                   reminder={reminder}
                   leadName={leadName}
+                  smsEnabled={smsEnabled}
                   onLeadChange={(id) =>
                     setValue("leadId", id, { shouldValidate: true })
                   }
@@ -390,6 +401,7 @@ function RecipientStep({
   channels,
   reminder,
   leadName,
+  smsEnabled,
   onLeadChange,
   onToggleChannel,
   onReminderChange,
@@ -406,6 +418,8 @@ function RecipientStep({
   channels: Channel[];
   reminder: ReminderOption;
   leadName?: string;
+  /** Firm-wide text messaging switch (consultation_settings.smsEnabled). */
+  smsEnabled: boolean;
   onLeadChange: (id: string) => void;
   onToggleChannel: (c: Channel) => void;
   onReminderChange: (r: ReminderOption) => void;
@@ -490,11 +504,23 @@ function RecipientStep({
           ].map((c) => {
             const { type, icon: Icon } = c;
             const active = channels.includes(type as Channel);
+            // Offering SMS while the firm has text messaging off would promise
+            // a delivery the backend will record as skipped.
+            const unavailable = type === "sms" && !smsEnabled;
             return (
               <NotifyChip
                 key={c.type}
-                active={active}
-                onClick={() => onToggleChannel(type as Channel)}
+                active={active && !unavailable}
+                disabled={unavailable}
+                title={
+                  unavailable
+                    ? "Text messaging is off for your firm. Turn it on in Settings → Notifications."
+                    : undefined
+                }
+                onClick={() => {
+                  if (unavailable) return;
+                  onToggleChannel(type as Channel);
+                }}
                 icon={<Icon size={12} />}
               >
                 {type === "sms" ? "SMS" : "Email"}
@@ -502,6 +528,11 @@ function RecipientStep({
             );
           })}
         </HStack>
+        {!smsEnabled && (
+          <Text fontSize="11px" color="fg.subtle" mt="6px">
+            Text messaging is off for your firm.
+          </Text>
+        )}
       </Field>
 
       <Field label="Auto-reminder if not completed">

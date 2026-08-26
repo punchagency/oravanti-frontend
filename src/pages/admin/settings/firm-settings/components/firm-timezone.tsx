@@ -29,8 +29,9 @@ export function FirmTimezone() {
 
   function handleSave() {
     if (!settings) return;
-    // Preserve existing fee fields; the settings endpoint is an upsert that
-    // requires the full shape.
+    // Preserve the fee fields: the service recomputes them from the body, so
+    // omitting them nulls them. Everything else on the settings row is written
+    // only when present, so this save cannot disturb it.
     updateSettings.mutate(
       {
         chargesFee: settings.chargesFee,

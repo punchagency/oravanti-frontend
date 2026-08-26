@@ -116,7 +116,14 @@ function getCaseTypes(
   return area ? area.subcategories.flatMap((s) => s.caseTypes) : [];
 }
 
-const instantSchema = z
+/**
+ * Built per-render: the fee rule depends on the firm's settings, exactly as in
+ * the scheduling wizard. Under a flat fee the amount is read-only and the
+ * backend ignores anything sent for it, so validating it would block a submit
+ * over a value that cannot matter.
+ */
+const makeInstantSchema = (chargesCustomFee: boolean) =>
+  z
   .object({
     clientMode: z.enum(["existing", "new"]),
     selectedLeadId: z.string(),
@@ -143,6 +150,7 @@ const instantSchema = z
     feeAmount: z.string(),
     notes: z.string(),
     notifyEmail: z.boolean(),
+    notifySms: z.boolean(),
     // Fee & confirm
     isEmergency: z.boolean(),
     emergencyMultiplier: z.string(),
@@ -211,9 +219,26 @@ const instantSchema = z
         });
       }
     }
+    // Checked against the BASE fee, not the surcharged total: the minimum is a
+    // floor on the firm's standard fee, and the multiplier is applied on top.
+    if (chargesCustomFee) {
+      if (!val.feeAmount.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["feeAmount"],
+          message: "Enter the consultation fee",
+        });
+      } else if (Number(val.feeAmount) < MINIMUM_CONSULTATION_FEE) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["feeAmount"],
+          message: `Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`,
+        });
+      }
+    }
   });
 
-type InstantForm = z.infer<typeof instantSchema>;
+type InstantForm = z.infer<ReturnType<typeof makeInstantSchema>>;
 
 const INSTANT_DEFAULTS: InstantForm = {
   clientMode: "existing",
@@ -233,6 +258,7 @@ const INSTANT_DEFAULTS: InstantForm = {
   feeAmount: "",
   notes: "",
   notifyEmail: true,
+  notifySms: false,
   isEmergency: false,
   emergencyMultiplier: "2",
   paymentTiming: "pay_now",
@@ -304,6 +330,17 @@ function InstantConsultationWizard({
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [conflictState, setConflictState] = useState<ConflictState>("idle");
 
+  // Read before `useForm` because the resolver is built from it.
+  const { data: feeSettings, isLoading: settingsLoading } =
+    useConsultationSettings();
+  const chargesFee = Boolean(feeSettings?.chargesFee);
+  const chargesCustomFee =
+    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
+  const instantSchema = useMemo(
+    () => makeInstantSchema(chargesCustomFee),
+    [chargesCustomFee],
+  );
+
   const {
     control,
     setValue,
@@ -357,6 +394,9 @@ function InstantConsultationWizard({
   // Deliberately not watched: a subscription here would re-render the whole
   // dialog on every keystroke. NotesField owns the value and writes through.
   const notifyEmail = useWatch({ control, name: "notifyEmail" });
+  const notifySms = useWatch({ control, name: "notifySms" });
+  // Firm-wide text messaging switch; the SMS option stays disabled without it.
+  const smsEnabled = feeSettings?.smsEnabled ?? false;
   const isEmergency = useWatch({ control, name: "isEmergency" });
   const emergencyMultiplier = useWatch({
     control,
@@ -403,8 +443,6 @@ function InstantConsultationWizard({
   const { allStaff, attorneys, isLoading: staffLoading } =
     useConsultationStaff();
 
-  const { data: feeSettings, isLoading: settingsLoading } =
-    useConsultationSettings();
   const {
     data: locations = [],
     isLoading: locationsLoading,
@@ -508,10 +546,6 @@ function InstantConsultationWizard({
   })();
   const locationLabel = locations.find((l) => l.id === locationId)?.label ?? "—";
 
-  const chargesFee = Boolean(feeSettings?.chargesFee);
-  const chargesCustomFee =
-    chargesFee && feeSettings?.feeStructure === "custom_per_case_type";
-
   // Fee math: the emergency fee is standard × multiplier; the multiplied
   // amount is what gets charged (and persisted as feeAmount).
   const standardFee = chargesCustomFee
@@ -606,31 +640,24 @@ function InstantConsultationWizard({
         ? parseInt(data.customDuration, 10)
         : data.durationChoice;
 
-    if (chargesCustomFee && !data.feeAmount.trim()) {
-      toast.error("Enter the consultation fee for this case type");
-      setStep(3);
-      return;
-    }
-
-    if (chargesCustomFee && Number(data.feeAmount) < MINIMUM_CONSULTATION_FEE) {
-      toast.error(`Minimum consultation fee amount is $${MINIMUM_CONSULTATION_FEE}.00`);
-      setStep(3);
-      return;
-    }
-
     // Send the BASE fee, never `emergencyFee`. The backend multiplies by
     // `emergencyMultiplier` itself, so sending the multiplied amount here
     // applied the surcharge twice — base x 2 was charged as base x 4, and the
     // invoice line named the wrong base in its description. `emergencyFee` is
     // for display only (the summary below shows the client what they will owe).
     //
-    // The minimum above is checked against the base for the same reason: it is
-    // a floor on the firm's standard fee, not on the surcharged total.
-    const resolvedFee = !chargesFee
-      ? undefined
-      : chargesCustomFee && data.feeAmount.trim()
+    // Presence and the minimum are the schema's job (see `makeInstantSchema`),
+    // so an invalid amount shows as a field error on the fee step rather than
+    // as a toast.
+    //
+    // Only sent when the firm's structure lets staff set it. Echoing the firm
+    // default back under a flat fee was harmless while the backend accepted an
+    // override from any urgent booking; now that it does not, sending it would
+    // just be noise.
+    const resolvedFee =
+      chargesCustomFee && data.feeAmount.trim()
         ? Number(data.feeAmount)
-        : (feeSettings?.defaultAmount ?? undefined);
+        : undefined;
 
     initiateConsultation.mutate(
       {
@@ -648,7 +675,14 @@ function InstantConsultationWizard({
               : undefined,
           feeAmount: resolvedFee,
           preConsultationNotes: data.notes || undefined,
-          notifyChannels: data.notifyEmail ? ["email"] : [],
+          // An instant consultation with pay_now and an unpaid fee does NOT
+          // begin immediately — it sends a payment link and starts once the
+          // client pays. That link is worth texting, which is why SMS is
+          // offered here at all.
+          notifyChannels: [
+            ...(data.notifyEmail ? (["email"] as const) : []),
+            ...(data.notifySms ? (["sms"] as const) : []),
+          ],
           urgent: true,
           startNow: true,
           paymentTiming: data.paymentTiming,
@@ -670,7 +704,7 @@ function InstantConsultationWizard({
     if (errors.selectedLeadId || errors.newName || errors.newEmail) setStep(1);
     else if (errors.customDuration || errors.attorneyId || errors.locationId)
       setStep(2);
-    else if (errors.emergencyMultiplier) setStep(3);
+    else if (errors.emergencyMultiplier || errors.feeAmount) setStep(3);
   };
 
   const handleConfirm = handleSubmit(onValid, onInvalid);
@@ -838,6 +872,8 @@ function InstantConsultationWizard({
                   locations={locations}
                   defaultNotes={getValues("notes")}
                   notifyEmail={notifyEmail}
+                  notifySms={notifySms}
+                  smsEnabled={smsEnabled}
                   urgent
                   hideUrgent
                   touchedField={
@@ -873,6 +909,7 @@ function InstantConsultationWizard({
                   onNotifyEmailChange={(value) =>
                     setField("notifyEmail", value)
                   }
+                  onNotifySmsChange={(value) => setField("notifySms", value)}
                 />
               ) : null}
               {step === 3 ? (
@@ -887,6 +924,7 @@ function InstantConsultationWizard({
                   feeSettings={feeSettings ?? null}
                   feeAmount={feeAmount}
                   onFeeAmountChange={(value) => setField("feeAmount", value)}
+                  feeError={errors.feeAmount?.message}
                   isEmergency={isEmergency}
                   onEmergencyChange={(value) => setField("isEmergency", value)}
                   emergencyMultiplier={emergencyMultiplier}
@@ -1262,6 +1300,7 @@ function InstantReviewStep({
   feeSettings,
   feeAmount,
   onFeeAmountChange,
+  feeError,
   isEmergency,
   onEmergencyChange,
   emergencyMultiplier,
@@ -1285,6 +1324,7 @@ function InstantReviewStep({
   feeSettings: ConsultationSettings | null;
   feeAmount: string;
   onFeeAmountChange: (value: string) => void;
+  feeError?: string;
   isEmergency: boolean;
   onEmergencyChange: (value: boolean) => void;
   emergencyMultiplier: string;
@@ -1425,11 +1465,16 @@ function InstantReviewStep({
                 <Text fontSize="14px" color="fg.muted">
                   $
                 </Text>
-                {isEmergency ? (
-                  <Text fontSize="14px" fontWeight="600" color="fg">
-                    {emergencyFee.toFixed(2)}
-                  </Text>
-                ) : structure === "custom_per_case_type" ? (
+                {/*
+                  The base fee, always. This used to be replaced by the computed
+                  emergency figure whenever the surcharge was on, which meant a
+                  firm on per-consultation pricing had no field to type the base
+                  into: toggling emergency first left `feeAmount` empty and the
+                  submit failed complaining about a box that was not on screen.
+                  The surcharged total is spelled out by the emergency row above
+                  and echoed after "per session" below.
+                */}
+                {structure === "custom_per_case_type" ? (
                   <Input
                     type="number"
                     min={0}
@@ -1441,18 +1486,34 @@ function InstantReviewStep({
                     }
                     maxW="96px"
                     textAlign="right"
+                    aria-invalid={feeError ? true : undefined}
                     {...fieldStyles}
+                    {...(feeError
+                      ? { borderColor: invalidColor, _focus: undefined }
+                      : {})}
                   />
                 ) : (
                   <Text fontSize="14px" fontWeight="600" color="fg">
-                    {feeSettings?.defaultAmount ?? 0}
+                    {(feeSettings?.defaultAmount ?? 0).toFixed(2)}
                   </Text>
                 )}
                 <Text fontSize="12px" color="fg.muted">
                   per session
+                  {isEmergency ? ` → $${emergencyFee.toFixed(2)} charged` : ""}
                 </Text>
               </HStack>
             </Flex>
+
+            {feeError ? (
+              <Text
+                mt="6px"
+                textAlign="right"
+                fontSize="12px"
+                color={invalidColor}
+              >
+                {feeError}
+              </Text>
+            ) : null}
 
             <Box mt="16px">
               <Text m="0 0 10px" fontSize="13px" fontWeight="600" color="fg">

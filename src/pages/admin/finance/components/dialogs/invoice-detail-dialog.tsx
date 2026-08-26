@@ -4,6 +4,7 @@ import {
   type InvoicePayment,
 } from "@/api/finance";
 import { OutlineButton, StatusPill } from "@/components/ui/intake-ui";
+import { useHasPermission } from "@/hooks/use-has-permission";
 import { REPORT_CELL_PY, ReportTable } from "@/components/ui/report-table";
 import {
   useInvoice,
@@ -22,7 +23,6 @@ import {
   INVOICE_STATUS_TONE,
 } from "../../data";
 import { DialogShell } from "./dialog-shell";
-import { useAuthStore } from "@/store/auth-store";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -115,7 +115,12 @@ function PaymentRow({
             }
           >
             <Undo2 size={12} />
-            Refund
+            {/* Names the figure once part of the payment has already gone
+                back, so "Refund" cannot be read as returning the whole thing
+                a second time. */}
+            {p.refundableAmount < p.amount
+              ? `Refund ${formatCurrency(p.refundableAmount)}`
+              : "Refund"}
           </OutlineButton>
         )}
         {/* Negative on a reversal, and shown that way. Rendering the magnitude
@@ -145,8 +150,11 @@ export function InvoiceDetailDialog({
 }) {
   // Refunds are owner/admin only on the server (`finance: ["refund"]`). Hiding
   // the control is presentation, not a gate — the API refuses regardless.
-  const memberRole = useAuthStore((state) => state.memberRole);
-  const canRefund = memberRole === "owner" || memberRole === "admin";
+  // Reads the session's flattened grants, which `getMyGrants` resolves through
+  // `resolveMemberGrants` — so it sees a permission held through a role group
+  // or a firm-defined role, which a `memberRole === "owner" | "admin"` test
+  // cannot. Presentation only; the backend gates the actual request.
+  const canRefund = useHasPermission("finance", "refund");
   const { data: invoice, isLoading } = useInvoice(open ? invoiceId : null);
   const { data: deliveries } = useInvoiceDeliveries(open ? invoiceId : null);
   const resend = useResendInvoice();
@@ -346,12 +354,26 @@ export function InvoiceDetailDialog({
               <Text textStyle="label" fontWeight="700" mt="20px" mb="8px">
                 Payments
               </Text>
+              {invoice.consultationRefundBlocked && canRefund ? (
+                <Text fontSize="12px" color="fg.muted" mb="8px">
+                  This is a fee for a consultation that has not happened yet. To
+                  refund it, cancel the consultation on the lead — that returns
+                  the money, releases the calendar slot and notifies the client
+                  in one step.
+                </Text>
+              ) : null}
               {invoice.payments.map((p) => (
                 <PaymentRow
                   key={p.id}
                   payment={p}
                   invoiceId={invoice.id}
-                  canRefund={canRefund}
+                  // A fee for a LIVE consultation is refunded by cancelling
+                  // that consultation, which also releases the calendar slot
+                  // and tells the client. The API refuses it here, so the
+                  // button would only produce an error. Once the consultation
+                  // is terminal this goes false and Finance becomes the way to
+                  // finish a refund whose processor leg failed.
+                  canRefund={canRefund && !invoice.consultationRefundBlocked}
                 />
               ))}
             </>

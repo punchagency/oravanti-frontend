@@ -1,6 +1,7 @@
 import { getLeadById } from "@/api/leads";
 import { Box, Text, VStack } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
+import { CommunicationsPanel } from "@/components/communications-panel";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { pipelineStageLabels } from "../../intake-pipeline/shared/constants";
 import { FieldRow, SectionLabel } from "../shared";
@@ -118,6 +119,15 @@ export function LeadOverview({ leadId, isActive }: LeadOverviewProps) {
           lead.receivedAt ? new Date(lead.receivedAt).toLocaleDateString() : "—"
         }
       />
+
+      {/*
+        Every message sent about this lead, including the ones deliberately not
+        sent. "Skipped — no SMS consent" is the answer to "why didn't they get
+        the questionnaire", which previously had nowhere to be asked.
+      */}
+      <Box mt={5}>
+        <CommunicationsPanel leadId={leadId} />
+      </Box>
     </Box>
   );
 }

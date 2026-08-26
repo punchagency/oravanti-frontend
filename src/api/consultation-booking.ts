@@ -28,7 +28,15 @@ export type ConsultationBooking = {
     | "no_show";
   fee: {
     status: ConsultationFeeStatus;
+    /** The whole consultation fee. */
     amount: number | null;
+    /**
+     * What is being asked for right now. Differs from `amount` only on a
+     * deposit schedule, where the lead owes the full fee but is being asked for
+     * the deposit — quoting `amount` beside a payment form charging the deposit
+     * showed the client two contradictory numbers.
+     */
+    dueNow?: number | null;
     invoiceNumber?: string | null;
   };
   scheduledAt: string | null;
