@@ -23,6 +23,16 @@ export interface TaskQueueItem {
   source: TaskSource;
   title: string;
   description: string | null;
+  /**
+   * Staff-facing guidance, snapshotted from the template step. Same five fields
+   * `Task` carries — the queues render them through the same component, so a
+   * step read from someone's own queue says what it says on the case board.
+   */
+  purpose: string | null;
+  guidance: string[];
+  doneWhen: string | null;
+  pitfalls: string | null;
+  authority: string | null;
   status: TaskStatus;
   /** Intake stage or workflow phase — the display grouping, whichever side it came from. */
   phase: string | null;
