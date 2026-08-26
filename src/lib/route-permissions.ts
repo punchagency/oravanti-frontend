@@ -44,6 +44,10 @@ export const ROUTE_PERMISSIONS: Record<string, RoutePermission> = {
   "/settings/rbac": "ac:read",
   "/settings/audit-trail": "audit:read",
   "/settings/firm-settings": "firm_settings:read",
+  // The intake checklist is gated on `workflow`, not `firm_settings`: it is the
+  // intake twin of the case workflow template, and a firm that lets someone
+  // shape its process has not thereby let them change its billing.
+  "/settings/intake-checklist": "workflow:read",
 };
 
 /**

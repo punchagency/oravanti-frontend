@@ -64,6 +64,9 @@ const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-setting
 const AuditTrailPage = lazyPage(() =>
   import("@/pages/admin/settings/audit-trail").then((m) => ({ default: m.AuditTrailPage })),
 );
+const IntakeChecklistPage = lazyPage(() =>
+  import("@/pages/admin/settings/intake-checklist").then((m) => ({ default: m.IntakeChecklistPage })),
+);
 const RolesPermissionsPage = lazyPage(() =>
   import("@/pages/admin/settings/roles-permissions").then((m) => ({ default: m.RolesPermissionsPage })),
 );
@@ -324,6 +327,15 @@ export function createAdminRouter() {
               */}
               <Route element={<RequirePermission permission="audit:read" />}>
                 <Route path="audit-trail" element={<AuditTrailPage />} />
+              </Route>
+              {/*
+                The intake checklist. `workflow:read` to look, `workflow:update`
+                to change — the same pair the case workflow template editor uses,
+                and deliberately not `firm_settings`, which also carries billing
+                and compliance.
+              */}
+              <Route element={<RequirePermission permission="workflow:read" />}>
+                <Route path="intake-checklist" element={<IntakeChecklistPage />} />
               </Route>
               {/*
                 Viewing RBAC (staff assignments, roles, groups, the matrix)
