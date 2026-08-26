@@ -66,8 +66,12 @@ const editSchema = z.object({
   email: z.string().trim().email("Enter a valid email address"),
   phone: z.string(),
   source: z.string(),
-  practiceAreaId: z.string(),
-  caseTypeId: z.string(),
+  // Required here for the same reasons Add Lead requires them: a lead missing
+  // either is blocked at the questionnaire stage and again at case opening.
+  // This dialog was left optional when Add Lead was tightened, so a lead could
+  // be created correctly and then edited into a state the create form forbids.
+  practiceAreaId: z.string().min(1, "Select a practice area"),
+  caseTypeId: z.string().min(1, "Select a matter type"),
   situationSummary: z.string(),
 });
 
@@ -190,8 +194,8 @@ export function EditLeadDialog({
       phone: data.phone || undefined,
       source: data.source as LeadSource,
       situationSummary: data.situationSummary || undefined,
-      practiceAreaId: data.practiceAreaId || undefined,
-      caseTypeId: data.caseTypeId || undefined,
+      practiceAreaId: data.practiceAreaId,
+      caseTypeId: data.caseTypeId,
     };
 
     editLead.mutate(
@@ -258,7 +262,10 @@ export function EditLeadDialog({
                   <Input {...register("phone")} {...fieldStyles} />
                 </FormField>
 
-                <FormField label="Practice area">
+                <FormField
+                  label="Practice area"
+                  error={errors.practiceAreaId?.message}
+                >
                   <Controller
                     control={control}
                     name="practiceAreaId"
@@ -270,7 +277,11 @@ export function EditLeadDialog({
                           field.onChange(value);
                           // The case types are scoped to the practice area, so
                           // a stale one would no longer be valid.
-                          setValue("caseTypeId", "");
+                          //
+                          // `shouldValidate` because the field now carries a
+                          // rule — without it, wiping a valid selection leaves
+                          // a stale "valid" state until blur or submit.
+                          setValue("caseTypeId", "", { shouldValidate: true });
                         }}
                         placeholder="Select practice area"
                         ariaLabel="Practice area"
@@ -279,7 +290,10 @@ export function EditLeadDialog({
                   />
                 </FormField>
 
-                <FormField label="Matter type">
+                <FormField
+                  label="Matter type"
+                  error={errors.caseTypeId?.message}
+                >
                   <Controller
                     control={control}
                     name="caseTypeId"
