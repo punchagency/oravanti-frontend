@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { ThemeSkeleton } from "../../../../../../../components/ui/theme-skeleton";
 import { type CaseData } from "../../shared-data";
+import { LinkedCases } from "../../panels/linked-cases";
+import { PracticeAreaPanel } from "../../panels/practice-area-panel";
 import { AiReview } from "./ai-review";
 import { MatterDetails } from "./matter-details";
 import { PendingActions } from "./pending-actions";
@@ -105,6 +107,22 @@ export function Overview({ caseId, isActive = true }: OverviewProps) {
   return (
     <>
       <MatterDetails caseData={caseData} />
+
+      <Separator borderColor="border" my={3} />
+
+      {/*
+        Only renders for a practice area that has an extension table — the
+        generic case view stays generic for everyone else.
+      */}
+      <PracticeAreaPanel
+        caseId={caseId}
+        caseTypeId={caseRow?.caseType?.id}
+        practiceAreaName={caseRow?.practiceArea?.name}
+      />
+
+      <Separator borderColor="border" my={3} />
+
+      <LinkedCases caseDetail={caseRow} />
 
       <Separator borderColor="border" my={3} />
 
