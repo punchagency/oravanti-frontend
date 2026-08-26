@@ -41,7 +41,11 @@ const leadSchema = z.object({
   lastName: z.string().trim().min(1, "Last name is required"),
   email: z.string().trim().email("Enter a valid email address"),
   phone: z.string(),
-  practiceAreaId: z.string(),
+  // Required at creation. It is not decoration: a lead with no practice area
+  // cannot be invoiced (both `raiseConsultationInvoice` and the fee-agreement
+  // equivalent bail out and return null), is dropped from conversion metrics by
+  // an inner join, and cannot be converted to a case at all.
+  practiceAreaId: z.string().min(1, "Select a practice area"),
   caseTypeId: z.string(),
   source: z.string(),
   timezone: z.string(),
@@ -191,7 +195,7 @@ function AddLeadForm({ open, close }: { open: boolean; close: () => void }) {
         lastName: data.lastName.trim(),
         email: data.email.trim(),
         phone: data.phone || undefined,
-        practiceAreaId: data.practiceAreaId || undefined,
+        practiceAreaId: data.practiceAreaId,
         caseTypeId: data.caseTypeId || undefined,
         source: (sourceValues[data.source] ?? "direct") as LeadSource,
         situationSummary: data.situationSummary || undefined,
@@ -266,7 +270,10 @@ function AddLeadForm({ open, close }: { open: boolean; close: () => void }) {
                 />
               </FormField>
 
-              <FormField label="Practice area interest">
+              <FormField
+                label="Practice area"
+                error={errors.practiceAreaId?.message}
+              >
                 {practiceAreasLoading ? (
                   <ControlSkeleton h="36px" />
                 ) : (
@@ -275,7 +282,7 @@ function AddLeadForm({ open, close }: { open: boolean; close: () => void }) {
                     name="practiceAreaId"
                     render={({ field }) => (
                       <FormSelect
-                        ariaLabel="Practice area interest"
+                        ariaLabel="Practice area"
                         placeholder="Select practice area"
                         value={field.value}
                         onChange={(value) => {
