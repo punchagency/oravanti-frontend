@@ -301,6 +301,7 @@ export function InstantConsultationDialog({
       onOpenChange={(details) => handleOpenChange(details.open)}
       lazyMount
       placement="center"
+      closeOnInteractOutside={false}
     >
       {children && <Dialog.Trigger asChild>{children}</Dialog.Trigger>}
       <Dialog.Backdrop bg="rgba(0, 0, 0, 0.46)" />
@@ -470,6 +471,10 @@ function InstantConsultationWizard({
   const selectedLead: Lead | undefined = leads.find(
     (l) => l.id === selectedLeadId,
   );
+  const clientPhone =
+    clientMode === "new" ? newPhone.trim() : (selectedLead?.phone ?? "");
+  const hasClientPhone = Boolean(clientPhone);
+
   const { data: questionnaire } = useLeadQuestionnaire(
     clientMode === "existing" ? selectedLeadId : "",
   );
@@ -571,7 +576,8 @@ function InstantConsultationWizard({
     if (!ok) return;
     const values = getValues();
     const [firstName = "", ...lastParts] = values.newName.trim().split(" ");
-    const lastName = lastParts.join(" ");
+    // If lastName is empty (single name entry), use the same as firstName
+    const lastName = lastParts.length > 0 ? lastParts.join(" ") : firstName;
     const fields = {
       firstName,
       lastName,
@@ -874,6 +880,7 @@ function InstantConsultationWizard({
                   notifyEmail={notifyEmail}
                   notifySms={notifySms}
                   smsEnabled={smsEnabled}
+                  hasClientPhone={hasClientPhone}
                   urgent
                   hideUrgent
                   touchedField={

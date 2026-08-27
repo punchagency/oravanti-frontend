@@ -2537,6 +2537,8 @@ export function ScheduleConsultationDialog({
   const selectedLead =
     leads.find((l) => l.id === selectedLeadId) ??
     (presetLead && presetLead.id === selectedLeadId ? presetLead : undefined);
+  const hasClientPhone = Boolean(selectedLead?.phone);
+
   const { data: questionnaire } = useLeadQuestionnaire(selectedLeadId);
   const language = questionnaire?.send?.language ?? "English";
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
@@ -2767,6 +2769,7 @@ export function ScheduleConsultationDialog({
                   defaultNotes={getValues("notes")}
                   notifyEmail={notifyEmail}
                   urgent={urgent}
+                  hasClientPhone={hasClientPhone}
                   touchedField={
                     errors.customDuration
                       ? "duration"
