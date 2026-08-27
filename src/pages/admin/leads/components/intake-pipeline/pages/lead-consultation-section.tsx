@@ -44,6 +44,8 @@ import { useStaffsList } from "@/hooks/use-staff-list";
 import { leadStagePath, pipelineOrigin } from "../shared/constants";
 import { consultationModeLabel } from "../shared/consultation-wizard-constants";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
+import { FeeAgreementInvoicePanel } from "../fee-agreement/fee-agreement-invoice";
+import { awaitingFeePayment } from "../fee-agreement/fee-agreement-payment-state";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
 import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
 import { useConfirmStore } from "@/store/confirm-store";
@@ -1000,10 +1002,9 @@ function FeeAgreementSection({
     useState<FeeAgreementDetails | null>(null);
 
   const feeAgreement = feeAgreementData ?? null;
-  const awaitingPayment =
-    feeAgreement?.details != null &&
-    feeAgreement.details.attorneyFee.type !== "contingency" &&
-    !feeAgreement.details.paymentReceivedAt;
+  // Reads the invoice when there is one and only falls back to the legacy
+  // `paymentReceivedAt` flag when there is not — see `awaitingFeePayment`.
+  const awaitingPayment = awaitingFeePayment(feeAgreement);
 
   const draftPreview = useFeeAgreementPreview(
     feeAgreement?.id ?? null,
@@ -1167,9 +1168,10 @@ function FeeAgreementSection({
             <Stack gap="10px">
               <MutedText>
                 {awaitingPayment
-                  ? "Signed document received \u2014 awaiting payment. Standard agreements require payment before the case can be opened."
+                  ? "Signed document received \u2014 awaiting payment. The case cannot be opened until this is paid."
                   : "Signed document received."}
               </MutedText>
+              <FeeAgreementInvoicePanel agreement={feeAgreement} />
               {/*
                * No "advance to case opening" action here. The backend already
                * moves the lead the moment both gates are satisfied — signed

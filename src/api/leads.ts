@@ -164,6 +164,31 @@ export type FeeAgreement = {
   clientSignedAt: string | null;
   nudgedAt: string | null;
   createdAt: string;
+  /**
+   * The invoice raised for what this agreement charges upfront. Null until it
+   * is signed, and on a pure contingency that bills nothing upfront.
+   */
+  invoice?: FeeAgreementInvoice | null;
+};
+
+export type FeeAgreementInvoice = {
+  invoiceId: string;
+  invoiceNumber: string;
+  status: string;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  /** What is being asked for now — the next unpaid instalment, or the balance. */
+  amountDueNow: number;
+  dueDate: string;
+  /**
+   * Whether the client has actually been sent this bill. `failed` is the one to
+   * surface loudly: it is the state in which the case-opening gate blocks, and
+   * resending from Finance is the fix.
+   */
+  delivery: "sent" | "failed" | "not_attempted";
+  /** Whether this invoice currently satisfies the case-opening gate. */
+  satisfiesGate: boolean;
 };
 
 export type LeadDetail = Lead & {
@@ -686,6 +711,14 @@ export const cancelConsultation = async (
 
 export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly" | "contingency";
 export type FeePaymentPlan = "pay_in_full" | "two_payments" | "installments";
+/**
+ * How the firm collects what the agreement charges upfront. Mirrors
+ * `consultations.payment_timing` rather than inventing a second vocabulary.
+ */
+export type FeePaymentTiming =
+  | "pay_at_signing"
+  | "invoice_after"
+  | "pay_in_person";
 export type GovernmentFeesPaidBy = "client_upfront" | "firm_advanced";
 export type ContingencyIfLost =
   | "client_owes_nothing"
@@ -738,6 +771,7 @@ export type GenerateFeeAgreementInput = {
   twoPaymentsSchedule?: TwoPaymentsSchedule;
   installmentSchedule?: InstallmentSchedule;
   paymentAllocation?: PaymentAllocation;
+  paymentTiming?: FeePaymentTiming;
   applyConsultationCredit: boolean;
   accountSplit?: { operating: number; trust: number };
 };
@@ -765,10 +799,17 @@ export type FeeAgreementDetails = {
   twoPaymentsSchedule?: TwoPaymentsSchedule;
   installmentSchedule?: InstallmentSchedule;
   paymentAllocation?: PaymentAllocation;
+  // Absent on agreements generated before payment timing existed; the backend
+  // treats that as "pay_at_signing".
+  paymentTiming?: FeePaymentTiming;
   applyConsultationCredit: boolean;
   accountSplit: { operating: number; trust: number };
   consultationFeeAmount: number | null;
   docRef: string;
+  /**
+   * Legacy receipt flag. Still written as an audit breadcrumb, but nothing
+   * gates on it once `invoice` exists — read that instead.
+   */
   paymentReceivedAt?: string;
 };
 
