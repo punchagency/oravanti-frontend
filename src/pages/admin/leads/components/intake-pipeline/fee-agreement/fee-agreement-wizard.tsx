@@ -34,6 +34,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
   FeeAgreementDetails,
+  FeePaymentTiming,
   GenerateFeeAgreementInput,
   Lead,
 } from "@/api/leads";
@@ -77,6 +78,11 @@ const wizardSchema = z
     instCount: z.string(),
     instFirstDate: z.string(),
     allocationOrder: z.enum(["fees_first", "costs_first", "custom"]),
+    paymentTiming: z.enum([
+      "pay_at_signing",
+      "invoice_after",
+      "pay_in_person",
+    ]),
     customFeePercent: z.string(),
     applyConsultationCredit: z.boolean(),
     abaCompliance: z.boolean(),
@@ -155,6 +161,70 @@ type WizardForm = z.infer<typeof wizardSchema>;
 // Fields validated by the Next button of each step (the final step validates
 // everything via submit). Every superRefine issue above is pathed to a field
 // inside its own step so trigger() surfaces it at the right time.
+/**
+ * How the firm collects what the agreement charges upfront.
+ *
+ * Distinct from the payment PLAN beside it, and the two are easy to conflate:
+ * the plan is what the client owes and when (a term of the agreement), while
+ * this is how the firm goes about collecting it (an operational choice). A firm
+ * can agree three instalments and still take the first one across the desk.
+ *
+ * Rendered on the contingency step too - a contingency with client-upfront
+ * government fees has a real amount due.
+ */
+const PAYMENT_TIMING_OPTIONS: {
+  value: FeePaymentTiming;
+  title: string;
+  description: string;
+}[] = [
+  {
+    value: "pay_at_signing",
+    title: "Email the invoice as soon as they sign",
+    description:
+      "They can also pay on the signing page straight away. Fastest to get paid.",
+  },
+  {
+    value: "invoice_after",
+    title: "Raise the invoice, but send it yourself later",
+    description:
+      "It appears in Finance ready to send when you are. Nothing is emailed automatically.",
+  },
+  {
+    value: "pay_in_person",
+    title: "Collect in person",
+    description:
+      "Nothing is emailed. Record the payment on the agreement card when it arrives.",
+  },
+];
+
+function PaymentTimingField({
+  value,
+  onSelect,
+}: {
+  value: FeePaymentTiming;
+  onSelect: (v: FeePaymentTiming) => void;
+}) {
+  return (
+    <Box>
+      <MicroLabel>Collecting payment</MicroLabel>
+      <MutedText>
+        The case cannot be opened until this is paid, however you collect it.
+      </MutedText>
+      <Stack gap="8px" mt="8px">
+        {PAYMENT_TIMING_OPTIONS.map((o) => (
+          <RadioRow
+            key={o.value}
+            selected={value === o.value}
+            onSelect={() => onSelect(o.value)}
+            title={o.title}
+            description={o.description}
+          />
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
 const STEP_FIELDS: FieldPath<WizardForm>[][] = [
   ["feeType", "flatRate", "hourlyRate", "estimatedHours", "contingencyPercent"],
   ["governmentFees", "otherCosts"],
@@ -252,6 +322,7 @@ const emptyFormValues = (preset: CostPreset): WizardForm => ({
   instCount: "12",
   instFirstDate: "",
   allocationOrder: "fees_first",
+  paymentTiming: "pay_at_signing",
   customFeePercent: "50",
   applyConsultationCredit: false,
   abaCompliance: false,
@@ -310,6 +381,10 @@ const detailsToFormValues = (
       : "12",
     instFirstDate: details.installmentSchedule?.firstPaymentDate ?? "",
     allocationOrder: details.paymentAllocation?.order ?? "fees_first",
+    // Absent on agreements generated before timing existed, which the backend
+    // reads as pay_at_signing — reseed the same way so a discard-and-edit round
+    // trip does not silently change how the firm collects.
+    paymentTiming: details.paymentTiming ?? "pay_at_signing",
     customFeePercent:
       details.paymentAllocation?.customFeePercent != null
         ? String(details.paymentAllocation.customFeePercent)
@@ -900,6 +975,10 @@ function WizardFormBody({
                 ? Number(data.customFeePercent)
                 : undefined,
           },
+      // Sent on contingency agreements too: one with client-upfront government
+      // fees has a real amount due, and how it gets collected is the same
+      // question there as anywhere else.
+      paymentTiming: data.paymentTiming,
       applyConsultationCredit: data.applyConsultationCredit,
       accountSplit: isCont
         ? undefined
@@ -1784,6 +1863,11 @@ function WizardFormBody({
               />
             </Box>
 
+            <PaymentTimingField
+              value={w.paymentTiming ?? "pay_at_signing"}
+              onSelect={(v) => setValue("paymentTiming", v)}
+            />
+
             <Box p="16px" borderRadius="10px" bg="bg.subtle">
               <MicroLabel>Agreement summary</MicroLabel>
               <SummaryRow
@@ -1926,6 +2010,11 @@ function WizardFormBody({
                 />
               </Stack>
             </Box>
+
+            <PaymentTimingField
+              value={w.paymentTiming ?? "pay_at_signing"}
+              onSelect={(v) => setValue("paymentTiming", v)}
+            />
 
             <Box p="16px" borderRadius="10px" bg="bg.subtle">
               <MicroLabel>Agreement summary</MicroLabel>
