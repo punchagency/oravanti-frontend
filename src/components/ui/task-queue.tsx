@@ -1,5 +1,6 @@
 import type { TaskCounts, TaskQueueItem } from "@/api/task-queue";
 import type { TaskStatus } from "@/api/tasks";
+import { TaskGuidance } from "@/components/ui/task-guidance";
 import { TaskReviewThread } from "@/components/ui/task-review-thread";
 import { ThemeSkeleton } from "@/components/ui/theme-skeleton";
 import { Badge, Box, Button, Flex, HStack, Tabs, Text } from "@chakra-ui/react";
@@ -342,22 +343,31 @@ export function TaskQueueCard({ task, actions, defaultThreadOpen }: TaskQueueCar
         </Box>
       ) : null}
 
-      {/* ── Review thread ── */}
+      {/* ── Disclosures ──
+          Two independent ones. "How to do this" is instruction for the work;
+          the thread is the conversation about it. Someone reading the guidance
+          while answering a reviewer needs both open at once, so neither closes
+          the other. */}
       <Box mt={3} pt={2.5} borderTop="1px solid" borderColor="border.subtle">
-        <Button
-          variant="plain"
-          h="auto"
-          minH="auto"
-          p={0}
-          fontSize="11px"
-          fontWeight="400"
-          color={rejected ? "red.fg" : "fg.muted"}
-          _hover={{ color: "fg" }}
-          onClick={() => setThreadOpen((open) => !open)}
-        >
-          {threadOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          {threadOpen ? "Hide review history" : rejected ? "Review feedback" : "Review history"}
-        </Button>
+        <TaskGuidance
+          task={task}
+          trailing={
+            <Button
+              variant="plain"
+              h="auto"
+              minH="auto"
+              p={0}
+              fontSize="11px"
+              fontWeight="400"
+              color={rejected ? "red.fg" : "fg.muted"}
+              _hover={{ color: "fg" }}
+              onClick={() => setThreadOpen((open) => !open)}
+            >
+              {threadOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              {threadOpen ? "Hide review history" : rejected ? "Review feedback" : "Review history"}
+            </Button>
+          }
+        />
 
         {threadOpen ? (
           <Box mt={2}>
