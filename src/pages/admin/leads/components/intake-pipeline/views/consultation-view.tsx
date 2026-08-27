@@ -123,6 +123,8 @@ import {
   SummaryItem,
 } from "../shared/consultation-wizard-shared";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
+import { FeeAgreementInvoicePanel } from "../fee-agreement/fee-agreement-invoice";
+import { awaitingFeePayment } from "../fee-agreement/fee-agreement-payment-state";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
 import { InstantConsultationDialog } from "../dialogs/instant-consultation-dialog";
 import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
@@ -774,12 +776,9 @@ export function ConsultationCard({
   const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
-  // Case-opening payment gate: standard agreements need payment recorded
-  // before advancing; contingency (and pre-tracking) agreements do not.
-  const awaitingPayment =
-    feeAgreement?.details != null &&
-    feeAgreement.details.attorneyFee.type !== "contingency" &&
-    !feeAgreement.details.paymentReceivedAt;
+  // Case-opening payment gate. Reads the invoice when there is one and only
+  // falls back to the legacy flag when there is not — see `awaitingFeePayment`.
+  const awaitingPayment = awaitingFeePayment(feeAgreement ?? null);
   const send = questionnaire?.send;
   const response = questionnaire?.response;
   const { data: firmFeeSettings } = useConsultationSettings();
@@ -1509,9 +1508,10 @@ export function ConsultationCard({
               <Stack gap="10px">
                 <MutedText>
                   {awaitingPayment
-                    ? "Signed document received — awaiting payment. Standard agreements require payment before the case can be opened."
+                    ? "Signed document received — awaiting payment. The case cannot be opened until this is paid."
                     : "Signed document received."}
                 </MutedText>
+                <FeeAgreementInvoicePanel agreement={feeAgreement} />
                 <HStack gap="8px" wrap="wrap">
                   {awaitingPayment ? (
                     // Recording payment auto-advances the lead server-side.
