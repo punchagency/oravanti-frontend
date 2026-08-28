@@ -75,6 +75,7 @@ const RbacRolesTab = lazyPage(() => import("@/pages/admin/settings/roles-permiss
 const RbacGroupsTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/groups"));
 const RbacMatrixTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/matrix"));
 const PaymentsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/payments"));
+const FinancialAccessTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/financial-access"));
 
 // Profile
 const MyProfilePage = lazyPage(() =>
@@ -314,6 +315,7 @@ export function createAdminRouter() {
                   <Route path="notifications" element={<NotificationsTab />} />
                   <Route path="compliance" element={<ComplianceTab />} />
                   <Route path="payments" element={<PaymentsTab />} />
+                  <Route path="financial-access" element={<FinancialAccessTab />} />
                 </Route>
                 <Route path="add-on-activation" element={<ComingSoonPage title="Add-on activation" showBack={false} />} />
                 <Route path="integrations" element={<ComingSoonPage title="Integrations" showBack={false} />} />
