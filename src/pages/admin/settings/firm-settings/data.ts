@@ -11,4 +11,8 @@ export const tabsConfig = [
   { value: "notifications", label: "Notifications" },
   { value: "compliance", label: "Compliance" },
   { value: "payments", label: "Payments" },
+  // Its own tab rather than a card under Payments: that tab returns early when
+  // no processor is connected, and a firm holding client money in an IOLTA
+  // account but taking cheques still has to be able to say who may see it.
+  { value: "financial-access", label: "Financial access" },
 ];
