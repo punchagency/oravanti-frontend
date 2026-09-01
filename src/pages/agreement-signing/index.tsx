@@ -1,6 +1,7 @@
 import {
   getAgreementPaymentSession,
   getAgreementSignSession,
+  getSignedAgreementDocument,
 } from "@/api/agreement-signing";
 import type { APIError } from "@/hooks/types";
 import { formatCurrency } from "@/utils/currency";
@@ -16,9 +17,9 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import HelloSign from "hellosign-embedded";
-import { CheckCircle2, FileSignature, PenLine } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Download, FileSignature, PenLine } from "lucide-react";
+import { useState } from "react";
+import { useEmbeddedSigning } from "@/hooks/use-embedded-signing";
 import { useParams } from "react-router";
 
 type Phase = "idle" | "signing" | "signed" | "declined";
@@ -26,7 +27,6 @@ type Phase = "idle" | "signing" | "signed" | "declined";
 export function AgreementSigningPage() {
   const { token = "" } = useParams();
   const [phase, setPhase] = useState<Phase>("idle");
-  const clientRef = useRef<HelloSign | null>(null);
 
   /**
    * What the client owes, once they have signed.
@@ -59,34 +59,44 @@ export function AgreementSigningPage() {
 
   const pay = payment.data;
 
-  // Tear down the embedded client on unmount.
-  useEffect(() => {
-    return () => {
-      clientRef.current?.close();
-      clientRef.current = null;
-    };
-  }, []);
+  /**
+   * The executed copy, if there is one.
+   *
+   * Asked on load, because this page is also where the "your signed agreement
+   * is ready" email points. Without it a client returning days later would meet
+   * the same "Review & sign" button and a conflict error — their signature is
+   * long since recorded. The endpoint 404s until both parties have signed, so a
+   * successful response *is* the "already executed" signal; there is no separate
+   * status call to keep in step with it.
+   */
+  const executed = useQuery({
+    queryKey: ["agreement-document", token],
+    queryFn: () => getSignedAgreementDocument(token),
+    enabled: Boolean(token),
+    // A 404 here is the normal, expected answer for an agreement still being
+    // signed — not a transient failure worth retrying.
+    retry: false,
+    refetchOnWindowFocus: false,
+    // Once they have signed, the copy can appear at any moment: on a firm-first
+    // agreement the client signs last, so it is archived seconds later. Polling
+    // only in that window, and only until it arrives.
+    refetchInterval: (query) =>
+      phase === "signed" && !query.state.data ? 5000 : false,
+  });
+  const signedDocumentUrl = executed.data?.url ?? null;
+
+  const openSigningModal = useEmbeddedSigning({
+    onSigned: () => setPhase("signed"),
+    onDeclined: () => setPhase("declined"),
+    onClosed: () =>
+      setPhase((p) => (p === "signed" || p === "declined" ? p : "idle")),
+  });
 
   const startSigning = useMutation({
     mutationFn: () => getAgreementSignSession(token),
     onSuccess: (session) => {
-      const client = new HelloSign({
-        clientId: session.clientId ?? undefined,
-        // Dev/stub only — real embedded signing verifies the app's domains.
-        skipDomainVerification: import.meta.env.DEV,
-      });
-      clientRef.current = client;
-
-      client.on("sign", () => setPhase("signed"));
-      client.on("decline", () => setPhase("declined"));
-      client.on("close", () =>
-        setPhase((p) => (p === "signed" || p === "declined" ? p : "idle")),
-      );
-
       setPhase("signing");
-      client.open(session.signUrl, {
-        skipDomainVerification: import.meta.env.DEV,
-      });
+      openSigningModal(session);
     },
   });
 
@@ -110,7 +120,21 @@ export function AgreementSigningPage() {
             <FileSignature size={22} />
           </Flex>
 
-          {phase === "signed" ? (
+          {phase === "idle" && signedDocumentUrl ? (
+            <Stack gap={5} align="center" w="full">
+              <CheckCircle2 size={40} color="var(--chakra-colors-green-500)" />
+              <Heading size="lg">Your agreement is fully signed</Heading>
+              <Text color="fg.muted">
+                Both you and your law firm have signed. Here is your copy to
+                download and keep.
+              </Text>
+              <Button asChild size="lg">
+                <chakra.a href={signedDocumentUrl}>
+                  <Download size={18} /> Download your signed agreement
+                </chakra.a>
+              </Button>
+            </Stack>
+          ) : phase === "signed" ? (
             <Stack gap={5} align="center" w="full">
               <Stack gap={3} align="center">
                 <CheckCircle2 size={40} color="var(--chakra-colors-green-500)" />
@@ -133,6 +157,18 @@ export function AgreementSigningPage() {
                   Your payment has been received in full. You may close this
                   window.
                 </Text>
+              ) : null}
+
+              {/* Only once the firm has counter-signed and the copy is
+                  archived. On a counter-signed agreement that is not the moment
+                  the client signs, so this appears when it appears rather than
+                  promising a download that is not there yet. */}
+              {signedDocumentUrl ? (
+                <Button asChild variant="outline">
+                  <chakra.a href={signedDocumentUrl}>
+                    <Download size={16} /> Download your signed agreement
+                  </chakra.a>
+                </Button>
               ) : null}
 
               {pay?.state === "unavailable" && pay.reason ? (
