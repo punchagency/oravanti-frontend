@@ -240,6 +240,20 @@ const makeInstantSchema = (chargesCustomFee: boolean) =>
 
 type InstantForm = z.infer<ReturnType<typeof makeInstantSchema>>;
 
+/**
+ * The new-client fields that get written onto the lead — exactly the set
+ * `handleRunConflictCheck` builds its `fields` payload from. Editing any of
+ * them invalidates a conflict check that has already run; see
+ * `setNewClientField`. Keep the two lists in step.
+ */
+type NewClientField =
+  | "newName"
+  | "newEmail"
+  | "newPhone"
+  | "newLanguage"
+  | "newPracticeAreaId"
+  | "newCaseTypeId";
+
 const INSTANT_DEFAULTS: InstantForm = {
   clientMode: "existing",
   selectedLeadId: "",
@@ -417,6 +431,30 @@ function InstantConsultationWizard({
     [setValue],
   );
 
+  /**
+   * The write path for every field the conflict check ran on.
+   *
+   * Editing any of them invalidates the result. The lead created at check time
+   * is the only carrier of these values — the submit payload never re-sends
+   * them — so continuing on a stale "pass" would file the consultation against
+   * a lead that no longer matches what is on screen (pick practice area A, get
+   * a pass, switch to B, continue: the lead keeps A). Dropping back to "idle"
+   * re-blocks the step, and the re-run syncs the edits onto the lead via
+   * `handleRunConflictCheck`'s `updateLead` branch.
+   *
+   * Clearing a `conflict_found` / `needs_review` result is intended rather than
+   * a way around it: the gate is `conflictState === "pass"`, which "idle" is
+   * not, so the step stays blocked either way and the new details get checked
+   * on their own terms.
+   */
+  const setNewClientField = useCallback(
+    <K extends NewClientField>(key: K, value: InstantForm[K]) => {
+      setField(key, value);
+      setConflictState("idle");
+    },
+    [setField],
+  );
+
   // Existing candidates: same pool as the scheduling wizard — conflict-cleared
   // leads (questionnaire stage) plus consultation-stage leads without an
   // active consultation.
@@ -507,20 +545,32 @@ function InstantConsultationWizard({
     (value: string) => setField("locationId", value),
     [setField],
   );
+  const handleNameChange = useCallback(
+    (value: string) => setNewClientField("newName", value),
+    [setNewClientField],
+  );
+  const handleEmailChange = useCallback(
+    (value: string) => setNewClientField("newEmail", value),
+    [setNewClientField],
+  );
+  const handlePhoneChange = useCallback(
+    (value: string) => setNewClientField("newPhone", value),
+    [setNewClientField],
+  );
   const handleLanguageChange = useCallback(
-    (value: string) => setField("newLanguage", value),
-    [setField],
+    (value: string) => setNewClientField("newLanguage", value),
+    [setNewClientField],
   );
   const handlePracticeAreaChange = useCallback(
     (value: string) => {
-      setField("newPracticeAreaId", value);
-      setField("newCaseTypeId", "");
+      setNewClientField("newPracticeAreaId", value);
+      setNewClientField("newCaseTypeId", "");
     },
-    [setField],
+    [setNewClientField],
   );
   const handleCaseTypeChange = useCallback(
-    (value: string) => setField("newCaseTypeId", value),
-    [setField],
+    (value: string) => setNewClientField("newCaseTypeId", value),
+    [setNewClientField],
   );
   // No shouldValidate: notes has no rules, and running the resolver per
   // keystroke would re-render the dialog through the formState subscription.
@@ -856,9 +906,9 @@ function InstantConsultationWizard({
                     practiceArea: Boolean(errors.newPracticeAreaId),
                     caseType: Boolean(errors.newCaseTypeId),
                   }}
-                  onNameChange={(v) => setField("newName", v)}
-                  onEmailChange={(v) => setField("newEmail", v)}
-                  onPhoneChange={(v) => setField("newPhone", v)}
+                  onNameChange={handleNameChange}
+                  onEmailChange={handleEmailChange}
+                  onPhoneChange={handlePhoneChange}
                   onLanguageChange={handleLanguageChange}
                   onPracticeAreaChange={handlePracticeAreaChange}
                   onCaseTypeChange={handleCaseTypeChange}
