@@ -27,7 +27,12 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { FormSelect } from "@/components/ui/form-select";
+import {
+  useEligibleSigners,
+  useFeeAgreementSettings,
+} from "@/hooks/use-fee-agreement-settings";
 import type { FieldPath } from "react-hook-form";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -85,6 +90,9 @@ const wizardSchema = z
     ]),
     customFeePercent: z.string(),
     applyConsultationCredit: z.boolean(),
+    // Empty means "whoever the firm resolves by default" — the server decides,
+    // and it decides the same way whether or not this field is sent.
+    firmSignerStaffId: z.string(),
     abaCompliance: z.boolean(),
     abaFeeMethod: z.boolean(),
     abaAlternatives: z.boolean(),
@@ -306,6 +314,7 @@ const fmtMoney = (n: number): string =>
 
 const emptyFormValues = (preset: CostPreset): WizardForm => ({
   feeType: null,
+  firmSignerStaffId: "",
   flatRate: "",
   hourlyRate: "",
   estimatedHours: "",
@@ -819,6 +828,31 @@ function WizardFormBody({
   const govFieldArray = useFieldArray({ control, name: "governmentFees" });
   const otherFieldArray = useFieldArray({ control, name: "otherCosts" });
 
+  // Who signs for the firm. Both queries are cheap and shared with the settings
+  // tab, and the signer list is only fetched when a firm actually counter-signs.
+  const { data: signingSettings } = useFeeAgreementSettings();
+  const requiresFirmSignature = Boolean(signingSettings?.requiresFirmSignature);
+  const { data: eligibleSigners } = useEligibleSigners(requiresFirmSignature);
+  const signerOptions = useMemo(
+    () =>
+      (eligibleSigners ?? []).map((signer) => ({
+        value: signer.staffId,
+        label: signer.jobTitle
+          ? `${signer.name} — ${signer.jobTitle}`
+          : signer.name,
+      })),
+    [eligibleSigners],
+  );
+  // Only used to name the signer when the firm has locked the choice. The real
+  // resolution is server-side and walks the consultation attorney first, which
+  // this cannot see — so it names the configured fallback or says nothing
+  // rather than guessing at a name that might be wrong.
+  const defaultSignerName = useMemo(() => {
+    const id = signingSettings?.defaultSignerStaffId;
+    if (!id) return null;
+    return eligibleSigners?.find((s) => s.staffId === id)?.name ?? null;
+  }, [signingSettings?.defaultSignerStaffId, eligibleSigners]);
+
   const w = useWatch({ control });
   const feeType = w.feeType ?? null;
   const isContingency = feeType === "contingency";
@@ -980,6 +1014,9 @@ function WizardFormBody({
       // question there as anywhere else.
       paymentTiming: data.paymentTiming,
       applyConsultationCredit: data.applyConsultationCredit,
+      // Omitted when empty so the server resolves its own default, which it
+      // does anyway when the firm does not allow an override.
+      firmSignerStaffId: data.firmSignerStaffId || undefined,
       accountSplit: isCont
         ? undefined
         : {
@@ -2034,6 +2071,45 @@ function WizardFormBody({
               </HStack>
             </Box>
           </Stack>
+        ) : null}
+
+        {/*
+          Who signs for the firm. Appended to step 3 rather than given a step of
+          its own: for a contingency agreement step 3 is only the ABA
+          confirmations, and a whole step for one field — often a read-only one —
+          is a step nobody thanks you for.
+
+          Absent entirely when the firm does not counter-sign, so a firm that has
+          turned it off sees the wizard it has always seen.
+        */}
+        {step === 2 && signingSettings?.requiresFirmSignature ? (
+          <Box pt="4px" borderTop="1px solid" borderColor="border.subtle">
+            <Box pt="16px">
+              <MicroLabel>Who signs for the firm</MicroLabel>
+              {signingSettings.allowSignerOverride ? (
+                <>
+                  <FormSelect
+                    ariaLabel="Firm signer"
+                    options={signerOptions}
+                    value={w.firmSignerStaffId ?? ""}
+                    onChange={(value) => setValue("firmSignerStaffId", value)}
+                    placeholder="Select who signs"
+                  />
+                  <MutedText>
+                    {signingSettings.signingOrder === "firm_first"
+                      ? "They sign first; the client is emailed once they have."
+                      : "They counter-sign once the client has signed."}
+                  </MutedText>
+                </>
+              ) : (
+                <MutedText>
+                  {defaultSignerName
+                    ? `${defaultSignerName} will sign for the firm. Your firm does not allow this to be changed here.`
+                    : "The firm decides who signs. Your firm does not allow this to be changed here."}
+                </MutedText>
+              )}
+            </Box>
+          </Box>
         ) : null}
 
         {/* ── Footer ────────────────────────────────────────────────────── */}

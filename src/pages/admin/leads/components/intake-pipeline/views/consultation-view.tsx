@@ -1879,6 +1879,7 @@ export function FeeAgreementPreviewModal({
     win.document.write(
       `<html><head><title>Fee agreement ${preview.document.docRef}</title></head><body style="margin:24px;">${buildFeeAgreementHtml(
         preview.document,
+        preview.agreement.firmSigner?.name,
       )}</body></html>`,
     );
     win.document.close();
@@ -1966,7 +1967,10 @@ export function FeeAgreementPreviewModal({
                 border="1px solid"
                 borderColor="border"
                 dangerouslySetInnerHTML={{
-                  __html: buildFeeAgreementHtml(preview.document),
+                  __html: buildFeeAgreementHtml(
+                    preview.document,
+                    preview.agreement.firmSigner?.name,
+                  ),
                 }}
               />
             )}

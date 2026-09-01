@@ -98,7 +98,18 @@ function contingencyTermsText(
 // Builds a self-contained, inline-styled HTML string for the fee-agreement
 // document. Used both for the in-app preview (dangerouslySetInnerHTML) and the
 // print-to-PDF window. All dynamic values are HTML-escaped.
-export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
+export function buildFeeAgreementHtml(
+  doc: FeeAgreementDocument,
+  /**
+   * Who signs for the firm, when that is not the consultation attorney the
+   * document payload names. Passed in rather than read off `doc.attorneyName`
+   * because the two genuinely differ — the attorney who took the consultation
+   * may not hold signing authority — and a preview that names one person while
+   * the PDF is tagged for another is the kind of discrepancy nobody notices
+   * until a client asks who signed.
+   */
+  firmSignerName?: string | null,
+): string {
   const firmName = doc.firm.name;
   const state = doc.firm.state ?? "the applicable";
   const cityCounty = doc.firm.city ? `${esc(doc.firm.city)} County` : "the firm's county";
@@ -342,7 +353,7 @@ export function buildFeeAgreementHtml(doc: FeeAgreementDocument): string {
         <div style="font-size:12px;color:#888;">Date: __________________</div>
       </div>
       <div style="flex:1;">${label("Attorney signature")}
-        <div style="margin-top:34px;font-size:13px;">${esc(doc.attorneyName)}, Esq.</div>
+        <div style="margin-top:34px;font-size:13px;">${esc(firmSignerName || doc.attorneyName)}, Esq.</div>
         <div style="font-size:12px;color:#888;">Date: __________________</div>
       </div>
     </div>
