@@ -958,6 +958,28 @@ export const nudgeClient = async (
 
 // ── Firm counter-signature ───────────────────────────────────────────────────
 
+export type AgreementAwaitingSignature = {
+  id: string;
+  leadId: string;
+  leadName: string;
+  matterType: string | null;
+  docRef: string | null;
+  signingOrder: "client_first" | "firm_first" | null;
+  clientSignedAt: string | null;
+  remindedAt: string | null;
+  sentAt: string;
+  /** False while the other party still has to sign first. */
+  canSign: boolean;
+};
+
+/** Every agreement assigned to the signed-in user and still unsigned by them. */
+export const getAgreementsAwaitingSignature = async (): Promise<
+  AgreementAwaitingSignature[]
+> => {
+  const res = await API.get("/agreements/awaiting-signature");
+  return res.data.data;
+};
+
 export type FirmSignSession = {
   signUrl: string;
   clientId: string | null;

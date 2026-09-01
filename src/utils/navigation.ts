@@ -151,6 +151,11 @@ export const contextNavigation: Record<
           icon: "clipboard",
         },
         {
+          label: "Awaiting my signature",
+          path: "/leads/awaiting-signature",
+          icon: "signature",
+        },
+        {
           label: "CRM & leads",
           path: "/intake/crm-leads",
           icon: "chart-pie",

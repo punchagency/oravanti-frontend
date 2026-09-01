@@ -96,6 +96,11 @@ const LeadDetailPage = lazyPage(() =>
 const MyLeadsTasksPage = lazyPage(() =>
   import("@/pages/admin/leads").then((m) => ({ default: m.MyLeadsTasksPage })),
 );
+const AwaitingSignaturePage = lazyPage(() =>
+  import("@/pages/admin/leads").then((m) => ({
+    default: m.AwaitingSignaturePage,
+  })),
+);
 const LeadReviewQueuePage = lazyPage(() =>
   import("@/pages/admin/lead-review-queue").then((m) => ({ default: m.LeadReviewQueuePage })),
 );
@@ -373,6 +378,9 @@ export function createAdminRouter() {
                 <Route index element={<LeadsPage />} />
                 <Route path="my-tasks" element={<MyLeadsTasksPage />} />
                 <Route path="review-queue" element={<LeadReviewQueuePage />} />
+                <Route element={<RequirePermission permission="fee_agreements:sign" />}>
+                  <Route path="awaiting-signature" element={<AwaitingSignaturePage />} />
+                </Route>
                 <Route path=":leadId" element={<LeadDetailPage />}>
                   <Route index element={<LeadOverviewTabRoute />} />
                   <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />

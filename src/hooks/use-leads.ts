@@ -21,6 +21,7 @@ import {
   discardFeeAgreement,
   markFeeAgreementPaymentReceived,
   markFeeAgreementReceived,
+  getAgreementsAwaitingSignature,
   nudgeClient,
   reassignFirmSigner,
   remindFirmSigner,
@@ -537,6 +538,19 @@ export function useMarkFeeAgreementPaymentReceived() {
  * `fee_agreements:sign` — chasing a colleague for a signature is administration,
  * and the person doing the chasing is routinely the one who cannot sign.
  */
+/**
+ * The signed-in user's outstanding signatures. Kept fresh on focus because it
+ * is a queue someone leaves open in a tab: the client signing is what makes a
+ * row actionable, and that happens elsewhere.
+ */
+export function useAgreementsAwaitingSignature() {
+  return useQuery({
+    queryKey: ["agreements", "awaiting-signature"],
+    queryFn: getAgreementsAwaitingSignature,
+    staleTime: 30_000,
+  });
+}
+
 export function useRemindFirmSigner() {
   const qc = useQueryClient();
   return useMutation({
