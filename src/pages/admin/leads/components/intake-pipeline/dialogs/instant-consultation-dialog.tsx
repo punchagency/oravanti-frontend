@@ -900,6 +900,7 @@ function InstantConsultationWizard({
                   practiceAreas={practiceAreas ?? []}
                   caseTypeOptions={caseTypeOptions}
                   conflictState={conflictState}
+                  hasRunCheck={createdLeadId !== null}
                   errors={{
                     name: Boolean(errors.newName),
                     email: Boolean(errors.newEmail),
@@ -1144,6 +1145,7 @@ function NewClientStep({
   practiceAreas,
   caseTypeOptions,
   conflictState,
+  hasRunCheck,
   errors,
   onNameChange,
   onEmailChange,
@@ -1162,6 +1164,8 @@ function NewClientStep({
   practiceAreas: PublicPracticeArea[];
   caseTypeOptions: { id: string; name: string }[];
   conflictState: ConflictState;
+  /** Whether a check has ever run for this client, i.e. whether a lead exists. */
+  hasRunCheck: boolean;
   errors: {
     name: boolean;
     email: boolean;
@@ -1322,6 +1326,11 @@ function NewClientStep({
                 : "The conflict check needs review. Resolve it in the Conflict check tab before starting this consultation."}
             </Text>
           </HStack>
+        ) : hasRunCheck ? (
+          <MutedText>
+            The client details changed. Re-run the conflict check before
+            proceeding — the earlier result was for the old details.
+          </MutedText>
         ) : (
           <MutedText>
             A conflict check is required before proceeding. Enter the client
@@ -1336,9 +1345,12 @@ function NewClientStep({
             loading={conflictState === "running"}
             onClick={onRunConflictCheck}
           >
-            {conflictState === "idle"
-              ? "Run conflict check"
-              : "Re-run conflict check"}
+            {/*
+              Keyed off whether a check has actually run, not off conflictState:
+              an edit drops the state back to "idle", and calling that "Run
+              conflict check" would read as though nothing had happened yet.
+            */}
+            {hasRunCheck ? "Re-run conflict check" : "Run conflict check"}
           </OutlineButton>
         </Box>
       </Box>
