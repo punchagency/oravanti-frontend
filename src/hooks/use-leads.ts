@@ -22,6 +22,8 @@ import {
   markFeeAgreementPaymentReceived,
   markFeeAgreementReceived,
   nudgeClient,
+  reassignFirmSigner,
+  remindFirmSigner,
   restoreLead,
   sendFeeAgreement,
   openCase,
@@ -526,6 +528,45 @@ export function useMarkFeeAgreementPaymentReceived() {
     },
     onError: (err: APIError) => {
       toast.error(err.response?.data?.message ?? "Failed to record payment");
+    },
+  });
+}
+
+/**
+ * Reminds the assigned firm signer. Deliberately not gated in the UI on
+ * `fee_agreements:sign` — chasing a colleague for a signature is administration,
+ * and the person doing the chasing is routinely the one who cannot sign.
+ */
+export function useRemindFirmSigner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (agreementId: string) => remindFirmSigner(agreementId),
+    onSuccess: () => {
+      toast.success("Reminder sent to the signer");
+      qc.invalidateQueries({ queryKey: ["lead"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to send reminder");
+    },
+  });
+}
+
+export function useReassignFirmSigner() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { agreementId: string; firmSignerStaffId: string }) =>
+      reassignFirmSigner(vars.agreementId, vars.firmSignerStaffId),
+    onSuccess: (result) => {
+      toast.success(
+        result.clientMustResign
+          ? "Signer changed — the client has been sent a new link to sign again"
+          : "Signer changed",
+      );
+      qc.invalidateQueries({ queryKey: ["lead"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (err: APIError) => {
+      toast.error(err.response?.data?.message ?? "Failed to change the signer");
     },
   });
 }

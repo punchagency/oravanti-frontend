@@ -165,6 +165,24 @@ export type FeeAgreement = {
   nudgedAt: string | null;
   createdAt: string;
   /**
+   * Who counter-signs for the firm, and whether they have.
+   *
+   * `firmSigner` null means this agreement has one signer and always will —
+   * either the firm does not counter-sign, or it was already out for signature
+   * before counter-signing existed. Every counter-signature affordance in the
+   * UI hangs off this being non-null, so such an agreement renders exactly as
+   * it did before.
+   */
+  firmSigner: { staffId: string; name: string } | null;
+  firmSignedAt: string | null;
+  firmSignerRemindedAt: string | null;
+  signingOrder: "client_first" | "firm_first" | null;
+  invoiceWaitsForFirmSignature: boolean | null;
+  /** Whether the signed-in user can sign this agreement right now. */
+  canSign: boolean;
+  /** Set once the executed PDF has been archived. */
+  signedDocumentUrl: string | null;
+  /**
    * The invoice raised for what this agreement charges upfront. Null until it
    * is signed, and on a pure contingency that bills nothing upfront.
    */
@@ -342,6 +360,9 @@ export type LeadEventType =
   | "consultation_completed"
   | "fee_agreement_generated"
   | "fee_agreement_sent"
+  | "fee_agreement_client_signed"
+  | "fee_agreement_firm_signed"
+  | "fee_agreement_signer_reassigned"
   | "fee_agreement_signed"
   | "payment_received"
   | "case_opened";
@@ -745,6 +766,12 @@ export type PaymentAllocation = {
 };
 
 export type GenerateFeeAgreementInput = {
+  /**
+   * Who counter-signs for the firm. Omitted when the firm does not let the
+   * generating attorney choose — the server resolves the default either way and
+   * ignores this rather than rejecting it, so a stale tab cannot fail a draft.
+   */
+  firmSignerStaffId?: string;
   attorneyFee: {
     type: AttorneyFeeType;
     flatRate?: number;
@@ -926,6 +953,55 @@ export const nudgeClient = async (
   agreementId: string,
 ): Promise<{ reminderSentAt: string }> => {
   const res = await API.post(`/agreements/${agreementId}/nudge-client`);
+  return res.data.data;
+};
+
+// ── Firm counter-signature ───────────────────────────────────────────────────
+
+export type FirmSignSession = {
+  signUrl: string;
+  clientId: string | null;
+  expiresAt: number;
+};
+
+/**
+ * Mint an embedded signing session for the firm's own signer. Authenticated and
+ * narrowed to the assigned signer server-side, unlike the client's session,
+ * which is authenticated by the token in their email.
+ */
+export const getFirmSignSession = async (
+  agreementId: string,
+): Promise<FirmSignSession> => {
+  const res = await API.post(`/agreements/${agreementId}/firm-sign-session`);
+  return res.data.data;
+};
+
+export const remindFirmSigner = async (
+  agreementId: string,
+): Promise<{ reminderSentAt: string }> => {
+  const res = await API.post(`/agreements/${agreementId}/remind-signer`);
+  return res.data.data;
+};
+
+export const reassignFirmSigner = async (
+  agreementId: string,
+  firmSignerStaffId: string,
+): Promise<{
+  reassigned: boolean;
+  agreementId: string;
+  clientMustResign: boolean;
+}> => {
+  const res = await API.post(`/agreements/${agreementId}/reassign-signer`, {
+    firmSignerStaffId,
+  });
+  return res.data.data;
+};
+
+/** A short-lived download URL for the archived, fully executed PDF. */
+export const getSignedAgreementUrl = async (
+  agreementId: string,
+): Promise<{ url: string }> => {
+  const res = await API.get(`/agreements/${agreementId}/document`);
   return res.data.data;
 };
 

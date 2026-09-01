@@ -20,6 +20,8 @@ export function eventColor(action: string): string {
     case "lead.conflict_check_approved":
     case "lead.conflict_overridden":
     case "lead.consultation_completed":
+    case "lead.fee_agreement_client_signed":
+    case "lead.fee_agreement_firm_signed":
     case "lead.fee_agreement_signed":
     case "lead.task_completed":
     case "lead.task_approved":
@@ -34,6 +36,7 @@ export function eventColor(action: string): string {
     case "lead.questionnaire_response_received":
     case "lead.questionnaire_file_uploaded":
     case "lead.fee_agreement_sent":
+    case "lead.fee_agreement_signer_reassigned":
     case "lead.task_submitted_for_review":
     case "lead.nudge_sent":
     case "lead.reminder_sent":
