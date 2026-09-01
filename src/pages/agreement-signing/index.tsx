@@ -128,7 +128,12 @@ export function AgreementSigningPage() {
                 Both you and your law firm have signed. Here is your copy to
                 download and keep.
               </Text>
-              <Button asChild size="lg">
+              {/* `colorPalette`, like the sign button below. Without it the
+                  button falls back to the default palette, which on this page's
+                  surface renders dark text on a dark fill — the theme defines
+                  brand.contrast and brand.fg precisely so brand-coloured
+                  controls stay legible in both modes. */}
+              <Button asChild colorPalette="brand" size="lg">
                 <chakra.a href={signedDocumentUrl}>
                   <Download size={18} /> Download your signed agreement
                 </chakra.a>
@@ -164,7 +169,7 @@ export function AgreementSigningPage() {
                   the client signs, so this appears when it appears rather than
                   promising a download that is not there yet. */}
               {signedDocumentUrl ? (
-                <Button asChild variant="outline">
+                <Button asChild colorPalette="brand" variant="outline">
                   <chakra.a href={signedDocumentUrl}>
                     <Download size={16} /> Download your signed agreement
                   </chakra.a>

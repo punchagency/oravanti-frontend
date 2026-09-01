@@ -5,15 +5,8 @@ import {
 import type { APIError } from "@/hooks/types";
 import { useEmbeddedSigning } from "@/hooks/use-embedded-signing";
 import { useAgreementsAwaitingSignature } from "@/hooks/use-leads";
-import {
-  Box,
-  Button,
-  Flex,
-  HStack,
-  Skeleton,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
+import { BrandButton, OutlineButton } from "@/components/ui/intake-ui";
+import { Box, Flex, HStack, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Clock, FileSignature, PenLine } from "lucide-react";
 import { Link } from "react-router";
@@ -97,19 +90,21 @@ function SignatureRow({ agreement }: { agreement: AgreementAwaitingSignature }) 
       </Box>
 
       <HStack gap="8px" flexShrink={0}>
-        <Button asChild size="sm" variant="outline">
+        {/* The shared admin primitives rather than a bare Button: they carry
+            explicit bg/color, and a bare one falls back to the default palette
+            and renders dark-on-dark. */}
+        <OutlineButton asChild>
           <Link to={`/leads/${agreement.leadId}/consultation`}>
             View agreement
           </Link>
-        </Button>
+        </OutlineButton>
         {agreement.canSign ? (
-          <Button
-            size="sm"
+          <BrandButton
             loading={startSigning.isPending}
             onClick={() => startSigning.mutate()}
           >
             <PenLine size={14} /> Sign
-          </Button>
+          </BrandButton>
         ) : (
           <HStack gap="4px" color="fg.subtle" fontSize="12px" px="8px">
             <Clock size={13} /> Not yet
