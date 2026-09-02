@@ -36,3 +36,17 @@ export async function getAgreementPaymentSession(token: string) {
   );
   return res.data.data as AgreementPaymentSession;
 }
+
+/**
+ * The fully executed copy, for the client who signed it.
+ *
+ * 404s until both parties have signed and the PDF has been archived, which is
+ * what the signing page uses to tell a client returning from the "your copy is
+ * ready" email apart from one arriving to sign for the first time.
+ */
+export async function getSignedAgreementDocument(
+  token: string,
+): Promise<{ url: string }> {
+  const res = await httpClient.get(`/agreement-signing/${token}/document`);
+  return res.data.data as { url: string };
+}

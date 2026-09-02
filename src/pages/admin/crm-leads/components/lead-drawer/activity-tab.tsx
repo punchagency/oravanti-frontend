@@ -32,7 +32,10 @@ const EVENT_TITLES: Record<LeadEventType, string> = {
   consultation_completed: "Consultation completed",
   fee_agreement_generated: "Fee agreement generated",
   fee_agreement_sent: "Fee agreement sent for signature",
-  fee_agreement_signed: "Fee agreement signed",
+  fee_agreement_client_signed: "Client signed the fee agreement",
+  fee_agreement_firm_signed: "Firm counter-signed the fee agreement",
+  fee_agreement_signer_reassigned: "Fee agreement signer changed",
+  fee_agreement_signed: "Fee agreement fully executed",
   payment_received: "Payment received",
   case_opened: "Case opened",
 };
@@ -44,6 +47,7 @@ const EVENT_TONES: Partial<Record<LeadEventType, string>> = {
   lead_archived: "#b00020",
   case_opened: "#00785a",
   fee_agreement_signed: "#00785a",
+  fee_agreement_firm_signed: "#00785a",
   payment_received: "#00785a",
 };
 

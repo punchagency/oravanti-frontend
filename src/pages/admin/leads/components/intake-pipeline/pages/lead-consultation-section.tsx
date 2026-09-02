@@ -45,6 +45,9 @@ import { leadStagePath, pipelineOrigin } from "../shared/constants";
 import { consultationModeLabel } from "../shared/consultation-wizard-constants";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
 import { FeeAgreementInvoicePanel } from "../fee-agreement/fee-agreement-invoice";
+import { feeAgreementView } from "../fee-agreement/fee-agreement-status";
+import { SignedAgreementDownload } from "../fee-agreement/signed-agreement-download";
+import { FirmSignaturePanel } from "../fee-agreement/firm-signature-panel";
 import { awaitingFeePayment } from "../fee-agreement/fee-agreement-payment-state";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
 import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
@@ -72,7 +75,6 @@ import {
   FileText,
   Info,
   Lock,
-  Mail,
   MapPin,
   Pencil,
   Phone,
@@ -164,18 +166,18 @@ function SectionRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-const FEE_STAGES = [
-  "Generate",
-  "Send",
-  "Awaiting signature",
-  "Receive",
-  "Case opened",
-] as const;
-
-function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
+function FeeAgreementTracker({
+  activeIndex,
+  labels,
+}: {
+  activeIndex: number;
+  // Passed in rather than fixed: a counter-signed agreement has two signature
+  // nodes, and which comes first is a firm setting.
+  labels: readonly string[];
+}) {
   return (
     <HStack gap="0" w="full" align="flex-start">
-      {FEE_STAGES.map((label, index) => {
+      {labels.map((label, index) => {
         const done = index < activeIndex;
         const active = index === activeIndex;
         return (
@@ -510,6 +512,7 @@ function FeeAgreementPreviewModal({
     win.document.write(
       `<html><head><title>Fee agreement ${preview.document.docRef}</title></head><body style="margin:24px;">${buildFeeAgreementHtml(
         preview.document,
+        preview.agreement.firmSigner?.name,
       )}</body></html>`,
     );
     win.document.close();
@@ -596,7 +599,10 @@ function FeeAgreementPreviewModal({
                 border="1px solid"
                 borderColor="border"
                 dangerouslySetInnerHTML={{
-                  __html: buildFeeAgreementHtml(preview.document),
+                  __html: buildFeeAgreementHtml(
+                    preview.document,
+                    preview.agreement.firmSigner?.name,
+                  ),
                 }}
               />
             )}
@@ -1030,31 +1036,13 @@ function FeeAgreementSection({
 
   const caseOpened = Boolean(lead.convertedCaseId);
   const isReadyToOpen = feeAgreement?.status === "signed" && !awaitingPayment;
-  const feeStageIndex = caseOpened
-    ? 5
-    : isReadyToOpen
-      ? 4
-      : feeAgreement?.status === "signed"
-        ? 3
-        : feeAgreement?.status === "pending_signature"
-          ? 2
-          : feeAgreement?.status === "draft"
-            ? 1
-            : 0;
-  const feeStatus: {
-    label: string;
-    tone: "success" | "warning" | "neutral" | "gold";
-  } = caseOpened
-    ? { label: "Signed & received", tone: "success" }
-    : isReadyToOpen
-      ? { label: "Payment received", tone: "success" }
-      : feeAgreement?.status === "signed"
-        ? { label: "Signed", tone: "success" }
-        : feeAgreement?.status === "pending_signature"
-          ? { label: "Sent", tone: "warning" }
-          : feeAgreement?.status === "draft"
-            ? { label: "Generated", tone: "gold" }
-            : { label: "Not started", tone: "neutral" };
+  // Shared with the card list in views/consultation-view.tsx. The two used to
+  // compute this separately, and had already drifted: this copy produced an
+  // active index of 5 against a five-element tracker, so an opened case lit no
+  // node at all.
+  const feeView = feeAgreementView(feeAgreement, caseOpened, isReadyToOpen);
+  const feeStageIndex = feeView.activeIndex;
+  const feeStatus = feeView.status;
 
   if (isFeeLoading) {
     return (
@@ -1099,7 +1087,10 @@ function FeeAgreementSection({
             </Text>
             <StatusPill tone={feeStatus.tone}>{feeStatus.label}</StatusPill>
           </HStack>
-          <FeeAgreementTracker activeIndex={feeStageIndex} />
+          <FeeAgreementTracker
+            activeIndex={feeStageIndex}
+            labels={feeView.labels}
+          />
           {caseOpened ? (
             <HStack gap="6px" color="#00785a">
               <Check size={14} />
@@ -1143,27 +1134,13 @@ function FeeAgreementSection({
               </HStack>
             </Stack>
           ) : feeAgreement.status === "pending_signature" ? (
-            <Stack gap="10px">
-              <MutedText>
-                Signing link sent — awaiting client signature.
-              </MutedText>
-              <HStack gap="8px" wrap="wrap">
-                <BrandButton
-                  loading={markReceived.isPending}
-                  onClick={() => markReceived.mutate(feeAgreement.id)}
-                >
-                  <Check size={14} />
-                  Mark as received
-                </BrandButton>
-                <OutlineButton
-                  loading={nudgeClient.isPending}
-                  onClick={() => nudgeClient.mutate(feeAgreement.id)}
-                >
-                  <Mail size={14} />
-                  Nudge client
-                </OutlineButton>
-              </HStack>
-            </Stack>
+            <FirmSignaturePanel
+              agreement={feeAgreement}
+              onMarkReceived={() => markReceived.mutate(feeAgreement.id)}
+              markingReceived={markReceived.isPending}
+              onNudgeClient={() => nudgeClient.mutate(feeAgreement.id)}
+              nudgingClient={nudgeClient.isPending}
+            />
           ) : feeAgreement.status === "signed" ? (
             <Stack gap="10px">
               <MutedText>
@@ -1172,6 +1149,7 @@ function FeeAgreementSection({
                   : "Signed document received."}
               </MutedText>
               <FeeAgreementInvoicePanel agreement={feeAgreement} />
+              <SignedAgreementDownload agreement={feeAgreement} />
               {/*
                * No "advance to case opening" action here. The backend already
                * moves the lead the moment both gates are satisfied — signed
