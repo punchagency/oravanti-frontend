@@ -32,7 +32,6 @@ import {
   useFeeAgreementData,
   useFeeAgreementPreview,
   useGenerateFeeAgreement,
-  useMarkFeeAgreementPaymentReceived,
   useMarkFeeAgreementReceived,
   useNudgeClient,
   useSendFeeAgreement,
@@ -46,6 +45,7 @@ import { consultationModeLabel } from "../shared/consultation-wizard-constants";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
 import { FeeAgreementInvoicePanel } from "../fee-agreement/fee-agreement-invoice";
 import { feeAgreementView } from "../fee-agreement/fee-agreement-status";
+import { MarkPaymentReceivedButton } from "../fee-agreement/mark-payment-button";
 import { SignedAgreementDownload } from "../fee-agreement/signed-agreement-download";
 import { FirmSignaturePanel } from "../fee-agreement/firm-signature-panel";
 import { awaitingFeePayment } from "../fee-agreement/fee-agreement-payment-state";
@@ -997,7 +997,6 @@ function FeeAgreementSection({
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
-  const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
   const discardDraft = useDiscardFeeAgreement();
 
@@ -1161,13 +1160,7 @@ function FeeAgreementSection({
                */}
               <HStack gap="8px" wrap="wrap">
                 {awaitingPayment ? (
-                  <BrandButton
-                    loading={markPayment.isPending}
-                    onClick={() => markPayment.mutate(feeAgreement.id)}
-                  >
-                    <Check size={14} />
-                    Mark payment received
-                  </BrandButton>
+                  <MarkPaymentReceivedButton agreement={feeAgreement} />
                 ) : (
                   <BrandButton asChild>
                     <Link

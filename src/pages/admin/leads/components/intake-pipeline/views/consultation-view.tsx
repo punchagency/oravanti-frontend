@@ -30,7 +30,6 @@ import {
   useInitiateConsultation,
   useLeadById,
   useLeads,
-  useMarkFeeAgreementPaymentReceived,
   useMarkFeeAgreementReceived,
   useNudgeClient,
   useSendFeeAgreement,
@@ -124,6 +123,7 @@ import {
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
 import { FeeAgreementInvoicePanel } from "../fee-agreement/fee-agreement-invoice";
 import { feeAgreementView } from "../fee-agreement/fee-agreement-status";
+import { MarkPaymentReceivedButton } from "../fee-agreement/mark-payment-button";
 import { SignedAgreementDownload } from "../fee-agreement/signed-agreement-download";
 import { FirmSignaturePanel } from "../fee-agreement/firm-signature-panel";
 import { awaitingFeePayment } from "../fee-agreement/fee-agreement-payment-state";
@@ -769,7 +769,6 @@ export function ConsultationCard({
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
-  const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
   const advanceStage = useAdvanceLeadStage();
   const requestMissing = useRequestMissingDocuments();
@@ -1495,13 +1494,7 @@ export function ConsultationCard({
                     // Advance stays available for the dev-mode gate bypass;
                     // without it the backend 409 surfaces as a toast.
                     <>
-                      <BrandButton
-                        loading={markPayment.isPending}
-                        onClick={() => markPayment.mutate(feeAgreement.id)}
-                      >
-                        <Check size={14} />
-                        Mark payment received
-                      </BrandButton>
+                      <MarkPaymentReceivedButton agreement={feeAgreement} />
                       <OutlineButton
                         loading={advanceStage.isPending}
                         onClick={() =>
