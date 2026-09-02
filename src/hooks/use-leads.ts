@@ -520,8 +520,10 @@ export function useDiscardFeeAgreement() {
 export function useMarkFeeAgreementPaymentReceived() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (agreementId: string) =>
-      markFeeAgreementPaymentReceived(agreementId),
+    // Takes the instalment count as well as the id: on a plan, "payment
+    // received" means the instalments that actually arrived, not the balance.
+    mutationFn: (vars: { agreementId: string; instalments?: number }) =>
+      markFeeAgreementPaymentReceived(vars.agreementId, vars.instalments),
     onSuccess: () => {
       toast.success("Payment recorded");
       qc.invalidateQueries({ queryKey: ["leads"] });

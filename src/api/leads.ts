@@ -207,6 +207,19 @@ export type FeeAgreementInvoice = {
   delivery: "sent" | "failed" | "not_attempted";
   /** Whether this invoice currently satisfies the case-opening gate. */
   satisfiesGate: boolean;
+  /**
+   * The payment schedule with each row's derived state. Empty when the invoice
+   * is paid in one go — per-instalment amounts are derived from
+   * `invoices.amount_paid`, never stored, so this is the only honest source for
+   * "what is still owed on instalment 3".
+   */
+  instalments: {
+    sequence: number;
+    dueDate: string;
+    amount: number;
+    outstanding: number;
+    state: "paid" | "partial" | "due";
+  }[];
 };
 
 export type LeadDetail = Lead & {
@@ -922,14 +935,15 @@ export const markFeeAgreementReceived = async (
 
 export const markFeeAgreementPaymentReceived = async (
   agreementId: string,
-): Promise<{
-  paymentReceived: boolean;
-  agreementId: string;
-  leadId: string;
-  paymentReceivedAt: string;
-}> => {
+  /**
+   * How many instalments arrived. Omitted means one — the next unpaid
+   * instalment, not the whole plan.
+   */
+  instalments?: number,
+): Promise<{ received: boolean; agreementId: string }> => {
   const res = await API.post(
     `/agreements/${agreementId}/mark-payment-received`,
+    instalments == null ? {} : { instalments },
   );
   return res.data.data;
 };
