@@ -3,6 +3,7 @@ import { useCurrentStaff } from "@/hooks/use-current-staff";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useAuthStore } from "@/store/auth-store";
 import { AvatarChip } from "@/components/layout/shared/avatar-chip";
+import { TOPBAR_HEIGHT } from "@/components/layout/shared/chrome";
 import { useNav, usePageTitle } from "@/components/layout/shared/use-nav";
 import { Box, Button, Flex, Menu, Portal, Text } from "@chakra-ui/react";
 import {
@@ -51,7 +52,7 @@ export function TopBar() {
       as="header"
       align="center"
       gap="10px"
-      h="52px"
+      h={TOPBAR_HEIGHT}
       px={{ base: 2, lg: 3 }}
       borderBottom="1px solid"
       borderColor="border"

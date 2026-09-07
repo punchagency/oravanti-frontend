@@ -130,7 +130,24 @@ const config = defineConfig({
           DEFAULT: { value: { _light: "#FFFFFF", _dark: "#222222" } },
           subtle: { value: { _light: "#F1EFE8", _dark: "#2A2A2A" } },
           muted: { value: { _light: "#F1EFE8", _dark: "#303030" } },
-          emphasized: { value: { _light: "#1F1F1F", _dark: "#161614" } },
+          /*
+            The top of the surface ladder — bg → subtle → muted → emphasized —
+            and one step further from the page in each mode's own direction,
+            never a flip to the other mode's palette.
+
+            It used to be near-black in *both* modes (#1F1F1F / #161614), which
+            is what `bg.inverted` is for. That mattered far beyond the two
+            places this app names the token, because Chakra's own recipes lean
+            on it for the highlighted row of every dropdown: menu, select,
+            combobox and listbox all paint `bg.emphasized/60`, so hovering an
+            option drew a black bar over the panel in light mode and a black
+            hole in dark. Switch tracks, slider ranges and segment groups read
+            it too.
+
+            If you want an inverted surface, that is `bg.inverted` with
+            `fg.inverted` on top. This one stays a surface.
+          */
+          emphasized: { value: { _light: "#E5E1D6", _dark: "#3A3A38" } },
           inverted: { value: { _light: "#1F1F1F", _dark: "#FFFFFF" } },
           panel: { value: { _light: "#FFFFFF", _dark: "#2A2A2A" } },
           input: { value: { _light: "#FFFFFF", _dark: "#2A2A2A" } },

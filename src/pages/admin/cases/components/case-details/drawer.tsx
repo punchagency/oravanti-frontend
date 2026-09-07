@@ -27,6 +27,8 @@ import { Notes } from "./tabs/notes";
 import { Overview } from "./tabs/overview";
 import { People } from "./tabs/people";
 import { TimelineTab } from "./tabs/timeline";
+import { FormsTab } from "./tabs/forms";
+import { QuestionnaireTab } from "./tabs/questionnaire";
 import { WorkflowTab } from "./tabs/workflow";
 
 interface CaseDetailsDrawerProps {
@@ -214,6 +216,8 @@ export function CaseDetailsDrawer({
                   {[
                     "Overview",
                     "Workflow",
+                    "Questionnaire",
+                    "Forms",
                     "People",
                     "Documents",
                     "Timeline",
@@ -258,6 +262,29 @@ export function CaseDetailsDrawer({
                   overflow="auto"
                 >
                   <WorkflowTab caseId={caseId} isActive={tab === "workflow"} />
+                </Tabs.Content>
+
+                <Tabs.Content
+                  value="questionnaire"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
+                  <QuestionnaireTab
+                    caseId={caseId}
+                    isActive={tab === "questionnaire"}
+                  />
+                </Tabs.Content>
+
+                <Tabs.Content
+                  value="forms"
+                  px={5}
+                  pb={5}
+                  flex={1}
+                  overflow="auto"
+                >
+                  <FormsTab caseId={caseId} isActive={tab === "forms"} />
                 </Tabs.Content>
 
                 <Tabs.Content

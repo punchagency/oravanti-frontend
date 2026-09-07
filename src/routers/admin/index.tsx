@@ -65,6 +65,9 @@ const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-setting
 const AuditTrailPage = lazyPage(() =>
   import("@/pages/admin/settings/audit-trail").then((m) => ({ default: m.AuditTrailPage })),
 );
+const CaseQuestionnairesPage = lazyPage(() =>
+  import("@/pages/admin/settings/case-questionnaires").then((m) => ({ default: m.CaseQuestionnairesPage })),
+);
 const IntakeChecklistPage = lazyPage(() =>
   import("@/pages/admin/settings/intake-checklist").then((m) => ({ default: m.IntakeChecklistPage })),
 );
@@ -154,6 +157,12 @@ const CaseOverviewTabRoute = lazyPage(() =>
 );
 const CaseWorkflowTabRoute = lazyPage(() =>
   import("@/pages/admin/cases/components/case-details/tab-routes/workflow-tab-route").then((m) => ({ default: m.CaseWorkflowTabRoute })),
+);
+const CaseQuestionnaireTabRoute = lazyPage(() =>
+  import("@/pages/admin/cases/components/case-details/tab-routes/questionnaire-tab-route").then((m) => ({ default: m.CaseQuestionnaireTabRoute })),
+);
+const CaseFormsTabRoute = lazyPage(() =>
+  import("@/pages/admin/cases/components/case-details/tab-routes/forms-tab-route").then((m) => ({ default: m.CaseFormsTabRoute })),
 );
 const CasePeopleTabRoute = lazyPage(() =>
   import("@/pages/admin/cases/components/case-details/tab-routes/people-tab-route").then((m) => ({ default: m.CasePeopleTabRoute })),
@@ -345,6 +354,7 @@ export function createAdminRouter() {
               */}
               <Route element={<RequirePermission permission="workflow:read" />}>
                 <Route path="intake-checklist" element={<IntakeChecklistPage />} />
+                <Route path="case-questionnaires" element={<CaseQuestionnairesPage />} />
               </Route>
               {/*
                 Viewing RBAC (staff assignments, roles, groups, the matrix)
@@ -407,6 +417,8 @@ export function createAdminRouter() {
                 <Route path=":caseId" element={<CaseDetailPage />}>
                   <Route index element={<CaseOverviewTabRoute />} />
                   <Route path="workflow" element={<CaseWorkflowTabRoute />} />
+                  <Route path="questionnaire" element={<CaseQuestionnaireTabRoute />} />
+                  <Route path="forms" element={<CaseFormsTabRoute />} />
                   <Route path="people" element={<CasePeopleTabRoute />} />
                   <Route path="documents" element={<CaseDocumentsTabRoute />} />
                   <Route path="timeline" element={<CaseTimelineTabRoute />} />

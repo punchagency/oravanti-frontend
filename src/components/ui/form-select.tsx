@@ -1,5 +1,5 @@
 import { Portal, Select, createListCollection } from "@chakra-ui/react";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 
 export interface FormSelectOption {
   label: string;
@@ -46,12 +46,29 @@ export const FormSelect = memo(function FormSelect({
     [options],
   );
 
+  /*
+    Options are built only while the menu is open.
+
+    Chakra's Select has no `lazyMount`, so `Select.Content` and every
+    `Select.Item` inside it mount with the trigger and simply sit hidden. That
+    is invisible on a form with three dropdowns and ruinous on one with
+    twenty-five: the Forms tab's field-sources view offers every question on
+    the matter in every row, which was twenty-five closed menus holding several
+    hundred items each, all mounted before anybody clicked anything.
+
+    The collection still holds every item, so `ValueText` resolves the selected
+    label with the menu shut. Only the rendering waits.
+  */
+  const [open, setOpen] = useState(false);
+
   return (
     <Select.Root
       collection={collection}
       size={size}
       width={width}
       minW={minW}
+      open={open}
+      onOpenChange={(event) => setOpen(event.open)}
       value={value ? [value] : []}
       onValueChange={(event) => onChange(event.value[0] ?? "")}
       disabled={disabled}
@@ -70,12 +87,13 @@ export const FormSelect = memo(function FormSelect({
       <Portal>
         <Select.Positioner>
           <Select.Content>
-            {collection.items.map((item) => (
-              <Select.Item item={item} key={item.value}>
-                <Select.ItemText>{item.label}</Select.ItemText>
-                <Select.ItemIndicator color="brand.solid" />
-              </Select.Item>
-            ))}
+            {open &&
+              collection.items.map((item) => (
+                <Select.Item item={item} key={item.value}>
+                  <Select.ItemText>{item.label}</Select.ItemText>
+                  <Select.ItemIndicator color="brand.solid" />
+                </Select.Item>
+              ))}
           </Select.Content>
         </Select.Positioner>
       </Portal>

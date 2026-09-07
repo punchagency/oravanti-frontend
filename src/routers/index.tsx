@@ -2,13 +2,39 @@ import { Center, Spinner, Text, VStack } from "@chakra-ui/react";
 import { RouterProvider } from "react-router";
 import { useAuthRefresh } from "@/hooks/useAuthRefresh";
 import { useAuthStore } from "@/store/auth-store";
+import type { SessionUser } from "@/types/auth";
 import { createAdminRouter } from "./admin";
 import { createClientPortalRouter } from "./client";
+import { createPlatformRouter } from "./platform";
 import { createPublicRouter } from "./public";
 
-const adminRouter = createAdminRouter();
-const clientPortalRouter = createClientPortalRouter();
-const publicRouter = createPublicRouter();
+const routers = {
+  admin: createAdminRouter(),
+  client: createClientPortalRouter(),
+  platform: createPlatformRouter(),
+  public: createPublicRouter(),
+};
+
+type RouterName = keyof typeof routers;
+
+/**
+ * Which experience an account gets.
+ *
+ * A lookup rather than a chain of ternaries: with four routers the nested
+ * conditional stopped being readable, and the `key` below needs the same
+ * answer — so naming it once removes the chance of the two disagreeing about
+ * which router is mounted.
+ *
+ * Everything that is not a client or an Oravanti operator is firm staff of
+ * some kind, which is why `admin` is the fallback rather than an entry.
+ */
+const ROUTER_BY_ACCOUNT: Partial<Record<SessionUser["accountType"], RouterName>> = {
+  client: "client",
+  platform_admin: "platform",
+};
+
+const routerFor = (accountType: SessionUser["accountType"]): RouterName =>
+  ROUTER_BY_ACCOUNT[accountType] ?? "admin";
 
 function FullPageLoader() {
   return (
@@ -34,33 +60,24 @@ export function AppRouter() {
 
   const isLoading = queryLoading || storeLoading;
 
-  // Client users → client portal; staff/admin/contractor → admin app.
+  // Client users → client portal; Oravanti operators → the platform CRM;
+  // staff/admin/contractor → the firm app.
   const isAuthed = isAuthenticated && !!user;
-  const router = isLoading
-    ? publicRouter
-    : twoFactorPending
-      ? publicRouter
-      : isAuthed
-        ? user!.accountType === "client"
-          ? clientPortalRouter
-          : adminRouter
-        : publicRouter;
+
+  // When 2FA is pending the public router is active and the /two-factor route
+  // will render. Once the user verifies, setAuth() clears the flag and
+  // AppRouter re-renders with the correct authenticated router.
+  //
+  // 2FA uses the same public router — no key change, so the router stays
+  // mounted and preserves the current URL (/two-factor).
+  const name: RouterName =
+    isLoading || twoFactorPending || !isAuthed
+      ? "public"
+      : routerFor(user!.accountType);
 
   if (isLoading) {
     return <FullPageLoader />;
   }
 
-  // When 2FA is pending the public router is active and the /two-factor
-  // route will render.  Once the user verifies, setAuth() clears the flag
-  // and AppRouter re-renders with the correct authenticated router.
-
-  // 2FA uses the same public router — no key change, so the router stays
-  // mounted and preserves the current URL (/two-factor).
-  const routerKey = isAuthed
-    ? user!.accountType === "client"
-      ? "client"
-      : "admin"
-    : "public";
-
-  return <RouterProvider router={router} key={routerKey} />;
+  return <RouterProvider router={routers[name]} key={name} />;
 }

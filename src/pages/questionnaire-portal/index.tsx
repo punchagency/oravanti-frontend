@@ -1,53 +1,73 @@
 import {
-  Box,
-  chakra,
-  Container,
-  Flex,
-  Heading,
-  HStack,
-  Stack,
-  Text,
-} from "@chakra-ui/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Upload } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router";
-import { toast } from "sonner";
-import {
   getQuestionnaireByToken,
   saveDraftByToken,
   submitByToken,
-  uploadFileByToken,
   type PortalQuestion,
+  type PortalSection,
 } from "@/api/questionnaires";
-import { DateField } from "@/components/ui/date-field";
+import { SectionRail } from "@/components/questionnaire/section-rail";
+import { SubmitGate } from "@/components/questionnaire/submit-gate";
+import { UnsavedBar } from "@/components/questionnaire/unsaved-bar";
+import {
+  changedEntries,
+  useDraftForm,
+  type DraftForm,
+} from "@/components/questionnaire/use-draft-form";
+import { useQuestionnaireLogic } from "@/components/questionnaire/use-questionnaire-logic";
 import type { APIError } from "@/hooks/types";
+import { fromInputValue, toInputValue } from "@/utils/answer-value";
+import {
+  Badge,
+  Box,
+  Button,
+  Container,
+  Dialog,
+  Flex,
+  Heading,
+  HStack,
+  Portal,
+  Progress,
+  Spinner,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2 } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useFormState } from "react-hook-form";
+import { useParams } from "react-router";
+import { toast } from "sonner";
 
-const fieldStyles = {
-  w: "full",
-  px: "12px",
-  py: "9px",
-  border: "1px solid",
-  borderColor: "border",
-  borderRadius: "8px",
-  bg: "bg",
-  color: "fg",
-  fontSize: "14px",
-} as const;
+import { QuestionRow } from "./question-row";
+import { SendReasonBanner } from "./send-reason-banner";
 
-type Answers = Record<string, unknown>;
-
-const toFlatAnswers = (answers: Answers) =>
-  Object.entries(answers).map(([questionId, value]) => ({ questionId, value }));
-
+/**
+ * The questionnaire a client fills in.
+ *
+ * Laid out exactly like the case tab a paralegal works in: a section rail on
+ * the left, one section at a time on the right, an explicit Save per section.
+ * That is deliberate and it is not only cosmetic — the two are the same
+ * document, and every save from either side lands in the same answer set and
+ * the same history. A client who saves "Beneficiary details" produces a version
+ * the firm reads under that name.
+ *
+ * Saving a section at a time also matters more here than on the staff side. A
+ * client fills this on a phone, in one sitting or six, and the thing that must
+ * never happen is finishing a section and losing it. Progress is theirs to keep
+ * long before the questionnaire is complete.
+ */
 export function QuestionnairePortalPage() {
   const { token } = useParams<{ firmSlug: string; token: string }>();
-  const qc = useQueryClient();
-  const [answers, setAnswers] = useState<Answers>({});
+  const queryClient = useQueryClient();
+
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-  // The response row is created lazily by the first draft save. Track the id we
-  // get back so uploads can proceed without waiting for a refetch.
+  /** Answers as typed, keyed by question id. Cleared on save and on discard. */
+  const [pendingSectionId, setPendingSectionId] = useState<string | null>(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+
+  // The response row is created lazily by the first save. Tracking the id we
+  // get back lets an upload proceed without waiting for a refetch.
   const [savedResponseId, setSavedResponseId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
@@ -56,81 +76,253 @@ export function QuestionnairePortalPage() {
     enabled: Boolean(token),
   });
 
-  const responseId = data?.response?.id ?? savedResponseId;
-  const sections = data?.questionnaire?.sections ?? [];
+  /** Every section the send carried, before any branch has been applied. */
+  const allSections = useMemo(
+    () => data?.questionnaire?.sections ?? [],
+    [data],
+  );
 
-  // Seed the form with previously-saved answers the first time the questionnaire
-  // loads (render-phase "adjust state on prop change"). Guarded on a one-shot flag
-  // rather than the response id so a later refetch — after the lazy save that a
-  // file upload triggers, or after submit — never clobbers in-progress edits.
-  if (data && !hydrated) {
-    setHydrated(true);
-    const seeded: Answers = {};
-    for (const a of data.response?.answers ?? []) seeded[a.questionId] = a.value;
-    setAnswers(seeded);
-  }
-
-  // Map of questionId -> filename for documents already uploaded, so resumed
-  // file fields show the upload instead of an empty picker.
-  const uploadedFiles = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const f of data?.response?.files ?? []) map[f.questionId] = f.originalFilename;
+  const questionsById = useMemo(() => {
+    const map = new Map<string, PortalSection["questions"][number]>();
+    for (const section of allSections) {
+      for (const question of section.questions) map.set(question.id, question);
+    }
     return map;
-  }, [data?.response?.files]);
+  }, [allSections]);
 
-  // Event handlers below read the current answers/response id without being
-  // re-created on every keystroke — that stability is what lets QuestionField
-  // stay memoized so a keystroke only re-renders the field being typed into.
-  const answersRef = useRef(answers);
-  const responseIdRef = useRef(responseId);
-  useEffect(() => {
-    answersRef.current = answers;
-  }, [answers]);
-  useEffect(() => {
-    responseIdRef.current = responseId;
-  }, [responseId]);
+  /** What the server holds, which is what a draft is measured against. */
+  const answers = useMemo(() => {
+    const map = new Map<string, unknown>();
+    for (const answer of data?.response?.answers ?? []) {
+      map.set(answer.questionId, answer.value);
+    }
+    return map;
+  }, [data]);
+
+  const uploadedFiles = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const file of data?.response?.files ?? []) {
+      map.set(file.questionId, file.originalFilename);
+    }
+    return map;
+  }, [data]);
+
+  /**
+   * Every answer, as one form.
+   *
+   * Seeded from what is stored, so answers from an earlier sitting appear
+   * without a hydration flag deciding when — and a client answering on a
+   * phone re-renders one question per keystroke rather than the whole
+   * section. See `useDraftForm`.
+   *
+   * Built from every section, branches included. A field that unregistered
+   * itself when its branch closed would lose what the client had typed the
+   * moment they changed their mind back, and the rules could no longer read
+   * the answer they are conditioned on.
+   */
+  const stored = useMemo(() => {
+    const values: Record<string, string> = {};
+    for (const section of allSections) {
+      for (const question of section.questions) {
+        values[question.id] = toInputValue(answers.get(question.id));
+      }
+    }
+    return values;
+  }, [allSections, answers]);
+
+  const form = useDraftForm(stored);
+
+  /**
+   * The branches, live as the client types.
+   *
+   * Everything below counts, gates and renders from `sections` — the sections
+   * this set of answers actually puts on screen — so a closed branch is absent
+   * from the progress count, from the rail and from the submit gate at the same
+   * instant it leaves the page.
+   */
+  const { sections, hidden, isRequired, withdrawn } = useQuestionnaireLogic({
+    rules: data?.questionnaire?.logicRules,
+    sections: allSections,
+    saved: answers,
+    control: form.control,
+  });
+
+  // Only `isDirty`, which flips once. The count belongs to `UnsavedBar`.
+  const { isDirty } = useFormState({ control: form.control });
+
+  const activeSection: PortalSection | undefined =
+    sections.find((s) => s.id === selectedSectionId) ?? sections[0];
+
+  /** Whether one question has been answered. Uploads live outside `answers`. */
+  const isAnswered = useCallback(
+    (question: PortalQuestion) => {
+      if (question.type === "file_upload") return uploadedFiles.has(question.id);
+      const value = answers.get(question.id);
+      // A repeating answer is a list, and an empty one is not an answer — the
+      // progress count is the thing a client reads to decide whether they are
+      // finished, so it must not count a question they have not touched.
+      if (Array.isArray(value)) return value.length > 0;
+      return value != null && value !== "";
+    },
+    [answers, uploadedFiles],
+  );
+
+  const answeredCount = useCallback(
+    (section: PortalSection) => section.questions.filter(isAnswered).length,
+    [isAnswered],
+  );
+
+  const railSections = useMemo(
+    () =>
+      sections.map((section) => {
+        const required = section.questions.filter(isRequired);
+        return {
+          id: section.id,
+          title: section.title,
+          answered: answeredCount(section),
+          total: section.questions.length,
+          requiredAnswered: required.filter(isAnswered).length,
+          requiredTotal: required.length,
+        };
+      }),
+    [sections, answeredCount, isAnswered, isRequired],
+  );
+
+  /**
+   * Every required question on the questionnaire, across all sent sections.
+   *
+   * Submission is one act for the whole questionnaire, so the gate spans every
+   * section rather than the open one — otherwise the button would go live on a
+   * finished section while another still had blanks.
+   */
+  const requiredKeys = useMemo(
+    () =>
+      sections.flatMap((section) =>
+        section.questions
+          // Uploads are not draft values — they are files already on the
+          // server — so they are counted separately, below.
+          .filter((q) => isRequired(q) && q.type !== "file_upload")
+          .map((q) => q.id),
+      ),
+    [sections, isRequired],
+  );
+
+  /**
+   * Required uploads still missing.
+   *
+   * Read from what the server holds rather than the form, because an upload
+   * lands on the response the moment it finishes rather than waiting for a
+   * save. It changes on upload, not on keystroke, so counting it here costs
+   * nothing.
+   */
+  const missingUploads = useMemo(
+    () =>
+      sections.reduce(
+        (sum, section) =>
+          sum +
+          section.questions.filter(
+            (q) =>
+              isRequired(q) &&
+              q.type === "file_upload" &&
+              !uploadedFiles.has(q.id),
+          ).length,
+        0,
+      ),
+    [sections, uploadedFiles, isRequired],
+  );
+
+  const totals = useMemo(() => {
+    const total = sections.reduce((sum, s) => sum + s.questions.length, 0);
+    const answered = sections.reduce((sum, s) => sum + answeredCount(s), 0);
+    return { answered, total };
+  }, [sections, answeredCount]);
+
+  /**
+   * The answers a save should carry.
+   *
+   * What the person changed — minus anything a closed branch has taken off the
+   * screen, plus a null for every answer such a branch has withdrawn.
+   *
+   * The second half is the one that matters. A client who says yes, names an
+   * ex-spouse, saves, and then changes to no has left a name on the response;
+   * nothing downstream would ever ask why, and `populateCaseForms` matches on
+   * field key and would print it on the I-130. The server clears withdrawn
+   * answers at submission for exactly this reason — doing it on every save as
+   * well is what keeps the firm from reading one in the meantime.
+   */
+  const changedAnswers = () => [
+    ...changedEntries(form)
+      .filter(({ key }) => !hidden.has(key))
+      .map(({ key, value }) => ({
+        questionId: key,
+        value: fromInputValue(
+          value,
+          questionsById.get(key)?.type ?? "short_text",
+        ),
+      })),
+    ...withdrawn.map((questionId) => ({ questionId, value: null })),
+  ];
+
+  const refetch = () =>
+    queryClient.invalidateQueries({ queryKey: ["portal-questionnaire", token] });
 
   const saveDraft = useMutation({
     mutationFn: () =>
-      saveDraftByToken(token as string, { answers: toFlatAnswers(answers) }),
-    onSuccess: (res) => {
-      setSavedResponseId(res.id);
-      responseIdRef.current = res.id;
+      saveDraftByToken(token as string, {
+        // Named so the firm's history reads "The client saved Beneficiary
+        // details" rather than an anonymous count.
+        currentSectionId: activeSection?.id ?? null,
+        answers: changedAnswers(),
+      }),
+    onSuccess: (result) => {
+      setSavedResponseId(result.id);
+      // Clean against what was just sent, so the bar clears immediately
+      // instead of waiting on the refetch below.
+      form.reset(form.getValues());
+      refetch();
       toast.success("Progress saved");
     },
-    onError: () => toast.error("Could not save progress"),
+    onError: (err: APIError) =>
+      toast.error(err.response?.data?.message ?? "Could not save your progress"),
   });
 
   const submit = useMutation({
     mutationFn: () =>
-      submitByToken(token as string, { answers: toFlatAnswers(answers) }),
+      submitByToken(token as string, {
+        currentSectionId: activeSection?.id ?? null,
+        answers: changedAnswers(),
+      }),
     onSuccess: () => {
+      form.reset(form.getValues());
       setSubmitted(true);
-      qc.invalidateQueries({ queryKey: ["portal-questionnaire", token] });
+      setConfirmSubmit(false);
+      refetch();
     },
-    onError: (err: APIError) =>
+    onError: (err: APIError) => {
+      setConfirmSubmit(false);
       toast.error(
         err.response?.data?.message ??
-          "Please complete all required fields before submitting",
-      ),
+          "Please answer every required question before submitting",
+      );
+    },
   });
 
-  // A file can only be attached to an existing response, and the response row is
-  // only created by a save. So if nothing has been saved yet, save the answers
-  // filled in so far and use the response that comes back. The in-flight promise
-  // is shared so two uploads started at once don't create two responses.
+  // A file can only be attached to an existing response, and the response row
+  // is only created by a save. So if nothing has been saved yet, create one
+  // empty and use the response that comes back. The in-flight promise is held
+  // in a ref so two uploads started at once share one save rather than racing
+  // to create two responses — read and written inside the callback, never
+  // during render.
   const pendingSave = useRef<Promise<string> | null>(null);
+  const currentResponseId = data?.response?.id ?? savedResponseId;
 
   const ensureResponseId = useCallback(async () => {
-    if (responseIdRef.current) return responseIdRef.current;
+    if (currentResponseId) return currentResponseId;
 
-    pendingSave.current ??= saveDraftByToken(token as string, {
-      answers: toFlatAnswers(answersRef.current),
-    })
-      .then((res) => {
-        responseIdRef.current = res.id;
-        setSavedResponseId(res.id);
-        return res.id;
+    pendingSave.current ??= saveDraftByToken(token as string, { answers: [] })
+      .then((result) => {
+        setSavedResponseId(result.id);
+        return result.id;
       })
       .catch((err) => {
         pendingSave.current = null;
@@ -138,23 +330,29 @@ export function QuestionnairePortalPage() {
       });
 
     return pendingSave.current;
-  }, [token]);
+  }, [token, currentResponseId]);
 
-  const onFileUploaded = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["portal-questionnaire", token] });
-  }, [qc, token]);
+  const goToSection = (id: string) => {
+    if (id === activeSection?.id) return;
+    if (isDirty) {
+      setPendingSectionId(id);
+      return;
+    }
+    setSelectedSectionId(id);
+  };
 
-  const setAnswer = useCallback(
-    (questionId: string, value: unknown) =>
-      setAnswers((prev) => ({ ...prev, [questionId]: value })),
-    [],
-  );
+  const proceedWithNav = () => {
+    if (!pendingSectionId) return;
+    setSelectedSectionId(pendingSectionId);
+    form.reset();
+    setPendingSectionId(null);
+  };
 
   if (isLoading) {
     return (
       <Center>
-        <Loader2 className="spin" />
-        <Text mt="12px" color="fg.muted">
+        <Spinner size="md" />
+        <Text mt={3} color="fg.muted" fontSize="14px">
           Loading your questionnaire…
         </Text>
       </Center>
@@ -165,7 +363,7 @@ export function QuestionnairePortalPage() {
     return (
       <Center>
         <Heading size="md">Link not found or expired</Heading>
-        <Text mt="8px" color="fg.muted" textAlign="center">
+        <Text mt={2} color="fg.muted" fontSize="14px">
           This questionnaire link is invalid, expired, or has already been
           submitted. Please contact your attorney's office for assistance.
         </Text>
@@ -176,13 +374,13 @@ export function QuestionnairePortalPage() {
   if (submitted || data.response?.status === "submitted") {
     return (
       <Center>
-        <Box color="#1f9e75" display="flex" justifyContent="center" alignItems="center">
-          <CheckCircle2 size={48} />
-        </Box>
-        <Heading size="md" mt="16px">
-          Thank you — your responses were submitted
+        <Flex justify="center" color="green.fg">
+          <CheckCircle2 size={44} />
+        </Flex>
+        <Heading size="md" mt={4}>
+          Thank you — your answers were submitted
         </Heading>
-        <Text mt="8px" color="fg.muted" textAlign="center">
+        <Text mt={2} color="fg.muted" fontSize="14px">
           Your attorney's office has received your questionnaire and will be in
           touch. You can close this window.
         </Text>
@@ -190,280 +388,300 @@ export function QuestionnairePortalPage() {
     );
   }
 
+  const percentage =
+    totals.total === 0
+      ? 0
+      : Math.round((totals.answered / totals.total) * 100);
+
   return (
-    <Box minH="100dvh" bg="bg.subtle" py={{ base: "24px", md: "48px" }}>
-      <Container maxW="720px">
-        <Box mb="24px">
-          <Heading size="lg" color="fg">
-            {data.questionnaire?.title ?? "Intake Questionnaire"}
-          </Heading>
-          <Text mt="6px" color="fg.muted" fontSize="14px">
-            Please answer the questions below. Your responses are confidential
-            and secured. You can save your progress and return later.
-          </Text>
-        </Box>
+    <Box minH="100dvh" bg="bg.subtle" py={{ base: 6, md: 10 }}>
+      <Container maxW="1040px">
+        <Flex
+          justify="space-between"
+          align="flex-start"
+          gap={4}
+          mb={4}
+          flexWrap="wrap"
+        >
+          <Box>
+            <Heading size="lg" color="fg">
+              {data.questionnaire?.title ?? "Questionnaire"}
+            </Heading>
+            <Text fontSize="13px" color="fg.muted" mt={1}>
+              {totals.answered} of {totals.total} answered · your answers are
+              confidential, and you can save and come back at any time
+            </Text>
+          </Box>
 
-        <Stack gap="20px">
-          {sections.map((section) => (
-            <Box
-              key={section.id}
-              border="1px solid"
-              borderColor="border"
-              borderRadius="12px"
-              bg="bg"
-              p={{ base: "16px", md: "24px" }}
-            >
-              <Heading size="sm" color="fg" mb="4px">
-                {section.title}
-              </Heading>
-              {section.description ? (
-                <Text color="fg.muted" fontSize="13px" mb="8px">
-                  {section.description}
+          <HStack gap={2}>
+            <Badge size="sm" variant="subtle" colorPalette="gray" fontSize="10px">
+              {percentage}% complete
+            </Badge>
+            <SubmitGate
+              control={form.control}
+              requiredKeys={requiredKeys}
+              extraMissing={missingUploads}
+              isSubmitting={submit.isPending}
+              onSubmit={() => setConfirmSubmit(true)}
+            />
+          </HStack>
+        </Flex>
+
+        {data.send && (
+          <SendReasonBanner
+            reason={data.send.reason}
+            note={data.send.reasonNote}
+          />
+        )}
+
+        <Progress.Root value={percentage} size="xs" colorPalette="blue" mb={5}>
+          <Progress.Track>
+            <Progress.Range />
+          </Progress.Track>
+        </Progress.Root>
+
+        <Flex gap={5} align="flex-start" direction={{ base: "column", lg: "row" }}>
+          <SectionRail
+            items={railSections}
+            activeId={activeSection?.id ?? null}
+            onSelect={goToSection}
+          />
+
+          <Box flex={1} minW={0} w="full">
+            {activeSection && (
+              <>
+                <Text fontSize="14px" fontWeight="500" color="fg" mb={2}>
+                  {activeSection.title}
                 </Text>
-              ) : null}
-              <Stack gap="18px" mt="14px">
-                {section.questions.map((q) => (
-                  <QuestionField
-                    key={q.id}
-                    question={q}
-                    value={answers[q.id]}
-                    token={token as string}
-                    uploadedFilename={uploadedFiles[q.id] ?? null}
-                    ensureResponseId={ensureResponseId}
-                    onFileUploaded={onFileUploaded}
-                    onChange={setAnswer}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          ))}
-        </Stack>
+                {activeSection.description && (
+                  <Text
+                    fontSize="12px"
+                    color="fg.muted"
+                    lineHeight="17px"
+                    mb={3}
+                  >
+                    {activeSection.description}
+                  </Text>
+                )}
 
-        <Flex justify="space-between" gap="12px" mt="24px" wrap="wrap">
-          <chakra.button
-            type="button"
-            onClick={() => saveDraft.mutate()}
-            disabled={saveDraft.isPending}
-            px="18px"
-            py="10px"
-            borderRadius="8px"
-            border="1px solid"
-            borderColor="border"
-            bg="bg"
-            color="fg"
-            fontSize="14px"
-            fontWeight="500"
-          >
-            {saveDraft.isPending ? "Saving…" : "Save progress"}
-          </chakra.button>
-          <chakra.button
-            type="button"
-            onClick={() => submit.mutate()}
-            disabled={submit.isPending}
-            px="22px"
-            py="10px"
-            borderRadius="8px"
-            bg="brand.solid"
-            color="brand.contrast"
-            fontSize="14px"
-            fontWeight="600"
-          >
-            {submit.isPending ? "Submitting…" : "Submit questionnaire"}
-          </chakra.button>
+                <VStack gap={2} align="stretch">
+                  {activeSection.questions.map((question) => (
+                    <QuestionRow
+                      key={question.id}
+                      question={question}
+                      required={isRequired(question)}
+                      control={form.control}
+                      disabled={saveDraft.isPending}
+                      token={token as string}
+                      uploadedFilename={uploadedFiles.get(question.id) ?? null}
+                      ensureResponseId={ensureResponseId}
+                      onFileUploaded={refetch}
+                    />
+                  ))}
+                </VStack>
+
+                <UnsavedBar
+                  control={form.control}
+                  noun="answer"
+                  saveLabel="Save progress"
+                  surface="bg.subtle"
+                  isSaving={saveDraft.isPending}
+                  onSave={() => saveDraft.mutate()}
+                  onDiscard={() => form.reset()}
+                />
+              </>
+            )}
+          </Box>
         </Flex>
       </Container>
+
+      <UnsavedAnswersDialog
+        open={pendingSectionId !== null}
+        control={form.control}
+        isSaving={saveDraft.isPending}
+        onGoBack={() => setPendingSectionId(null)}
+        onDiscard={proceedWithNav}
+        onSave={() =>
+          saveDraft.mutate(undefined, { onSuccess: proceedWithNav })
+        }
+      />
+
+      <ConfirmSubmitDialog
+        open={confirmSubmit}
+        control={form.control}
+        remaining={totals.total - totals.answered}
+        isSubmitting={submit.isPending}
+        onCancel={() => setConfirmSubmit(false)}
+        onConfirm={() => submit.mutate()}
+      />
     </Box>
   );
 }
 
-type QuestionFieldProps = {
-  question: PortalQuestion;
-  value: unknown;
-  token: string;
-  uploadedFilename: string | null;
-  ensureResponseId: () => Promise<string>;
-  onFileUploaded: () => void;
-  onChange: (questionId: string, value: unknown) => void;
-};
-
-const QuestionField = memo(function QuestionField({
-  question,
-  value,
-  token,
-  uploadedFilename,
-  ensureResponseId,
-  onFileUploaded,
-  onChange,
-}: QuestionFieldProps) {
-  const label = (
-    <Text fontSize="14px" fontWeight="500" color="fg" mb="6px">
-      {question.label}
-      {question.isRequired ? (
-        <chakra.span color="#ff2d55"> *</chakra.span>
-      ) : null}
-    </Text>
-  );
-
-  if (question.type === "long_text") {
-    return (
-      <Box>
-        {label}
-        <chakra.textarea
-          {...fieldStyles}
-          minH="92px"
-          value={(value as string) ?? ""}
-          onChange={(e) => onChange(question.id, e.target.value)}
-        />
-      </Box>
-    );
-  }
-
-  if (question.type === "yes_no") {
-    return (
-      <Box>
-        {label}
-        <HStack gap="8px">
-          {["Yes", "No"].map((opt) => {
-            const active = value === opt;
-            return (
-              <chakra.button
-                key={opt}
-                type="button"
-                onClick={() => onChange(question.id, opt)}
-                px="18px"
-                py="8px"
-                borderRadius="8px"
-                border="1px solid"
-                borderColor={active ? "brand.solid" : "border"}
-                bg={active ? "brand.solid" : "bg"}
-                color={active ? "brand.contrast" : "fg"}
-                fontSize="13px"
-                fontWeight="500"
-              >
-                {opt}
-              </chakra.button>
-            );
-          })}
-        </HStack>
-      </Box>
-    );
-  }
-
-  if (question.type === "file_upload") {
-    return (
-      <Box>
-        {label}
-        <FileUploadField
-          token={token}
-          questionId={question.id}
-          initialFilename={uploadedFilename}
-          ensureResponseId={ensureResponseId}
-          onUploaded={onFileUploaded}
-        />
-      </Box>
-    );
-  }
-
-  if (question.type === "date") {
-    return (
-      <Box>
-        {label}
-        <DateField
-          ariaLabel={question.label}
-          value={(value as string) ?? ""}
-          onChange={(next) => onChange(question.id, next)}
-        />
-      </Box>
-    );
-  }
-
-  const inputType =
-    question.type === "email"
-      ? "email"
-      : question.type === "phone"
-        ? "tel"
-        : question.type === "number"
-          ? "number"
-          : "text";
-
-  return (
-    <Box>
-      {label}
-      <chakra.input
-        {...fieldStyles}
-        type={inputType}
-        value={(value as string) ?? ""}
-        onChange={(e) => onChange(question.id, e.target.value)}
-      />
-    </Box>
-  );
-});
-
-function FileUploadField({
-  token,
-  questionId,
-  initialFilename,
-  ensureResponseId,
-  onUploaded,
+/**
+ * The warning shown when moving between sections would drop unsaved answers.
+ *
+ * Offers the save as well as the discard: losing the work is almost never what
+ * the person meant, and on a phone, mid-form, it is the least recoverable thing
+ * this screen can do to somebody.
+ */
+function UnsavedAnswersDialog({
+  open,
+  control,
+  isSaving,
+  onGoBack,
+  onDiscard,
+  onSave,
 }: {
-  token: string;
-  questionId: string;
-  initialFilename: string | null;
-  ensureResponseId: () => Promise<string>;
-  onUploaded: () => void;
+  open: boolean;
+  /** The draft form, so the dialog counts what is unsaved itself. */
+  control: DraftForm["control"];
+  isSaving: boolean;
+  onGoBack: () => void;
+  onDiscard: () => void;
+  onSave: () => void;
 }) {
-  const [uploadedName, setUploadedName] = useState<string | null>(
-    initialFilename,
-  );
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const upload = useMutation({
-    mutationFn: async (file: File) => {
-      const responseId = await ensureResponseId();
-      return uploadFileByToken(token, { responseId, questionId, file });
-    },
-    onSuccess: (_data, file) => {
-      setUploadedName(file.name);
-      onUploaded();
-      toast.success("Document uploaded");
-    },
-    onError: (err: APIError) => {
-      toast.error(
-        err.response?.data?.message ?? "Upload failed — please try again",
-      );
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    },
-  });
+  const { dirtyFields } = useFormState({ control });
+  const count = Object.keys(dirtyFields).length;
 
   return (
-    <chakra.label
-      display="flex"
-      alignItems="center"
-      gap="10px"
-      px="14px"
-      py="12px"
-      border="1px dashed"
-      borderColor="border"
-      borderRadius="8px"
-      bg="bg.subtle"
-      cursor="pointer"
-      fontSize="13px"
-      color="fg.muted"
-    >
-      <Upload size={16} />
-      {upload.isPending
-        ? "Uploading…"
-        : (uploadedName ?? "Choose a file to upload")}
-      <chakra.input
-        type="file"
-        display="none"
-        ref={fileInputRef}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) upload.mutate(file);
-        }}
-      />
-    </chakra.label>
+    <Dialog.Root open={open} onOpenChange={(e) => !e.open && onGoBack()} size="sm">
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header pb={2}>
+              <Dialog.Title fontSize="15px" fontWeight="500">
+                Unsaved answers
+              </Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body pb={4}>
+              <Text fontSize="13px" color="fg.muted" lineHeight="18px">
+                You have {count} answer{count === 1 ? "" : "s"} here that
+                {count === 1 ? " has" : " have"} not been saved. Moving to
+                another section now discards {count === 1 ? "it" : "them"}.
+              </Text>
+            </Dialog.Body>
+            <Dialog.Footer pt={0} pb={5}>
+              <VStack align="stretch" gap={2} w="full">
+                <Button layerStyle="brand-button" size="sm" fontSize="13px" loading={isSaving} onClick={onSave}>
+                  Save and continue
+                </Button>
+                <HStack gap={2} justify="flex-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    fontSize="13px"
+                    fontWeight="400"
+                    color="fg.error"
+                    onClick={onDiscard}
+                  >
+                    Discard changes
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    borderColor="border"
+                    fontSize="13px"
+                    fontWeight="400"
+                    onClick={onGoBack}
+                  >
+                    Go back
+                  </Button>
+                </HStack>
+              </VStack>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
+  );
+}
+
+/**
+ * Confirming the submission.
+ *
+ * Submitting closes the questionnaire to further editing, so it is worth one
+ * question — and worth saying plainly how much is still blank, since the count
+ * on the rail is easy to miss from the bottom of a long section.
+ */
+function ConfirmSubmitDialog({
+  open,
+  control,
+  remaining,
+  isSubmitting,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  /** The draft form, so the dialog counts what is unsaved itself. */
+  control: DraftForm["control"];
+  remaining: number;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { dirtyFields } = useFormState({ control });
+  const unsavedCount = Object.keys(dirtyFields).length;
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(e) => !e.open && onCancel()} size="sm">
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header pb={2}>
+              <Dialog.Title fontSize="15px" fontWeight="500">
+                Submit your questionnaire
+              </Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body pb={4}>
+              <VStack align="stretch" gap={2}>
+                <Text fontSize="13px" color="fg.muted" lineHeight="18px">
+                  Your answers go to your attorney's office and this form closes
+                  for editing. If something needs changing afterwards, they can
+                  reopen it for you.
+                </Text>
+                {unsavedCount > 0 && (
+                  <Text fontSize="13px" color="fg" lineHeight="18px">
+                    The {unsavedCount} answer{unsavedCount === 1 ? "" : "s"} you
+                    have just typed {unsavedCount === 1 ? "is" : "are"} included.
+                  </Text>
+                )}
+                {remaining > 0 && (
+                  <Text fontSize="13px" color="fg.warning" lineHeight="18px">
+                    {remaining} question{remaining === 1 ? " is" : "s are"} still
+                    blank. If any of them are required, submitting will tell you
+                    which.
+                  </Text>
+                )}
+              </VStack>
+            </Dialog.Body>
+            <Dialog.Footer pt={0} pb={5} gap={2}>
+              <Button
+                size="sm"
+                variant="outline"
+                borderColor="border"
+                fontSize="13px"
+                fontWeight="400"
+                onClick={onCancel}
+              >
+                Not yet
+              </Button>
+              <Button
+                layerStyle="brand-button"
+                size="sm"
+                fontSize="13px"
+                loading={isSubmitting}
+                onClick={onConfirm}
+              >
+                Submit
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
   );
 }
 
@@ -475,7 +693,7 @@ function Center({ children }: { children: React.ReactNode }) {
       align="center"
       justify="center"
       bg="bg.subtle"
-      px="24px"
+      px={6}
     >
       <Box maxW="420px" textAlign="center">
         {children}

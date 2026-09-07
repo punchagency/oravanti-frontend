@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RouteObject } from "react-router";
 import { createAdminRouter } from "./admin";
 import { createClientPortalRouter } from "./client";
+import { createPlatformRouter } from "./platform";
 import { isKnownProtectedPath, KNOWN_PROTECTED_PATH_PREFIXES } from "./known-paths";
 
 /*
@@ -10,7 +11,7 @@ import { isKnownProtectedPath, KNOWN_PROTECTED_PATH_PREFIXES } from "./known-pat
   The public router's catch-all consults that list to decide whether an
   unauthenticated visit to some path is "a real app route, send them to login
   and bring them back afterwards" or "no such page, show a 404". A route added
-  to the admin or client router and forgotten here does not fail anywhere — it
+  to any authenticated router and forgotten here does not fail anywhere — it
   just means a logged-out person opening a bookmarked /my-tasks gets a 404
   instead of a login prompt, and loses the destination they were heading to.
   That is precisely how the list came to be missing eight segments.
@@ -100,15 +101,24 @@ describe("known protected paths", () => {
     expect(uncovered).toEqual([]);
   });
 
+  it("covers every top-level segment the platform router declares", () => {
+    const segments = topSegmentsOf(createPlatformRouter().routes);
+    const uncovered = segments.filter(
+      (s) => !PUBLIC_SEGMENTS.has(s) && !isKnownProtectedPath(`/${s}`),
+    );
+    expect(uncovered).toEqual([]);
+  });
+
   /*
     The other direction. A prefix left behind after its route is deleted sends
     a logged-out visitor to log in, only to land on a 404 afterwards — a worse
     outcome than the 404 they would have got straight away.
   */
-  it("lists no prefix that neither router declares", () => {
+  it("lists no prefix that no router declares", () => {
     const declared = new Set([
       ...topSegmentsOf(createAdminRouter().routes),
       ...topSegmentsOf(createClientPortalRouter().routes),
+      ...topSegmentsOf(createPlatformRouter().routes),
     ]);
     const orphaned = KNOWN_PROTECTED_PATH_PREFIXES.filter(
       (prefix) => !declared.has(prefix.replace(/^\//, "")),

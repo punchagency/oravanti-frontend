@@ -36,6 +36,8 @@ import { statusBadgeStyle } from "./components/case-details/shared-data";
 const TAB_CONFIG = [
   { value: "overview", label: "Overview" },
   { value: "workflow", label: "Workflow" },
+  { value: "questionnaire", label: "Questionnaire" },
+  { value: "forms", label: "Forms" },
   { value: "people", label: "People" },
   { value: "documents", label: "Documents" },
   { value: "timeline", label: "Timeline" },

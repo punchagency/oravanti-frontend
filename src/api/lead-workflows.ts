@@ -182,7 +182,6 @@ export interface QuestionnaireFile {
   responseId: string;
   leadId: string | null;
   questionId: string;
-  questionSource: string;
   documentId: string;
   storagePath: string;
   fileUrl: string;

@@ -416,6 +416,11 @@ export const contextNavigation: Record<
           icon: "intake",
         },
         {
+          label: "Case questionnaires",
+          path: "/settings/case-questionnaires",
+          icon: "intake",
+        },
+        {
           label: "Audit trail",
           path: "/settings/audit-trail",
           icon: "clipboard",
