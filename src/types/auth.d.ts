@@ -24,7 +24,20 @@ export type SessionUser = {
   createdAt: Date;
   updatedAt: Date;
   twoFactorEnabled?: boolean;
-  accountType: "firm_admin" | "staff" | "contractor" | "client";
+  /**
+   * Which of the four experiences this person gets. `AppRouter` picks the
+   * router from exactly this value — see `src/routers/index.tsx`.
+   *
+   * `platform_admin` is Oravanti's own staff, who operate the form and
+   * questionnaire catalogue every firm reads. They belong to no firm and can
+   * see no client data.
+   */
+  accountType:
+    | "firm_admin"
+    | "staff"
+    | "contractor"
+    | "client"
+    | "platform_admin";
   onboardingState:
     | "email_unverified"
     | "email_verified"

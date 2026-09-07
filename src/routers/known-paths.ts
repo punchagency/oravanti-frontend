@@ -1,8 +1,11 @@
 // Top-level prefixes for routes that live in the authenticated routers
-// (admin + client portal). The public router's catch-all uses them to tell a
-// "real app route behind login" apart from "no such path in the app" while the
-// user is not signed in.
+// (admin, client portal, and the Oravanti platform CRM). The public router's
+// catch-all uses them to tell a "real app route behind login" apart from "no
+// such path in the app" while the user is not signed in.
 export const KNOWN_PROTECTED_PATH_PREFIXES = [
+  // Oravanti's own CRM. One prefix covers the whole tier because every route
+  // in it is nested under `/platform` — see the note in routers/platform.
+  "/platform",
   "/onboarding",
   "/dashboard",
   "/settings",
