@@ -1,5 +1,7 @@
 export { CaseOverviewTabRoute } from "./overview-tab-route";
 export { CaseWorkflowTabRoute } from "./workflow-tab-route";
+export { CaseQuestionnaireTabRoute } from "./questionnaire-tab-route";
+export { CaseFormsTabRoute } from "./forms-tab-route";
 export { CasePeopleTabRoute } from "./people-tab-route";
 export { CaseDocumentsTabRoute } from "./documents-tab-route";
 export { CaseTimelineTabRoute } from "./timeline-tab-route";
