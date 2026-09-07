@@ -12,15 +12,26 @@ export function NavItem({
   depth = 0,
   onNavigate,
   collapsed = false,
+  active: activeOverride,
 }: {
   item: ContextNavigationItem;
   depth?: number;
   onNavigate?: () => void;
   collapsed?: boolean;
+  /**
+   * Whether to draw this item as the current page, when the exact path match
+   * below is the wrong question.
+   *
+   * The firm's nav does not need it: its groups nest, and a detail page like
+   * `/cases/:id` keeps its section open through `getSectionForPath`. A flat
+   * nav has no section to fall back on, so an item whose detail pages live
+   * under it has to say so itself.
+   */
+  active?: boolean;
 }) {
   const location = useLocation();
   const Icon = iconMap[item.icon];
-  const active = location.pathname === item.path;
+  const active = activeOverride ?? location.pathname === item.path;
   const hasChildren = Boolean(item.children?.length);
   const defaultOpen = hasChildren && hasActiveChild(location.pathname, item);
   const isNested = depth > 0;
