@@ -71,8 +71,12 @@ export function EventIcon({ action }: { action: string }) {
       return <FileText {...iconProps} />;
     case "lead.fee_agreement_sent":
       return <Send {...iconProps} />;
+    case "lead.fee_agreement_client_signed":
+    case "lead.fee_agreement_firm_signed":
     case "lead.fee_agreement_signed":
       return <CheckCircle {...iconProps} />;
+    case "lead.fee_agreement_signer_reassigned":
+      return <UserPlus {...iconProps} />;
     case "lead.fee_agreement_voided":
       return <XCircle {...iconProps} />;
     case "lead.pipeline_initialized":

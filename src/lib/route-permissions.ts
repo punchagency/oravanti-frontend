@@ -18,6 +18,10 @@ export const ROUTE_PERMISSIONS: Record<string, RoutePermission> = {
 
   // ── Leads (intake) ──
   "/leads": "leads:read",
+  // Longest-prefix wins, so this beats "/leads" above. The queue is scoped to
+  // the caller server-side and would simply be empty for anyone else — but an
+  // always-empty nav item is a question every receptionist asks once.
+  "/leads/awaiting-signature": "fee_agreements:sign",
 
   // ── Cases ──
   "/cases": "cases:read",

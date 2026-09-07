@@ -164,6 +164,62 @@ export type FeeAgreement = {
   clientSignedAt: string | null;
   nudgedAt: string | null;
   createdAt: string;
+  /**
+   * Who counter-signs for the firm, and whether they have.
+   *
+   * `firmSigner` null means this agreement has one signer and always will —
+   * either the firm does not counter-sign, or it was already out for signature
+   * before counter-signing existed. Every counter-signature affordance in the
+   * UI hangs off this being non-null, so such an agreement renders exactly as
+   * it did before.
+   */
+  firmSigner: { staffId: string; name: string } | null;
+  firmSignedAt: string | null;
+  firmSignerRemindedAt: string | null;
+  signingOrder: "client_first" | "firm_first" | null;
+  invoiceWaitsForFirmSignature: boolean | null;
+  /** Whether the signed-in user can sign this agreement right now. */
+  canSign: boolean;
+  /** Set once the executed PDF has been archived. */
+  signedDocumentUrl: string | null;
+  /**
+   * The invoice raised for what this agreement charges upfront. Null until it
+   * is signed, and on a pure contingency that bills nothing upfront.
+   */
+  invoice?: FeeAgreementInvoice | null;
+};
+
+export type FeeAgreementInvoice = {
+  invoiceId: string;
+  invoiceNumber: string;
+  status: string;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  /** What is being asked for now — the next unpaid instalment, or the balance. */
+  amountDueNow: number;
+  dueDate: string;
+  /**
+   * Whether the client has actually been sent this bill. `failed` is the one to
+   * surface loudly: it is the state in which the case-opening gate blocks, and
+   * resending from Finance is the fix.
+   */
+  delivery: "sent" | "failed" | "not_attempted";
+  /** Whether this invoice currently satisfies the case-opening gate. */
+  satisfiesGate: boolean;
+  /**
+   * The payment schedule with each row's derived state. Empty when the invoice
+   * is paid in one go — per-instalment amounts are derived from
+   * `invoices.amount_paid`, never stored, so this is the only honest source for
+   * "what is still owed on instalment 3".
+   */
+  instalments: {
+    sequence: number;
+    dueDate: string;
+    amount: number;
+    outstanding: number;
+    state: "paid" | "partial" | "due";
+  }[];
 };
 
 export type LeadDetail = Lead & {
@@ -317,6 +373,9 @@ export type LeadEventType =
   | "consultation_completed"
   | "fee_agreement_generated"
   | "fee_agreement_sent"
+  | "fee_agreement_client_signed"
+  | "fee_agreement_firm_signed"
+  | "fee_agreement_signer_reassigned"
   | "fee_agreement_signed"
   | "payment_received"
   | "case_opened";
@@ -686,6 +745,14 @@ export const cancelConsultation = async (
 
 export type AttorneyFeeType = "flat" | "hourly" | "flat_hourly" | "contingency";
 export type FeePaymentPlan = "pay_in_full" | "two_payments" | "installments";
+/**
+ * How the firm collects what the agreement charges upfront. Mirrors
+ * `consultations.payment_timing` rather than inventing a second vocabulary.
+ */
+export type FeePaymentTiming =
+  | "pay_at_signing"
+  | "invoice_after"
+  | "pay_in_person";
 export type GovernmentFeesPaidBy = "client_upfront" | "firm_advanced";
 export type ContingencyIfLost =
   | "client_owes_nothing"
@@ -712,6 +779,12 @@ export type PaymentAllocation = {
 };
 
 export type GenerateFeeAgreementInput = {
+  /**
+   * Who counter-signs for the firm. Omitted when the firm does not let the
+   * generating attorney choose — the server resolves the default either way and
+   * ignores this rather than rejecting it, so a stale tab cannot fail a draft.
+   */
+  firmSignerStaffId?: string;
   attorneyFee: {
     type: AttorneyFeeType;
     flatRate?: number;
@@ -738,6 +811,7 @@ export type GenerateFeeAgreementInput = {
   twoPaymentsSchedule?: TwoPaymentsSchedule;
   installmentSchedule?: InstallmentSchedule;
   paymentAllocation?: PaymentAllocation;
+  paymentTiming?: FeePaymentTiming;
   applyConsultationCredit: boolean;
   accountSplit?: { operating: number; trust: number };
 };
@@ -765,10 +839,17 @@ export type FeeAgreementDetails = {
   twoPaymentsSchedule?: TwoPaymentsSchedule;
   installmentSchedule?: InstallmentSchedule;
   paymentAllocation?: PaymentAllocation;
+  // Absent on agreements generated before payment timing existed; the backend
+  // treats that as "pay_at_signing".
+  paymentTiming?: FeePaymentTiming;
   applyConsultationCredit: boolean;
   accountSplit: { operating: number; trust: number };
   consultationFeeAmount: number | null;
   docRef: string;
+  /**
+   * Legacy receipt flag. Still written as an audit breadcrumb, but nothing
+   * gates on it once `invoice` exists — read that instead.
+   */
   paymentReceivedAt?: string;
 };
 
@@ -854,14 +935,15 @@ export const markFeeAgreementReceived = async (
 
 export const markFeeAgreementPaymentReceived = async (
   agreementId: string,
-): Promise<{
-  paymentReceived: boolean;
-  agreementId: string;
-  leadId: string;
-  paymentReceivedAt: string;
-}> => {
+  /**
+   * How many instalments arrived. Omitted means one — the next unpaid
+   * instalment, not the whole plan.
+   */
+  instalments?: number,
+): Promise<{ received: boolean; agreementId: string }> => {
   const res = await API.post(
     `/agreements/${agreementId}/mark-payment-received`,
+    instalments == null ? {} : { instalments },
   );
   return res.data.data;
 };
@@ -885,6 +967,77 @@ export const nudgeClient = async (
   agreementId: string,
 ): Promise<{ reminderSentAt: string }> => {
   const res = await API.post(`/agreements/${agreementId}/nudge-client`);
+  return res.data.data;
+};
+
+// ── Firm counter-signature ───────────────────────────────────────────────────
+
+export type AgreementAwaitingSignature = {
+  id: string;
+  leadId: string;
+  leadName: string;
+  matterType: string | null;
+  docRef: string | null;
+  signingOrder: "client_first" | "firm_first" | null;
+  clientSignedAt: string | null;
+  remindedAt: string | null;
+  sentAt: string;
+  /** False while the other party still has to sign first. */
+  canSign: boolean;
+};
+
+/** Every agreement assigned to the signed-in user and still unsigned by them. */
+export const getAgreementsAwaitingSignature = async (): Promise<
+  AgreementAwaitingSignature[]
+> => {
+  const res = await API.get("/agreements/awaiting-signature");
+  return res.data.data;
+};
+
+export type FirmSignSession = {
+  signUrl: string;
+  clientId: string | null;
+  expiresAt: number;
+};
+
+/**
+ * Mint an embedded signing session for the firm's own signer. Authenticated and
+ * narrowed to the assigned signer server-side, unlike the client's session,
+ * which is authenticated by the token in their email.
+ */
+export const getFirmSignSession = async (
+  agreementId: string,
+): Promise<FirmSignSession> => {
+  const res = await API.post(`/agreements/${agreementId}/firm-sign-session`);
+  return res.data.data;
+};
+
+export const remindFirmSigner = async (
+  agreementId: string,
+): Promise<{ reminderSentAt: string }> => {
+  const res = await API.post(`/agreements/${agreementId}/remind-signer`);
+  return res.data.data;
+};
+
+export const reassignFirmSigner = async (
+  agreementId: string,
+  firmSignerStaffId: string,
+): Promise<{
+  reassigned: boolean;
+  agreementId: string;
+  clientMustResign: boolean;
+}> => {
+  const res = await API.post(`/agreements/${agreementId}/reassign-signer`, {
+    firmSignerStaffId,
+  });
+  return res.data.data;
+};
+
+/** A short-lived download URL for the archived, fully executed PDF. */
+export const getSignedAgreementUrl = async (
+  agreementId: string,
+): Promise<{ url: string }> => {
+  const res = await API.get(`/agreements/${agreementId}/document`);
   return res.data.data;
 };
 

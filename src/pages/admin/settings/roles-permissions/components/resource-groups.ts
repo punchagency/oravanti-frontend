@@ -6,7 +6,10 @@
  */
 export const RESOURCE_GROUPS: Record<string, string[]> = {
   Dashboard: ["dashboard"],
-  Leads: ["leads"],
+  // `fee_agreements` is one action — signing — and belongs beside the pipeline
+  // stage it sits in rather than under Finance: it gates binding the firm to a
+  // contract, not handling money.
+  Leads: ["leads", "fee_agreements"],
   Cases: ["cases", "conflicts", "case_review"],
   // Their own section rather than a row under Cases: one `tasks` grant covers
   // case workflow steps, intake pipeline steps and ad-hoc to-dos alike, and

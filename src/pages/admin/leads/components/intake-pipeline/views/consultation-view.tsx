@@ -30,7 +30,6 @@ import {
   useInitiateConsultation,
   useLeadById,
   useLeads,
-  useMarkFeeAgreementPaymentReceived,
   useMarkFeeAgreementReceived,
   useNudgeClient,
   useSendFeeAgreement,
@@ -75,7 +74,6 @@ import {
   FileText,
   Info,
   Lock,
-  Mail,
   MapPin,
   Pencil,
   Phone,
@@ -123,6 +121,12 @@ import {
   SummaryItem,
 } from "../shared/consultation-wizard-shared";
 import { buildFeeAgreementHtml } from "../fee-agreement/fee-agreement-document";
+import { FeeAgreementInvoicePanel } from "../fee-agreement/fee-agreement-invoice";
+import { feeAgreementView } from "../fee-agreement/fee-agreement-status";
+import { MarkPaymentReceivedButton } from "../fee-agreement/mark-payment-button";
+import { SignedAgreementDownload } from "../fee-agreement/signed-agreement-download";
+import { FirmSignaturePanel } from "../fee-agreement/firm-signature-panel";
+import { awaitingFeePayment } from "../fee-agreement/fee-agreement-payment-state";
 import { FeeAgreementWizard } from "../fee-agreement/fee-agreement-wizard";
 import { InstantConsultationDialog } from "../dialogs/instant-consultation-dialog";
 import { QuestionnaireResponseDialog } from "../dialogs/questionnaire-response-dialog";
@@ -765,7 +769,6 @@ export function ConsultationCard({
   const generateFee = useGenerateFeeAgreement();
   const sendFee = useSendFeeAgreement();
   const markReceived = useMarkFeeAgreementReceived();
-  const markPayment = useMarkFeeAgreementPaymentReceived();
   const nudgeClient = useNudgeClient();
   const advanceStage = useAdvanceLeadStage();
   const requestMissing = useRequestMissingDocuments();
@@ -774,12 +777,9 @@ export function ConsultationCard({
   const consultationHistory = leadDetail?.consultationHistory ?? [];
   const hasConsultation = Boolean(consultation);
   const feeAgreement = leadDetail?.feeAgreement;
-  // Case-opening payment gate: standard agreements need payment recorded
-  // before advancing; contingency (and pre-tracking) agreements do not.
-  const awaitingPayment =
-    feeAgreement?.details != null &&
-    feeAgreement.details.attorneyFee.type !== "contingency" &&
-    !feeAgreement.details.paymentReceivedAt;
+  // Case-opening payment gate. Reads the invoice when there is one and only
+  // falls back to the legacy flag when there is not — see `awaitingFeePayment`.
+  const awaitingPayment = awaitingFeePayment(feeAgreement ?? null);
   const send = questionnaire?.send;
   const response = questionnaire?.response;
   const { data: firmFeeSettings } = useConsultationSettings();
@@ -943,28 +943,13 @@ export function ConsultationCard({
     : null;
 
   // ── Fee agreement tracker ────────────────────────────────────────────────────
+  // Derived in one shared place: the same card is rendered on the consultation
+  // stage page, and a second copy of this arithmetic is how the two drifted the
+  // first time.
   const caseOpened = Boolean(leadDetail?.convertedCaseId);
-  const feeStageIndex = caseOpened
-    ? 4
-    : feeAgreement?.status === "signed"
-      ? 3
-      : feeAgreement?.status === "pending_signature"
-        ? 2
-        : feeAgreement?.status === "draft"
-          ? 1
-          : 0;
-  const feeStatus: {
-    label: string;
-    tone: "success" | "warning" | "neutral" | "gold";
-  } = caseOpened
-    ? { label: "Signed & received", tone: "success" }
-    : feeAgreement?.status === "signed"
-      ? { label: "Signed", tone: "success" }
-      : feeAgreement?.status === "pending_signature"
-        ? { label: "Sent", tone: "warning" }
-        : feeAgreement?.status === "draft"
-          ? { label: "Generated", tone: "gold" }
-          : { label: "Not started", tone: "neutral" };
+  const feeView = feeAgreementView(feeAgreement, caseOpened);
+  const feeStageIndex = feeView.activeIndex;
+  const feeStatus = feeView.status;
 
   const alreadySettled =
     consultation?.outcome === "close_no_case" ||
@@ -1436,7 +1421,10 @@ export function ConsultationCard({
               </Text>
               <StatusPill tone={feeStatus.tone}>{feeStatus.label}</StatusPill>
             </HStack>
-            <FeeAgreementTracker activeIndex={feeStageIndex} />
+            <FeeAgreementTracker
+              activeIndex={feeStageIndex}
+              labels={feeView.labels}
+            />
             {caseOpened ? (
               <HStack gap="6px" color="#00785a">
                 <Check size={14} />
@@ -1484,47 +1472,29 @@ export function ConsultationCard({
                 </HStack>
               </Stack>
             ) : feeAgreement.status === "pending_signature" ? (
-              <Stack gap="10px">
-                <MutedText>
-                  Signing link sent — awaiting client signature.
-                </MutedText>
-                <HStack gap="8px" wrap="wrap">
-                  <BrandButton
-                    loading={markReceived.isPending}
-                    onClick={() => markReceived.mutate(feeAgreement.id)}
-                  >
-                    <Check size={14} />
-                    Mark as received
-                  </BrandButton>
-                  <OutlineButton
-                    loading={nudgeClient.isPending}
-                    onClick={() => nudgeClient.mutate(feeAgreement.id)}
-                  >
-                    <Mail size={14} />
-                    Nudge client
-                  </OutlineButton>
-                </HStack>
-              </Stack>
+              <FirmSignaturePanel
+                agreement={feeAgreement}
+                onMarkReceived={() => markReceived.mutate(feeAgreement.id)}
+                markingReceived={markReceived.isPending}
+                onNudgeClient={() => nudgeClient.mutate(feeAgreement.id)}
+                nudgingClient={nudgeClient.isPending}
+              />
             ) : feeAgreement.status === "signed" ? (
               <Stack gap="10px">
                 <MutedText>
                   {awaitingPayment
-                    ? "Signed document received — awaiting payment. Standard agreements require payment before the case can be opened."
+                    ? "Signed document received — awaiting payment. The case cannot be opened until this is paid."
                     : "Signed document received."}
                 </MutedText>
+                <FeeAgreementInvoicePanel agreement={feeAgreement} />
+                <SignedAgreementDownload agreement={feeAgreement} />
                 <HStack gap="8px" wrap="wrap">
                   {awaitingPayment ? (
                     // Recording payment auto-advances the lead server-side.
                     // Advance stays available for the dev-mode gate bypass;
                     // without it the backend 409 surfaces as a toast.
                     <>
-                      <BrandButton
-                        loading={markPayment.isPending}
-                        onClick={() => markPayment.mutate(feeAgreement.id)}
-                      >
-                        <Check size={14} />
-                        Mark payment received
-                      </BrandButton>
+                      <MarkPaymentReceivedButton agreement={feeAgreement} />
                       <OutlineButton
                         loading={advanceStage.isPending}
                         onClick={() =>
@@ -1879,6 +1849,7 @@ export function FeeAgreementPreviewModal({
     win.document.write(
       `<html><head><title>Fee agreement ${preview.document.docRef}</title></head><body style="margin:24px;">${buildFeeAgreementHtml(
         preview.document,
+        preview.agreement.firmSigner?.name,
       )}</body></html>`,
     );
     win.document.close();
@@ -1966,7 +1937,10 @@ export function FeeAgreementPreviewModal({
                 border="1px solid"
                 borderColor="border"
                 dangerouslySetInnerHTML={{
-                  __html: buildFeeAgreementHtml(preview.document),
+                  __html: buildFeeAgreementHtml(
+                    preview.document,
+                    preview.agreement.firmSigner?.name,
+                  ),
                 }}
               />
             )}
@@ -2206,18 +2180,18 @@ function TextLink({
   );
 }
 
-const FEE_STAGES = [
-  "Generate",
-  "Send",
-  "Awaiting signature",
-  "Receive",
-  "Case opened",
-] as const;
-
-function FeeAgreementTracker({ activeIndex }: { activeIndex: number }) {
+function FeeAgreementTracker({
+  activeIndex,
+  labels,
+}: {
+  activeIndex: number;
+  // Passed in rather than fixed: a counter-signed agreement has two signature
+  // nodes, and which of them comes first is a firm setting.
+  labels: readonly string[];
+}) {
   return (
     <HStack gap="0" w="full" align="flex-start">
-      {FEE_STAGES.map((label, index) => {
+      {labels.map((label, index) => {
         const done = index < activeIndex;
         const active = index === activeIndex;
         return (
@@ -2537,6 +2511,8 @@ export function ScheduleConsultationDialog({
   const selectedLead =
     leads.find((l) => l.id === selectedLeadId) ??
     (presetLead && presetLead.id === selectedLeadId ? presetLead : undefined);
+  const hasClientPhone = Boolean(selectedLead?.phone);
+
   const { data: questionnaire } = useLeadQuestionnaire(selectedLeadId);
   const language = questionnaire?.send?.language ?? "English";
   const matterType = selectedLead?.caseTypeName ?? "Not specified";
@@ -2767,6 +2743,7 @@ export function ScheduleConsultationDialog({
                   defaultNotes={getValues("notes")}
                   notifyEmail={notifyEmail}
                   urgent={urgent}
+                  hasClientPhone={hasClientPhone}
                   touchedField={
                     errors.customDuration
                       ? "duration"

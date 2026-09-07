@@ -58,6 +58,7 @@ const FirmSettingsPage = lazyPage(() =>
 );
 const GeneralTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/general"));
 const ConsultationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/consultations"));
+const FeeAgreementsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/fee-agreements"));
 const BillingTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/billing"));
 const NotificationsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/notifications"));
 const ComplianceTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/compliance"));
@@ -78,6 +79,7 @@ const RbacRolesTab = lazyPage(() => import("@/pages/admin/settings/roles-permiss
 const RbacGroupsTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/groups"));
 const RbacMatrixTab = lazyPage(() => import("@/pages/admin/settings/roles-permissions/tabs/matrix"));
 const PaymentsTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/payments"));
+const FinancialAccessTab = lazyPage(() => import("@/pages/admin/settings/firm-settings/tabs/financial-access"));
 
 // Profile
 const MyProfilePage = lazyPage(() =>
@@ -96,6 +98,11 @@ const LeadDetailPage = lazyPage(() =>
 );
 const MyLeadsTasksPage = lazyPage(() =>
   import("@/pages/admin/leads").then((m) => ({ default: m.MyLeadsTasksPage })),
+);
+const AwaitingSignaturePage = lazyPage(() =>
+  import("@/pages/admin/leads").then((m) => ({
+    default: m.AwaitingSignaturePage,
+  })),
 );
 const LeadReviewQueuePage = lazyPage(() =>
   import("@/pages/admin/lead-review-queue").then((m) => ({ default: m.LeadReviewQueuePage })),
@@ -319,10 +326,12 @@ export function createAdminRouter() {
                   <Route index element={<GeneralTab />} />
                   <Route path="general" element={<Navigate to="/settings/firm-settings" replace />} />
                   <Route path="consultations" element={<ConsultationsTab />} />
+                  <Route path="fee-agreements" element={<FeeAgreementsTab />} />
                   <Route path="billing" element={<BillingTab />} />
                   <Route path="notifications" element={<NotificationsTab />} />
                   <Route path="compliance" element={<ComplianceTab />} />
                   <Route path="payments" element={<PaymentsTab />} />
+                  <Route path="financial-access" element={<FinancialAccessTab />} />
                 </Route>
                 <Route path="add-on-activation" element={<ComingSoonPage title="Add-on activation" showBack={false} />} />
                 <Route path="integrations" element={<ComingSoonPage title="Integrations" showBack={false} />} />
@@ -379,6 +388,9 @@ export function createAdminRouter() {
                 <Route index element={<LeadsPage />} />
                 <Route path="my-tasks" element={<MyLeadsTasksPage />} />
                 <Route path="review-queue" element={<LeadReviewQueuePage />} />
+                <Route element={<RequirePermission permission="fee_agreements:sign" />}>
+                  <Route path="awaiting-signature" element={<AwaitingSignaturePage />} />
+                </Route>
                 <Route path=":leadId" element={<LeadDetailPage />}>
                   <Route index element={<LeadOverviewTabRoute />} />
                   <Route path="intake-pipeline" element={<IntakePipelineTabRoute />} />

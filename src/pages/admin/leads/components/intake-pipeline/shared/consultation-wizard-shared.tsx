@@ -230,6 +230,7 @@ export function ScheduleDetailsStep({
   notifyEmail,
   notifySms,
   smsEnabled,
+  hasClientPhone,
   urgent,
   hideUrgent,
   touchedField,
@@ -261,6 +262,7 @@ export function ScheduleDetailsStep({
   notifySms?: boolean;
   /** Firm-wide text messaging switch (consultation_settings.smsEnabled). */
   smsEnabled?: boolean;
+  hasClientPhone?: boolean;
   urgent: boolean;
   // Instant consultations: urgency is implied, so the switch is hidden and a
   // "starts now" note takes its place.
@@ -677,7 +679,7 @@ export function ScheduleDetailsStep({
           */}
           <CheckOption
             checked={Boolean(notifySms) && Boolean(smsEnabled)}
-            disabled={!onNotifySmsChange || !smsEnabled}
+            disabled={!onNotifySmsChange || !smsEnabled || !hasClientPhone}
             onToggle={() => onNotifySmsChange?.(!notifySms)}
             label={
               <>
@@ -685,6 +687,10 @@ export function ScheduleDetailsStep({
                 {!smsEnabled && onNotifySmsChange ? (
                   <chakra.span color="fg.subtle">
                     (off for your firm)
+                  </chakra.span>
+                ) : !hasClientPhone ? (
+                  <chakra.span color="fg.subtle">
+                    (no phone number)
                   </chakra.span>
                 ) : null}
               </>

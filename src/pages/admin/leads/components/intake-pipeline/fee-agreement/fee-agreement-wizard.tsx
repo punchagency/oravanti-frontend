@@ -27,13 +27,19 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { FormSelect } from "@/components/ui/form-select";
+import {
+  useEligibleSigners,
+  useFeeAgreementSettings,
+} from "@/hooks/use-fee-agreement-settings";
 import type { FieldPath } from "react-hook-form";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type {
   FeeAgreementDetails,
+  FeePaymentTiming,
   GenerateFeeAgreementInput,
   Lead,
 } from "@/api/leads";
@@ -77,8 +83,16 @@ const wizardSchema = z
     instCount: z.string(),
     instFirstDate: z.string(),
     allocationOrder: z.enum(["fees_first", "costs_first", "custom"]),
+    paymentTiming: z.enum([
+      "pay_at_signing",
+      "invoice_after",
+      "pay_in_person",
+    ]),
     customFeePercent: z.string(),
     applyConsultationCredit: z.boolean(),
+    // Empty means "whoever the firm resolves by default" — the server decides,
+    // and it decides the same way whether or not this field is sent.
+    firmSignerStaffId: z.string(),
     abaCompliance: z.boolean(),
     abaFeeMethod: z.boolean(),
     abaAlternatives: z.boolean(),
@@ -155,6 +169,70 @@ type WizardForm = z.infer<typeof wizardSchema>;
 // Fields validated by the Next button of each step (the final step validates
 // everything via submit). Every superRefine issue above is pathed to a field
 // inside its own step so trigger() surfaces it at the right time.
+/**
+ * How the firm collects what the agreement charges upfront.
+ *
+ * Distinct from the payment PLAN beside it, and the two are easy to conflate:
+ * the plan is what the client owes and when (a term of the agreement), while
+ * this is how the firm goes about collecting it (an operational choice). A firm
+ * can agree three instalments and still take the first one across the desk.
+ *
+ * Rendered on the contingency step too - a contingency with client-upfront
+ * government fees has a real amount due.
+ */
+const PAYMENT_TIMING_OPTIONS: {
+  value: FeePaymentTiming;
+  title: string;
+  description: string;
+}[] = [
+  {
+    value: "pay_at_signing",
+    title: "Email the invoice as soon as they sign",
+    description:
+      "They can also pay on the signing page straight away. Fastest to get paid.",
+  },
+  {
+    value: "invoice_after",
+    title: "Raise the invoice, but send it yourself later",
+    description:
+      "It appears in Finance ready to send when you are. Nothing is emailed automatically.",
+  },
+  {
+    value: "pay_in_person",
+    title: "Collect in person",
+    description:
+      "Nothing is emailed. Record the payment on the agreement card when it arrives.",
+  },
+];
+
+function PaymentTimingField({
+  value,
+  onSelect,
+}: {
+  value: FeePaymentTiming;
+  onSelect: (v: FeePaymentTiming) => void;
+}) {
+  return (
+    <Box>
+      <MicroLabel>Collecting payment</MicroLabel>
+      <MutedText>
+        The case cannot be opened until this is paid, however you collect it.
+      </MutedText>
+      <Stack gap="8px" mt="8px">
+        {PAYMENT_TIMING_OPTIONS.map((o) => (
+          <RadioRow
+            key={o.value}
+            selected={value === o.value}
+            onSelect={() => onSelect(o.value)}
+            title={o.title}
+            description={o.description}
+          />
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
 const STEP_FIELDS: FieldPath<WizardForm>[][] = [
   ["feeType", "flatRate", "hourlyRate", "estimatedHours", "contingencyPercent"],
   ["governmentFees", "otherCosts"],
@@ -236,6 +314,7 @@ const fmtMoney = (n: number): string =>
 
 const emptyFormValues = (preset: CostPreset): WizardForm => ({
   feeType: null,
+  firmSignerStaffId: "",
   flatRate: "",
   hourlyRate: "",
   estimatedHours: "",
@@ -252,6 +331,7 @@ const emptyFormValues = (preset: CostPreset): WizardForm => ({
   instCount: "12",
   instFirstDate: "",
   allocationOrder: "fees_first",
+  paymentTiming: "pay_at_signing",
   customFeePercent: "50",
   applyConsultationCredit: false,
   abaCompliance: false,
@@ -310,6 +390,10 @@ const detailsToFormValues = (
       : "12",
     instFirstDate: details.installmentSchedule?.firstPaymentDate ?? "",
     allocationOrder: details.paymentAllocation?.order ?? "fees_first",
+    // Absent on agreements generated before timing existed, which the backend
+    // reads as pay_at_signing — reseed the same way so a discard-and-edit round
+    // trip does not silently change how the firm collects.
+    paymentTiming: details.paymentTiming ?? "pay_at_signing",
     customFeePercent:
       details.paymentAllocation?.customFeePercent != null
         ? String(details.paymentAllocation.customFeePercent)
@@ -744,6 +828,31 @@ function WizardFormBody({
   const govFieldArray = useFieldArray({ control, name: "governmentFees" });
   const otherFieldArray = useFieldArray({ control, name: "otherCosts" });
 
+  // Who signs for the firm. Both queries are cheap and shared with the settings
+  // tab, and the signer list is only fetched when a firm actually counter-signs.
+  const { data: signingSettings } = useFeeAgreementSettings();
+  const requiresFirmSignature = Boolean(signingSettings?.requiresFirmSignature);
+  const { data: eligibleSigners } = useEligibleSigners(requiresFirmSignature);
+  const signerOptions = useMemo(
+    () =>
+      (eligibleSigners ?? []).map((signer) => ({
+        value: signer.staffId,
+        label: signer.jobTitle
+          ? `${signer.name} — ${signer.jobTitle}`
+          : signer.name,
+      })),
+    [eligibleSigners],
+  );
+  // Only used to name the signer when the firm has locked the choice. The real
+  // resolution is server-side and walks the consultation attorney first, which
+  // this cannot see — so it names the configured fallback or says nothing
+  // rather than guessing at a name that might be wrong.
+  const defaultSignerName = useMemo(() => {
+    const id = signingSettings?.defaultSignerStaffId;
+    if (!id) return null;
+    return eligibleSigners?.find((s) => s.staffId === id)?.name ?? null;
+  }, [signingSettings?.defaultSignerStaffId, eligibleSigners]);
+
   const w = useWatch({ control });
   const feeType = w.feeType ?? null;
   const isContingency = feeType === "contingency";
@@ -900,7 +1009,14 @@ function WizardFormBody({
                 ? Number(data.customFeePercent)
                 : undefined,
           },
+      // Sent on contingency agreements too: one with client-upfront government
+      // fees has a real amount due, and how it gets collected is the same
+      // question there as anywhere else.
+      paymentTiming: data.paymentTiming,
       applyConsultationCredit: data.applyConsultationCredit,
+      // Omitted when empty so the server resolves its own default, which it
+      // does anyway when the firm does not allow an override.
+      firmSignerStaffId: data.firmSignerStaffId || undefined,
       accountSplit: isCont
         ? undefined
         : {
@@ -1784,6 +1900,11 @@ function WizardFormBody({
               />
             </Box>
 
+            <PaymentTimingField
+              value={w.paymentTiming ?? "pay_at_signing"}
+              onSelect={(v) => setValue("paymentTiming", v)}
+            />
+
             <Box p="16px" borderRadius="10px" bg="bg.subtle">
               <MicroLabel>Agreement summary</MicroLabel>
               <SummaryRow
@@ -1927,6 +2048,11 @@ function WizardFormBody({
               </Stack>
             </Box>
 
+            <PaymentTimingField
+              value={w.paymentTiming ?? "pay_at_signing"}
+              onSelect={(v) => setValue("paymentTiming", v)}
+            />
+
             <Box p="16px" borderRadius="10px" bg="bg.subtle">
               <MicroLabel>Agreement summary</MicroLabel>
               <SummaryRow label="Fee type" value="Contingency" />
@@ -1945,6 +2071,45 @@ function WizardFormBody({
               </HStack>
             </Box>
           </Stack>
+        ) : null}
+
+        {/*
+          Who signs for the firm. Appended to step 3 rather than given a step of
+          its own: for a contingency agreement step 3 is only the ABA
+          confirmations, and a whole step for one field — often a read-only one —
+          is a step nobody thanks you for.
+
+          Absent entirely when the firm does not counter-sign, so a firm that has
+          turned it off sees the wizard it has always seen.
+        */}
+        {step === 2 && signingSettings?.requiresFirmSignature ? (
+          <Box pt="4px" borderTop="1px solid" borderColor="border.subtle">
+            <Box pt="16px">
+              <MicroLabel>Who signs for the firm</MicroLabel>
+              {signingSettings.allowSignerOverride ? (
+                <>
+                  <FormSelect
+                    ariaLabel="Firm signer"
+                    options={signerOptions}
+                    value={w.firmSignerStaffId ?? ""}
+                    onChange={(value) => setValue("firmSignerStaffId", value)}
+                    placeholder="Select who signs"
+                  />
+                  <MutedText>
+                    {signingSettings.signingOrder === "firm_first"
+                      ? "They sign first; the client is emailed once they have."
+                      : "They counter-sign once the client has signed."}
+                  </MutedText>
+                </>
+              ) : (
+                <MutedText>
+                  {defaultSignerName
+                    ? `${defaultSignerName} will sign for the firm. Your firm does not allow this to be changed here.`
+                    : "The firm decides who signs. Your firm does not allow this to be changed here."}
+                </MutedText>
+              )}
+            </Box>
+          </Box>
         ) : null}
 
         {/* ── Footer ────────────────────────────────────────────────────── */}
