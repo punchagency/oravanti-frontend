@@ -30,6 +30,21 @@ export default defineConfig({
     // full of half-finished files from prior sessions — looking for specs.
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     css: false,
+    /*
+      15s, because the default 5s is a budget these tests cannot meet.
+
+      Almost every test here renders the real `Provider` tree — Chakra's whole
+      theme, a QueryClient, Nuqs — into jsdom, and the first render in a file
+      pays for all of it. That is deliberate: mocking the providers would leave
+      the tests asserting against a tree the app never builds.
+
+      Under a full parallel run the first render in whichever file loses the
+      race crosses 5s, so `npm run test` failed roughly one file per run — a
+      different one each time, each passing on its own. A suite that fails a
+      third of the time is a suite people stop reading, and the failure said
+      nothing about the product either way.
+    */
+    testTimeout: 15_000,
     coverage: {
       provider: "v8",
       reportsDirectory: "./coverage",
