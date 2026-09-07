@@ -48,6 +48,7 @@ export const ROUTE_PERMISSIONS: Record<string, RoutePermission> = {
   // intake twin of the case workflow template, and a firm that lets someone
   // shape its process has not thereby let them change its billing.
   "/settings/intake-checklist": "workflow:read",
+  "/settings/case-questionnaires": "workflow:read",
 };
 
 /**
